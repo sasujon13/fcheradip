@@ -5,8 +5,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HeaderComponent } from './component/header/header.component';
 import { CartComponent } from './component/cart/cart.component';
-import { BlogComponent } from './component/blog/blog.component';
-import { ContactUsComponent } from './component/contact-us/contact-us.component';
+import { BooksComponent } from './component/books/books.component';
 import { AboutUsComponent } from './component/about-us/about-us.component';
 import { FaqsComponent } from './component/faqs/faqs.component';
 import { OrderComponent } from './component/order/order.component';
@@ -25,14 +24,14 @@ import { ProfileComponent } from './component/profile/profile.component';
 import { MyorderComponent } from './component/myorder/myorder.component';
 import { PasswordComponent } from './component/password/password.component';
 import { IndexComponent } from './component/index/index.component';
+import { CreateQuestionComponent } from './create-question/create-question.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     HeaderComponent,
     CartComponent,
-    BlogComponent,
-    ContactUsComponent,
+    BooksComponent,
     AboutUsComponent,
     FaqsComponent,
     OrderComponent,
@@ -46,6 +45,7 @@ import { IndexComponent } from './component/index/index.component';
     MyorderComponent,
     PasswordComponent,
     IndexComponent,
+    CreateQuestionComponent,
   ],
   imports: [
     BrowserModule,

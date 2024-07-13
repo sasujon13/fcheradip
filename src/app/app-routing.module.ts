@@ -2,9 +2,9 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { CartComponent } from './component/cart/cart.component';
 import { ProductsComponent } from './component/products/products.component';
-import { BlogComponent } from './component/blog/blog.component';
-import { ContactUsComponent } from './component/contact-us/contact-us.component';
+import { BooksComponent } from './component/books/books.component';
 import { AboutUsComponent } from './component/about-us/about-us.component';
+import { CreateQuestionComponent } from './create-question/create-question.component';
 import { OrderComponent } from './component/order/order.component';
 import { FaqsComponent } from './component/faqs/faqs.component';
 import { ChoiceComponent } from './component/choice/choice.component';
@@ -21,10 +21,10 @@ import { IndexComponent } from './component/index/index.component';
 const routes: Routes = [
   {path:'', redirectTo:'packages',pathMatch:'full'},
   {path:'packages', component: ProductsComponent},
-  {path:'blog', component: BlogComponent},
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutUsComponent},
-  {path:'contact_us', component: ContactUsComponent},
+  {path:'create_question', component: CreateQuestionComponent},
+  {path:'books', component: BooksComponent},
   {path:'choice', component: ChoiceComponent},
   {path:'order', component: OrderComponent, canActivate: [AuthGuard]},
   {path:'cart', component: CartComponent},

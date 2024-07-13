@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 
 @Component({
-  selector: 'app-contact-us',
-  templateUrl: './contact-us.component.html',
-  styleUrls: ['./contact-us.component.css']
+  selector: 'app-books',
+  templateUrl: './books.component.html',
+  styleUrls: ['./books.component.css']
 })
-export class ContactUsComponent implements OnInit{
+export class BooksComponent implements OnInit{
   ngOnInit(): void {
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {

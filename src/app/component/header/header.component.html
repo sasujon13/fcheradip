@@ -9,20 +9,17 @@
       <i class="fa fa-search"></i>
     </div>
     <ul class="menu" [class.active]="menuActive" [@flyInOut] (click)="closeMenu()">
-        <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i>Packages</a></li>
-        <li class="menu_item"><a [routerLink]="['/contact_us']" routerLinkActive="contact_us"><i class="fa fa-book"></i>Books</a></li>
-        <li class="menu_item"><a [routerLink]="['/blog']" routerLinkActive="blog"><i class="fa pencil fa-pencil-square-o"></i>Create Questions<div class="caution-box writingbox">
-          <i class="fa fa-exclamation-circle"></i>
-        </div></a></li>
-        <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i>FAQs</a></li>
-        <li class="menu_item"><a [routerLink]="['/about_us']" routerLinkActive="about_us"><i class="fa fa-info-circle"></i>About Us</a></li>
+        <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i> Packages</a></li>
+        <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li>
+        <li class="menu_item"><a [routerLink]="['/create_question']" routerLinkActive="create_question"><i class="fa pencil fa-pencil-square-o"></i> Create Question</a></li>
+        <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i> FAQs</a></li>
+        <li class="menu_item"><a [routerLink]="['/about_us']" routerLinkActive="about_us"><i class="fa fa-info-circle"></i> About Us</a></li>
         
         <li class="menu_item"><a [routerLink]="['/choice']" routerLinkActive="choice"><i class="fa fa-heart fa-heart2"></i><div class="badge">{{totalChoiceItem}}</div></a></li>
-        <li class="menu_item"><a [routerLink]="['/cart']" routerLinkActive="cart"><div class="badge badge2">{{totalCartItem}}</div><i class="fa fa-shopping-cart"></i>Cart</a></li>
       </ul>
       <ul class="menu sign_menu" id="sign_menu" #sign_menu>
-        <li class="menu_item menu_item0" id="menu_item0"><a [routerLink]="['/login']" routerLinkActive="login"><i class="fa fa-sign-in"></i>Login</a></li>
-        <li class="menu_item menu_item1" id="menu_item1"><a [routerLink]="['/auth']" routerLinkActive="auth"><i class="fa fa-user-plus"></i>SignUp</a></li>
+        <li class="menu_item menu_item0" id="menu_item0"><a [routerLink]="['/login']" routerLinkActive="login"><i class="fa fa-sign-in"></i> Login</a></li>
+        <li class="menu_item menu_item1" id="menu_item1"><a [routerLink]="['/auth']" routerLinkActive="auth"><i class="fa fa-user-plus"></i> SignUp</a></li>
       </ul>
       <ul class="profileMenu" id="profileMenu" #profileMenu>
         <li class="menu_item menu_item2" #menu_item2 id="menu_item2" (click)="toggleDropdown()">
