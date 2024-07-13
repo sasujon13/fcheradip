@@ -5,17 +5,17 @@
         <i class="fa fa-bars"></i> <a [routerLink]="['/index']" routerLinkActive="index"><img src="./assets/images/cheradip.svg" class="logo"></a>
     </div>
     <div class="search-bar" id="searchBar">
-      <input type="text" class="form-control" name="searchTerm" id="searchTerm" [(ngModel)]="searchTerm" (keyup)="search($event)" placeholder="Fish Name or Code">
+      <input type="text" class="form-control" name="searchTerm" id="searchTerm" [(ngModel)]="searchTerm" (keyup)="search($event)" placeholder="Search here ... ..">
       <i class="fa fa-search"></i>
     </div>
     <ul class="menu" [class.active]="menuActive" [@flyInOut] (click)="closeMenu()">
-        <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i>Products</a></li>
-        <li class="menu_item"><a [routerLink]="['/blog']" routerLinkActive="blog"><i class="fa pencil fa-pencil-square-o"></i><div class="caution-box writingbox">
+        <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i>Packages</a></li>
+        <li class="menu_item"><a [routerLink]="['/contact_us']" routerLinkActive="contact_us"><i class="fa fa-book"></i>Books</a></li>
+        <li class="menu_item"><a [routerLink]="['/blog']" routerLinkActive="blog"><i class="fa pencil fa-pencil-square-o"></i>Create Questions<div class="caution-box writingbox">
           <i class="fa fa-exclamation-circle"></i>
         </div></a></li>
         <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i>FAQs</a></li>
         <li class="menu_item"><a [routerLink]="['/about_us']" routerLinkActive="about_us"><i class="fa fa-info-circle"></i>About Us</a></li>
-        <li class="menu_item"><a [routerLink]="['/contact_us']" routerLinkActive="contact_us"><i class="fa fa-envelope"></i>Contact Us</a></li>
         
         <li class="menu_item"><a [routerLink]="['/choice']" routerLinkActive="choice"><i class="fa fa-heart fa-heart2"></i><div class="badge">{{totalChoiceItem}}</div></a></li>
         <li class="menu_item"><a [routerLink]="['/cart']" routerLinkActive="cart"><div class="badge badge2">{{totalCartItem}}</div><i class="fa fa-shopping-cart"></i>Cart</a></li>

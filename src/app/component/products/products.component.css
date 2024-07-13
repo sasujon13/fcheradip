@@ -259,3 +259,31 @@ li.item.selected {
   background-color: teal !important;
   color: #ffffff;
 }
+
+.msg {
+  display: inline-block;
+  animation: marquee 30s linear infinite;
+}
+
+
+.marquee {
+  color: transparent;
+  text-align: center;
+  margin: auto;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 50% 100%;
+  -webkit-background-clip: text;
+  background-image: linear-gradient(to right, rgb(255, 255, 255), gold, teal);
+  animation: gradientTransition 10s linear infinite;
+}
+
+@keyframes gradientTransition {
+  0% {
+    background-position: 0% 0;
+  }
+
+  100% {
+    background-position: 100% 0;
+  }
+}

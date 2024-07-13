@@ -60,14 +60,16 @@
   </ul>
 </div>
 <img src="../../../assets/images/filter.svg" class="clickable-image filter">
-<h1 class="msg">SignUp and Get 20% flat discount on all Fishes!</h1>
+<div class="marquee">
+    <h1 class="msg">SignUp and get "New Launch" Bonus of Tk 100.00!</h1>
+</div>
 
 <ul class="item-list">
   <li *ngFor="let item of filterCategory | filter:searchKey:['name', 'bangla_name', 'code']" class="item">
     <div class="image-container">
       <img *ngIf="item.image" [src]="item.image" alt="{{ item.name }}" class="itemImage" [style.opacity]="item.in_stock < 1 ? 0.34 : 1">
       <h3 class="title">{{ item.name }} ({{ item.bangla_name }}) - {{ item.weight }} kg<br>{{ item.size }}-{{ item.code }}</h3>
-      <p class="price">{{ item.price }} tk / 1 kg<sub> @<del> {{ productPrice(item) }}</del> tk</sub>
+      <p class="price">{{ item.price }} tk / 1 kg<sub><del> {{ productPrice(item) }}</del> tk</sub>
       </p>
       <p class="footer">
         <a class="item_footer" *ngIf="item.in_stock > 0">

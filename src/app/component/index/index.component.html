@@ -1,1 +1,100 @@
-<p>index works!</p>
+<div class="card-top" *ngIf="showCard">
+    <ul class="container d-flex filterItem">
+      <li [ngClass]="{'selected': selectedType === ''}" class="item" (click)="filterTypes('')">
+        <a>
+          <h6>All</h6>
+        </a>
+      </li>
+      <li [ngClass]="{'selected': selectedType === 'Soft'}" class="item" (click)="filterTypes('Soft')">
+        <a>
+          <h6>Soft</h6>
+        </a>
+      </li>
+      <li [ngClass]="{'selected': selectedType === 'Dry'}" class="item" (click)="filterTypes('Dry')">
+        <a>
+          <h6>Dry</h6>
+        </a>
+      </li>
+      <li class="item">
+        <a>
+          <h6>Size:</h6>
+        </a>
+        <select class="itemSize" (change)="onSizeChange($event)">
+          <option class="itemSize" value="" selected>
+            <a>
+              <h6>ALL</h6>
+            </a>
+          </option>
+        <option class="itemSize" value="XXL">
+          <a>
+            <h6>XXL</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="XL">
+          <a>
+            <h6>XL</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="L">
+          <a>
+            <h6>L</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="M">
+          <a>
+            <h6>M</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="S">
+          <a>
+            <h6>S</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="XS">
+          <a>
+            <h6>XS</h6>
+          </a>
+        </option>
+    </select>
+    </li>
+    </ul>
+  </div>
+  <img src="../../../assets/images/filter.svg" class="clickable-image filter">
+  <div class="marquee">
+      <h1 class="msg">SignUp and get "New Launch" Bonus of Tk 100.00!</h1>
+  </div>
+  
+  <ul class="item-list">
+    <li *ngFor="let item of filterCategory | filter:searchKey:['name', 'bangla_name', 'code']" class="item">
+      <div class="image-container">
+        <img *ngIf="item.image" [src]="item.image" alt="{{ item.name }}" class="itemImage" [style.opacity]="item.in_stock < 1 ? 0.34 : 1">
+        <h3 class="title">{{ item.name }} ({{ item.bangla_name }}) - {{ item.weight }} kg<br>{{ item.size }}-{{ item.code }}</h3>
+        <p class="price">{{ item.price }} tk / 1 kg<sub><del> {{ productPrice(item) }}</del> tk</sub>
+        </p>
+        <p class="footer">
+          <a class="item_footer" *ngIf="item.in_stock > 0">
+            <i class="fa fa-check-circle"></i>In Stock
+          </a>
+          <a class="item_footer outofstock" *ngIf="item.in_stock < 1">
+            <i class="fa fa-exclamation-circle outofstock"></i>Out of Stock
+          </a>
+          <a class="item_footer choice" *ngIf="item.love" (click)="removeChoiceItem(item)">
+            <i class="fa fa-heart choice" style="color: red;"></i>
+          </a>
+          <a class="item_footer" *ngIf="!item.love" (click)="addtochoice(item)">
+            <i class="fa fa-heart" style="color: teal;"></i>
+          </a>
+          <a class="item_footer" *ngIf="!item.add_to_cart" (click)="addtocart(item)">
+            <i class="fa fa-cart-plus"></i>Add to Cart
+          </a>
+          <a class="item_footer addedtocart" *ngIf="item.add_to_cart" (click)="addtocart(item)">
+            <i class="fa fa-check addedtocart"></i>Added to Cart
+          </a>
+          <a [routerLink]="['/order']" routerLinkActive="order"  class="item_footer" (click)="addtocart(item)">
+            <i class="fa fa-shopping-cart"></i>Buy
+          </a>
+        </p>
+      </div>
+    </li>
+  </ul>
+  <div class="gap" style="height: 100px;"></div>

@@ -19,8 +19,8 @@ import { PasswordComponent } from './component/password/password.component';
 import { IndexComponent } from './component/index/index.component';
 
 const routes: Routes = [
-  {path:'', redirectTo:'products',pathMatch:'full'},
-  {path:'products', component: ProductsComponent},
+  {path:'', redirectTo:'packages',pathMatch:'full'},
+  {path:'packages', component: ProductsComponent},
   {path:'blog', component: BlogComponent},
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutUsComponent},
