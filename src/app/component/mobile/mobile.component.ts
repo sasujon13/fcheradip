@@ -1,40 +1,28 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
-
 @Component({
-  selector: 'app-auth',
-  templateUrl: './profile.component.html',
-  styleUrls: ['./profile.component.css']
+  selector: 'app-mobile',
+  templateUrl: './mobile.component.html',
+  styleUrls: ['./mobile.component.css']
 })
-
-export class ProfileComponent implements OnInit {
+export class MobileComponent implements OnInit {
   @ViewChild('consoleOutput') consoleOutput: ElementRef | undefined;
   authForm: FormGroup;
   isPasswordMismatch = false;
+  isPasswordMismatch3 = false;
   isMobileNumberRegistered = false;
   isPasswordLength = false;
+  isUserNameLength = false;
   showPassword: boolean = false;
-  jsonData: any = {
-    division: '',
-    district: '',
-    thana: '',
-    paymentMethod: ''
-  };
-
-  divisions: string[] = [];
-  districts: string[] = [];
-  thanas: string[] = [];
-  username: any;
-  fullName: any;
-  gender: any;
-  union: any;
-  village: any;
+  jsonData: any;
+  username: any = '';
+  newusername: any = '';
 
   constructor(
     private fb: FormBuilder,
@@ -45,100 +33,27 @@ export class ProfileComponent implements OnInit {
     this.authForm = this.fb.group({
       // ... form controls ...
     });
+
+    this.username = localStorage.getItem('username');
   }
 
   ngOnInit(): void {
     const searchBarElement = document.getElementById('searchBar');
+
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
     }
-    this.fetchDivisions();
+
     const savedAuthFormData = localStorage.getItem('authFormData');
     if (savedAuthFormData) {
       const authData = JSON.parse(savedAuthFormData);
       this.authForm.patchValue(authData);
     }
-
-    const scienceC = document.getElementById('science');
-    const businessC = document.getElementById('business');
-    const humanitiesC = document.getElementById('humanities');
-
-    const science = document.getElementById('scienceSubjects');
-    const science2 = document.getElementById('scienceSubjects2');
-    const arts = document.getElementById('humanitiesSubjects');
-    const arts2 = document.getElementById('humanitiesSubjects2');
-    const arts3 = document.getElementById('humanitiesSubjects3');
-    const business = document.getElementById('businessSubjects');
-    const business2 = document.getElementById('businessSubjects2');
-    const business3 = document.getElementById('businessSubjects3');
-  
-    if (scienceC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
-
-      science.style.display = 'flex';
-      science2.style.display = 'flex';
-
-      arts.style.display = 'none';
-      arts2.style.display = 'none';
-      arts3.style.display = 'none';
-
-      business.style.display = 'none';
-      business2.style.display = 'none';
-      business3.style.display = 'none';
-    }
-    
-    if (humanitiesC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
-
-      science.style.display = 'none';
-      science2.style.display = 'none';
-
-      arts.style.display = 'flex';
-      arts2.style.display = 'flex';
-      arts3.style.display = 'flex';
-
-      business.style.display = 'none';
-      business2.style.display = 'none';
-      business3.style.display = 'none';
-    }
-    
-    if (businessC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
-
-      science.style.display = 'none';
-      science2.style.display = 'none';
-
-      arts.style.display = 'none';
-      arts2.style.display = 'none';
-      arts3.style.display = 'none';
-
-      business.style.display = 'flex';
-      business2.style.display = 'flex';
-      business3.style.display = 'flex';
-    }
-    
     this.authForm = this.fb.group({
-      acctype: ['student', [Validators.required, Validators.maxLength(7)]],
       username: ['', [Validators.required, Validators.minLength(11), Validators.maxLength(11)]],
+      newusername: ['', [Validators.required, Validators.minLength(11), Validators.maxLength(11)]],
       password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(14)]],
-      fullName: ['', [Validators.required, Validators.maxLength(31)]],
-      group: ['science', [Validators.required, Validators.maxLength(18)]],
-      gender: ['Male', [Validators.required, Validators.maxLength(6)]],
-      division: ['', [Validators.required, Validators.maxLength(31)]],
-      district: ['', [Validators.required, Validators.maxLength(31)]],
-      thana: ['', [Validators.required, Validators.maxLength(31)]],
-      union: ['', [Validators.required, Validators.maxLength(31)]],
-      village: ['', [Validators.required, Validators.maxLength(255)]]
     });
-
-    this.username = localStorage.getItem('username');
-    this.jsonData.username = this.username;
-    this.fullName = localStorage.getItem('fullName');
-    this.jsonData.fullName = this.fullName;
-    this.gender = localStorage.getItem('gender');
-    this.jsonData.gender = this.gender;
-    this.union = localStorage.getItem('union');
-    this.jsonData.union = this.union;
-    this.village = localStorage.getItem('village');
-    this.jsonData.village = this.village;
-
     this.authForm.get('username')?.valueChanges
       .pipe(
         debounceTime(300),
@@ -162,7 +77,7 @@ export class ProfileComponent implements OnInit {
         }
       });
 
-    this.authForm.get('password')?.valueChanges
+      this.authForm.get('password')?.valueChanges
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
@@ -189,7 +104,29 @@ export class ProfileComponent implements OnInit {
             this.isPasswordMismatch = false;
         }
       });
-
+      
+    this.authForm.get('newusername')?.valueChanges
+    .pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap((newusername) => {
+        if (newusername.length === 11) {
+          return this.apiService.checkMobileNumberExists(newusername);
+        }
+        return of(false);
+      })
+    )
+    .subscribe((response: any) => {
+      if (!response)
+        this.isMobileNumberRegistered = false;
+      else if (typeof response === 'object' && response.hasOwnProperty('exists')) {
+        const check = response.exists;
+        if (check === false)
+          this.isMobileNumberRegistered = false;
+        else
+          this.isMobileNumberRegistered = true;
+      }
+    });
   }
   hasEmptyFields() {
     const formControls = this.authForm.controls;
@@ -206,36 +143,29 @@ export class ProfileComponent implements OnInit {
       this.handleResponse("Please Fillup the Red-Marked Fields!");
     }
     else {
-      if (this.authForm.valid && this.isPasswordMismatch === false) {
-        const acctype = this.authForm.value.acctype;
-        const fullName = this.authForm.value.fullName;
+      if (this.authForm.valid) {
         const username = this.authForm.value.username;
+        const newusername = this.authForm.value.newusername;
         const password = this.authForm.value.password;
-        const group = this.authForm.value.group;
-        const gender = this.authForm.value.gender;
-        const division = this.authForm.value.division;
-        const district = this.authForm.value.district;
-        const thana = this.authForm.value.thana;
-        const union = this.authForm.value.union;
-        const village = this.authForm.value.village;
         const formData = this.authForm.value;
         localStorage.setItem('formData', JSON.stringify(formData));
-        this.apiService.update(acctype, fullName, group, gender, division, district, thana, union, village, password).subscribe(
+        this.apiService.updateMobile(username, newusername, password).subscribe(
           (response) => {
-            this.snackBar.open('Profile Update Successful!', 'Close', {
+            this.snackBar.open('Mobile Update Successful!', 'Close', {
               duration: 3000,
               panelClass: ['success-snackbar'],
             });
             this.logout();
-            const returnUrl = localStorage.getItem('returnUrl') || ''; // Default to root if returnUrl is not set
+            const returnUrl = localStorage.getItem('returnUrl') || '';
             this.router.navigate([returnUrl]);
             localStorage.setItem('returnUrl', '');
+            localStorage.setItem('username', newusername);
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('authToken', response)
             localStorage.setItem('formData', JSON.stringify(formData));
           },
           (error) => {
-            console.error('Update error:', error);
+            console.error('Signup error:', error);
           }
         );
       } else {
@@ -243,36 +173,6 @@ export class ProfileComponent implements OnInit {
         this.authForm.markAllAsTouched();
       }
     }
-  }
-
-  onDivisionChange(): void {
-    const selectedDivision = this.authForm.get('division')?.value;
-    if (selectedDivision) {
-      this.apiService.getDistricts(selectedDivision).subscribe(districts => {
-        this.districts = districts;
-      });
-    }
-  }
-
-  onDistrictChange(): void {
-    const selectedDivision = this.authForm.get('division')?.value;
-    const selectedDistrict = this.authForm.get('district')?.value;
-    if (selectedDivision && selectedDistrict) {
-      this.apiService.getThanas(selectedDivision, selectedDistrict).subscribe(thanas => {
-        this.thanas = thanas;
-      });
-    }
-  }
-
-  fetchDivisions() {
-    this.apiService.getDivisions().subscribe(
-      (data: string[]) => {
-        this.divisions = data;
-      },
-      error => {
-        console.error('Error fetching divisions:', error);
-      }
-    );
   }
 
   togglePasswordVisibility(): void {

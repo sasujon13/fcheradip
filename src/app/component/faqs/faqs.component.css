@@ -18,8 +18,9 @@
   .parent2{
     max-width: 1024px;
     width: 100%;
-    margin: 0 auto;
+    margin: -100px auto auto auto;
     background-color: #ffe09d;
+    z-index: -1;
   }
   .notebg{
     margin: 0 auto;

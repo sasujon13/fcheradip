@@ -12,7 +12,7 @@ export class FaqsComponent implements OnInit {
     const searchBarElement = document.getElementById('searchBar');
 
   if (searchBarElement) {
-    searchBarElement.style.display = 'none';
+    searchBarElement.style.display = 'block';
   }
     this.applyMargin();
     document.addEventListener('contextmenu', function (event) {

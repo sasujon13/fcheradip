@@ -1,0 +1,53 @@
+<div class="login_signup_form">
+    <h2>Update Mobile</h2>
+    <form [formGroup]="authForm" (ngSubmit)="onAuth()">
+        <div class="form-group">
+            <label for="username">Mobile Number</label>
+            <div class="input-group">
+                <input type="text" class="form-control" id="username" [(ngModel)]="username" formControlName="username"
+                    [readonly]="true" [disabled]="true"
+                    style="user-select: none; pointer-events: none; text-align: center;" *ngIf="username"
+                    [value]="username" />
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="newusername">New Mobile N.</label>
+            <div class="input-group">
+            <input type="text"  style="text-align: center;" formControlName="newusername" id="newusername" placeholder="Your 11 Digits Mobile"
+              class="form-control" [ngClass]="{ 'is-invalid': authForm.get('newusername')?.touched && authForm.get('newusername')?.invalid }" />
+        
+            <div *ngIf="isMobileNumberRegistered" class="error-message errormessage">
+              This Mobile number is already registered. Please <a [routerLink]="['/login']" routerLinkActive="login">Login</a> /
+              <a [routerLink]="['']" routerLinkActive="reset">Reset Password</a> / try with a different Mobile number.....
+            </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="password">User Password</label>
+            <div class="input-group">
+                <input type="{{ showPassword ? 'text' : 'password' }}" style="text-align: center;" formControlName="password" id="password"
+                    class="form-control"
+                    [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
+                <div class="input-group-append">
+                    <span class="input-group-text" (click)="togglePasswordVisibility()">
+                        <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+                    </span>
+                </div>
+
+                <div *ngIf="isPasswordMismatch" class="error-message errormessage passwordCheck">
+                    Your Password doesn't match. Please try again or <a [routerLink]="['']"
+                        routerLinkActive="reset">Reset</a>
+                    password / <a [routerLink]="['/auth']" routerLinkActive="auth">Signup</a> with a different Mobile
+                    number!
+                </div>
+                <div *ngIf="isPasswordLength" class="error-message errormessage passwordCheck">
+                    Password must be within 6 - 14 Characters.
+                </div>
+            </div>
+
+        </div>
+
+        <div #consoleOutput class="console-output"></div>
+        <button type="submit">Update</button>
+    </form>
+</div>

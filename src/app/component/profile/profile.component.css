@@ -1,12 +1,12 @@
 @import '../auth/auth.component.css';
 
 .console-output{
-    margin: 24px auto 0 auto;
+    margin: -12px auto 12px auto;
     width: max-content;
     text-align: center; 
     color: darkred;
   }
   button{
-      margin: 15px auto 0 auto !important;
+      margin: 15px auto 12px auto !important;
       width: 200px;
   }

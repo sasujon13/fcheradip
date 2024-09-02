@@ -122,6 +122,7 @@ export class LoginComponent implements OnInit {
             this.router.navigate([returnUrl]);
             localStorage.setItem('returnUrl', '');
             localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('username', username);
             localStorage.setItem('authToken', response)
             localStorage.setItem('formData', JSON.stringify(formData));
           },

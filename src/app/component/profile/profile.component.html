@@ -1,33 +1,106 @@
 <div class="login_signup_form">
   <h2>Profile Update</h2>
   <form [formGroup]="authForm" (ngSubmit)="onAuth()">
-    <div class="form-group">
-    <label for="username">Mobile No</label>
-    <input type="text" class="form-control" id="username" [(ngModel)]="username" formControlName="username" [readonly]="true" [disabled]="true" style="user-select: none; pointer-events: none; text-align: center;" *ngIf="username" [value]="username" />
-  </div>
-    <label for="password">Password</label>
-    <div class="input-group">
-      <input type="{{ showPassword ? 'text' : 'password' }}" formControlName="password" id="password"
-        class="form-control"
-        [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
-      <div class="input-group-append">
-        <span class="input-group-text" (click)="togglePasswordVisibility()">
-          <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
-        </span>
-      </div>
+    
+    <label for="acctype">Acc. Type</label>
+    <div class="type_options">
+      <label class="student">
+        <input type="radio" id="teacher" formControlName="acctype" name="acctype" value="teacher" class="teacher" /> Teacher
+      </label>
+      <label>
+        <input type="radio" id="student" formControlName="acctype" name="acctype" value="student" class="other" /> Student
+      </label>
     </div>
-    <div *ngIf="isPasswordMismatch" class="error-message errormessage">
-      Your Password doesn't match. Please try again or <a [routerLink]="['']" routerLinkActive="reset">Reset</a>
-      password / <a [routerLink]="['/auth']" routerLinkActive="auth">Signup</a> with a different Mobile number!
-    </div>
-    <div *ngIf="isPasswordLength" class="error-message errormessage">
-      Password must be within 6 - 14 Characters.
+  <label for="fullName">Full Name</label>
+  <input type="text" formControlName="fullName" [(ngModel)]="jsonData.fullName" id="fullName" class="form-control"
+    [ngClass]="{ 'is-invalid': authForm.get('fullName')?.touched && authForm.get('fullName')?.invalid }" />
+
+    <label for="group">Group</label>
+    <div class="group_options">
+      <label class="science">
+        <input type="radio" id="science" formControlName="group" name="group" value="science" class="science" /> Science
+      </label>
+      <label>
+        <input type="radio" id="business" formControlName="group" name="group" value="business" class="other" /> Business
+      </label>
+      <label>
+        <input type="radio" id="humanities" formControlName="group" name="group" value="humanities" class="other" /> Arts
+      </label>
     </div>
 
-    <label for="fullName">Full Name</label>
-    <input type="text" formControlName="fullName" [(ngModel)]="jsonData.fullName" id="fullName" class="form-control"
-      [ngClass]="{ 'is-invalid': authForm.get('fullName')?.touched && authForm.get('fullName')?.invalid }" />
+    <label for="subjects">Optional<br>Subjects</label>
+    <div class="subject_options" id="scienceSubjects">
+      <label class="phy">
+        <input type="checkbox" id="phy" formControlName="subjects" name="subjects" value="phy" class="phy" /> Physics
+      </label>
+      <label>
+        <input type="checkbox" id="che" formControlName="subjects" name="subjects" value="che" class="other" /> Chemistry
+      </label>
+      <label>
+        <input type="checkbox" id="math" formControlName="subjects" name="subjects" value="math" class="other" /> Math
+      </label>
+    </div>
+    <div class="subject_options2" id="scienceSubjects2">
+      <label>
+        <input type="checkbox" id="bio" formControlName="subjects" name="subjects" value="bio" class="other" /> Biology
+      </label>
+      <label>
+        <input type="checkbox" id="stat" formControlName="subjects" name="subjects" value="stat" class="other" /> Statistics
+      </label>
+      <label>
+        <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agri.
+      </label>
+    </div>
 
+    <div class="subject_options" id="businessSubjects">
+      <label class="acc">
+        <input type="checkbox" id="acc" formControlName="subjects" name="subjects" value="acc" class="acc" /> Accounting
+      </label>
+      <label>
+        <input type="checkbox" id="man" formControlName="subjects" name="subjects" value="man" class="other" /> Management
+      </label>
+    </div>
+    <div class="subject_options2" id="businessSubjects2">
+      <label>
+        <input type="checkbox" id="fin" formControlName="subjects" name="subjects" value="fin" class="other" /> Finance & Bank.
+      </label>
+      <label>
+        <input type="checkbox" id="eco" formControlName="subjects" name="subjects" value="eco" class="other" /> Economics
+      </label>
+    </div>
+    <div class="subject_options3" id="businessSubjects3">
+      <label>
+        <input type="checkbox" id="stat" formControlName="subjects" name="subjects" value="stat" class="other" /> Statistics
+      </label>
+      <label>
+        <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agriculture
+      </label>
+    </div>
+
+    <div class="subject_options" id="humanitiesSubjects">
+      <label class="isl">
+        <input type="checkbox" id="isl" formControlName="subjects" name="subjects" value="isl" class="isl" /> Islamic History
+      </label>
+      <label>
+        <input type="checkbox" id="soc" formControlName="subjects" name="subjects" value="soc" class="other" /> Sociology
+      </label>
+    </div>
+    <div class="subject_options2" id="humanitiesSubjects2">
+      <label>
+        <input type="checkbox" id="civ" formControlName="subjects" name="subjects" value="civ" class="other" /> Civics
+      </label>
+      <label>
+        <input type="checkbox" id="pol" formControlName="subjects" name="subjects" value="pol" class="other" /> Political Science
+      </label>
+    </div>
+    <div class="subject_options3" id="humanitiesSubjects3">
+      <label>
+        <input type="checkbox" id="eco" formControlName="subjects" name="subjects" value="eco" class="other" /> Economics
+      </label>
+      <label>
+        <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agriculture
+      </label>
+    </div>
 
     <label for="male">Gender</label>
     <div class="gender_options">
@@ -75,6 +148,25 @@
       [ngClass]="{ 'is-invalid': authForm.get('village')?.touched && authForm.get('village')?.invalid }"
       placeholder="Enter Your Village, Para/Moholla, Road No, Block No, Quarter No, Floor No etc....."></textarea>
     <div #consoleOutput class="console-output"></div>
+    <label for="password">Password</label>
+    <div class="input-group">
+      <input type="{{ showPassword ? 'text' : 'password' }}" style="text-align: center;" formControlName="password" id="password"
+        class="form-control"
+        [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
+      <div class="input-group-append">
+        <span class="input-group-text" (click)="togglePasswordVisibility()">
+          <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+        </span>
+      </div>
+    </div>
+    <div *ngIf="isPasswordMismatch" class="error-message errormessage">
+      Your Password doesn't match. Please try again or <a [routerLink]="['']" routerLinkActive="reset">Reset</a>
+      password / <a [routerLink]="['/auth']" routerLinkActive="auth">Signup</a> with a different Mobile number!
+    </div>
+    <div *ngIf="isPasswordLength" class="error-message errormessage">
+      Password must be within 6 - 14 Characters.
+    </div>
+
     <button type="submit">Update</button>
   </form>
 </div>

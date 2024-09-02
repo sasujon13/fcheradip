@@ -1,55 +1,130 @@
 <div class="login_signup_form">
   <h2>Signup</h2>
   <form [formGroup]="authForm" (ngSubmit)="onAuth()">
-    <label for="username">Mobile No</label>
-    <input type="text" formControlName="username" id="username" placeholder="Your 11 Digits Mobile Number"
-      class="form-control" [ngClass]="{ 'is-invalid': authForm.get('username')?.touched && authForm.get('username')?.invalid }" />
 
-    <div *ngIf="isMobileNumberRegistered" class="error-message errormessage">
-      This Mobile number is already registered. Please <a [routerLink]="['/login']" routerLinkActive="login">Login</a> /
-      <a [routerLink]="['']" routerLinkActive="reset">Reset Password</a> / try with a different Mobile number.....
-    </div>
-    <label for="password">Password</label>
-    <div class="input-group">
-      <input type="{{ showPassword ? 'text' : 'password' }}" formControlName="password" id="password"
-        class="form-control" [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
-      <div class="input-group-append">
-        <span class="input-group-text" (click)="togglePasswordVisibility()">
-          <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
-        </span>
-      </div>
-    </div>
-    <div *ngIf="isPasswordLength" class="error-message errormessage">
-      Password must be within 6 - 14 Characters.
+    <label for="acctype">Acc. Type</label>
+    <div class="type_options">
+      <label class="student">
+        <input type="radio" id="teacher" formControlName="acctype" name="acctype" value="teacher" class="teacher" /> Teacher
+      </label>
+      <label>
+        <input type="radio" id="student" formControlName="acctype" name="acctype" value="student" class="other" /> Student
+      </label>
     </div>
 
     <label for="fullName">Full Name</label>
-    <input type="text" formControlName="fullName" id="fullName" class="form-control"
+    <input type="text" style="text-align: center;" formControlName="fullName" id="fullName" class="form-control"
       [ngClass]="{ 'is-invalid': authForm.get('fullName')?.touched && authForm.get('fullName')?.invalid }" />
 
+      <label for="group">Group</label>
+      <div class="group_options">
+        <label class="science">
+          <input type="radio" id="science" formControlName="group" name="group" value="science" class="science" /> Science
+        </label>
+        <label>
+          <input type="radio" id="business" formControlName="group" name="group" value="business" class="other" /> Business
+        </label>
+        <label>
+          <input type="radio" id="humanities" formControlName="group" name="group" value="humanities" class="other" /> Arts
+        </label>
+      </div>
 
-    <label for="male">Gender</label>
-    <div class="gender_options">
-      <label class="male">
-        <input type="radio" id="male" formControlName="gender" name="gender" value="Male" class="male" /> Male
-      </label>
-      <label>
-        <input type="radio" id="female" formControlName="gender" name="gender" value="Female" class="other" /> Female
-      </label>
-      <label>
-        <input type="radio" id="common" formControlName="gender" name="gender" value="Common" class="other" /> Common
-      </label>
-    </div>
+      <label for="subjects">Optional<br>Subjects</label>
+      <div class="subject_options" id="scienceSubjects">
+        <label class="phy">
+          <input type="checkbox" id="phy" formControlName="subjects" name="subjects" value="phy" class="phy" /> Physics
+        </label>
+        <label>
+          <input type="checkbox" id="che" formControlName="subjects" name="subjects" value="che" class="other" /> Chemistry
+        </label>
+        <label>
+          <input type="checkbox" id="math" formControlName="subjects" name="subjects" value="math" class="other" /> Math
+        </label>
+      </div>
+      <div class="subject_options2" id="scienceSubjects2">
+        <label>
+          <input type="checkbox" id="bio" formControlName="subjects" name="subjects" value="bio" class="other" /> Biology
+        </label>
+        <label>
+          <input type="checkbox" id="stat" formControlName="subjects" name="subjects" value="stat" class="other" /> Statistics
+        </label>
+        <label>
+          <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agri.
+        </label>
+      </div>
+
+      <div class="subject_options" id="businessSubjects">
+        <label class="acc">
+          <input type="checkbox" id="acc" formControlName="subjects" name="subjects" value="acc" class="acc" /> Accounting
+        </label>
+        <label>
+          <input type="checkbox" id="man" formControlName="subjects" name="subjects" value="man" class="other" /> Management
+        </label>
+      </div>
+      <div class="subject_options2" id="businessSubjects2">
+        <label>
+          <input type="checkbox" id="fin" formControlName="subjects" name="subjects" value="fin" class="other" /> Finance & Bank.
+        </label>
+        <label>
+          <input type="checkbox" id="eco" formControlName="subjects" name="subjects" value="eco" class="other" /> Economics
+        </label>
+      </div>
+      <div class="subject_options3" id="businessSubjects3">
+        <label>
+          <input type="checkbox" id="stat" formControlName="subjects" name="subjects" value="stat" class="other" /> Statistics
+        </label>
+        <label>
+          <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agriculture
+        </label>
+      </div>
+
+      <div class="subject_options" id="humanitiesSubjects">
+        <label class="isl">
+          <input type="checkbox" id="isl" formControlName="subjects" name="subjects" value="isl" class="isl" /> Islamic History
+        </label>
+        <label>
+          <input type="checkbox" id="soc" formControlName="subjects" name="subjects" value="soc" class="other" /> Sociology
+        </label>
+      </div>
+      <div class="subject_options2" id="humanitiesSubjects2">
+        <label>
+          <input type="checkbox" id="civ" formControlName="subjects" name="subjects" value="civ" class="other" /> Civics
+        </label>
+        <label>
+          <input type="checkbox" id="pol" formControlName="subjects" name="subjects" value="pol" class="other" /> Political Science
+        </label>
+      </div>
+      <div class="subject_options3" id="humanitiesSubjects3">
+        <label>
+          <input type="checkbox" id="eco" formControlName="subjects" name="subjects" value="eco" class="other" /> Economics
+        </label>
+        <label>
+          <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agriculture
+        </label>
+      </div>
+
+      <label for="male">Gender</label>
+      <div class="gender_options">
+        <label class="male">
+          <input type="radio" id="male" formControlName="gender" name="gender" value="Male" class="male" /> Male
+        </label>
+        <label>
+          <input type="radio" id="female" formControlName="gender" name="gender" value="Female" class="other" /> Female
+        </label>
+        <label>
+          <input type="radio" id="common" formControlName="gender" name="gender" value="Common" class="other" /> Common
+        </label>
+      </div>
 
     <label for="division">Division</label>
-    <select class="address form-control" formControlName="division" id="division" (change)="onDivisionChange()"
+    <select class="address form-control" style="text-align: center;" formControlName="division" id="division" (change)="onDivisionChange()"
       class="form-control" [ngClass]="{ 'is-invalid': authForm.get('division')?.touched && authForm.get('division')?.invalid }">
       <option value="">Select Division</option>
       <option *ngFor="let division of divisions" [value]="division">{{ division }}</option>
     </select>
 
     <label for="district">District</label>
-    <select class="address form-control" formControlName="district" id="district" (change)="onDistrictChange()"
+    <select class="address form-control" style="text-align: center;" formControlName="district" id="district" (change)="onDistrictChange()"
       class="form-control"
       [ngClass]="{ 'is-invalid': authForm.get('district')?.touched && authForm.get('district')?.invalid }">
       <option value="">Select District</option>
@@ -57,20 +132,41 @@
     </select>
 
     <label for="thana">Thana / UZ</label>
-    <select class="address form-control" formControlName="thana" id="thana" class="form-control"
+    <select class="address form-control" style="text-align: center;" formControlName="thana" id="thana" class="form-control"
       [ngClass]="{ 'is-invalid': authForm.get('thana')?.touched && authForm.get('thana')?.invalid }">
       <option value="">Select Thana</option>
       <option *ngFor="let thana of thanas" [value]="thana">{{ thana }}</option>
     </select>
 
     <label for="union">PO / Union</label>
-    <input type="text" formControlName="union" id="union" placeholder="Your Post Office / Union" class="form-control"
+    <input type="text" style="text-align: center;" formControlName="union" id="union" placeholder="Your Post Office / Union" class="form-control"
       [ngClass]="{ 'is-invalid': authForm.get('union')?.touched && authForm.get('union')?.invalid }" />
 
-    <label for="village">Local Address</label>
+    <label for="village">Local<br>Address</label>
     <textarea id="village" formControlName="village" id="village" class="form-control"
       [ngClass]="{ 'is-invalid': authForm.get('village')?.touched && authForm.get('village')?.invalid }"
       placeholder="Enter Your Village, Para/Moholla, Road No, Block No, Quarter No, Floor No etc....."></textarea>
+      <label for="username">Mobile No</label>
+      <input type="text" style="text-align: center;" formControlName="username" id="username" placeholder="Your 11 Digits Mobile Number"
+        class="form-control" [ngClass]="{ 'is-invalid': authForm.get('username')?.touched && authForm.get('username')?.invalid }" />
+  
+      <div *ngIf="isMobileNumberRegistered" class="error-message errormessage">
+        This Mobile number is already registered. Please <a [routerLink]="['/login']" routerLinkActive="login">Login</a> /
+        <a [routerLink]="['']" routerLinkActive="reset">Reset Password</a> / try with a different Mobile number.....
+      </div>
+      <label for="password">Password</label>
+      <div class="input-group">
+        <input type="{{ showPassword ? 'text' : 'password' }}" style="text-align: center;" formControlName="password" id="password"
+          class="form-control" [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
+        <div class="input-group-append">
+          <span class="input-group-text" (click)="togglePasswordVisibility()">
+            <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+          </span>
+        </div>
+      </div>
+      <div *ngIf="isPasswordLength" class="error-message errormessage">
+        Password must be within 6 - 14 Characters.
+      </div>
 
     <button type="submit" class="signupButton">Signup</button>
   </form>

@@ -67,6 +67,76 @@ p {
 
 /* ... Your existing styles ... */
 
+.type_options {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.type_options label {
+  display: flex;
+  align-items: center;
+  margin-top: -50px;
+  cursor: pointer;
+}
+
+.type_options input[type="radio"] {
+  margin-right: 5px;
+  margin-top: 25px;
+  cursor: pointer;
+}
+
+.subject_options {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.subject_options2 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: -26px;
+  margin-left: 90px;
+}
+.subject_options3 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: -21px;
+  margin-left: 90px;
+}
+
+.subject_options label {
+  display: flex;
+  align-items: center;
+  margin-top: -77px;
+  cursor: pointer;
+}
+
+.subject_options input[type="checkbox"] {
+  margin-right: 5px;
+  margin-top: 25px;
+  cursor: pointer;
+  margin-bottom: 25px;
+}
+.group_options {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.group_options label {
+  display: flex;
+  align-items: center;
+  margin-top: -50px;
+  cursor: pointer;
+}
+
+.group_options input[type="radio"] {
+  margin-right: 5px;
+  margin-top: 25px;
+  cursor: pointer;
+}
 .gender_options {
   display: flex;
   gap: 10px;
@@ -82,7 +152,7 @@ p {
 
 .gender_options input[type="radio"] {
   margin-right: 5px;
-  margin-top: 28px;
+  margin-top: 25px;
   cursor: pointer;
 }
 
@@ -146,9 +216,11 @@ option {
 }
 
 textarea.form-control {
-  width: 100%;
-  margin-left: 0;
-  margin-top: 0;
+  width: 72%;
+  margin-left: 100px;
+  margin-top: -60px;
+  min-height: 90px;
+  margin-bottom: 24px;
 }
 
 select.form-control {
@@ -168,13 +240,13 @@ select.form-control {
 }
 
 div.errormessage {
-  margin-left: 100px;
+  margin-left: 100px !important;
   margin-top: -15px;
   margin-bottom: 15px;
   width: 250px;
 }
 .signupButton{
-    margin: 24px auto 0 auto !important;
+    margin: 18px auto 0 auto !important;
     width: 250px;
 }
 

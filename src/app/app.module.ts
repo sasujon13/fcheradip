@@ -24,7 +24,9 @@ import { ProfileComponent } from './component/profile/profile.component';
 import { MyorderComponent } from './component/myorder/myorder.component';
 import { PasswordComponent } from './component/password/password.component';
 import { IndexComponent } from './component/index/index.component';
-import { CreateQuestionComponent } from './create-question/create-question.component';
+import { CreateQuestionComponent } from './component/create-question/create-question.component';
+import { LiveChatComponent } from './component/live-chat/live-chat.component';
+import { MobileComponent } from './component/mobile/mobile.component';
 
 @NgModule({
   declarations: [
@@ -46,6 +48,8 @@ import { CreateQuestionComponent } from './create-question/create-question.compo
     PasswordComponent,
     IndexComponent,
     CreateQuestionComponent,
+    LiveChatComponent,
+    MobileComponent,
   ],
   imports: [
     BrowserModule,

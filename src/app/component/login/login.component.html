@@ -1,8 +1,8 @@
 <div class="login_signup_form">
-  <h2>Signup</h2>
+  <h2>LogIn</h2>
   <form [formGroup]="authForm" (ngSubmit)="onAuth()">
     <label for="username">Mobile No</label>
-    <input type="text" formControlName="username" id="username" placeholder="Your 11 Digits Mobile Number"
+    <input type="text" style="text-align: center;" formControlName="username" id="username" placeholder="Your 11 Digits Mobile Number"
       class="form-control"
       [ngClass]="{ 'is-invalid': authForm.get('username')?.touched && authForm.get('username')?.invalid }" />
 
@@ -14,7 +14,7 @@
 
     <label for="password">Password</label>
     <div class="input-group">
-      <input type="{{ showPassword ? 'text' : 'password' }}" formControlName="password" id="password"
+      <input type="{{ showPassword ? 'text' : 'password' }}" style="text-align: center;" formControlName="password" id="password"
         class="form-control"
         [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
       <div class="input-group-append">

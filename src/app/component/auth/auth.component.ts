@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, ValidatorFn, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
@@ -36,7 +36,62 @@ export class AuthComponent implements OnInit {
 
   ngOnInit(): void {
     const searchBarElement = document.getElementById('searchBar');
+
+    const scienceC = document.getElementById('science');
+    const businessC = document.getElementById('business');
+    const humanitiesC = document.getElementById('humanities');
+
+    const science = document.getElementById('scienceSubjects');
+    const science2 = document.getElementById('scienceSubjects2');
+    const arts = document.getElementById('humanitiesSubjects');
+    const arts2 = document.getElementById('humanitiesSubjects2');
+    const arts3 = document.getElementById('humanitiesSubjects3');
+    const business = document.getElementById('businessSubjects');
+    const business2 = document.getElementById('businessSubjects2');
+    const business3 = document.getElementById('businessSubjects3');
   
+    if (scienceC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
+
+      science.style.display = 'flex';
+      science2.style.display = 'flex';
+
+      arts.style.display = 'none';
+      arts2.style.display = 'none';
+      arts3.style.display = 'none';
+
+      business.style.display = 'none';
+      business2.style.display = 'none';
+      business3.style.display = 'none';
+    }
+    
+    if (humanitiesC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
+
+      science.style.display = 'none';
+      science2.style.display = 'none';
+
+      arts.style.display = 'flex';
+      arts2.style.display = 'flex';
+      arts3.style.display = 'flex';
+
+      business.style.display = 'none';
+      business2.style.display = 'none';
+      business3.style.display = 'none';
+    }
+    
+    if (businessC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
+
+      science.style.display = 'none';
+      science2.style.display = 'none';
+
+      arts.style.display = 'none';
+      arts2.style.display = 'none';
+      arts3.style.display = 'none';
+
+      business.style.display = 'flex';
+      business2.style.display = 'flex';
+      business3.style.display = 'flex';
+    }
+    
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
     }
@@ -47,9 +102,12 @@ export class AuthComponent implements OnInit {
       this.authForm.patchValue(authData);
     }
     this.authForm = this.fb.group({
+      acctype: ['student', [Validators.required, Validators.maxLength(7)]],
       username: ['', [Validators.required, Validators.minLength(11), Validators.maxLength(11)]],
       password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(14)]],
+      confirmpassword: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(14), this.confirmPasswordValidator()]],
       fullName: ['', [Validators.required, Validators.maxLength(31)]],
+      group: ['science', [Validators.required, Validators.maxLength(18)]],
       gender: ['Male', [Validators.required, Validators.maxLength(6)]],
       division: ['', [Validators.required, Validators.maxLength(31)]],
       district: ['', [Validators.required, Validators.maxLength(31)]],
@@ -101,9 +159,11 @@ export class AuthComponent implements OnInit {
 
   onAuth() {
     if (this.authForm.valid && this.isMobileNumberRegistered == false) {
+      const acctype = this.authForm.value.acctype;
       const username = this.authForm.value.username;
       const password = this.authForm.value.password;
       const fullName = this.authForm.value.fullName;
+      const group = this.authForm.value.group;
       const gender = this.authForm.value.gender;
       const division = this.authForm.value.division;
       const district = this.authForm.value.district;
@@ -112,7 +172,7 @@ export class AuthComponent implements OnInit {
       const village = this.authForm.value.village;
       const formData = this.authForm.value;
       localStorage.setItem('formData', JSON.stringify(formData));
-      this.apiService.signup(username, password, fullName, gender, division, district, thana, union, village).subscribe(
+      this.apiService.signup(acctype, fullName, username, password, group, gender, division, district, thana, union, village).subscribe(
         (response) => {
           this.snackBar.open('Signup Successful!', 'Close', {
             duration: 3000,
@@ -184,6 +244,19 @@ export class AuthComponent implements OnInit {
         sign_menu.style.display = 'none';
         profileMenu.style.display = 'block';
       }
+  }
+  
+  confirmPasswordValidator(): ValidatorFn {
+    return (control: AbstractControl): { [key: string]: any } | null => {
+      const newpassword = this.authForm.get('newpassword')?.value;
+      const confirmpassword = control.value;
+
+      if (newpassword === confirmpassword) {
+        return null; // Validation passes, passwords match
+      } else {
+        return { 'passwordMismatch3': true }; // Validation fails, passwords do not match
+      }
+    };
   }
 
 }

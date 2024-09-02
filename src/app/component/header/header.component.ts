@@ -180,7 +180,7 @@ export class HeaderComponent implements OnInit {
     this.inactivityTimeout = setTimeout(() => {
       this.closeMenu();
       this.closeProfileMenu();
-    }, 7000000);
+    }, 3000);
   }
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event) {

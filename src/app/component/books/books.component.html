@@ -1,1 +1,95 @@
-<p>contact-us works!</p>
+<div class="card-top" *ngIf="showCard">
+    <ul class="container d-flex filterItem">
+      <li [ngClass]="{'selected': selectedType === ''}" class="item" (click)="filterTypes('')">
+        <a>
+          <h6>All</h6>
+        </a>
+      </li>
+      <li [ngClass]="{'selected': selectedType === 'science'}" class="item" (click)="filterTypes('science')">
+        <a>
+          <h6>Sci.</h6>
+        </a>
+      </li>
+      <li [ngClass]="{'selected': selectedType === 'business'}" class="item" (click)="filterTypes('business')">
+        <a>
+          <h6>Bus.</h6>
+        </a>
+      </li>
+      <li [ngClass]="{'selected': selectedType === 'humanities'}" class="item" (click)="filterTypes('humanities')">
+        <a>
+          <h6>Hum.</h6>
+        </a>
+      </li>
+      <li class="item">
+        <a>
+          <h6>::</h6>
+        </a>
+        <select class="itemSize" (change)="onSizeChange($event)">
+          <option class="itemSize" value="" selected>
+            <a>
+              <h6>ALL</h6>
+            </a>
+          </option>
+        <option class="itemSize" value="nctb">
+          <a>
+            <h6>NCTB</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="L">
+          <a>
+            <h6>Cheradip</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="book">
+          <a>
+            <h6>Books</h6>
+          </a>
+        </option>
+        <option class="itemSize" value="guide">
+          <a>
+            <h6>Guides</h6>
+          </a>
+        </option>
+    </select>
+    </li>
+    </ul>
+  </div>
+  <img src="../../../assets/images/filter.svg" class="filter" (click)="toggleCard()">
+  
+  <ul class="item-list">
+    <li *ngFor="let item of filterCategory | filter:searchKey:['name', 'bangla_name', 'code']" class="item">
+      <div class="image-container">
+        <img *ngIf="item.image" [src]="item.image" alt="{{ item.name }}" class="itemImage" [style.opacity]="item.in_stock < 1 ? 0.34 : 1">
+        <h3 class="title">{{ item.name }}<br><b style="font-size: 15px;">{{ item.bangla_name }}</b></h3>
+        <h3 class="discount"><b style="color: red; text-align: right;"> - {{ item.discount }}%</b></h3>
+        <!-- <h3 class="title">{{ item.name }} ({{ item.bangla_name }}) - {{ item.weight }} kg<br>{{ item.size }}-{{ item.code }}</h3> -->
+        <p class="price">Price : {{ productPrice(item) }} tk<sub><del> {{ item.price }} tk</del></sub>
+            <!-- <p class="price">{{ item.price }} tk / 1 kg<sub><del> {{ productPrice(item) }}</del> tk</sub> -->
+        </p>
+        <p class="footer">
+          <a class="item_footer" *ngIf="item.in_stock > 0">
+            <i class="fa fa-check-circle"></i>In Stock
+          </a>
+          <a class="item_footer outofstock" *ngIf="item.in_stock < 1">
+            <i class="fa fa-exclamation-circle outofstock"></i>Out of Stock
+          </a>
+          <a class="item_footer choice" *ngIf="item.love" (click)="removeChoiceItem(item)">
+            <i class="fa fa-heart choice" style="color: red;"></i>
+          </a>
+          <a class="item_footer" *ngIf="!item.love" (click)="addtochoice(item)">
+            <i class="fa fa-heart" style="color: teal;"></i>
+          </a>
+          <a class="item_footer" *ngIf="!item.add_to_cart" (click)="addtocart(item)">
+            <i class="fa fa-cart-plus"></i>Add to Cart
+          </a>
+          <a class="item_footer addedtocart" *ngIf="item.add_to_cart" (click)="addtocart(item)">
+            <i class="fa fa-check addedtocart"></i>Added to Cart
+          </a>
+          <a [routerLink]="['/order']" routerLinkActive="order"  class="item_footer" (click)="addtocart(item)">
+            <i class="fa fa-shopping-cart"></i>Buy
+          </a>
+        </p>
+      </div>
+    </li>
+  </ul>
+  <div class="gap" style="height: 100px;"></div>

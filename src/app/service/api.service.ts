@@ -10,10 +10,10 @@ export class ApiService {
 
   // private djangoAdminUrl = 'http://127.0.0.1:8000/api/admin/';
 
-  // private baseUrl = 'http://127.0.0.1:8000/api';
+  private baseUrl = 'http://127.0.0.1:8000/api';
   private djangoAdminUrl = 'http://127.0.0.1:8000/admin/';
 
-  private baseUrl = 'http://127.0.0.1:8000';
+  // private baseUrl = 'http://127.0.0.1:8000';
   userData: any;
 
   constructor(private http: HttpClient) { }
@@ -46,13 +46,15 @@ export class ApiService {
       tap((response: any) => {
         if (response) {
           this.setToken(response);
-          localStorage.setItem('username', response.username);
+          localStorage.setItem('acctype', response.acctype);
           localStorage.setItem('fullName', response.fullName);
+          localStorage.setItem('username', response.username);
           localStorage.setItem('division', response.division);
           localStorage.setItem('district', response.district);
           localStorage.setItem('thana', response.thana);
           localStorage.setItem('union', response.union);
           localStorage.setItem('village', response.village);
+          localStorage.setItem('group', response.group);
           localStorage.setItem('gender', response.gender);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('authToken', response);
@@ -73,9 +75,9 @@ export class ApiService {
   }
 
 
-  signup(username: string, password: string, fullName: string, gender: string, division: string, district: string, thana: string, union: string, village: string): Observable<any> {
+  signup(acctype: string, fullName: string, username: string, password: string, group: string, gender: string, division: string, district: string, thana: string, union: string, village: string): Observable<any> {
 
-    const signupData = { username, password, fullName, gender, division, district, thana, union, village };
+    const signupData = { acctype, fullName, username, password, group, gender, division, district, thana, union, village };
     return this.http.post(`${this.baseUrl}/signup/`, signupData).pipe(
       tap((response: any) => {
         if (response.token) {
@@ -91,8 +93,8 @@ export class ApiService {
     );
   }
 
-  update(username: string, password: string, fullName: string, gender: string, division: string, district: string, thana: string, union: string, village: string): Observable<any> {
-    const signupData = { username, password, fullName, gender, division, district, thana, union, village };
+  update(acctype: string, fullName: string, group: string, gender: string, division: string, district: string, thana: string, union: string, village: string, password: string): Observable<any> {
+    const signupData = { acctype, fullName, group, gender, division, district, thana, union, village, password };
     return this.http.post(`${this.baseUrl}/profile_update/`, signupData).pipe(
       tap((response: any) => {
         if (response.token) {
@@ -108,14 +110,31 @@ export class ApiService {
     );
   }
   updatePassword(username: string, password: string, newpassword: string): Observable<any> {
-    const signupData = { username, password, newpassword };
-    return this.http.post(`${this.baseUrl}/password_update/`, signupData).pipe(
+    const passUpdateData = { username, password, newpassword };
+    return this.http.post(`${this.baseUrl}/password_update/`, passUpdateData).pipe(
       tap((response: any) => {
         if (response.token) {
           this.setToken(response.token);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('authToken', response.token)
-          localStorage.setItem('formData', JSON.stringify(signupData));
+          localStorage.setItem('formData', JSON.stringify(passUpdateData));
+        }
+      }),
+      catchError((error) => {
+        throw error;
+      })
+    );
+  }
+
+  updateMobile(username: string, newusername: string, password: string): Observable<any> {
+    const mobileUpdateData = { username, newusername, password };
+    return this.http.post(`${this.baseUrl}/mobile_update/`, mobileUpdateData).pipe(
+      tap((response: any) => {
+        if (response.token) {
+          this.setToken(response.token);
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('authToken', response.token)
+          localStorage.setItem('formData', JSON.stringify(mobileUpdateData));
         }
       }),
       catchError((error) => {

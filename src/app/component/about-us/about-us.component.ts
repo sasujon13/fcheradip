@@ -9,7 +9,7 @@ export class AboutUsComponent  implements OnInit{
   ngOnInit(): void {
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
-      searchBarElement.style.display = 'none';
+      searchBarElement.style.display = 'block';
     }
   }
 

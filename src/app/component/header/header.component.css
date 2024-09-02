@@ -1,3 +1,47 @@
+ 
+  .msg {
+    display: inline-block;
+    animation: marquee 30s linear infinite;
+  }
+
+  .navbar {
+    /* margin-top: -61px; */
+    /* margin-left: -10px; */
+    background-color: teal;
+    padding: 7px 10px 5px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    width: 100%;
+    max-width: 1920px;
+    z-index: 98;
+    user-select: none;
+    margin-top: -75px;
+  }
+  .marquee {
+    color: transparent;
+    text-align: center;
+    margin: auto;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    background-size: 50% 100%;
+    -webkit-background-clip: text;
+    background-image: linear-gradient(to right, rgb(255, 255, 255), gold, teal);
+    animation: gradientTransition 10s linear infinite;
+    margin-top: 75px;
+  }
+  
+  @keyframes gradientTransition {
+    0% {
+      background-position: 0% 0;
+    }
+  
+    100% {
+      background-position: 100% 0;
+    }
+  }
+ 
  .menu_item2 {
     position: relative;
     cursor: pointer;
@@ -25,10 +69,10 @@
 }
   ul.dropdown {
     position: absolute;
-    margin: 40px 0 0 -160px;
+    margin: 40px 0 0 -200px;
     list-style-type: none;
     padding: 10px;
-    width: 180px;
+    width: 220px;
     border: 1px solid #ccc;
     z-index: 110;
     background-color: white;
@@ -101,7 +145,6 @@
     font-size: 12px;
     color: yellow;
     z-index: 100;
-    margin-right: 23px;
     margin-top: -13px;
     font-family: Roboto Thin;
     font-weight: 700;
@@ -142,21 +185,6 @@ a:hover{
 .sign_menu li a{
   padding: 0;
   font-size: 14px !important;
-}
-
-.navbar {
-  /* margin-top: -61px; */
-  /* margin-left: -10px; */
-  background-color: teal;
-  padding: 7px 10px 5px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: fixed;
-  width: 100%;
-  max-width: 1920px;
-  z-index: 98;
-  user-select: none;
 }
 
 .menu li {

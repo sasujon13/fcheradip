@@ -8,13 +8,20 @@ import { ChoiceService } from 'src/app/service/choice.service';
   styleUrls: ['./choice.component.css']
 })
 export class ChoiceComponent implements OnInit {
-  showCard: boolean = true;
+  showCard: boolean = false;
   showChoice: boolean = true;
   public productList: any;
   public cartProductList: any;
   public choiceProductList: any;
   public filterCategory: any;
   searchKey: string = "";
+  
+  closeTimer: any;
+  selectedType: string = '';
+  selectedSize: string = '';
+  filterType: string = '';
+  filterSize: string = '';
+  selectedFilter: string = '';
   
     SIZE = [
       { label: 'All', value: '' },
@@ -109,19 +116,6 @@ export class ChoiceComponent implements OnInit {
         this.searchKey = val;
       });
     }
-    addtochoice(item: any) {
-      const sessionChoiceItems = JSON.parse(sessionStorage.getItem('sessionChoiceItems') || '[]');
-  
-      if (!sessionChoiceItems.find((storedItem: any) => storedItem.id === item.id)) {
-        this.choiceService.addtochoice(item);
-        item.love = true;
-        sessionChoiceItems.push(item);
-        sessionStorage.setItem('sessionChoiceItems', JSON.stringify(sessionChoiceItems));
-        localStorage.setItem(`choicetState_${item.id}`, 'true');
-      }
-      this.removeChoiceItem(item);
-    }
-
     addtocart(item: any) {
       if (item.in_stock < 1) {
       return;
@@ -136,20 +130,69 @@ export class ChoiceComponent implements OnInit {
         localStorage.setItem(`cartState_${item.id}`, 'true');
       }
     }
-
-    removeChoiceItem(item: any){
+  
+    addtochoice(item: any) {
+      const sessionChoiceItems = JSON.parse(sessionStorage.getItem('sessionChoiceItems') || '[]');
+  
+      if (!sessionChoiceItems.find((storedItem: any) => storedItem.id === item.id)) {
+        this.choiceService.addtochoice(item);
+        item.love = true;
+        sessionChoiceItems.push(item);
+        sessionStorage.setItem('sessionChoiceItems', JSON.stringify(sessionChoiceItems));
+        localStorage.setItem(`choiceState_${item.id}`, 'true');
+      }
+      else {
+        this.removeChoiceItem(item);
+      }
+    }
+    removeChoiceItem(item: any) {
       this.choiceService.removeChoiceItem(item);
       item.love = false;
+    }
+    filterItem() {
+      this.showChoice = true;
+    }
+    filterTypes(type: string) {
+      this.selectedType = type;
+      this.applyCombinedFilter();
+    }
+    
+    onSizeChange(event: any) {
+      this.selectedSize = event.target.value;
+      this.applyCombinedFilter();
     }
     emptychoice(){
       this.choiceService.removeAllChoice();
     }
-
-    filterItem() {
-      this.showCard = true;
-    }
-    filter(size: string) {
-      this.filterCategory = this.choiceProductList.filter((a: any) => (a.size === size || size === '') && a.love);
-    }
     
+    applyCombinedFilter() {
+      if (this.selectedType === '') {
+        this.filterCategory = this.productList;
+      } else {
+        this.filterCategory = this.productList.filter((a: any) => a.types === this.selectedType);
+      }
+    
+      if (this.selectedSize !== '') {
+        this.filterCategory = this.filterCategory.filter((a: any) => a.size === this.selectedSize);
+      }
+    }
+  
+    filter(filter: string) {
+      this.selectedSize = 'All';
+      this.selectedFilter = filter;
+      if (this.filterType) {
+        this.filterCategory = this.productList.filter((a: any) => 
+          (a.size === filter || filter === '') && (a.types === this.filterType || this.filterType === '')
+        );
+      } else {
+        this.filterCategory = this.productList.filter((a: any) => a.size === filter || filter === '');
+      }
+    }
+    productPrice(item: any): number {
+      return Math.ceil(item.price * ((100  - item.discount)/100));
+    }
+  
+    toggleCard() {
+      this.showCard = !this.showCard;
+    }
   }
