@@ -18,6 +18,12 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
+
+  getNotifications(): Observable<any> {
+    const url = `${this.baseUrl}/notification/`;
+    return this.http.get<string[]>(url);
+  }
+
   getProducts() {
     const url = `${this.baseUrl}/item/`;
     return this.http.get<any>(url)

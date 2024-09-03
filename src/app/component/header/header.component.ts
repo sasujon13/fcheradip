@@ -2,6 +2,7 @@ import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { CartService } from 'src/app/service/cart.service';
 import { ChoiceService } from 'src/app/service/choice.service';
+import { ApiService } from 'src/app/service/api.service';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 
 
@@ -24,6 +25,7 @@ import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
   ]
 })
 export class HeaderComponent implements OnInit {
+  @ViewChild('marquee', { static: true }) marqueeElement!: ElementRef;
   isCopyrightVisible = false;
   shouldDisplayCopyrightDiv = false; 
 
@@ -52,9 +54,11 @@ export class HeaderComponent implements OnInit {
     this.resetInactivityTimeout();
   }
   
+  public notifications: any[] = [];
   public totalCartItem: number = 0;
   public totalChoiceItem: number = 0;
   public searchTerm!: string;
+  private currentIndex = 0;
   menuActive = false;
   inactivityTimeout: any;
   loginStatus: boolean = false;
@@ -65,7 +69,12 @@ export class HeaderComponent implements OnInit {
   item1: any;
 
 
-  constructor(private cartService: CartService, private choiceService: ChoiceService, private route: ActivatedRoute, private router: Router) { }
+  constructor(
+    private cartService: CartService, 
+    private choiceService: ChoiceService, 
+    private route: ActivatedRoute, 
+    private router: Router,
+    private apiService: ApiService) { }
 
   ngOnInit(): void {
     this.router.events.subscribe((event) => {
@@ -75,6 +84,7 @@ export class HeaderComponent implements OnInit {
         }, 100);
       }
     });
+    this.loadNotifications();
     this.checkVisibility();
     localStorage.getItem('isLoggedIn');
     localStorage.getItem('authToken');
@@ -121,6 +131,35 @@ export class HeaderComponent implements OnInit {
         this.addedC(params['itemId']);
       }
     });
+  }
+
+
+  loadNotifications() {
+    this.apiService.getNotifications().subscribe(
+      data => {
+        this.notifications = data.messages; // Adjust according to your API response
+        this.startMarquee();
+      },
+      error => {
+        console.error('Error fetching notifications:', error);
+      }
+    );
+  }
+
+  startMarquee() {
+    if (this.notifications.length > 0) {
+      this.updateMarqueeMessage();
+      this.marqueeElement.nativeElement.addEventListener('animationiteration', () => {
+        this.updateMarqueeMessage();
+      });
+    }
+  }
+
+  updateMarqueeMessage() {
+    const messageElement = this.marqueeElement.nativeElement.querySelector('.msg');
+    messageElement.textContent = this.notifications[this.currentIndex].text;
+    messageElement.href = this.notifications[this.currentIndex].link;
+    this.currentIndex = (this.currentIndex + 1) % this.notifications.length;
   }
 
   added(itemId: any) {

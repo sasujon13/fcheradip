@@ -1,8 +1,4 @@
  
-  .msg {
-    display: inline-block;
-    animation: marquee 30s linear infinite;
-  }
 
   .navbar {
     /* margin-top: -61px; */
@@ -17,28 +13,26 @@
     max-width: 1920px;
     z-index: 98;
     user-select: none;
-    margin-top: -75px;
+    margin-top: 0;
+  }
+  .msg a{
+    text-decoration: none;
+    color: teal;
   }
   .marquee {
-    color: transparent;
+    white-space: nowrap;
     text-align: center;
-    margin: auto;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    background-size: 50% 100%;
-    -webkit-background-clip: text;
-    background-image: linear-gradient(to right, rgb(255, 255, 255), gold, teal);
-    animation: gradientTransition 10s linear infinite;
-    margin-top: 75px;
+    animation: marquee 15s linear infinite;
+    margin-top: 65px;
+    margin-bottom: -20px;
+    position: fixed;
   }
-  
-  @keyframes gradientTransition {
+  @keyframes marquee {
     0% {
-      background-position: 0% 0;
+      transform: translateX(100vw);
     }
-  
     100% {
-      background-position: 100% 0;
+      transform: translateX(-100%);
     }
   }
  
