@@ -133,11 +133,11 @@ export class HeaderComponent implements OnInit {
     });
   }
 
-
   loadNotifications() {
     this.apiService.getNotifications().subscribe(
       data => {
-        this.notifications = data.messages; // Adjust according to your API response
+        console.log("I am Here 2 :", data);
+        this.notifications = data; // Adjust according to your API response
         this.startMarquee();
       },
       error => {
@@ -156,12 +156,81 @@ export class HeaderComponent implements OnInit {
   }
 
   updateMarqueeMessage() {
-    const messageElement = this.marqueeElement.nativeElement.querySelector('.msg');
-    messageElement.textContent = this.notifications[this.currentIndex].text;
-    messageElement.href = this.notifications[this.currentIndex].link;
+    const messageElement: HTMLElement = this.marqueeElement.nativeElement.querySelector('.msg');
+    
+    let notificationsHTML = '';
+    for (let i = 0; i < this.notifications.length; i++) {
+      const currentIndex = (this.currentIndex + i) % this.notifications.length;
+      const currentNotification = this.notifications[currentIndex];
+      notificationsHTML += `<a href="${currentNotification.link}" class="msg_link" target="_blank">${currentNotification.text}</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`;
+    }
+    
+    messageElement.innerHTML = notificationsHTML;
+    this.addDynamicStyles();
+  
+    const messageWidth = messageElement.scrollWidth;
+    const viewportWidth = window.innerWidth;
+  
+    let increasingTime: number;
+    if (viewportWidth < 576) {
+      increasingTime = 7;
+    } else if (viewportWidth < 768) {
+      increasingTime = 10;
+    } else if (viewportWidth < 992) {
+      increasingTime = 12;
+    } else if (viewportWidth < 1200) {
+      increasingTime = 15;
+    } else {
+      increasingTime = 20;
+    }
+  
+    let animationDuration: number;
+    if (messageWidth <= viewportWidth) {
+      animationDuration = increasingTime;
+    } else {
+      const numberOfWidths = Math.ceil(messageWidth / viewportWidth);
+      animationDuration = increasingTime + numberOfWidths * increasingTime;
+    }
+  
+    const keyframes = `
+      @keyframes scrollLeft {
+        0% {
+          transform: translateX(100vw);
+        }
+        100% {
+          transform: translateX(-${messageWidth}px);
+        }
+      }
+    `;
+    
+    const style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = `
+      .marquee .msg {
+        animation: scrollLeft ${animationDuration}s linear infinite;
+      }
+      ${keyframes}
+    `;
+    document.head.appendChild(style);
+  
     this.currentIndex = (this.currentIndex + 1) % this.notifications.length;
   }
-
+  
+  addDynamicStyles() {
+    const style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = `
+      .msg_link {
+        text-decoration: none;
+        color: teal;
+      }
+      .msg_link:hover {
+        color: #00BFFF;
+      }
+    `;
+    document.head.appendChild(style);
+  } 
+  
   added(itemId: any) {
     const sessionCartItems = JSON.parse(sessionStorage.getItem('sessionCartItems') || '[]');
 

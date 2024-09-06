@@ -140,14 +140,29 @@ h3.title {
   vertical-align:middle;
   font-weight: 100;
 }
-h1.msg2{
+h1.msg{
   text-align: center;
   color: darkred;
   text-shadow: 0 0 15px teal;
-  /* text-shadow: -1px -1px 0 teal; */
-  font-size: 28px;
-  margin: 115px 0 -10px 0 !important;
+  margin: 108px 0 -15px 0 !important;
   font-family: roboto regular;
+  font-size: 24px;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 50vw 100vw;
+  -webkit-background-clip: text;
+  background-image: linear-gradient(to right, teal, gold, teal);
+  animation: gradientTransition 7s linear infinite;
+}
+
+@keyframes gradientTransition {
+0% {
+  background-position: 0% 0;
+}
+
+100% {
+  background-position: 100% 0;
+}
 }
 p.price {
   font-size: 15px;
@@ -237,7 +252,17 @@ img.filter{
   /* margin-top: -110px; */
   z-index: 50;
 }
+li.item.selected {
+  background-color: teal !important;
+  color: #ffffff;
+}
 
+
+@media screen and (max-width: 1099px) {
+}
+
+@media screen and (max-width: 839px) {
+}
 
 @media screen and (max-width: 539px) {
   .filter{
@@ -246,34 +271,12 @@ img.filter{
   ul.filterItem{
     margin-top: 39px !important;
   }
-  h1.msg2 {
-    margin-top: 155px !important;
-}
 }
 
 @media screen and (max-width: 767px) {
-  h1.msg2 {
-    margin-bottom: -14px;
-    font-size: 20px;
-    
-  }
 }
 
 @media screen and (min-width: 1100px) {
-  h1.msg2 {
-    margin-top: -10px;
-    margin-bottom: -15px;
-    font-size: 24px;
-    
-  }
-}
-
-@media screen and (max-width: 1099px) {
-  h1.msg2 {
-    margin-bottom: -14px;
-    font-size: 24px;
-    
-  }
 }
 
 @media screen and (min-width:768px) and (max-width: 1199px) {
@@ -291,38 +294,5 @@ img.filter{
 @media screen and (min-width: 1600px) {
   .item-list li {
     width: 21%;
-  }
-}
-li.item.selected {
-  background-color: teal !important;
-  color: #ffffff;
-}
-
-.msg2 {
-  display: inline-block;
-  animation: marquee 30s linear infinite;
-}
-
-
-.marquee2 {
-  color: transparent;
-  text-align: center;
-  margin: auto;
-  margin-top: -100px;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  background-size: 50% 100%;
-  -webkit-background-clip: text;
-  background-image: linear-gradient(to right, rgb(255, 255, 255), gold, teal);
-  animation: gradientTransition 10s linear infinite;
-}
-
-@keyframes gradientTransition {
-  0% {
-    background-position: 0% 0;
-  }
-
-  100% {
-    background-position: 100% 0;
   }
 }
