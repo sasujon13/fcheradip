@@ -1,5 +1,24 @@
- 
-
+div.notification{
+  text-align: center;
+  margin-top: 62px;
+  margin-bottom: 0;
+  width: 100vw;
+  height: 52px;
+  position: fixed;
+  background: linear-gradient(to bottom, #ffffff 75%, rgba(255, 255, 255, 0));
+  z-index: 1;
+}
+div.profile_back{
+  text-align: center;
+  margin-top: 62px;
+  margin-bottom: 0;
+  width: 32px;
+  height: 42px;
+  right: 0;
+  position: fixed;
+  background-color: #ffffff;
+  z-index: 3;
+}
   .navbar {
     /* margin-top: -61px; */
     /* margin-left: -10px; */
@@ -18,9 +37,13 @@
   .marquee {
     white-space: nowrap;
     text-align: center;
-    margin-top: 75px;
+    margin-top: 72px;
     margin-bottom: -20px;
     position: fixed;
+    z-index: 2;
+  }
+  .marquee .msg {
+    font-size: 1.25em;
   }
  
  .menu_item2 {
@@ -325,6 +348,10 @@ i.fa-bars{
 
   .search-bar input {
     background-color: teal;
+  }
+  div.notification{
+    height: 92px;
+    background: linear-gradient(to bottom, #ffffff 85%, rgba(255, 255, 255, 0));
   }
 }
 

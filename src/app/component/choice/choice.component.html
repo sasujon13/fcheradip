@@ -1,30 +1,31 @@
 
+<div class="filter_back"></div>
 <img src="../../../assets/images/filter.svg" class="filter" (click)="toggleCard()">
 <div class="card-top" *ngIf="showCard">
   <ul class="container d-flex filterItem">
     <li [ngClass]="{'selected': selectedType === ''}" class="item" (click)="filterTypes('')">
       <a>
-        <h6>All</h6>
+        <h5>All</h5>
       </a>
     </li>
     <li [ngClass]="{'selected': selectedType === 'science'}" class="item" (click)="filterTypes('science')">
       <a>
-        <h6>Sci.</h6>
+        <h5>Sci.</h5>
       </a>
     </li>
     <li [ngClass]="{'selected': selectedType === 'business'}" class="item" (click)="filterTypes('business')">
       <a>
-        <h6>Bus.</h6>
+        <h5>Bus.</h5>
       </a>
     </li>
     <li [ngClass]="{'selected': selectedType === 'humanities'}" class="item" (click)="filterTypes('humanities')">
       <a>
-        <h6>Hum.</h6>
+        <h5>Hum.</h5>
       </a>
     </li>
     <li class="item">
       <a>
-        <h6>::</h6>
+        <h5>::</h5>
       </a>
       <select class="itemSize" (change)="onSizeChange($event)">
         <option class="itemSize" value="" selected>

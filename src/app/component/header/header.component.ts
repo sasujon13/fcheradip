@@ -136,12 +136,11 @@ export class HeaderComponent implements OnInit {
   loadNotifications() {
     this.apiService.getNotifications().subscribe(
       data => {
-        console.log("I am Here 2 :", data);
-        this.notifications = data; // Adjust according to your API response
+        this.notifications = data;
         this.startMarquee();
       },
       error => {
-        console.error('Error fetching notifications:', error);
+        console.error('Error fetching notifications!');
       }
     );
   }
@@ -225,7 +224,7 @@ export class HeaderComponent implements OnInit {
         color: teal;
       }
       .msg_link:hover {
-        color: #00BFFF;
+        color: yellowgreen;
       }
     `;
     document.head.appendChild(style);

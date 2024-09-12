@@ -38,9 +38,9 @@ export class ChoiceComponent implements OnInit {
     if (searchBarElement) {
       searchBarElement.style.display = 'block';
     }
-    document.addEventListener('contextmenu', function (event) {
-      event.preventDefault();
-    });
+    // document.addEventListener('contextmenu', function (event) {
+    //   event.preventDefault();
+    // });
       this.choiceService.getChoiceProducts()
         .subscribe(res => {
           this.productList = res;

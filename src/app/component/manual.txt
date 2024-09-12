@@ -1,0 +1,4 @@
+front color: Teal
+anchor color: yellowgreen
+
+later used color: #00BFFF

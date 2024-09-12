@@ -4,7 +4,7 @@ import { CartService } from 'src/app/service/cart.service';
 import { ChoiceService } from 'src/app/service/choice.service';
 
 @Component({
-  selector: 'app-products',
+  selector: 'app-index',
   templateUrl: './index.component.html',
   styleUrls: ['./index.component.css']
 })

@@ -20,6 +20,7 @@
     font-family: 'Bengali Serif', sans-serif;
   }
   
+  html { height: 100%; }
   body {
     font-family: 'Roboto', sans-serif;
     /* background-image: url('../images/bg1.jpg'); */
