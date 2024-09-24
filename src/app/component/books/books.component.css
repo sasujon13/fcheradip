@@ -129,7 +129,7 @@ div.comment{
     list-style: none;
     margin-right: -20px;
     height: 32px;
-    margin-top: 72px;
+    margin-top: 67px;
     margin-left: 30px;
     left: -24px;
     user-select: none;
@@ -228,7 +228,7 @@ div.comment{
     height: 50px;
     padding-top: 24px;
     padding-left: 10px;
-    margin-top: 51px;
+    margin-top: 44px;
     position: fixed;
     cursor: pointer;
     pointer-events: visible;
@@ -256,7 +256,7 @@ div.comment{
   @media screen and (max-width: 539px) {
     
   img.filter{
-    margin-top: 90px;
+    margin-top: 85px;
   }
   div.filter_back{
     margin-top: 62px;
@@ -266,6 +266,9 @@ div.comment{
     }
   ul.item-list {
     margin-top: 142px;
+  }
+  div.filter_back{
+    height: 66px;
   }
   }
   

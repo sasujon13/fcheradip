@@ -1,0 +1,48 @@
+.marque{
+    display: none;
+}
+@media screen and (max-width: 539px) {
+    
+    img.filter{
+      margin-top: 85px;
+    }
+    div.filter_back{
+      margin-top: 62px;
+    }
+      ul.filterItem{
+        margin-top: 40px !important;
+      }
+    ul.item-list {
+      margin-top: 142px;
+    }
+    div.filter_back{
+      height: 66px;
+    }
+    }
+    
+    @media screen and (max-width: 767px) {
+    }
+    
+    @media screen and (min-width: 1100px) {
+    }
+    
+    @media screen and (max-width: 1099px) {
+    }
+    
+    @media screen and (min-width:768px) and (max-width: 1199px) {
+      .item-list li {
+        width: 42%;
+      }
+    }
+    
+    @media screen and (min-width: 1200px) and (max-width: 1599px) {
+      .item-list li {
+        width: 28%;
+      }
+    }
+    
+    @media screen and (min-width: 1600px) {
+      .item-list li {
+        width: 21%;
+      }
+    }

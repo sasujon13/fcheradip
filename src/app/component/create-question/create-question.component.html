@@ -1,1 +1,70 @@
-<p>create-question works!</p>
+<div class="head" style="margin-top:80px"></div>
+<div class="filter-section">
+  <!-- Group Filter -->
+  <label for="group">Group:</label>
+  <div *ngFor="let group of groups">
+    <input type="checkbox" [value]="group.group_code" (change)="onCheckboxChange($event, 'group')">
+    {{ group.group_name }}
+  </div>
+
+  <!-- Subject Filter -->
+  <label for="subject">Subject:</label>
+  <div *ngFor="let subject of subjects">
+    <input type="checkbox" [value]="subject.subject_code" (change)="onCheckboxChange($event, 'subject')">
+    {{ subject.subject_name }}
+  </div>
+
+  <!-- Chapter Filter -->
+  <label for="chapter">Chapter:</label>
+  <div *ngFor="let chapter of chapters">
+    <input type="checkbox" [value]="chapter.chapter_no" (change)="onCheckboxChange($event, 'chapter')">
+    {{ chapter.chapter_name }}
+  </div>
+
+  <!-- Topic Filter -->
+  <label for="topic">Topic:</label>
+  <div *ngFor="let topic of topics">
+    <input type="checkbox" [value]="topic.topic_no" (change)="onCheckboxChange($event, 'topic')">
+    {{ topic.topic_name }}
+  </div>
+
+  <!-- Institute Type Filter -->
+  <label for="instituteType">Institute Type:</label>
+  <div *ngFor="let instituteType of instituteTypes">
+    <input type="checkbox" [value]="instituteType.institute_type" (change)="onCheckboxChange($event, 'instituteType')">
+    {{ instituteType.institute_type }}
+  </div>
+
+  <!-- Institute Filter -->
+  <label for="institute">Institute:</label>
+  <div *ngFor="let institute of institutes">
+    <input type="checkbox" [value]="institute.institute_code" (change)="onCheckboxChange($event, 'institute')">
+    {{ institute.institute_name }}
+  </div>
+
+  <!-- Year Filter -->
+  <label for="year">Year:</label>
+  <div *ngFor="let year of years">
+    <input type="checkbox" [value]="year.year_code" (change)="onCheckboxChange($event, 'year')">
+    {{ year.year_name }} <!-- Ensure year_name is part of the Year interface -->
+  </div>
+
+  <!-- Apply Filters Button -->
+  <button (click)="getQuestions()">Apply Filters</button>
+</div>
+
+<!-- Display Questions -->
+<div class="question-list">
+  <div *ngFor="let question of questions">
+    <h3>{{ question.question }}</h3>
+    <p><strong>Options:</strong></p>
+    <ul>
+      <li>{{ question.option1 }}</li>
+      <li>{{ question.option2 }}</li>
+      <li>{{ question.option3 }}</li>
+      <li>{{ question.option4 }}</li>
+    </ul>
+    <p><strong>Answer:</strong> {{ question.answer }}</p>
+    <p><strong>Explanation:</strong> {{ question.explanation }}</p>
+  </div>
+</div>

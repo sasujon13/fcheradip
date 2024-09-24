@@ -176,7 +176,7 @@ a:hover{
   color: yellowgreen !important;
 }
 .sign_menu{
-  margin-top: 50px;
+  margin-top: 40px;
   margin-bottom: -60px;
   margin-right: 0;
   background-color: teal;
@@ -223,7 +223,7 @@ a:hover{
     border-top-style: none;
     font-size: 16px;
     font-family: Roboto Thin;
-    margin-top: 1px;
+    margin-top: -3px;
     background-color: teal;
     border-bottom-style: dashed;
 }
@@ -234,7 +234,7 @@ a:hover{
 
 .search-bar i {
   position: absolute;
-  top: 50%;
+  top: 42%;
   right: 10px;
   transform: translateY(-50%);
   color: #fff;
@@ -291,7 +291,7 @@ i.fa-bars{
   .sign_menu{
     display: block;
     position: absolute;
-    margin-top: 133px;
+    margin-top: 129px;
     padding: 5px 10px;
     margin-right: -10px;
   }
@@ -339,6 +339,9 @@ i.fa-bars{
   }
 }
 @media screen and (max-width: 539px) {
+  .marquee {
+    margin-top: 105px;
+  }
   .search-bar {
     top: 70px;
     margin: 0 auto;

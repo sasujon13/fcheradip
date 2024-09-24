@@ -175,4 +175,56 @@ export class ApiService {
     window.location.href = `${this.baseUrl}/admin/`;
     return window.location.href;
   }
+
+  getQuestions(filters?: any): Observable<any> {
+    // If filters are passed, append them to the request parameters
+    const params = filters ? { params: filters } : {};
+    
+    return this.http.get(`${this.baseUrl}/questions/`, params);
+  }
+
+  getSubjects(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/subjects/`);
+  }
+
+  getGroups(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/groups/`);
+  }
+
+  getInstitutes(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/institutes/`);
+  }
+
+  getChapters(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/chapters/`);
+  }
+
+  getTopics(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/topics/`);
+  }
+
+  getInstituteTypes(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/instituteTypes/`);
+  }
+
+  getYears(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/years/`);
+  }
+
+  getYearsByInstitute(instituteIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/years/`, { params: { institutes: instituteIds } });
+  }
+  getInstitutesByInstituteType(typeIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/institutes/`, { params: { instituteTypes: typeIds } });
+  }
+  getTopicsByChapter(chapterIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/topics/`, { params: { chapters: chapterIds } });
+  }
+  getChaptersBySubject(subjectIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/chapters/`, { params: { subjects: subjectIds } });
+  }
+  getSubjectsByGroup(groupIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/subjects/`, { params: { groups: groupIds } });
+  }
+          
 }
