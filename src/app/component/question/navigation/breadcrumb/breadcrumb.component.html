@@ -1,0 +1,16 @@
+<nav class="breadcrumb-nav">
+  <a *ngFor="let item of defaultItems; let last = last" 
+     [routerLink]="item.route" 
+     [class.active]="last"
+     class="breadcrumb-item">
+    {{ item.label }}
+    <span *ngIf="!last" class="separator">></span>
+  </a>
+  <span *ngFor="let item of items; let last = last" 
+        [class.active]="last"
+        class="breadcrumb-item">
+    {{ item.label }}
+    <span *ngIf="!last" class="separator">></span>
+  </span>
+</nav>
+

@@ -1,0 +1,116 @@
+
+<header>
+  <div class="navbar">
+    <div class="menu-toggle" #menuToggle (click)="toggleMenu()">
+      <i class="fa fa-bars"></i> <a [routerLink]="['/index']" routerLinkActive="index"><img src="./assets/images/cheradip.svg" class="logo"></a>
+    </div>
+    <!-- <div class="search-bar" id="searchBar">
+      <input type="text" class="form-control" name="searchTerm" id="searchTerm" [(ngModel)]="searchTerm" (keyup)="search($event)" placeholder="Search here ... ..">
+      <i class="fa fa-search"></i>
+    </div> -->
+    <ul class="menu" [class.active]="menuActive" [@flyInOut] (click)="closeMenu()">
+        <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i></a></li>
+        <!-- <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li> -->
+        <li class="menu_item"><a [routerLink]="['/institutes']" routerLinkActive="institute"><i class="fa fa-search"></i> Institute</a></li>
+        <li class="menu_item"><a [routerLink]="['/ntrca']" routerLinkActive="ntrca"><i class="fa fa-graduation-cap"></i> NTRCA</a></li>
+        <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i> FAQs</a></li>
+        <li class="menu_item"><a [routerLink]="['/about_us']" routerLinkActive="about_us"><i class="fa fa-info-circle"></i> About Us</a></li>
+        <li class="menu_item"><a [routerLink]="['/student']" routerLinkActive="student"><i class="fa fa-user-graduate"></i> Student</a></li>
+        <li class="menu_item"><a [routerLink]="['/question']" routerLinkActive="question"><i class="fa fa-question"></i> Question</a></li>
+        
+        <!-- <li class="menu_item"><a [routerLink]="['/live_chat']" routerLinkActive="live_chat"><i class="fa pencil fa-pencil-square-o"></i></a></li>
+        <li class="menu_item"><a [routerLink]="['/create_question']" routerLinkActive="create_question"><i class="fa pencil fa-pencil-square-o"></i></a></li> -->
+        <li class="menu_item"><a [routerLink]="['/choice']" routerLinkActive="choice"><i class="fa fa-heart fa-heart2"></i><div class="badge">{{totalChoiceItem}}</div></a></li>
+        <li class="menu_item"><a [routerLink]="['/cart']" routerLinkActive="cart"><div class="badge badge2">{{totalCartItem}}</div><i class="fa fa-shopping-cart"></i></a></li>
+        
+        <li class="menu_item"><a [routerLink]="['/packages']" routerLinkActive="packages"><i class="fa pencil fa-pencil-square-o"></i>Packages</a></li>
+      </ul>
+      
+      <div class="header-right-group">
+        <!-- Country selector: dropdown icon left of flag, top right -->
+        <div class="header-country-wrap" #countryWrap>
+          <div class="header-country-trigger" (click)="toggleCountryDropdown()">
+            <span class="header-country-icon" [class.open]="showCountryDropdown">▼</span>
+            <span class="header-country-flag-wrapper">
+              <!-- Circular progress ring (translation progress), shown only when updating -->
+              <svg *ngIf="languageUpdating" class="header-country-progress-ring" viewBox="0 0 32 32">
+                <circle class="header-country-progress-track" cx="16" cy="16" r="14" fill="none" stroke-width="2" />
+                <circle class="header-country-progress-fill" cx="16" cy="16" r="14" fill="none" stroke-width="2"
+                  stroke-dasharray="87.96" [attr.stroke-dashoffset]="87.96 - (translationProgress / 100) * 87.96" />
+              </svg>
+              <img *ngIf="currentCountry?.flag_url" [src]="currentCountry!.flag_url" [alt]="currentCountry!.country_name" class="header-country-flag" />
+              <span *ngIf="currentCountry && !currentCountry.flag_url" class="header-country-emoji">{{ currentCountry!.flag_emoji }}</span>
+              <img *ngIf="!currentCountry" src="assets/images/globe.svg" alt="" class="header-country-flag header-country-placeholder" />
+            </span>
+          </div>
+          <div class="header-country-dropdown" *ngIf="showCountryDropdown">
+            <div class="header-country-loading" *ngIf="countryListLoading">Loading...</div>
+            <ng-container *ngIf="!countryListLoading">
+              <div class="header-country-section">
+                <div class="header-country-section-title">Website Language</div>
+                <div class="header-country-item website-language-item"
+                     (click)="selectHeaderCountry(websiteLanguageCountry)" [class.selected]="currentCountry?.country_code === websiteLanguageCountry.country_code">
+                  <span class="header-country-item-emoji">{{ websiteLanguageCountry.flag_emoji }}</span>
+                  <span class="header-country-item-name">{{ websiteLanguageCountry.country_name }}</span>
+                </div>
+                <div class="header-country-divider"></div>
+              </div>
+              <div class="header-country-section" *ngIf="featuredCountries.length > 0">
+                <div class="header-country-section-title">Popular</div>
+                <div *ngFor="let c of featuredCountries" class="header-country-item"
+                     (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">
+                  <img *ngIf="c.flag_url" [src]="c.flag_url" [alt]="c.country_name" class="header-country-item-flag" />
+                  <span *ngIf="!c.flag_url" class="header-country-item-emoji">{{ c.flag_emoji }}</span>
+                  <span class="header-country-item-name">{{ c.country_name }}</span>
+                </div>
+                <div class="header-country-divider"></div>
+              </div>
+              <div class="header-country-section">
+                <div class="header-country-section-title">All Countries</div>
+                <div class="header-country-list">
+                  <div *ngFor="let c of allCountriesForHeader" class="header-country-item"
+                       (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">
+                    <img *ngIf="c.flag_url" [src]="c.flag_url" [alt]="c.country_name" class="header-country-item-flag" />
+                    <span *ngIf="!c.flag_url" class="header-country-item-emoji">{{ c.flag_emoji }}</span>
+                    <span class="header-country-item-name">{{ c.country_name }}</span>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+        <ul class="menu sign_menu" id="sign_menu" #sign_menu>
+        <li class="menu_item menu_item0" id="menu_item0"><a [routerLink]="['/login']" routerLinkActive="login"><i class="fa fa-sign-in"></i> Login</a></li>
+        <li class="menu_item menu_item1" id="menu_item1"><a [routerLink]="['/auth']" routerLinkActive="auth"><i class="fa fa-user-plus"></i> SignUp</a></li>
+      </ul>
+      <ul class="profileMenu" id="profileMenu" #profileMenu>
+        <li class="menu_item menu_item2" #menu_item2 id="menu_item2" (click)="toggleDropdown()">
+          <a><i class="fa fa-user"></i></a>
+          <ul class="dropdown" *ngIf="isDropdownOpen">
+            <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew / Upgrade</a></li>
+            <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
+            <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update Profile</a></li>
+            <li><a [routerLink]="['/mobile']" routerLinkActive="mobile"><i class="fa  fa-lock"></i>&nbsp; Update Mobile Number</a></li>
+            <li><a [routerLink]="['/password']" routerLinkActive="password"><i class="fa  fa-key"></i>&nbsp; Update Password</a></li>
+            <li><a (click)="logout()"><i class="fa fa-sign-out-alt"></i>&nbsp;&nbsp; Logout</a></li>
+          </ul>
+        </li>
+      </ul>
+      </div>
+</div>
+  
+<div class="marquee" #marquee>
+  <h5 class="msg"><a class="msg_link" style="text-decoration: none; color: teal;">Loading Latest Notifications.. ...</a></h5>
+</div>
+
+<div id="copyright" class="copyright">
+  <ng-container *ngIf="shouldDisplayCopyrightDiv">
+    <div class="scaleBeforeCopyright"></div>
+    <div class="beforeCopyright"></div>
+    &copy;All rights reserved by cheradip.com
+    <div class="afterCopyright"></div>
+  </ng-container>
+</div>
+<div class="notification" id="notification"></div>
+<div class="profile_back"></div>
+</header>

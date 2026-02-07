@@ -1,0 +1,66 @@
+/* Import shared header styles */
+@import '../../../shared/styles/header.shared.css';
+
+/* Alert component-specific styles */
+.custom-alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.custom-alert-box {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  width: 480px;
+  border-bottom-left-radius: 30px;
+  border-top-right-radius: 30px;
+  box-shadow: 0 0 10px #00808080;
+}
+
+.custom-alert-box p {
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: darkred;
+  line-height: normal;
+}
+
+.custom-alert-box button {
+  padding: 7px 20px;
+  background-color: red;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 4px;
+  box-shadow: 0 0 10px #00808080;
+}
+
+.custom-alert-box button:hover {
+  background-color: #0056b3;
+}
+.alert-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  background-color: rgba(255, 0, 0, 0.8);
+  color: white;
+  border-radius: 10px;
+  text-align: justify;
+  z-index: 1000;
+  font-size: 16px;
+}
+
+.alert-box.hidden {
+  display: none;
+}

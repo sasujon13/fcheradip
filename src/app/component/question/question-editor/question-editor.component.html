@@ -1,0 +1,24 @@
+<div class="question-editor-container">
+  <div class="editor-toolbar">
+    <button type="button" class="toolbar-btn" title="Bold">
+      <i class="fa fa-bold"></i>
+    </button>
+    <button type="button" class="toolbar-btn" title="Italic">
+      <i class="fa fa-italic"></i>
+    </button>
+    <button type="button" class="toolbar-btn" title="Underline">
+      <i class="fa fa-underline"></i>
+    </button>
+    <button type="button" class="toolbar-btn" title="List">
+      <i class="fa fa-list"></i>
+    </button>
+  </div>
+  <textarea
+    class="editor-textarea"
+    [placeholder]="placeholder"
+    [value]="value"
+    (input)="onInputChange($any($event.target).value)"
+    (blur)="onTouched()"
+  ></textarea>
+</div>
+

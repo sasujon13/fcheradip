@@ -1,0 +1,7 @@
+/* Import shared header styles */
+@import '../../../shared/styles/header.shared.css';
+
+/* Admin component-specific styles */
+.container{
+    margin-top: 100px;
+}

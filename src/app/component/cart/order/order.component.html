@@ -1,0 +1,173 @@
+
+<div class="order">
+    <h5>Hi, Please fillup the form with necessary details to Confirm Order.</h5>
+    <!-- <i class="fas fa-arrow-left left_arrow"></i> -->
+    <!-- <button routerLink="/order" class="btn previous_order btn-success">Previous Order</button> -->
+    <!-- <button routerLink="/order" class="btn current_order btn-success">Current Order</button> -->
+    <!-- <i class="fa fa-arrow-down right_arrow"></i> -->
+</div>
+<form (ngSubmit)="saveJsonData()" [formGroup]="authForm">
+    <ng-container *ngIf="products.length != 0">
+        <!-- Customer Details -->
+        <div class="user-details">
+            <div class="container containerTop">
+                <h3>Customer Details</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="fullName">User Name</label>
+                                <input type="text" class="form-control" id="fullName" [(ngModel)]="jsonData.fullName" formControlName="fullName" [value]="" placeholder="Enter your full Name"
+                                [ngClass]="{ 'is-invalid': authForm.get('fullName')?.touched && authForm.get('fullName')?.invalid }"/>                        
+                        </div>
+                        <div class="form-group">
+                            <label for="username">Mobile No</label>
+                            <input type="text" class="form-control" id="username" [(ngModel)]="username" formControlName="username" [readonly]="true" style="user-select: none; pointer-events: none;" *ngIf="username" [value]="username" />
+                        </div>
+                        <div class="form-group">
+                            <label for="altMobileNo">2<sup>nd</sup> Mobile No</label>
+                            <input type="text" class="form-control" id="altMobileNo" [(ngModel)]="jsonData.altMobileNo" formControlName="altMobileNo" [value]="" placeholder="Enter Alternative Number"
+                            [ngClass]="{ 'is-invalid': authForm.get('altMobileNo')?.touched && authForm.get('altMobileNo')?.invalid }"/> 
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Address Details -->
+        <div class="address-details">
+            <div class="container">
+                <h3>Address Details</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="division" class="addressLevel">Division</label>
+                            <select class="addressSelect form-control" value="" [(ngModel)]="jsonData.division" (ngModelChange)="onDivisionChange()" id="division" formControlName="division"
+                            [ngClass]="{ 'is-invalid': authForm.get('division')?.touched && authForm.get('division')?.invalid }"> 
+                                <option value="">Select Division</option>
+                                <option *ngFor="let division of divisions" [value]="division">{{ division }}</option>
+                            </select>
+                            <label for="district" class="addressLevel">District</label>
+                            <select class="addressSelect form-control" value="" [(ngModel)]="jsonData.district" (ngModelChange)="onDistrictChange()" id="district" formControlName="district"
+                            [ngClass]="{ 'is-invalid': authForm.get('district')?.touched && authForm.get('district')?.invalid }"> 
+                                <option value="">Select District</option>
+                                <option *ngFor="let district of districts" [value]="district">{{ district }}</option>
+                            </select>
+                            <label for="thana" class="addressLevel">Thana / UZ</label>
+                            <select class="addressSelect form-control" value="" [(ngModel)]="jsonData.thana" id="thana" formControlName="thana"
+                            [ngClass]="{ 'is-invalid': authForm.get('thana')?.touched && authForm.get('thana')?.invalid }"> 
+                                <option value="">Select Thana</option>
+                                <option *ngFor="let thana of thanas" [value]="thana">{{ thana }}</option>
+                            </select>
+                            <label for="union">Union / Word</label>
+                            <input type="text" class="form-control" id="union" [(ngModel)]="jsonData.union" formControlName="union" [value]="" 
+                                [ngClass]="{ 'is-invalid': authForm.get('union')?.touched && authForm.get('union')?.invalid }"/> 
+                            <label for="village">Local Address</label>
+                                <textarea class="form-control" id="village" value="" [(ngModel)]="jsonData.village" formControlName="village" placeholder="Enter your local address like Area/Village, Para/Moholla, Road No, Quarter No, Floor No etc..." 
+                                [ngClass]="{ 'is-invalid': authForm.get('village')?.touched && authForm.get('village')?.invalid }"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <h3 class="h3order"> Order Details</h3>
+            <div class="card-table">
+                <div class="cart-product">
+                    <table class="table table-responsive">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">SN</th>
+                                <th>Name</th>
+                                <th>Image</th>
+                                <th style="width: 8%;">Weight</th>
+                                <th style="width: 10%;">Price</th>
+                                <th style="width: 16%;">Quantity</th>
+                                <th style="width: 12%;">Discount</th>
+                                <th style="width: 12%;">Total</th>
+                                <th style="width: 7%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let item of products; let i = index">
+                                <td>{{i+1}}</td>
+                                <td>{{item.name}} - {{item.code}}<br>({{item.bangla_name}})</td>
+                                <td><img style="width: 70px; height: 60px;" src="{{item.image}}" alt="" class="no-select"></td>
+                                <td>{{item.weight}} kg</td>
+                                <th>{{productPrice(item)}} /=<br><small>({{productPrice2(item)}}/kg)</small></th>
+                                <td>
+                                    <b class="decreaseQuantity idq" (click)=decreaseQuantity(item)>--</b>
+                                    &nbsp;&nbsp; {{item.quantity}} &nbsp;&nbsp;
+                                    <b class="increaseQuantity idq" (click)=increaseQuantity(item)>+</b>
+                                </td>
+                                <th>{{ savedPrice(item) }} /=</th>
+                                <th>{{ totalPrice(item) }} /=</th>
+                                <td>
+                                    <button (click)="removeCartItem(item)" class="btn btn-danger" id="btn3"><i
+                                            class="fas fa-trash-alt"></i></button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="7" style="text-align: right; padding-right: 12px;">Shiping Cost : </td><td>{{ShipingCost(products)}} /=</td><td></td>
+                            </tr>
+                            <!-- <tr>
+                                <td colspan="9" style="text-align: right; padding-right: 12px;"><strong>Grand Total : &nbsp;&nbsp;&nbsp; {{grandTotal+ShipingCost(products)}} tk</strong><sub> &#64;<del> {{ grandDiscount+ShipingCost(products) }}</del> tk Saved <b>{{ grandDiscount - grandTotal }}</b> tk</sub></td>
+                            </tr> -->
+                        </tbody>
+                    </table>
+                    <!-- <button routerLink="/products" class="btn btn-primary">Shop More</button> -->
+                </div>
+            </div>
+            <button routerLink="/products" class="btn btn-primary shopMore">Shop More</button>
+            </div>
+        <div class="payment-method">
+            <div class="container">
+                <h3>Payment Method</h3>
+                <div class="row paymentRow">
+                    <div>
+                        <div>
+                            <div class="paymentProcess">আপনার সুবিধামত নিচের যেকোন একটি পেমেন্ট পদ্ধতি নির্বাচন করুন। অর্ডারটি
+                            কনফার্ম করতে ন্যূনতম ১০০ টাকা Send Money / Transfer Balance করে Transaction ID প্রদান করুন। 
+                            পণ্য কুরিয়ারে পাঠানোর পূর্বে অর্ডার বাতিল করলে পূর্ণ টাকা ফেরত পাবেন। অন্যথায়, শর্তসাপেক্ষে আংশিক টাকা ফেরৎযোগ্য।<br><br>
+                            </div>
+                            <label for="paymentMethod">Payment Method</label>
+                            <select class="form-control paymentMethod payment" id="paymentMethod" value="" [(ngModel)]="jsonData.paymentMethod" formControlName="paymentMethod"
+                            [ngClass]="{ 'is-invalid': authForm.get('paymentMethod')?.touched && authForm.get('paymentMethod')?.invalid }"> 
+                                <option value="">Select Payment Method</option>
+                                <option value="bkash">bKash</option>
+                                <option value="nagad">Nagad</option>
+                                <option value="dbbl">DBBL</option>
+                                <option value="other">Others</option>
+                            </select><br>
+                            <label for="trxid">Transaction ID</label><input class="form-control payment" id="trxid" value="" [(ngModel)]="jsonData.trxid" formControlName="trxid" type="text" value="" placeholder="Enter Your Transaction ID"
+                            [ngClass]="{ 'is-invalid': authForm.get('trxid')?.touched && authForm.get('trxid')?.invalid }"/> <br>
+                            <label for="paidFrom">Paid From</label><input class="form-control payment" value="" id="paidFrom" [(ngModel)]="jsonData.paidFrom" formControlName="paidFrom" type="text" value="" placeholder="Enter Your Account Number" 
+                            [ngClass]="{ 'is-invalid': authForm.get('paidFrom')?.touched && authForm.get('paidFrom')?.invalid }"/> 
+                            <br><br>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div #consoleOutput class="console-output"></div>
+        <div class="confirm-order">
+            <div class="container">
+                <button class="btn btn-success confirm">Confirm Order</button>
+            </div>
+        </div>
+    </ng-container>
+    <ng-container *ngIf="products.length ==0">
+        <div class="container">
+            <div class="card">
+                <h5 class="card-title">My Order</h5>
+            </div>
+            <div class="center">
+                <img src="../../../assets/images/order.jpg" alt="">
+                <h4>Your Order is empty!</h4>
+                <h6>To order fish click on Shop now button!</h6>
+                <button routerLink="/packages" class="btn btn-primary">Shop Now</button>
+            </div>
+        </div>
+        
+    </ng-container>
+    
+    <div class="gap" style="height: 100px;"></div>

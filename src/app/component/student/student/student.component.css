@@ -1,0 +1,10 @@
+/* Import shared styles */
+@import '../../../shared/styles/header.shared.css';
+@import '../../../shared/styles/student.shared.css';
+
+/* Student component-specific styles */
+.student-container {
+  min-height: 100vh;
+  padding-top: 62px;
+}
+

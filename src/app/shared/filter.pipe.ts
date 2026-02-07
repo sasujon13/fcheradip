@@ -10,13 +10,15 @@ export class FilterPipe implements PipeTransform {
       return value;
     }
 
+    const lower = filterString.toLowerCase();
     return value.filter((item: any) => {
       for (const propName of propNames) {
-        if (item[propName].trim().toLowerCase().includes(filterString.toLowerCase())) {
-          return true; // Return true if any property matches the filter
+        const val = item[propName];
+        if (val != null && String(val).toLowerCase().includes(lower)) {
+          return true;
         }
       }
-      return false; // None of the properties match the filter
+      return false;
     });
   }
 }

@@ -1,0 +1,169 @@
+<div class="login_signup_form">
+  <h2>LogIn</h2>
+  <form [formGroup]="authForm" (ngSubmit)="onAuth()">
+    <!-- Country (from cheradip_country) -->
+    <div class="form-group" *ngIf="authForm.get('countryCode')">
+      <span class="label-colon"><label for="country">Country</label><span class="colon">:</span></span>
+      <div class="form-field country-selector-wrapper">
+        <app-country-selector
+          formControlName="countryCode"
+          [showPhoneCode]="false"
+          [showFlag]="true"
+          [compact]="false"
+          (countryChange)="onCountryChange($any($event))">
+        </app-country-selector>
+      </div>
+    </div>
+    <div class="form-group">
+      <span class="label-colon"><label for="username">M. Number</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <div class="phone-input-wrapper" *ngIf="selectedCountry">
+          <span class="phone-code">{{ selectedCountry.phone_code }}</span>
+          <input type="text" formControlName="username" id="username" [placeholder]="phonePlaceholder"
+            class="form-control phone-input"
+            [attr.minlength]="phoneMinLength"
+            [attr.maxlength]="phoneMaxLength"
+            [ngClass]="{ 'is-invalid': authForm.get('username')?.touched && authForm.get('username')?.invalid }" />
+        </div>
+        <input *ngIf="!selectedCountry" type="text" formControlName="username" id="username" placeholder="Select country first"
+          class="form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('username')?.touched && authForm.get('username')?.invalid }" />
+      </div>
+    </div>
+    <div class="form-group form-group--error" *ngIf="isMobileNumberRegistered">
+      <span class="label-colon"></span>
+      <div class="form-field">
+        <div class="error-message errormessage">
+          You don't have an account with this Mobile number. Please <a [routerLink]="['/auth']"
+            routerLinkActive="auth">Signup</a> / try with a different Mobile number!
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="label-colon"><label for="password">Password</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <div class="input-group">
+          <input type="{{ showPassword ? 'text' : 'password' }}" formControlName="password" id="password"
+            class="form-control"
+            [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
+          <div class="input-group-append">
+            <span class="input-group-text" (click)="togglePasswordVisibility()">
+              <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="form-group form-group--error" *ngIf="isPasswordMismatch">
+      <span class="label-colon"></span>
+      <div class="form-field"><div class="error-message errormessage">Your Password doesn't match. Please try again or <a href="javascript:void(0)" (click)="openForgotPassword()">Reset Password</a></div></div>
+    </div>
+    <div class="form-group form-group--error" *ngIf="isPasswordLength">
+      <span class="label-colon"></span>
+      <div class="form-field"><div class="error-message errormessage">Password must be within 6 - 14 Characters.</div></div>
+    </div>
+
+    <button type="submit" class="loginButton">Login</button>
+    
+    <!-- Forgot Password Link -->
+    <div class="forgot-password-link">
+      <a href="javascript:void(0)" (click)="openForgotPassword()">Forgot Password?</a>
+    </div>
+  </form>
+
+  <p>Don't have an account?</p>
+  <a [routerLink]="['/auth']" routerLinkActive="auth" style="text-decoration: none;"><button class="switchButton">
+      Signup
+    </button></a>
+</div>
+
+<!-- Forgot Password Modal -->
+<div class="modal-overlay" *ngIf="showForgotPasswordModal" (click)="closeForgotPasswordModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <button class="modal-close" (click)="closeForgotPasswordModal()">&times;</button>
+    
+    <!-- Step 1: Enter Mobile Number -->
+    <div *ngIf="forgotPasswordStep === 1">
+      <h3>Reset Password</h3>
+      <p>Enter your registered mobile number to receive a verification code.</p>
+      
+      <div class="form-group">
+        <label>Mobile Number</label>
+        <input type="text" [(ngModel)]="forgotPasswordMobile" 
+          placeholder="Your 11 Digits Mobile Number"
+          class="form-control" maxlength="11" />
+      </div>
+      
+      <div class="form-group" *ngIf="!hasEmail">
+        <label>Email Address (required for verification)</label>
+        <input type="email" [(ngModel)]="forgotPasswordEmail" 
+          placeholder="your@email.com"
+          class="form-control" />
+        <small class="hint">We'll send the verification code to this email</small>
+      </div>
+      
+      <button class="btn-primary" (click)="sendResetCode()" [disabled]="isSendingCode">
+        {{ isSendingCode ? 'Sending...' : 'Send Verification Code' }}
+      </button>
+      
+      <div class="error-message" *ngIf="forgotPasswordError">{{ forgotPasswordError }}</div>
+      <div class="success-message" *ngIf="forgotPasswordSuccess">{{ forgotPasswordSuccess }}</div>
+    </div>
+    
+    <!-- Step 2: Enter Verification Code -->
+    <div *ngIf="forgotPasswordStep === 2">
+      <h3>Enter Verification Code</h3>
+      <p>A 6-digit code has been sent to your email. Enter it below.</p>
+      
+      <div class="form-group">
+        <label>Verification Code</label>
+        <input type="text" [(ngModel)]="verificationCode" 
+          placeholder="Enter 6-digit code"
+          class="form-control verification-code-input" maxlength="6" />
+      </div>
+      
+      <button class="btn-primary" (click)="verifyResetCode()" [disabled]="isVerifying">
+        {{ isVerifying ? 'Verifying...' : 'Verify Code' }}
+      </button>
+      
+      <div class="resend-link">
+        <a href="javascript:void(0)" (click)="sendResetCode()">Resend Code</a>
+      </div>
+      
+      <div class="error-message" *ngIf="forgotPasswordError">{{ forgotPasswordError }}</div>
+      <div class="success-message" *ngIf="forgotPasswordSuccess">{{ forgotPasswordSuccess }}</div>
+    </div>
+    
+    <!-- Step 3: Set New Password -->
+    <div *ngIf="forgotPasswordStep === 3">
+      <h3>Set New Password</h3>
+      <p>Enter your new password below.</p>
+      
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" [(ngModel)]="newPassword" 
+          placeholder="Enter new password (6-14 characters)"
+          class="form-control" minlength="6" maxlength="14" />
+      </div>
+      
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" [(ngModel)]="confirmPassword" 
+          placeholder="Confirm new password"
+          class="form-control" minlength="6" maxlength="14" />
+      </div>
+      
+      <button class="btn-primary" (click)="resetPassword()" [disabled]="isResetting">
+        {{ isResetting ? 'Resetting...' : 'Reset Password' }}
+      </button>
+      
+      <div class="error-message" *ngIf="forgotPasswordError">{{ forgotPasswordError }}</div>
+      <div class="success-message" *ngIf="forgotPasswordSuccess">{{ forgotPasswordSuccess }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="gap" style="height: 50px;"></div>
+
+

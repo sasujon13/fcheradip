@@ -1,0 +1,13 @@
+/* Import shared styles */
+@import '../../../shared/styles/header.shared.css';
+
+.console-output{
+    margin: -12px auto 12px auto;
+    width: max-content;
+    text-align: center; 
+    color: darkred;
+  }
+  button{
+      margin: 15px auto 12px auto !important;
+      width: 200px;
+  }

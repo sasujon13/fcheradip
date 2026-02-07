@@ -1,0 +1,57 @@
+<div class="student-stats-page">
+  <h2>Your Statistics</h2>
+
+  <div class="student-stats-container">
+    <div class="student-stat-card">
+      <div class="student-stat-label">Total Points</div>
+      <div class="student-stat-value">{{ stats.totalPoints }}</div>
+    </div>
+
+    <div class="student-stat-card">
+      <div class="student-stat-label">Current Level</div>
+      <div class="student-stat-value">Level {{ stats.currentLevel }}</div>
+      <div class="student-progress-bar">
+        <div class="student-progress-fill" [style.width.%]="getLevelProgress()">
+          {{ getLevelProgress() | number:'1.0-0' }}%
+        </div>
+      </div>
+      <small>XP: {{ stats.xp }} / {{ stats.xpToNextLevel }}</small>
+    </div>
+
+    <div class="student-stat-card">
+      <div class="student-stat-label">Current Rank</div>
+      <div class="student-stat-value">#{{ stats.currentRank }}</div>
+    </div>
+
+    <div class="student-stat-card">
+      <div class="student-stat-label">Login Streak</div>
+      <div class="student-stat-value">🔥 {{ stats.streak }} days</div>
+      <small>Longest: {{ stats.longestStreak }} days</small>
+    </div>
+
+    <div class="student-stat-card">
+      <div class="student-stat-label">Exams Completed</div>
+      <div class="student-stat-value">{{ stats.examsCompleted }}</div>
+    </div>
+
+    <div class="student-stat-card">
+      <div class="student-stat-label">Accuracy</div>
+      <div class="student-stat-value">{{ stats.accuracy }}%</div>
+      <small>{{ stats.correctAnswers }} / {{ stats.questionsAnswered }} correct</small>
+    </div>
+  </div>
+
+  <h3>Achievements</h3>
+  <div class="achievements-grid">
+    <div *ngFor="let achievement of achievements" class="student-achievement" [class.unlocked]="achievement.isUnlocked">
+      <div class="student-achievement-icon">{{ achievement.icon }}</div>
+      <div class="achievement-info">
+        <h4>{{ achievement.title }}</h4>
+        <p>{{ achievement.description }}</p>
+        <div class="student-progress-bar">
+          <div class="student-progress-fill" [style.width.%]="achievement.progress"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

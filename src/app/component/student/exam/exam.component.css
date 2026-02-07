@@ -1,0 +1,157 @@
+/* Import shared styles */
+@import '../../../shared/styles/header.shared.css';
+@import '../../../shared/styles/student.shared.css';
+
+/* Exam component-specific styles */
+.exam-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.exam-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.progress-info {
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 16px;
+  color: teal;
+  font-weight: bold;
+}
+
+.exam-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.question-panel {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.question-text {
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 18px;
+  color: #333333;
+  margin-bottom: 24px;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.option-item:hover {
+  border-color: teal;
+  background-color: rgba(0, 128, 128, 0.05);
+}
+
+.option-item.selected {
+  border-color: teal;
+  background-color: rgba(0, 128, 128, 0.1);
+}
+
+.option-label {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: teal;
+  color: white;
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-weight: bold;
+}
+
+.option-text {
+  flex: 1;
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #333333;
+}
+
+.question-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.question-nav-panel {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  height: fit-content;
+  position: sticky;
+  top: 80px;
+}
+
+.question-nav-panel h4 {
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 16px;
+  color: teal;
+  margin-bottom: 12px;
+}
+
+.submit-btn {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.result-container {
+  padding: 40px;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.result-container h2 {
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 28px;
+  color: teal;
+  margin-bottom: 32px;
+}
+
+.result-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+@media screen and (max-width: 1024px) {
+  .exam-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .question-nav-panel {
+    position: relative;
+    top: 0;
+  }
+}
+

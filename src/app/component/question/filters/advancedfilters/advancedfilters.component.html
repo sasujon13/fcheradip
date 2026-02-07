@@ -1,0 +1,59 @@
+<div class="advanced-filters-container">
+  <h4>Advanced Filters</h4>
+  
+  <div class="filter-group">
+    <label>Question Type</label>
+    <select [(ngModel)]="filters.type" (change)="onFilterChange()" class="filter-input">
+      <option value="">All Types</option>
+      <option value="MCQ">MCQ</option>
+      <option value="CQ">CQ</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label>Year</label>
+    <input 
+      type="text" 
+      [(ngModel)]="filters.year" 
+      (input)="onFilterChange()"
+      placeholder="e.g., 2023"
+      class="filter-input"
+    >
+  </div>
+
+  <div class="filter-group">
+    <label>Marks Range</label>
+    <div class="marks-range">
+      <input 
+        type="number" 
+        [(ngModel)]="filters.marksMin" 
+        (input)="onFilterChange()"
+        placeholder="Min"
+        class="filter-input"
+      >
+      <span>-</span>
+      <input 
+        type="number" 
+        [(ngModel)]="filters.marksMax" 
+        (input)="onFilterChange()"
+        placeholder="Max"
+        class="filter-input"
+      >
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label>Difficulty</label>
+    <select [(ngModel)]="filters.difficulty" (change)="onFilterChange()" class="filter-input">
+      <option value="">All Levels</option>
+      <option value="Easy">Easy</option>
+      <option value="Medium">Medium</option>
+      <option value="Hard">Hard</option>
+    </select>
+  </div>
+
+  <div class="filter-actions">
+    <button type="button" class="btn-secondary" (click)="resetFilters()">Reset</button>
+  </div>
+</div>
+

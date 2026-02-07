@@ -36,11 +36,13 @@
     align-items: center;
     background-color: white;
     height: max-content;
+    min-height: 0 !important; /* override Google Translate inline min-height: 100% which causes extra top space */
   }
   .content {
     max-width: 1920px;
     width: 100%;
     background-color: white;
+    min-height: 0 !important;
   }
 
   ::-webkit-scrollbar {

@@ -1,0 +1,89 @@
+<div class="report-page">
+  <h2>Performance Reports</h2>
+
+  <div class="report-filters">
+    <div class="filter-group">
+      <label>Period:</label>
+      <select [(ngModel)]="selectedPeriod" (change)="onPeriodChange()" class="student-select">
+        <option *ngFor="let period of periods" [value]="period.value">{{ period.label }}</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Education Level:</label>
+      <select [(ngModel)]="selectedLevel" (change)="onFilterChange()" class="student-select">
+        <option value="">All Levels</option>
+        <option *ngFor="let level of levels" [value]="level">{{ level }}</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Group:</label>
+      <select [(ngModel)]="selectedGroup" (change)="onFilterChange()" class="student-select">
+        <option value="">All Groups</option>
+        <option *ngFor="let group of groups" [value]="group.value">{{ group.label }}</option>
+      </select>
+    </div>
+
+    <button (click)="downloadReport()" class="student-btn">Download PDF</button>
+  </div>
+
+  <div *ngIf="reportData" class="report-content">
+    <div class="report-summary student-card">
+      <h3>Summary</h3>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <label>Total Exams:</label>
+          <span>{{ reportData.totalExams }}</span>
+        </div>
+        <div class="summary-item">
+          <label>Average Score:</label>
+          <span>{{ reportData.averageScore }}%</span>
+        </div>
+        <div class="summary-item">
+          <label>Best Score:</label>
+          <span>{{ reportData.bestScore }}%</span>
+        </div>
+        <div class="summary-item">
+          <label>Improvement:</label>
+          <span [class.positive]="reportData.improvement > 0" [class.negative]="reportData.improvement < 0">
+            {{ reportData.improvement > 0 ? '+' : '' }}{{ reportData.improvement }}%
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="reportData.subjectBreakdown" class="subject-breakdown student-card">
+      <h3>Subject-wise Performance</h3>
+      <table class="breakdown-table">
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Exams</th>
+            <th>Average Score</th>
+            <th>Best Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let subject of reportData.subjectBreakdown">
+            <td>{{ subject.name }}</td>
+            <td>{{ subject.exams }}</td>
+            <td>{{ subject.averageScore }}%</td>
+            <td>{{ subject.bestScore }}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="reportData.recommendations && reportData.recommendations.length > 0" class="recommendations student-card">
+      <h3>Recommendations</h3>
+      <ul>
+        <li *ngFor="let rec of reportData.recommendations">{{ rec }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <div *ngIf="!reportData" class="student-loading">
+    <div class="student-spinner"></div>
+  </div>
+</div>

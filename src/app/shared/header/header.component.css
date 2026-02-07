@@ -1,0 +1,5 @@
+/* Import shared header styles */
+@import '../styles/header.shared.css';
+
+/* Header component-specific styles (if any) */
+/* All header styles are now in header.shared.css */

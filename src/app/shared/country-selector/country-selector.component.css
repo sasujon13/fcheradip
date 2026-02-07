@@ -1,0 +1,279 @@
+/* Country Selector Container */
+.country-selector {
+  position: relative;
+  width: 100%;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* Selector Input */
+.selector-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.selector-input:hover {
+  border-color: #007bff;
+}
+
+.country-selector.open .selector-input {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+/* Flag */
+.selector-input .flag {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.selector-input .flag.placeholder {
+  opacity: 0.5;
+}
+
+/* Country flag image in trigger: same size as globe */
+.selector-input .flag.flag-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Globe placeholder: transparent image, no background */
+.selector-input .globe-placeholder {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+/* Input */
+.selector-input input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+  min-width: 0;
+}
+
+.selector-input input::placeholder {
+  color: #999;
+}
+
+/* Phone Code */
+.selector-input .phone-code {
+  color: #666;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Dropdown Arrow */
+.selector-input .dropdown-arrow {
+  color: #999;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.selector-input .dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown List */
+.dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+/* Loading */
+.dropdown-list .loading {
+  padding: 16px;
+  text-align: center;
+  color: #666;
+}
+
+/* Section Title */
+.section-title {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #888;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  position: sticky;
+  top: 0;
+}
+
+/* Section Divider */
+.section-divider {
+  height: 1px;
+  background: #eee;
+  margin: 4px 0;
+}
+
+/* Country Item */
+.country-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.country-item:hover {
+  background: #f0f7ff;
+}
+
+.country-item.selected {
+  background: #e3f2fd;
+}
+
+.country-item.featured {
+  background: #fffbeb;
+}
+
+.country-item.featured:hover {
+  background: #fef3c7;
+}
+
+.country-item .flag {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+/* Country flag image in list rows: fixed size, no stretch */
+.country-item .flag.flag-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.country-item .country-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.country-item .phone-code {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* No Results */
+.no-results {
+  padding: 16px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+/* Countries List (scrollable area) */
+.countries-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* Compact Mode (for header) */
+.country-selector.compact .selector-input {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+}
+
+.country-selector.compact .selector-input:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.country-selector.compact .selector-input input {
+  color: #fff;
+  width: 40px;
+  font-size: 12px;
+}
+
+.country-selector.compact .selector-input input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.country-selector.compact .selector-input .flag {
+  font-size: 16px;
+}
+
+.country-selector.compact .dropdown-arrow {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 8px;
+}
+
+.country-selector.compact .dropdown-list {
+  min-width: 280px;
+  right: 0;
+  left: auto;
+}
+
+/* Scrollbar Styling */
+.dropdown-list::-webkit-scrollbar,
+.countries-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropdown-list::-webkit-scrollbar-track,
+.countries-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb,
+.countries-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb:hover,
+.countries-list::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .selector-input {
+    padding: 12px;
+  }
+  
+  .selector-input input {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .dropdown-list {
+    max-height: 50vh;
+  }
+  
+  .country-item {
+    padding: 12px;
+  }
+}

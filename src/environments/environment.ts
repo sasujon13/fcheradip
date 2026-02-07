@@ -3,7 +3,10 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-    production: false
+    production: false,
+    // Relative URL: browser requests same origin (e.g. localhost:4200/api/countries/). Dev server proxies to Django. No CORS.
+    // You must run the app with: ng serve (from fcheradip folder). Then open http://localhost:4200
+    apiUrl: '/api'
   };
   
   /*

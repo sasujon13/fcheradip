@@ -1,0 +1,33 @@
+<div class="question-card">
+  <div class="question-header">
+    <span class="question-number">Q{{ question?.number || 'N/A' }}</span>
+    <span class="question-type-badge" [ngClass]="question?.type === 'MCQ' ? 'mcq-badge' : 'cq-badge'">
+      {{ question?.type || 'CQ' }}
+    </span>
+  </div>
+  
+  <div class="question-preview">
+    <p class="question-text">{{ question?.text || 'No question text' }}</p>
+  </div>
+  
+  <div class="question-metadata">
+    <span class="metadata-item" *ngIf="question?.marks">Marks: {{ question.marks }}</span>
+    <span class="metadata-item" *ngIf="question?.year">Year: {{ question.year }}</span>
+    <span class="metadata-item" *ngIf="question?.lastModified">
+      Modified: {{ question.lastModified | date:'short' }}
+    </span>
+  </div>
+  
+  <div class="question-actions">
+    <button class="action-btn edit-btn" (click)="onEdit()" title="Edit">
+      <i class="fa fa-edit"></i>
+    </button>
+    <button class="action-btn duplicate-btn" (click)="onDuplicate()" title="Duplicate">
+      <i class="fa fa-copy"></i>
+    </button>
+    <button class="action-btn delete-btn" (click)="onDelete()" title="Delete">
+      <i class="fa fa-trash"></i>
+    </button>
+  </div>
+</div>
+

@@ -1,0 +1,482 @@
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
+import { ApiService } from 'src/app/service/api.service';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { MatSnackBar } from '@angular/material/snack-bar';
+
+
+@Component({
+  selector: 'app-auth',
+  templateUrl: './profile.component.html',
+  styleUrls: ['./profile.component.css']
+})
+
+export class ProfileComponent implements OnInit {
+  @ViewChild('consoleOutput') consoleOutput: ElementRef | undefined;
+  authForm: FormGroup;
+  isPasswordMismatch = false;
+  isMobileNumberRegistered = false;
+  isPasswordLength = false;
+  showPassword: boolean = false;
+  jsonData: any = {
+    division: '',
+    district: '',
+    thana: '',
+    paymentMethod: ''
+  };
+
+  divisions: string[] = [];
+  districts: string[] = [];
+  thanas: string[] = [];
+  username: any;
+  fullName: any;
+  gender: any;
+  union: any;
+  village: any;
+
+  // Change Password Modal
+  showChangePasswordModal = false;
+  changePasswordStep = 1;
+  changePasswordEmail = '';
+  verificationCode = '';
+  newPassword = '';
+  confirmPassword = '';
+  userHasEmail = false;
+  isSendingCode = false;
+  isVerifying = false;
+  isChangingPassword = false;
+  changePasswordError = '';
+  changePasswordSuccess = '';
+
+  constructor(
+    private fb: FormBuilder,
+    private router: Router,
+    private apiService: ApiService,
+    private snackBar: MatSnackBar,
+  ) {
+    this.authForm = this.fb.group({
+      // ... form controls ...
+    });
+  }
+
+  ngOnInit(): void {
+    const searchBarElement = document.getElementById('searchBar');
+    if (searchBarElement) {
+      searchBarElement.style.display = 'none';
+    }
+    this.fetchDivisions();
+    const savedAuthFormData = localStorage.getItem('authFormData');
+    if (savedAuthFormData) {
+      const authData = JSON.parse(savedAuthFormData);
+      this.authForm.patchValue(authData);
+    }
+
+    const scienceC = document.getElementById('science');
+    const businessC = document.getElementById('business');
+    const humanitiesC = document.getElementById('humanities');
+
+    const science = document.getElementById('scienceSubjects');
+    const science2 = document.getElementById('scienceSubjects2');
+    const arts = document.getElementById('humanitiesSubjects');
+    const arts2 = document.getElementById('humanitiesSubjects2');
+    const arts3 = document.getElementById('humanitiesSubjects3');
+    const business = document.getElementById('businessSubjects');
+    const business2 = document.getElementById('businessSubjects2');
+    const business3 = document.getElementById('businessSubjects3');
+  
+    if (scienceC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
+
+      science.style.display = 'flex';
+      science2.style.display = 'flex';
+
+      arts.style.display = 'none';
+      arts2.style.display = 'none';
+      arts3.style.display = 'none';
+
+      business.style.display = 'none';
+      business2.style.display = 'none';
+      business3.style.display = 'none';
+    }
+    
+    if (humanitiesC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
+
+      science.style.display = 'none';
+      science2.style.display = 'none';
+
+      arts.style.display = 'flex';
+      arts2.style.display = 'flex';
+      arts3.style.display = 'flex';
+
+      business.style.display = 'none';
+      business2.style.display = 'none';
+      business3.style.display = 'none';
+    }
+    
+    if (businessC && arts && arts2 && arts3 && business && business2 && business3 && science && science2) {
+
+      science.style.display = 'none';
+      science2.style.display = 'none';
+
+      arts.style.display = 'none';
+      arts2.style.display = 'none';
+      arts3.style.display = 'none';
+
+      business.style.display = 'flex';
+      business2.style.display = 'flex';
+      business3.style.display = 'flex';
+    }
+    
+    this.authForm = this.fb.group({
+      acctype: ['student', [Validators.required, Validators.maxLength(7)]],
+      username: ['', [Validators.required, Validators.minLength(11), Validators.maxLength(11)]],
+      password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(14)]],
+      fullName: ['', [Validators.required, Validators.maxLength(31)]],
+      group: ['science', [Validators.required, Validators.maxLength(18)]],
+      gender: ['Male', [Validators.required, Validators.maxLength(6)]],
+      division: ['', [Validators.required, Validators.maxLength(31)]],
+      district: ['', [Validators.required, Validators.maxLength(31)]],
+      thana: ['', [Validators.required, Validators.maxLength(31)]],
+      union: ['', [Validators.required, Validators.maxLength(31)]],
+      village: ['', [Validators.required, Validators.maxLength(255)]]
+    });
+
+    this.username = localStorage.getItem('username');
+    this.jsonData.username = this.username;
+    this.fullName = localStorage.getItem('fullName');
+    this.jsonData.fullName = this.fullName;
+    this.gender = localStorage.getItem('gender');
+    this.jsonData.gender = this.gender;
+    this.union = localStorage.getItem('union');
+    this.jsonData.union = this.union;
+    this.village = localStorage.getItem('village');
+    this.jsonData.village = this.village;
+
+    this.authForm.get('username')?.valueChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((username) => {
+          if (username.length === 11) {
+            return this.apiService.checkMobileNumberExists(username);
+          }
+          return of(false);
+        })
+      )
+      .subscribe((response: any) => {
+        if (!response)
+          this.isMobileNumberRegistered = false;
+        else if (typeof response === 'object' && response.hasOwnProperty('exists')) {
+          const check = response.exists;
+          if (check === false)
+            this.isMobileNumberRegistered = true;
+          else
+            this.isMobileNumberRegistered = false;
+        }
+      });
+
+    this.authForm.get('password')?.valueChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((password) => {
+          const username = this.authForm.get('username')?.value;
+          if (password.length > 5 && password.length < 15) {
+            return this.apiService.checkPasswordExists(username, password);
+
+          }
+          return of(false);
+        })
+      )
+      .subscribe((response: any) => {
+        if (!response) {
+          this.isPasswordLength = true;
+          this.isPasswordMismatch = false;
+        }
+        else if (typeof response === 'object' && response.hasOwnProperty('exists')) {
+          const check = response.exists;
+          this.isPasswordLength = false;
+          if (check === false)
+            this.isPasswordMismatch = true;
+          else
+            this.isPasswordMismatch = false;
+        }
+      });
+
+  }
+  hasEmptyFields() {
+    const formControls = this.authForm.controls;
+    for (const key in formControls) {
+      if (formControls[key].value === '') {
+        return true;
+      }
+    }
+    return false;
+  }
+  onAuth() {
+    this.authForm.markAllAsTouched();
+    if (this.hasEmptyFields()) {
+      this.handleResponse("Please Fillup the Red-Marked Fields!");
+    }
+    else {
+      if (this.authForm.valid && this.isPasswordMismatch === false) {
+        const acctype = this.authForm.value.acctype;
+        const fullName = this.authForm.value.fullName;
+        const username = this.authForm.value.username;
+        const password = this.authForm.value.password;
+        const group = this.authForm.value.group;
+        const gender = this.authForm.value.gender;
+        const division = this.authForm.value.division;
+        const district = this.authForm.value.district;
+        const thana = this.authForm.value.thana;
+        const union = this.authForm.value.union;
+        const village = this.authForm.value.village;
+        const formData = this.authForm.value;
+        localStorage.setItem('formData', JSON.stringify(formData));
+        this.apiService.update(acctype, fullName, group, gender, division, district, thana, union, village, password).subscribe(
+          (response) => {
+            this.snackBar.open('Profile Update Successful!', 'Close', {
+              duration: 3000,
+              panelClass: ['success-snackbar'],
+            });
+            this.logout();
+            const returnUrl = localStorage.getItem('returnUrl') || ''; // Default to root if returnUrl is not set
+            this.router.navigate([returnUrl]);
+            localStorage.setItem('returnUrl', '');
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('authToken', response)
+            localStorage.setItem('formData', JSON.stringify(formData));
+          },
+          (error) => {
+            console.error('Update error:', error);
+          }
+        );
+      } else {
+        this.handleResponse("You have Invalid Data! Please Correct!");
+        this.authForm.markAllAsTouched();
+      }
+    }
+  }
+
+  onDivisionChange(): void {
+    const selectedDivision = this.authForm.get('division')?.value;
+    if (selectedDivision) {
+      this.apiService.getDistricts(selectedDivision).subscribe(districts => {
+        this.districts = districts;
+      });
+    }
+  }
+
+  onDistrictChange(): void {
+    const selectedDivision = this.authForm.get('division')?.value;
+    const selectedDistrict = this.authForm.get('district')?.value;
+    if (selectedDivision && selectedDistrict) {
+      this.apiService.getThanas(selectedDivision, selectedDistrict).subscribe(thanas => {
+        this.thanas = thanas;
+      });
+    }
+  }
+
+  fetchDivisions() {
+    this.apiService.getDivisions().subscribe(
+      (data: string[]) => {
+        this.divisions = data;
+      },
+      error => {
+        console.error('Error fetching divisions:', error);
+      }
+    );
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+  logout(): void {
+    const menu_item0 = document.getElementById('menu_item0');
+    const menu_item1 = document.getElementById('menu_item1');
+    const menu_item2 = document.getElementById('menu_item2');
+    const profileMenu = document.getElementById('profileMenu');
+    const sign_menu = document.getElementById('sign_menu');
+    if (menu_item2 && menu_item1 && menu_item0 && profileMenu && sign_menu) {
+      menu_item2.style.display = 'block';
+      menu_item1.style.display = 'none';
+      menu_item0.style.display = 'none';
+      sign_menu.style.display = 'none';
+      profileMenu.style.display = 'block';
+    }
+  }
+
+  handleResponse(response: any) {
+
+    if (this.consoleOutput) {
+      const consoleOutputDiv = this.consoleOutput.nativeElement;
+      consoleOutputDiv.textContent = '';
+    }
+    const formattedMessage = this.formatResponseMessage(response);
+
+    // Append the formatted console output message
+    if (this.consoleOutput) {
+      const consoleOutputDiv = this.consoleOutput.nativeElement;
+      consoleOutputDiv.textContent = formattedMessage;
+    }
+  }
+  formatResponseMessage(response: any): string {
+    let formattedMessage = JSON.stringify(response);
+
+    // Remove curly braces {}
+    formattedMessage = formattedMessage.replace(/[{()}]/g, '');
+
+    // Remove "error:" and "message:"
+    formattedMessage = formattedMessage.replace(/"error":/g, '');
+    formattedMessage = formattedMessage.replace(/"message":/g, '');
+
+    // Trim leading and trailing whitespace
+    formattedMessage = formattedMessage.trim();
+    if (formattedMessage.includes("Order Created Successfully")) {
+      this.snackBar.open('Order Created Successfully!', 'Close', {
+        duration: 3000,
+        panelClass: ['success-snackbar'],
+      });
+      this.router.navigate(['/products']);
+    }
+    return formattedMessage;
+  }
+
+  // =========================================================================
+  // CHANGE PASSWORD METHODS
+  // =========================================================================
+
+  openChangePassword(): void {
+    this.showChangePasswordModal = true;
+    this.changePasswordStep = 1;
+    this.changePasswordEmail = '';
+    this.verificationCode = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.changePasswordError = '';
+    this.changePasswordSuccess = '';
+  }
+
+  closeChangePasswordModal(): void {
+    this.showChangePasswordModal = false;
+    this.changePasswordStep = 1;
+    this.changePasswordError = '';
+    this.changePasswordSuccess = '';
+  }
+
+  sendChangePasswordCode(): void {
+    this.changePasswordError = '';
+    this.changePasswordSuccess = '';
+    
+    const username = localStorage.getItem('username');
+    if (!username) {
+      this.changePasswordError = 'Please login first';
+      return;
+    }
+
+    this.isSendingCode = true;
+
+    this.apiService.sendPasswordResetCode(username).subscribe(
+      (response: any) => {
+        this.isSendingCode = false;
+        if (response.success) {
+          this.changePasswordSuccess = response.message || 'Verification code sent!';
+          this.changePasswordStep = 2;
+        } else if (response.needs_email) {
+          this.userHasEmail = false;
+          this.changePasswordError = 'Please provide an email address.';
+        } else {
+          this.changePasswordError = response.message || 'Failed to send code.';
+        }
+      },
+      (error: any) => {
+        this.isSendingCode = false;
+        this.changePasswordError = error.error?.message || 'Failed to send code.';
+      }
+    );
+  }
+
+  verifyChangePasswordCode(): void {
+    this.changePasswordError = '';
+    this.changePasswordSuccess = '';
+
+    if (!this.verificationCode || this.verificationCode.length !== 6) {
+      this.changePasswordError = 'Please enter a valid 6-digit code';
+      return;
+    }
+
+    const username = localStorage.getItem('username');
+    if (!username) {
+      this.changePasswordError = 'Please login first';
+      return;
+    }
+
+    this.isVerifying = true;
+
+    this.apiService.verifyCode(username, this.verificationCode).subscribe(
+      (response: any) => {
+        this.isVerifying = false;
+        if (response.success) {
+          this.changePasswordSuccess = 'Code verified!';
+          this.changePasswordStep = 3;
+        } else {
+          this.changePasswordError = response.message || 'Invalid or expired code.';
+        }
+      },
+      (error: any) => {
+        this.isVerifying = false;
+        this.changePasswordError = error.error?.message || 'Invalid or expired code.';
+      }
+    );
+  }
+
+  changePassword(): void {
+    this.changePasswordError = '';
+    this.changePasswordSuccess = '';
+
+    if (!this.newPassword || this.newPassword.length < 6 || this.newPassword.length > 14) {
+      this.changePasswordError = 'Password must be 6-14 characters';
+      return;
+    }
+
+    if (this.newPassword !== this.confirmPassword) {
+      this.changePasswordError = 'Passwords do not match';
+      return;
+    }
+
+    const username = localStorage.getItem('username');
+    if (!username) {
+      this.changePasswordError = 'Please login first';
+      return;
+    }
+
+    this.isChangingPassword = true;
+
+    this.apiService.resetPasswordWithCode(
+      username,
+      this.verificationCode,
+      this.newPassword
+    ).subscribe(
+      (response: any) => {
+        this.isChangingPassword = false;
+        if (response.success) {
+          this.changePasswordSuccess = 'Password changed successfully!';
+          this.snackBar.open('Password changed successfully!', 'Close', {
+            duration: 5000,
+            panelClass: ['success-snackbar'],
+          });
+          setTimeout(() => {
+            this.closeChangePasswordModal();
+          }, 2000);
+        } else {
+          this.changePasswordError = response.message || 'Failed to change password.';
+        }
+      },
+      (error: any) => {
+        this.isChangingPassword = false;
+        this.changePasswordError = error.error?.message || 'Failed to change password.';
+      }
+    );
+  }
+}

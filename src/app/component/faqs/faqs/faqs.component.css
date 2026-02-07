@@ -1,0 +1,11 @@
+/* Import shared header styles */
+@import '../../../shared/styles/header.shared.css';
+
+/* FAQs component-specific styles */
+  .parent{
+    width: 100%;
+    background-color: teal;
+  }
+
+  @media screen and (max-width: 649px) {
+  }

@@ -1,0 +1,33 @@
+<div class="question-list-container">
+  <div class="question-grid">
+    <app-question-card
+      *ngFor="let question of questions"
+      [question]="question"
+      (edit)="onQuestionSelect($event)"
+      (delete)="onQuestionDelete($event)"
+    ></app-question-card>
+  </div>
+  
+  <div class="pagination-container" *ngIf="totalPages > 1">
+    <button 
+      class="pagination-btn" 
+      [disabled]="currentPage === 1"
+      (click)="onPageChange(currentPage - 1)"
+    >
+      Previous
+    </button>
+    
+    <span class="page-info">
+      Page {{ currentPage }} of {{ totalPages }}
+    </span>
+    
+    <button 
+      class="pagination-btn" 
+      [disabled]="currentPage === totalPages"
+      (click)="onPageChange(currentPage + 1)"
+    >
+      Next
+    </button>
+  </div>
+</div>
+

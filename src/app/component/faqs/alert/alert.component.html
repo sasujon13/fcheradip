@@ -1,0 +1,6 @@
+<div *ngIf="showAlert" class="custom-alert-overlay">
+  <div class="custom-alert-box">
+    <p>{{ message }}</p>
+    <button (click)="showAlert = false">Close</button>
+  </div>
+</div>

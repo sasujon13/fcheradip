@@ -2,6 +2,46 @@
 <html lang="en">
 
 <head>
+    <!-- Run first: apply saved language; two-step translation (to en then to target) for accuracy -->
+    <script>
+      (function() {
+        try {
+          var viaEnTarget = localStorage.getItem('translateViaEnglishTarget');
+          if (viaEnTarget) {
+            document.cookie = 'googtrans=/en/' + viaEnTarget + '; path=/; max-age=31536000';
+            localStorage.removeItem('translateViaEnglishTarget');
+            window.location.reload();
+            return;
+          }
+          var lang = localStorage.getItem('preferred_lang') || '';
+          if (lang && lang !== 'en' && lang !== 'original') {
+            var gt = document.cookie.match(/googtrans=([^;]*)/);
+            var current = (gt && gt[1]) ? gt[1] : '';
+            if (current !== '/en/' + lang) {
+              localStorage.setItem('translateViaEnglishTarget', lang);
+              document.cookie = 'googtrans=/bn/en; path=/; max-age=31536000';
+              window.location.reload();
+              return;
+            }
+          }
+          if (lang === 'original' || lang === 'en') {
+            document.cookie = 'googtrans=; path=/; max-age=0';
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1486662105439820"
+     crossorigin="anonymous"></script>
+     
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-G0WWJ0YG0F"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-G0WWJ0YG0F');
+    </script>
     <meta charset="utf-8">
     <title>Cheradip</title>
     <base href="/">
@@ -12,10 +52,37 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement(
+          { pageLanguage: 'bn', layout: google.translate.TranslateElement.InlineLayout.SIMPLE, autoDisplay: false },
+          'google_translate_element'
+        );
+      }
+    </script>
+    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
+    <style>
+      /* Hide all Google Translate UI — only your header country selector is visible; GT runs in background via cookie */
+      .goog-te-banner-frame,
+      .goog-te-banner-frame.skiptranslate,
+      .skiptranslate,
+      .goog-te-balloon-frame,
+      #goog-gt-tt,
+      .goog-te-gadget,
+      .goog-te-gadget *,
+      .goog-logo-link,
+      .goog-te-menu-frame { display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; }
+      html, body { top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; min-height: 0 !important; }
+      body.translated { top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; min-height: 0 !important; }
+      .content { margin-top: 0 !important; padding-top: 0 !important; min-height: 0 !important; }
+      .goog-text-highlight { background: transparent !important; }
+    </style>
 </head>
 
 
 <body class="mat-typography">
+    <!-- Google Translate runs in background; widget is hidden; language is controlled by header country selector only -->
+    <div id="google_translate_element" style="position:absolute!important;left:-9999px!important;width:0!important;height:0!important;overflow:hidden!important;visibility:hidden!important;pointer-events:none!important;"></div>
     <div class="content">
     <script src="./assets/js/bootstrap.bundle.min.js"></script>
     <app-root></app-root>
@@ -23,4 +90,3 @@
 </body>
 
 </html>
-

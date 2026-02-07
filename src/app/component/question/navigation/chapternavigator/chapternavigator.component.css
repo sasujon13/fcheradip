@@ -1,0 +1,49 @@
+/* Import shared header styles */
+@import '../../../../shared/styles/header.shared.css';
+
+/* Chapter Navigator component-specific styles */
+.chapter-navigator-container {
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.chapter-title {
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 18px;
+  color: teal;
+  margin-bottom: 12px;
+}
+
+.chapter-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chapter-item {
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.chapter-item:hover {
+  background-color: yellowgreen;
+  color: white;
+}
+
+.chapter-item.active {
+  background-color: teal;
+  color: white;
+}
+
+.bengali-text {
+  font-family: 'Noto Serif Bengali', 'Bengali Serif', sans-serif;
+  font-size: 14px;
+}
+

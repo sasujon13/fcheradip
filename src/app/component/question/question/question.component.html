@@ -1,0 +1,51 @@
+<div class="question-container">
+  <app-breadcrumb [items]="breadcrumbItems"></app-breadcrumb>
+  
+  <div class="question-layout">
+    <aside class="sidebar">
+      <app-subjectselector 
+        [subjects]="subjects"
+        [currentSubject]="currentSubject"
+        (subjectChange)="onSubjectChange($any($event))"
+      ></app-subjectselector>
+      
+      <app-chapternavigator 
+        *ngIf="currentSubject"
+        [chapters]="chapters"
+        [currentChapter]="currentChapter"
+        (chapterChange)="onChapterChange($any($event))"
+      ></app-chapternavigator>
+    </aside>
+    
+    <main class="main-content">
+      <!-- Form view: create or edit (for edit, wait until question is loaded) -->
+      <app-questionform
+        *ngIf="isFormMode && (!isEditRoute || editQuestion !== null)"
+        [question]="editQuestion"
+        [subject]="currentSubject"
+        [chapter]="currentChapter"
+        (save)="onSaveQuestion($event)"
+        (cancel)="onCancelForm()"
+      ></app-questionform>
+
+      <!-- List view -->
+      <ng-container *ngIf="!isFormMode">
+        <div class="action-bar">
+          <app-searchbar (searchChange)="onSearch($any($event))"></app-searchbar>
+          <button class="btn-primary create-btn" (click)="onCreateQuestion()">
+            <i class="fa fa-plus"></i> Create Question
+          </button>
+        </div>
+        
+        <app-questionlist 
+          [questions]="questions"
+          [currentPage]="currentPage"
+          [totalPages]="totalPages"
+          (pageChange)="onPageChange($any($event))"
+          (questionSelect)="onQuestionSelect($any($event))"
+          (questionDelete)="onQuestionDelete($any($event))"
+        ></app-questionlist>
+      </ng-container>
+    </main>
+  </div>
+</div>

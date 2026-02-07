@@ -1,0 +1,50 @@
+/* Import shared header styles */
+@import '../../../../shared/styles/header.shared.css';
+
+/* Search Bar component-specific styles */
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 4px 32px 4px 10px;
+  border-radius: 20px;
+  border: none;
+  border-bottom: 1px dashed white;
+  color: white;
+  background-color: teal;
+  font-family: 'Roboto Thin', 'Roboto', sans-serif;
+  font-size: 16px;
+}
+
+.search-input::placeholder {
+  color: #cccccc;
+}
+
+.search-input:focus {
+  outline: none;
+  border-bottom-color: yellowgreen;
+}
+
+.search-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 16px;
+}
+
+.search-btn:hover {
+  color: yellowgreen;
+}
+
+@media screen and (max-width: 839px) {
+  .search-input {
+    background-color: transparent;
+  }
+}
+

@@ -1,0 +1,158 @@
+/* Import shared styles */
+@import '../../../shared/styles/header.shared.css';
+
+/* Login component-specific styles */
+div.login_signup_form {
+  max-width: 420px;
+  margin: 130px auto;
+  padding: 24px;
+  background-color: rgba(1, 128, 128, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(1, 128, 128, 0.75);
+  user-select: none;
+}
+
+/* Form rows use auth.shared.css .form-group / .label-colon / .form-field (same as Country row) */
+
+.country-selector-wrapper {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 128, 128, 0.25);
+  padding: 4px 8px;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+/* Phone row: size from auth.shared.css (same as other fields) */
+
+/* Form layout and field styling from auth.shared.css (form-group, form-field, same as Country) */
+
+button {
+  padding: 10px;
+  background-color: teal;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: rgb(105, 185, 185);
+}
+
+button:last-child {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.switchButton {
+  margin: -10px auto 0 auto !important;
+  display: block;
+  text-align: center;
+  padding: 3px 14px;
+  background-color: rgba(1, 128, 128, 0.25);
+  color: black;
+}
+
+p {
+  color: darkred;
+  text-align: center;
+  margin-top: 15px;
+}
+
+/* ... Your existing styles ... */
+
+.gender_options {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.gender_options label {
+  display: flex;
+  align-items: center;
+  margin-top: -50px;
+  cursor: pointer;
+}
+
+.gender_options input[type="radio"] {
+  margin-right: 5px;
+  margin-top: 28px;
+  cursor: pointer;
+}
+
+input.other {
+  margin-left: 10px;
+}
+
+/* ... Your existing styles ... */
+
+.mobile-number-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  /* Add this */
+}
+
+.mobile-number-container input[type="text"] {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding-left: 40px;
+  /* Adjust padding to make space for the prefix */
+}
+
+.mobile-number-container input[type="text"]:read-only {
+  background-color: #f2f2f2;
+}
+
+.mobile-number-container input[type="text"]::placeholder {
+  color: #ccc;
+}
+
+.mobile-number-container input[type="text"]::before {
+  content: "+880";
+  position: absolute;
+  /* Add this */
+  left: 10px;
+  /* Adjust this value as needed */
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: bold;
+}
+
+/* .form-control and .error-message in auth.shared.css */
+
+.submitError {
+  margin-top: 10px !important;
+  margin-bottom: -15px !important;
+  width: 100% !important;
+  margin-left: 0px !important;
+  text-align: center !important;
+}
+
+/* .input-group-append in auth.shared.css (inside .form-field) */
+
+/* Forgot password modal: same field styling as Country row */
+.modal-content .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.modal-content .form-group label {
+  margin: 0;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.modal-content .form-group .form-control {
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 128, 128, 0.25);
+  border-radius: 8px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}

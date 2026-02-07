@@ -1,27 +1,23 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { catchError, map, tap } from 'rxjs/operators';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
 
-  // private djangoAdminUrl = 'http://127.0.0.1:8000/api/admin/';
-
-  private baseUrl = 'http://127.0.0.1:8000/api';
-  private djangoAdminUrl = 'http://127.0.0.1:8000/admin/';
-
-  // private baseUrl = 'http://127.0.0.1:8000';
+  private baseUrl = environment.apiUrl;
+  public search = new BehaviorSubject<string>("");
   userData: any;
 
   constructor(private http: HttpClient) { }
 
-
   getNotifications(): Observable<any> {
     const url = `${this.baseUrl}/notification/`;
-    return this.http.get<string[]>(url);
+    return this.http.get<any>(url).pipe(catchError(() => of([])));
   }
 
   getProducts() {
@@ -43,6 +39,36 @@ export class ApiService {
 
   getThanas(division: string, district: string): Observable<string[]> {
     const url = `${this.baseUrl}/thanas/?division=${division}&district=${district}`;
+    return this.http.get<string[]>(url);
+  }
+
+  getRDistricts(): Observable<string[]> {
+    const url = `${this.baseUrl}/recommend/unique_districts/`;
+    return this.http.get<string[]>(url);
+  }
+
+  getRThanas(district: string): Observable<string[]> {
+    const url = `${this.baseUrl}/recommend/unique_thanas/?district=${district}`;
+    return this.http.get<string[]>(url);
+  }
+
+  getR5Districts(): Observable<string[]> {
+    const url = `${this.baseUrl}/recommend5/unique_districts/`;
+    return this.http.get<string[]>(url);
+  }
+
+  getR5Thanas(district: string): Observable<string[]> {
+    const url = `${this.baseUrl}/recommend5/unique_thanas/?district=${district}`;
+    return this.http.get<string[]>(url);
+  }
+
+  getR6Districts(): Observable<string[]> {
+    const url = `${this.baseUrl}/recommend6/unique_districts/`;
+    return this.http.get<string[]>(url);
+  }
+
+  getR6Thanas(district: string): Observable<string[]> {
+    const url = `${this.baseUrl}/recommend6/unique_thanas/?district=${district}`;
     return this.http.get<string[]>(url);
   }
 
@@ -149,6 +175,12 @@ export class ApiService {
     );
   }
 
+  
+
+  getInstitutes2(url?: string): Observable<any> {
+    return this.http.get(url ?? `${this.baseUrl}/institutes/?page=1`);
+  }
+
   private setToken(token: string): void {
     localStorage.setItem('authToken', token);
   }
@@ -174,5 +206,125 @@ export class ApiService {
     //return window.location.replace("http://127.0.0.1:8000/api/admin");
     window.location.href = `${this.baseUrl}/admin/`;
     return window.location.href;
+  }
+
+  getQuestions(filters?: any): Observable<any> {
+    // If filters are passed, append them to the request parameters
+    const params = filters ? { params: filters } : {};
+    
+    return this.http.get(`${this.baseUrl}/questions/`, params);
+  }
+
+  getSubjects(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/subjects/`);
+  }
+
+  getGroups(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/groups/`);
+  }
+
+  getInstitutes(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/institutes/`);
+  }
+
+  getChapters(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/chapters/`);
+  }
+
+  getTopics(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/topics/`);
+  }
+
+  getInstituteTypes(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/instituteTypes/`);
+  }
+
+  getYears(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/years/`);
+  }
+
+  getYearsByInstitute(instituteIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/years/`, { params: { institutes: instituteIds } });
+  }
+  getInstitutesByInstituteType(typeIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/institutes/`, { params: { instituteTypes: typeIds } });
+  }
+  getTopicsByChapter(chapterIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/topics/`, { params: { chapters: chapterIds } });
+  }
+  getChaptersBySubject(subjectIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/chapters/`, { params: { subjects: subjectIds } });
+  }
+  getSubjectsByGroup(groupIds: string[]): Observable<any> {
+    return this.http.get(`${this.baseUrl}/subjects/`, { params: { groups: groupIds } });
+  }
+
+  getDepartments(): Observable<{ departments?: any[] }> {
+    return this.http.get<{ departments?: any[] }>(`${this.baseUrl}/departments/`);
+  }
+
+  getGroupsByClass(classCode: string): Observable<{ groups?: any[] }> {
+    return this.http.get<{ groups?: any[] }>(`${this.baseUrl}/groups/`, { params: { class: classCode } });
+  }
+
+  signupWithData(formData: any): Observable<any> {
+    const body = {
+      acctype: formData.acctype,
+      fullName: formData.fullName,
+      username: formData.username,
+      password: formData.password,
+      group: formData.group || '',
+      gender: formData.gender || 'Male',
+      division: formData.division || '',
+      district: formData.district || '',
+      thana: formData.thana || '',
+      union: formData.union || '',
+      village: formData.village || '',
+      ...formData
+    };
+    return this.http.post(`${this.baseUrl}/signup/`, body).pipe(
+      tap((response: any) => {
+        if (response && (response.token || response.authToken)) {
+          const token = response.token || response.authToken;
+          this.setToken(token);
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('authToken', token);
+          if (response.username) localStorage.setItem('username', response.username);
+          if (response.fullName) localStorage.setItem('fullName', response.fullName);
+        }
+      }),
+      catchError((error) => { throw error; })
+    );
+  }
+
+  sendPasswordResetCode(username: string, email?: string): Observable<any> {
+    const body: { username: string; email?: string } = { username };
+    if (email) body.email = email;
+    return this.http.post(`${this.baseUrl}/send_password_reset_code/`, body);
+  }
+
+  verifyCode(username: string, code: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/verify_code/`, { username, code });
+  }
+
+  resetPasswordWithCode(username: string, code: string, newPassword: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/reset_password_with_code/`, { username, code, newPassword });
+  }
+
+  // Question-related methods
+  getQuestionById(id: number): Observable<any> {
+    return this.http.get(`${this.baseUrl}/questions/${id}/`);
+  }
+
+  createQuestion(question: any): Observable<any> {
+    return this.http.post(`${this.baseUrl}/questions/`, question);
+  }
+
+  updateQuestion(id: number, question: any): Observable<any> {
+    return this.http.put(`${this.baseUrl}/questions/${id}/`, question);
+  }
+
+  deleteQuestion(id: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/questions/${id}/`);
   }
 }

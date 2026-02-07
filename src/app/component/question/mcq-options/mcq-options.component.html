@@ -1,0 +1,45 @@
+<div class="mcq-options-container">
+  <div class="option-item" *ngFor="let option of options; let i = index">
+    <div class="option-header">
+      <span class="option-label">{{ option.label }}</span>
+      <button 
+        type="button" 
+        class="remove-btn" 
+        (click)="removeOption(i)"
+        [disabled]="options.length <= 2"
+        title="Remove option"
+      >
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="option-content">
+      <textarea
+        class="option-textarea"
+        [value]="option.text"
+        (input)="option.text = $any($event.target).value; onOptionChange()"
+        placeholder="Enter option text..."
+      ></textarea>
+      
+      <label class="correct-option-label">
+        <input 
+          type="radio" 
+          name="correctOption"
+          [checked]="option.isCorrect"
+          (change)="onCorrectChange(i)"
+        >
+        Correct Answer
+      </label>
+    </div>
+  </div>
+  
+  <button 
+    type="button" 
+    class="add-option-btn" 
+    (click)="addOption()"
+    [disabled]="options.length >= 6"
+  >
+    <i class="fa fa-plus"></i> Add Option
+  </button>
+</div>
+

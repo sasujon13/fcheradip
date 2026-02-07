@@ -1,0 +1,14 @@
+<div class="chapter-navigator-container">
+  <h3 class="chapter-title">Chapters</h3>
+  <ul class="chapter-list">
+    <li 
+      *ngFor="let chapter of chapters" 
+      class="chapter-item"
+      [class.active]="chapter.id === currentChapter"
+      (click)="onChapterClick(chapter.id)"
+    >
+      <span class="bengali-text">{{ chapter.name }}</span>
+    </li>
+  </ul>
+</div>
+

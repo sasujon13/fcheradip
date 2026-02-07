@@ -1,0 +1,180 @@
+<div class="mainmsg" style="text-align: center; margin-top: 20px;">
+  <h1 class="msg">Find Details of any type of Institutes over the Country!</h1><br>
+
+  
+    <div class="filter">
+      <div class="dropdownx mb-3">
+        <button class="btn btn-outline-primary dropdown-toggle filter" type="button" data-bs-toggle="dropdown">
+          Institute Types
+        </button>
+        <ul class="dropdown-menu scrollable-menu filterx" style="width: 248px;">
+          <li *ngFor="let type of types" class="filter">
+            <label class="dropdown-item">
+              <input type="checkbox" [checked]="selectedTypes.includes(type)"
+                (change)="onTypeChange(type, $event)">
+              {{ type }}
+            </label>
+          </li>
+
+        </ul>
+      </div>&nbsp;&nbsp;&nbsp;&nbsp;
+      <div class="dropdownx mb-3">
+        <button class="btn btn-outline-primary dropdown-toggle filter" type="button" data-bs-toggle="dropdown">
+          Select Divisions
+        </button>
+        <ul class="dropdown-menu scrollable-menu filterx">
+          <li *ngFor="let division of divisions" class="filter">
+            <label class="dropdown-item">
+              <input type="checkbox" [checked]="selectedDivisions.includes(division)"
+                (change)="onDivisionChange(division, $event)">
+              {{ division }}
+            </label>
+          </li>
+
+        </ul>
+      </div>&nbsp;&nbsp;&nbsp;&nbsp;
+
+      <div class="dropdownx mb-3" *ngIf="districts.length > 0">
+        <button class="btn btn-outline-success dropdown-toggle filter" type="button" data-bs-toggle="dropdown">
+          Select Districts
+        </button>
+        <ul class="dropdown-menu scrollable-menu filterx">
+          <li *ngFor="let district of districts" class="filter">
+            <label class="dropdown-item">
+              <input type="checkbox" [checked]="selectedDistricts.includes(district)" (change)="onDistrictChange(district, $event)">
+              {{ district }}
+            </label>
+          </li>
+
+        </ul>
+      </div>&nbsp;&nbsp;&nbsp;&nbsp;
+
+      <div class="dropdownx mb-3" *ngIf="thanas.length > 0">
+        <button class="btn btn-outline-success dropdown-toggle filter" type="button" data-bs-toggle="dropdown">
+          Select Thanas
+        </button>
+        <ul class="dropdown-menu scrollable-menu filterx">
+          <li *ngFor="let thana of thanas" class="filter">
+            <label class="dropdown-item">
+              <input type="checkbox" [checked]="selectedThanas.includes(thana)" (change)="onThanaChange(thana, $event)">
+              {{ thana }}
+            </label>
+          </li>
+
+        </ul>
+      </div>
+
+      <button class="btn btn-outline-danger filter" type="button" (click)="clearFilters()">
+          <i class="fa fa-search" style="color: darkred;"></i><font color="darkred"> Clear</font>
+        </button>
+
+    </div>
+
+  <div class="search-bar">
+    <input type="text" placeholder="Type Institute Name or EIIN No." [(ngModel)]="searchTerm" (keyup)="onKeyUp($event)" />
+    <i (click)="onSearch()" class="fa fa-search"></i>
+  </div>
+
+</div>
+<ul class="item-list">
+  <li *ngFor="let inst of dataSource">
+    <div class="image-container">
+      <h3 class="title">{{ inst.instituteNameBn }}</h3><br>
+      <table class="package"><br>
+        <tr class="tblhead">
+          <th class="tblth" colspan="3">EIIN No.</th>
+          <th class="tblth" colspan="2"> {{ inst.eiinNo }}</th>
+        </tr>
+        <tr class="gap">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="tbltd" colspan="3">Institute Type</td>
+          <td class="tbltd" colspan="2"> {{ inst.instituteTypeName }}</td>
+        </tr>
+        <tr class="gap">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <!-- <tr>
+          <td class="tbltd" colspan="3">Govt Status</td>
+          <td class="tbltd" colspan="2"> {{ inst.isGovt }}</td>
+        </tr>
+        <tr class="gap">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr> -->
+        <tr>
+          <td class="tbltd" colspan="3">Mobile No.</td>
+          <td class="tbltd" colspan="2"> {{ inst.mobile }}</td>
+        </tr>
+        <tr class="gap">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="tbltd" colspan="3">Alt. Contact</td>
+          <td class="tbltd" colspan="2"> {{ inst.mobileAlternate }}</td>
+        </tr>
+        <tr class="gap">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="tbltd" colspan="5"> {{ inst.email }}</td>
+        </tr>
+        <tr class="gap">
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </table>
+      <p class="price">{{ inst.mouzaNameBn }}, {{ inst.thanaNameBn }}, {{ inst.districtNameBn }}</p>
+      <p class="footer">
+        <a [routerLink]="['/institutes', inst.eiinNo + '-' + inst.instituteName]" routerLinkActive="[inst.eiinNo + '-' + inst.instituteName]" class="item_footer">
+          <i class="fa fa-shopping-cart"></i>Click to Show More Details...
+        </a>
+      </p>
+    </div>
+  </li>
+</ul>
+
+<div class="comment">
+  <p style="color: darkred;">>>> {{ displayText }} <<<</p>
+      <p style="color: darkgreen;"><button (click)="goPrevious()" [disabled]="!previous"
+          class="previous npbtn">Previous</button><b style="font-size: 24px;">{{ displayText2 }}</b>
+        <button (click)="goNext()" [disabled]="!next" class="next npbtn">Next</button>
+      </p>
+      <Table class="abbreviation">
+        <tr class="tblhead2">
+          <th class="tblth2"><u></u></th>
+          <th class="tblth2"></th>
+          <th class="tblth2"><u></u></th>
+        </tr>
+        <tr class="tblhead2">
+          <td class="tbltd2"></td>
+          <td class="tbltd2"></td>
+          <td class="tbltd2"></td>
+        </tr>
+      </Table>
+</div>
+
+<div class="gap" style="height: 100px;"></div>

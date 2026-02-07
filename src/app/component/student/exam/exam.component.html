@@ -1,0 +1,83 @@
+<div class="exam-container" *ngIf="!isSubmitted">
+  <div class="exam-header-bar">
+    <div class="progress-info">
+      Question {{ currentQuestionIndex + 1 }} of {{ questions.length }}
+    </div>
+    <div class="timer">{{ getTimerDisplay() }}</div>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill" [style.width.%]="((currentQuestionIndex + 1) / questions.length) * 100">
+      {{ Math.round(((currentQuestionIndex + 1) / questions.length) * 100) }}%
+    </div>
+  </div>
+
+  <div class="exam-content">
+    <div class="question-panel">
+      <div class="question-card" *ngIf="getCurrentQuestion()">
+        <h3 class="question-text">{{ getCurrentQuestion().text }}</h3>
+        
+        <div class="options-list">
+          <div 
+            *ngFor="let option of ['A', 'B', 'C', 'D']"
+            class="option-item"
+            [class.selected]="answers[getCurrentQuestion().id] === option"
+            (click)="selectAnswer(getCurrentQuestion().id, option)"
+          >
+            <span class="option-label">{{ option }}</span>
+            <span class="option-text">{{ getCurrentQuestion()['option_' + option.toLowerCase()] }}</span>
+          </div>
+        </div>
+
+        <div class="question-actions">
+          <button class="btn-student-secondary" (click)="previousQuestion()" [disabled]="currentQuestionIndex === 0">
+            Previous
+          </button>
+          <button class="btn-student-secondary" (click)="markForReview()">
+            {{ markedQuestions.has(getCurrentQuestion().id) ? 'Unmark' : 'Mark for Review' }}
+          </button>
+          <button class="btn-student-secondary" (click)="nextQuestion()" [disabled]="currentQuestionIndex === questions.length - 1">
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="question-nav-panel">
+      <h4>Question Navigation</h4>
+      <div class="question-nav">
+        <button
+          *ngFor="let question of questions; let i = index"
+          class="question-number-btn"
+          [class.answered]="answers[question.id]"
+          [class.marked]="markedQuestions.has(question.id)"
+          [class.current]="i === currentQuestionIndex"
+          (click)="goToQuestion(i)"
+        >
+          {{ i + 1 }}
+        </button>
+      </div>
+      <button class="btn-student-primary submit-btn" (click)="submitExam()">
+        Submit Exam
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="result-container" *ngIf="isSubmitted && result">
+  <h2>Exam Results</h2>
+  <div class="result-stats">
+    <div class="stat-box">
+      <div class="stat-value">{{ result.score }}%</div>
+      <div class="stat-label">Your Score</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value">{{ result.correct }}/{{ result.total }}</div>
+      <div class="stat-label">Correct Answers</div>
+    </div>
+  </div>
+  <button class="btn-student-primary" [routerLink]="['/student/dashboard']">
+    Back to Dashboard
+  </button>
+</div>
+

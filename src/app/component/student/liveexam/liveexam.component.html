@@ -1,0 +1,40 @@
+<div class="liveexam-container">
+  <h1 class="page-title">Live Exams</h1>
+  
+  <div class="filters-section">
+    <select [(ngModel)]="selectedLevel" (change)="onFilterChange()" class="filter-select">
+      <option value="">All Levels</option>
+      <option *ngFor="let level of levels" [value]="level">{{ level }}</option>
+    </select>
+    
+    <select [(ngModel)]="selectedGroup" (change)="onFilterChange()" class="filter-select">
+      <option value="">All Groups</option>
+      <option value="S">Science</option>
+      <option value="A">Humanities</option>
+      <option value="B">Business</option>
+      <option value="I">Islamic Studies</option>
+      <option value="H">Home Economics</option>
+      <option value="M">Music</option>
+    </select>
+  </div>
+
+  <div class="exams-list">
+    <div *ngFor="let exam of exams" class="exam-card">
+      <div class="exam-header">
+        <h3 class="exam-title">{{ exam.subject_name }} ({{ exam.subject_code }})</h3>
+        <span class="badge badge-primary">{{ exam.type }} Questions</span>
+      </div>
+      
+      <div class="exam-meta">
+        <span><i class="fa fa-clock-o"></i> Duration: {{ exam.duration }} minutes</span>
+        <span><i class="fa fa-calendar"></i> Starts: {{ exam.start_time | date:'short' }}</span>
+        <span><i class="fa fa-calendar-times-o"></i> Ends: {{ exam.end_time | date:'short' }}</span>
+      </div>
+      
+      <button class="btn-student-primary" [routerLink]="['/student/exam', exam.id]">
+        Join Exam
+      </button>
+    </div>
+  </div>
+</div>
+

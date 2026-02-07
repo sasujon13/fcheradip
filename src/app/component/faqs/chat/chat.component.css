@@ -1,0 +1,5 @@
+/* Import shared header styles */
+@import '../../../shared/styles/header.shared.css';
+
+/* Chat component-specific styles */
+

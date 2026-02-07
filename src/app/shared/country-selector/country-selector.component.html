@@ -1,0 +1,77 @@
+<div class="country-selector" [class.compact]="compact" [class.open]="isDropdownOpen">
+  <!-- Selected Country Display / Input: when selected = country flag then name; when none = globe -->
+  <div class="selector-input" (click)="toggleDropdown()">
+    <!-- Flag: selected = country flag (img or emoji), else globe placeholder -->
+    <img *ngIf="showFlag && selectedCountry && selectedCountry.flag_url" 
+         [src]="selectedCountry!.flag_url" [alt]="selectedCountry!.country_name" class="flag flag-img" />
+    <span class="flag flag-emoji" *ngIf="showFlag && selectedCountry && !selectedCountry.flag_url">{{ selectedCountry!.flag_emoji }}</span>
+    <img src="assets/images/globe.svg" alt="" class="flag placeholder globe-placeholder" *ngIf="showFlag && !selectedCountry" />
+    
+    <!-- Search Input (shows country name when selected) -->
+    <input 
+      type="text" 
+      [formControl]="searchControl"
+      [placeholder]="selectedCountry ? selectedCountry.country_name : placeholder"
+      (click)="$event.stopPropagation()"
+      (focus)="onInputFocus()"
+      (input)="filterCountries(searchControl.value || '')"
+      autocomplete="off"
+    />
+    
+    <!-- Phone Code Display -->
+    <span class="phone-code" *ngIf="showPhoneCode && selectedCountry && !compact">
+      {{ selectedCountry!.phone_code }}
+    </span>
+    
+    <!-- Dropdown Arrow -->
+    <span class="dropdown-arrow" [class.open]="isDropdownOpen">▼</span>
+  </div>
+
+  <!-- Dropdown List: flag + name only (no phone code in results) -->
+  <div class="dropdown-list" *ngIf="isDropdownOpen">
+    <!-- Loading -->
+    <div class="loading" *ngIf="isLoading">Loading...</div>
+
+    <!-- Featured Countries (shown when no search) -->
+    <div class="featured-section" *ngIf="!searchControl.value && featuredCountries.length > 0">
+      <div class="section-title">Popular</div>
+      <div 
+        class="country-item featured" 
+        *ngFor="let country of featuredCountries"
+        (click)="selectCountry(country)"
+        [class.selected]="selectedCountry?.country_code === country.country_code"
+      >
+        <img *ngIf="country.flag_url" [src]="country.flag_url" [alt]="country.country_name" class="flag flag-img" />
+        <span class="flag flag-emoji" *ngIf="!country.flag_url">{{ country.flag_emoji }}</span>
+        <span class="country-name">{{ country.country_name }}</span>
+      </div>
+      <div class="section-divider"></div>
+    </div>
+
+    <!-- All Countries / Search Results: flag + name only -->
+    <div class="all-countries">
+      <div class="section-title" *ngIf="!searchControl.value">All Countries</div>
+      <div class="section-title" *ngIf="searchControl.value">
+        Search Results ({{ filteredCountries.length }})
+      </div>
+      
+      <div class="countries-list">
+        <div 
+          class="country-item" 
+          *ngFor="let country of filteredCountries"
+          (click)="selectCountry(country)"
+          [class.selected]="selectedCountry?.country_code === country.country_code"
+        >
+          <img *ngIf="country.flag_url" [src]="country.flag_url" [alt]="country.country_name" class="flag flag-img" />
+          <span class="flag flag-emoji" *ngIf="!country.flag_url">{{ country.flag_emoji }}</span>
+          <span class="country-name">{{ country.country_name }}</span>
+        </div>
+        
+        <!-- No Results -->
+        <div class="no-results" *ngIf="filteredCountries.length === 0 && searchControl.value">
+          No countries found for "{{ searchControl.value }}"
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

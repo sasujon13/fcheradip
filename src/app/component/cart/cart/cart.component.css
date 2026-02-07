@@ -1,0 +1,100 @@
+/* Import shared header styles */
+@import '../../../shared/styles/header.shared.css';
+
+/* Cart component-specific styles */
+.card {
+  height: 60vh;
+  margin: 25px;
+  padding: 25px;
+}
+
+.center img {
+  text-decoration: none;
+  color: inherit;
+  border: none;
+  outline: none;
+  height: 162px;
+  width: 250px;
+  margin: 20px 0px;
+  user-select: none;
+  pointer-events: none;
+}
+
+h4,
+h6 {
+  font-weight: 400;
+}
+
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.card-table {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: none;
+  word-wrap: break-word;
+  background-color: #fff;
+  background-clip: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: .25rem;
+}
+
+.center .btn .btn-primary {
+  font-size: 14px !important;
+  margin-top: 20px !important;
+  font-weight: 400;
+  padding: 7px 30px;
+  background-color: teal;
+  color: #fff;
+  border-radius: 10px !important;
+  border: none;
+  border-bottom: 1px solid white;
+}
+
+th,td{
+  vertical-align: middle;
+  text-align: center;
+}
+
+.idq{
+  cursor: pointer;
+  padding: 0 5px;
+  text-shadow: 0 0 10px teal;
+}
+
+.container {
+  padding-top: 110px;
+}
+
+table.table.table-responsive {
+  margin-bottom: 0;
+  outline-style: dashed;
+  outline-color: white;
+}
+.table>:not(caption)>*>* {
+  padding: 0.5rem 0.25rem;
+}
+#btn2 {
+  --bs-btn-padding-x: 0.65rem;
+  --bs-btn-padding-y: 0.25rem;
+}
+label, textarea, input, table,div, h1, h2,
+h3, h4, h5, h6,img, option{
+  user-select: none;
+}
+
+img.no-select {
+  user-select: none;
+  pointer-events: none;
+}
+
+small{
+  font-weight: 100;
+}
+

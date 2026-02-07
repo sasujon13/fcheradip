@@ -1,0 +1,55 @@
+@import '../../../shared/styles/header.shared.css';
+@import '../../../shared/styles/student.shared.css';
+
+.student-stats-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.student-stats-page h2 {
+  color: var(--student-primary);
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  margin-bottom: 20px;
+}
+
+.student-stats-page h3 {
+  color: var(--student-primary);
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  margin-top: 40px;
+  margin-bottom: 20px;
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.student-achievement.unlocked {
+  border-color: var(--student-accent);
+  background: #f0fff0;
+}
+
+.achievement-info {
+  flex: 1;
+}
+
+.achievement-info h4 {
+  margin: 0 0 5px 0;
+  color: var(--student-text);
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+}
+
+.achievement-info p {
+  margin: 5px 0;
+  color: var(--student-text-light);
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+}

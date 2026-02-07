@@ -1,0 +1,36 @@
+/* Import shared header styles */
+@import '../../../../shared/styles/header.shared.css';
+
+/* Subject Selector component-specific styles */
+.subject-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background-color: teal;
+  border-radius: 4px;
+}
+
+.subject-label {
+  font-family: 'Roboto Thin', 'Roboto', sans-serif;
+  font-size: 17px;
+  color: white;
+}
+
+.subject-select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid white;
+  border-radius: 4px;
+  background-color: white;
+  color: teal;
+  font-family: 'Roboto Thin', 'Roboto', sans-serif;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.subject-select:focus {
+  outline: none;
+  border-color: yellowgreen;
+}
+

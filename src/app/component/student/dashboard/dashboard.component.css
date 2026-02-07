@@ -1,0 +1,62 @@
+/* Import shared styles */
+@import '../../../shared/styles/header.shared.css';
+@import '../../../shared/styles/student.shared.css';
+
+/* Dashboard component-specific styles */
+.dashboard-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-title {
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 28px;
+  color: teal;
+  margin-bottom: 24px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.quick-actions {
+  margin-top: 32px;
+}
+
+.quick-actions h2 {
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 20px;
+  color: teal;
+  margin-bottom: 16px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.action-buttons button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media screen and (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-buttons button {
+    width: 100%;
+  }
+}
+

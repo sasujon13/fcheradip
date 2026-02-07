@@ -1,0 +1,239 @@
+<div class="login_signup_form">
+  <h2>Signup</h2>
+  
+  <form [formGroup]="authForm" (ngSubmit)="onAuth()">
+
+    <!-- Country (for phone code) -->
+    <div class="form-group">
+      <span class="label-colon"><label for="country">Country</label><span class="colon">:</span></span>
+      <div class="form-field country-selector-wrapper">
+        <app-country-selector
+          formControlName="countryCode"
+          [showPhoneCode]="false"
+          [showFlag]="true"
+          [compact]="false"
+          (countryChange)="onCountryChange($any($event))">
+        </app-country-selector>
+      </div>
+    </div>
+    <!-- Account Type -->
+    <div class="form-group">
+      <span class="label-colon"><label for="acctype">Account Type</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="acctype" id="acctype" class="form-control"
+        (change)="onAccountTypeChange()"
+        [ngClass]="{ 'is-invalid': authForm.get('acctype')?.touched && authForm.get('acctype')?.invalid }">
+        <option value="Student">Student</option>
+        <option value="Teacher">Teacher</option>
+        <option value="JobSeeker">Job Seeker</option>
+      </select>
+      </div>
+    </div>
+    <!-- Full Name -->
+    <div class="form-group">
+      <span class="label-colon"><label for="fullName">Full Name</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <input type="text" formControlName="fullName" id="fullName" 
+        placeholder="Enter your full name"
+        class="form-control"
+        (input)="onNameOrYearChange()"
+        [ngClass]="{ 'is-invalid': authForm.get('fullName')?.touched && authForm.get('fullName')?.invalid }" />
+      </div>
+    </div>
+
+    <!-- Date of Birth -->
+    <div class="form-group">
+      <span class="label-colon"><label for="dateOfBirth">Date of Birth</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <input type="date" formControlName="dateOfBirth" id="dateOfBirth" 
+        class="form-control"
+        (change)="onNameOrYearChange()"
+        [max]="maxDate"
+        [ngClass]="{ 'is-invalid': authForm.get('dateOfBirth')?.touched && authForm.get('dateOfBirth')?.invalid }" />
+      </div>
+    </div>
+
+    <!-- Class (Only for Students) -->
+    <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Student'">
+      <span class="label-colon"><label for="className">Class</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="className" id="className" class="form-control"
+        [ngClass]="{ 'is-invalid': authForm.get('className')?.touched && authForm.get('className')?.invalid }">
+        <option value="">Select Class</option>
+        <option value="5">PSC (1-5)</option>
+        <option value="8">JSC (6-8)</option>
+        <option value="9-10">SSC (9-10)</option>
+        <option value="11-12">HSC (11-12)</option>
+        <option value="13-16">University</option>
+      </select>
+      </div>
+    </div>
+
+    <!-- Level (Only for Teachers): PSC, JSC, SSC, HSC, University -->
+    <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Teacher'">
+      <span class="label-colon"><label for="teacherLevel">Level</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="teacherLevel" id="teacherLevel" class="form-control"
+        (change)="onTeacherLevelChange()"
+        [ngClass]="{ 'is-invalid': authForm.get('teacherLevel')?.touched && authForm.get('teacherLevel')?.invalid }">
+        <option value="">Select Level</option>
+        <option value="PSC">PSC</option>
+        <option value="JSC">JSC</option>
+        <option value="SSC">SSC</option>
+        <option value="HSC">HSC</option>
+        <option value="University">University</option>
+      </select>
+      </div>
+    </div>
+
+    <!-- Teacher Subject (SSC or HSC only) -->
+    <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Teacher' && showTeacherSubjectField">
+      <span class="label-colon"><label for="teacherSubject">Subject</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="teacherSubject" id="teacherSubject" class="form-control"
+        [ngClass]="{ 'is-invalid': authForm.get('teacherSubject')?.touched && authForm.get('teacherSubject')?.invalid }">
+        <option value="">Select Subject</option>
+        <option *ngFor="let sub of availableSubjects" [value]="sub.subject_code">
+          {{ sub.subject_name_bn || sub.subject_name }}
+        </option>
+      </select>
+        <div *ngIf="availableSubjects.length === 0" class="loading-message">Loading subjects...</div>
+      </div>
+    </div>
+
+    <!-- Teacher Department (University only) -->
+    <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Teacher' && showTeacherDepartmentField">
+      <span class="label-colon"><label for="teacherDepartment">Department</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="teacherDepartment" id="teacherDepartment" class="form-control"
+        [ngClass]="{ 'is-invalid': authForm.get('teacherDepartment')?.touched && authForm.get('teacherDepartment')?.invalid }">
+        <option value="">Select Department</option>
+        <option *ngFor="let dept of availableTeacherDepartments" [value]="dept.dept_code">
+          {{ dept.dept_name_bn || dept.dept_name }}
+          <span *ngIf="dept.faculty"> ({{ dept.faculty_bn || dept.faculty }})</span>
+        </option>
+      </select>
+        <div *ngIf="availableTeacherDepartments.length === 0" class="loading-message">Loading departments...</div>
+      </div>
+    </div>
+
+    <!-- Group (Only for Class 9-10 and 11-12) -->
+    <div class="form-group" *ngIf="showGroupField && authForm.get('acctype')?.value === 'Student'">
+      <span class="label-colon"><label for="group">Group</label><span class="colon">:</span></span>
+      <div class="form-field">
+      <div class="group-options" *ngIf="availableGroups.length > 0">
+        <label class="radio-option" [class.active]="authForm.get('group')?.value === group.group_code" 
+               *ngFor="let group of availableGroups">
+          <input type="radio" formControlName="group" [value]="group.group_code">
+          <span>{{ group.group_name_bn || group.group_name }}</span>
+        </label>
+      </div>
+      <div *ngIf="availableGroups.length === 0" class="loading-message">
+        Loading groups...
+      </div>
+      </div>
+    </div>
+
+    <!-- Department (Only for Class 13-16) -->
+    <div class="form-group" *ngIf="showDepartmentField && authForm.get('acctype')?.value === 'Student'">
+      <span class="label-colon"><label for="department">Department</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="department" id="department" class="form-control"
+        [ngClass]="{ 'is-invalid': authForm.get('department')?.touched && authForm.get('department')?.invalid }">
+        <option value="">Select Department</option>
+        <option *ngFor="let dept of availableDepartments" [value]="dept.dept_code">
+          {{ dept.dept_name_bn || dept.dept_name }} 
+          <span *ngIf="dept.faculty">({{ dept.faculty_bn || dept.faculty }})</span>
+        </option>
+      </select>
+      <div *ngIf="availableDepartments.length === 0" class="loading-message">
+        Loading departments...
+      </div>
+      </div>
+    </div>
+
+    <!-- e-Mail -->
+    <div class="form-group">
+      <span class="label-colon"><label for="email">e-Mail</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <input type="email" formControlName="email" id="email" 
+        placeholder="Enter your e-mail"
+        class="form-control"
+        [ngClass]="{ 'is-invalid': authForm.get('email')?.touched && authForm.get('email')?.invalid }" />
+      </div>
+    </div>
+
+    <!-- Mobile Number -->
+    <div class="form-group">
+      <span class="label-colon"><label for="username">Mobile Number</label><span class="colon">:</span></span>
+      <div class="form-field phone-input-wrapper">
+        <span class="phone-code" *ngIf="displayPhoneCode">{{ displayPhoneCode }}</span>
+        <input type="text" formControlName="username" id="username" 
+          [placeholder]="phonePlaceholder"
+          [attr.minlength]="phoneMinLength"
+          [attr.maxlength]="phoneMaxLength"
+          class="form-control phone-input"
+          [ngClass]="{ 'is-invalid': authForm.get('username')?.touched && authForm.get('username')?.invalid }" />
+        <div *ngIf="isMobileNumberRegistered" class="error-message">
+          This Mobile number is already registered. 
+          <a [routerLink]="['/login']">Login</a> or 
+          <a [routerLink]="['/forgot-password']">Reset Password</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Default Password (editable; min 8 chars, letter + number + special character) -->
+    <div class="form-group">
+      <span class="label-colon"><label for="password">Default Password</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <div class="password-field-with-hint">
+          <div class="password-input-wrapper">
+            <input [type]="showPassword ? 'text' : 'password'" formControlName="password" id="password"
+              [placeholder]="defaultPassword ? 'e.g. ' + defaultPassword : 'Letter, number, special char (min 8)'"
+              class="form-control"
+              [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
+            <button type="button" class="toggle-password" (click)="togglePasswordVisibility()" title="Show/hide password">
+              <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <small class="password-hint" *ngIf="defaultPassword" text-align="right">Suggested: First 3 letters of name + &#64; + Year of Birth</small>
+      <div class="error-message" *ngIf="authForm.get('password')?.touched && authForm.get('password')?.errors?.['minlength']">
+        Minimum 8 characters.
+      </div>
+      <div class="error-message" *ngIf="authForm.get('password')?.touched && authForm.get('password')?.errors?.['passwordStrength']">
+        Must contain at least one letter, one number and one special character.
+      </div>
+    </div>
+
+    <!-- Retype Password (shown only when user edited password and it differs from the suggested default) -->
+    <div class="form-group" *ngIf="authForm.get('password')?.dirty && (authForm.get('password')?.value?.length || 0) >= 1 && authForm.get('password')?.value !== defaultPassword">
+      <span class="label-colon"><label for="retypePassword">Retype Password</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <div class="password-input-wrapper">
+          <input [type]="showPassword ? 'text' : 'password'" formControlName="retypePassword" id="retypePassword"
+            placeholder="Retype password"
+            class="form-control"
+            [ngClass]="{ 'is-invalid': (authForm.get('retypePassword')?.touched && authForm.get('retypePassword')?.invalid) || authForm.errors?.['passwordMismatch'] }" />
+          <button type="button" class="toggle-password" (click)="togglePasswordVisibility()" title="Show/hide password">
+            <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+          </button>
+        </div>
+        <div class="error-message" *ngIf="authForm.errors?.['passwordMismatch'] && authForm.get('retypePassword')?.touched">
+          Passwords do not match.
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <button type="submit" class="signup-btn" [disabled]="!authForm.valid || isMobileNumberRegistered">
+      Create Account
+    </button>
+  </form>
+
+  <div class="login-link">
+    <p>Already have an account?</p>
+    <a [routerLink]="['/login']" class="switch-btn">Login</a>
+  </div>
+</div>

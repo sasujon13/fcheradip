@@ -1,0 +1,324 @@
+/* Student Module Shared Styles */
+/* Import this in all student component CSS files */
+
+/* Color Variables */
+:root {
+  --student-primary: teal;
+  --student-primary-rgb: rgba(1, 128, 128, 1);
+  --student-secondary: rgb(105, 185, 185);
+  --student-accent: yellowgreen;
+  --student-bg: #ffffff;
+  --student-border: #e0e0e0;
+  --student-text: #333333;
+  --student-text-light: #666666;
+}
+
+/* Common Button Styles */
+.student-btn {
+  background-color: var(--student-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.student-btn:hover {
+  background-color: var(--student-accent);
+}
+
+.student-btn-secondary {
+  background-color: white;
+  color: var(--student-primary);
+  border: 1px solid var(--student-primary);
+}
+
+.student-btn-secondary:hover {
+  background-color: var(--student-primary);
+  color: white;
+}
+
+/* Progress Bar */
+.student-progress-bar {
+  width: 100%;
+  height: 20px;
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.student-progress-fill {
+  height: 100%;
+  background-color: var(--student-secondary);
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Cards */
+.student-card {
+  background: white;
+  border: 1px solid var(--student-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 16px;
+  margin: 10px 0;
+  transition: all 0.3s ease;
+}
+
+.student-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  border-color: var(--student-primary);
+}
+
+/* Level/Group/Subject Selector */
+.student-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.student-selector-btn {
+  padding: 10px 20px;
+  border: 2px solid var(--student-primary);
+  background: white;
+  color: var(--student-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+}
+
+.student-selector-btn:hover,
+.student-selector-btn.active {
+  background: var(--student-primary);
+  color: white;
+}
+
+/* Stats Display (Gaming Features) */
+.student-stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.student-stat-card {
+  background: linear-gradient(135deg, var(--student-primary) 0%, var(--student-secondary) 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.student-stat-value {
+  font-size: 32px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.student-stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Badge/Achievement Styles */
+.student-badge {
+  display: inline-block;
+  padding: 5px 10px;
+  background: var(--student-accent);
+  color: white;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: bold;
+  margin: 5px;
+}
+
+.student-achievement {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--student-border);
+  border-radius: 8px;
+  margin: 5px 0;
+}
+
+.student-achievement-icon {
+  width: 40px;
+  height: 40px;
+  margin-right: 15px;
+  background: var(--student-secondary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+}
+
+/* Leaderboard Styles */
+.student-leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+
+.student-leaderboard-table th {
+  background: var(--student-primary);
+  color: white;
+  padding: 12px;
+  text-align: left;
+  font-family: 'Roboto Regular', 'Roboto', sans-serif;
+}
+
+.student-leaderboard-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--student-border);
+}
+
+.student-leaderboard-table tr:hover {
+  background: #f5f5f5;
+}
+
+.student-rank-badge {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--student-secondary);
+  color: white;
+  font-weight: bold;
+}
+
+.student-rank-badge.top-1 {
+  background: gold;
+}
+
+.student-rank-badge.top-2 {
+  background: silver;
+}
+
+.student-rank-badge.top-3 {
+  background: #cd7f32;
+}
+
+/* Exam Interface Styles */
+.student-exam-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.student-question-card {
+  background: white;
+  border: 2px solid var(--student-primary);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.student-option {
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid var(--student-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.student-option:hover {
+  border-color: var(--student-primary);
+  background: #f0f0f0;
+}
+
+.student-option.selected {
+  background: var(--student-secondary);
+  color: white;
+  border-color: var(--student-secondary);
+}
+
+.student-timer {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: var(--student-primary);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 1000;
+}
+
+.student-timer.warning {
+  background: #ff6b6b;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .student-selector {
+    flex-direction: column;
+  }
+
+  .student-selector-btn {
+    width: 100%;
+  }
+
+  .student-stats-container {
+    grid-template-columns: 1fr;
+  }
+
+  .student-timer {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin: 10px 0;
+  }
+
+  .student-leaderboard-table {
+    font-size: 12px;
+  }
+
+  .student-leaderboard-table th,
+  .student-leaderboard-table td {
+    padding: 8px;
+  }
+}
+
+/* Bengali Text Support */
+.bengali-text {
+  font-family: 'Noto Serif Bengali', 'Bengali Serif', sans-serif;
+}
+
+/* Loading Spinner */
+.student-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.student-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--student-primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
