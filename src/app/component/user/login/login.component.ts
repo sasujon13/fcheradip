@@ -21,11 +21,16 @@ export class LoginComponent implements OnInit, OnDestroy {
   isPasswordLength = false;
   showPassword: boolean = false;
 
-  // Country (from cheradip_country via API)
+  // Country (from cheradip_country via API) – phone length comes from selected country
   selectedCountry: Country | null = null;
   phonePlaceholder = 'Your Mobile Number';
+  /** Min length for mobile (from selected country). */
   phoneMinLength = 10;
-  phoneMaxLength = 11;
+  /** Max length for mobile (from selected country). */
+  phoneMaxLength = 15;
+
+  /** When mobile exists, which table it was found in (student|jobseeker|teacher|customer). Sent with login. */
+  loginFoundIn: string | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -81,20 +86,21 @@ export class LoginComponent implements OnInit, OnDestroy {
       } catch (_) {}
     }
 
-    // Sync country from service (saved/detected from cheradip_country)
+    // Sync country from service – phone length is always from selected country (input allows 11 for BD)
     this.countryService.country$.pipe(takeUntil(this.destroy$)).subscribe(country => {
       if (country && !this.authForm.get('countryCode')?.value) {
         this.selectedCountry = country;
         this.authForm.patchValue({ countryCode: country.country_code }, { emitEvent: false });
-        this.phoneMinLength = country.phone_length_min ?? 10;
-        this.phoneMaxLength = country.phone_length_max ?? 11;
+        this.phoneMinLength = this.countryService.getPhoneMinLength(country);
+        this.phoneMaxLength = this.countryService.getPhoneInputMaxLength(country);
         this.phonePlaceholder = this.countryService.getPhonePlaceholder(country);
         this.updatePhoneValidators();
       } else if (country) {
         this.selectedCountry = country;
-        this.phoneMinLength = country.phone_length_min ?? 10;
-        this.phoneMaxLength = country.phone_length_max ?? 11;
+        this.phoneMinLength = this.countryService.getPhoneMinLength(country);
+        this.phoneMaxLength = this.countryService.getPhoneInputMaxLength(country);
         this.phonePlaceholder = this.countryService.getPhonePlaceholder(country);
+        this.updatePhoneValidators();
       }
     });
     // If we already have countryCode, load country
@@ -106,58 +112,58 @@ export class LoginComponent implements OnInit, OnDestroy {
       });
     }
 
+    // Bangladesh: strip leading 0 and cap at 10 digits in the field (so field always shows 10 digits max)
+    this.authForm.get('username')?.valueChanges.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((value) => {
+      const countryCode = this.authForm.get('countryCode')?.value || this.selectedCountry?.country_code;
+      if (!this.countryService.isBangladesh(countryCode)) return;
+      const raw = (value || '').toString();
+      const normalized = this.countryService.normalizeMobileInputForDisplay(countryCode, raw);
+      const currentDigits = raw.replace(/\D/g, '');
+      if (normalized !== currentDigits) {
+        this.authForm.get('username')?.setValue(normalized, { emitEvent: false });
+      }
+    });
+
     this.authForm.get('username')?.valueChanges
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
         switchMap((username) => {
           const u = (username || '').toString();
-          if (u.length >= this.phoneMinLength) {
-            return this.apiService.checkMobileNumberExists(u);
+          if (!this.selectedCountry) {
+            this.loginFoundIn = null;
+            return of(null);
           }
-          return of(false);
+          const code = this.authForm.get('countryCode')?.value;
+          const countryCode = typeof code === 'string' ? code : (code?.country_code ?? code?.countryCode ?? '');
+          const normalizedU = this.countryService.normalizeMobileNumber(countryCode, u);
+          const isComplete = normalizedU.length >= this.phoneMinLength && normalizedU.length <= this.phoneMaxLength;
+          if (!isComplete) {
+            this.loginFoundIn = null;
+            return of(null);
+          }
+          return this.apiService.checkMobileNumberExists(normalizedU, countryCode || undefined);
         }),
         takeUntil(this.destroy$)
       )
       .subscribe((response: any) => {
-        if (!response)
+        if (response == null) {
           this.isMobileNumberRegistered = false;
-        else if (typeof response === 'object' && response.hasOwnProperty('exists')) {
-          const check = response.exists;
-          if (check === false)
-            this.isMobileNumberRegistered = true;
-          else
-            this.isMobileNumberRegistered = false;
+          this.loginFoundIn = null;
+          return;
+        }
+        if (typeof response === 'object' && response.hasOwnProperty('exists')) {
+          this.loginFoundIn = response.found_in ?? null;
+          this.isMobileNumberRegistered = response.exists === false;
         }
       });
 
+    // Clear password error when user edits password after a failed login
     this.authForm.get('password')?.valueChanges
-      .pipe(
-        debounceTime(300),
-        distinctUntilChanged(),
-        switchMap((password) => {
-          const username = this.authForm.get('username')?.value;
-          if (password && password.length > 5 && password.length < 15) {
-            return this.apiService.checkPasswordExists(username, password);
-          }
-          return of(false);
-        }),
-        takeUntil(this.destroy$)
-      )
-      .subscribe((response: any) => {
-        if (!response) {
-          this.isPasswordLength = true;
-          this.isPasswordMismatch = false;
-        }
-        else if (typeof response === 'object' && response.hasOwnProperty('exists')) {
-          const check = response.exists;
-          this.isPasswordLength = false;
-          if (check === false)
-            this.isPasswordMismatch = true;
-          else
-            this.isPasswordMismatch = false;
-        }
-      });
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => { this.isPasswordMismatch = false; });
   }
 
   ngOnDestroy(): void {
@@ -167,12 +173,13 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   onCountryChange(country: Country): void {
     this.selectedCountry = country;
-    this.countryService.setCountry(country);
+    // Do not call countryService.setCountry() — login country is form-only; header language/flag stays unchanged
     this.authForm.patchValue({ countryCode: country.country_code }, { emitEvent: false });
-    this.phoneMinLength = country.phone_length_min ?? 10;
-    this.phoneMaxLength = country.phone_length_max ?? 11;
+    this.phoneMinLength = this.countryService.getPhoneMinLength(country);
+    this.phoneMaxLength = this.countryService.getPhoneInputMaxLength(country);
     this.phonePlaceholder = this.countryService.getPhonePlaceholder(country);
     this.updatePhoneValidators();
+    this.applyBangladeshPhoneDisplay(country.country_code);
   }
 
   private updatePhoneValidators(): void {
@@ -187,6 +194,17 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** When country is BD, normalize username field: strip leading 0 and cap at 10 digits. */
+  private applyBangladeshPhoneDisplay(countryCode: string): void {
+    if (!this.countryService.isBangladesh(countryCode)) return;
+    const ctrl = this.authForm.get('username');
+    const raw = (ctrl?.value || '').toString();
+    const normalized = this.countryService.normalizeMobileInputForDisplay(countryCode, raw);
+    if (normalized !== raw.replace(/\D/g, '')) {
+      ctrl?.setValue(normalized, { emitEvent: false });
+    }
+  }
+
     ngAfterViewInit(): void {
       const signMenu = document.getElementById('sign_menu');
       if (signMenu) {
@@ -196,33 +214,31 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   onAuth() {
     if (this.authForm.valid) {
-      const username = this.authForm.value.username;
+      const raw = this.authForm.get('countryCode')?.value;
+      const countryCode = typeof raw === 'string' ? raw : (raw?.country_code ?? raw?.countryCode ?? '');
+      const username = this.countryService.normalizeMobileNumber(countryCode, this.authForm.value.username || '');
       const password = this.authForm.value.password;
-      const formData = this.authForm.value;
+      const formData = { ...this.authForm.value, username };
       localStorage.setItem('formData', JSON.stringify(formData));
-      if (this.isPasswordMismatch === false) {
-        this.apiService.login(username, password).subscribe(
-          (response) => {
-            this.snackBar.open('Signin Successful!', 'Close', {
-              duration: 3000,
-              panelClass: ['success-snackbar'],
-            });
-            this.logout();
-            const returnUrl = localStorage.getItem('returnUrl') || ''; // Default to root if returnUrl is not set
-            this.router.navigate([returnUrl]);
-            localStorage.setItem('returnUrl', '');
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('username', username);
-            localStorage.setItem('authToken', response)
-            localStorage.setItem('formData', JSON.stringify(formData));
-          },
-          (error) => {
-            console.error('Login error:', error);
-          }
-        );
-      }
-      else
-        this.isPasswordMismatch = true;
+      this.apiService.login(username, password, countryCode || undefined, this.loginFoundIn ?? undefined).subscribe({
+        next: (response) => {
+          this.snackBar.open('Signin Successful!', 'Close', {
+            duration: 3000,
+            panelClass: ['success-snackbar'],
+          });
+          this.logout();
+          const returnUrl = localStorage.getItem('returnUrl') || '';
+          this.router.navigate([returnUrl]);
+          localStorage.setItem('returnUrl', '');
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('username', username);
+          if (response && response.authToken) localStorage.setItem('authToken', response.authToken);
+          localStorage.setItem('formData', JSON.stringify(formData));
+        },
+        error: () => {
+          this.isPasswordMismatch = true;
+        }
+      });
     } else {
       this.authForm.markAllAsTouched();
       this.isPasswordMismatch = true;
@@ -274,20 +290,26 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.forgotPasswordError = '';
     this.forgotPasswordSuccess = '';
 
-    if (!this.forgotPasswordMobile || this.forgotPasswordMobile.length !== 11) {
-      this.forgotPasswordError = 'Please enter a valid 11-digit mobile number';
+    const countryCode = this.authForm.get('countryCode')?.value || this.selectedCountry?.country_code || 'BD';
+    const mobileNormalized = this.countryService.normalizeMobileNumber(countryCode, this.forgotPasswordMobile);
+    const len = mobileNormalized.replace(/\D/g, '').length;
+    const validLength = this.countryService.isBangladesh(countryCode) ? len === 10 : (len >= (this.phoneMinLength || 10) && len <= (this.phoneMaxLength || 15));
+    if (!this.forgotPasswordMobile || !validLength) {
+      this.forgotPasswordError = this.countryService.isBangladesh(countryCode)
+        ? 'Please enter a valid 10 or 11-digit mobile number (e.g. 01712345678)'
+        : 'Please enter a valid mobile number';
       return;
     }
 
     this.isSendingCode = true;
 
     console.log('Sending reset code:', {
-      mobile: this.forgotPasswordMobile,
+      mobile: mobileNormalized,
       email: this.forgotPasswordEmail
     });
 
-    // Send with email if provided
-    this.apiService.sendPasswordResetCode(this.forgotPasswordMobile, this.forgotPasswordEmail || undefined).subscribe(
+    // Send with email if provided (use normalized mobile: 10 digits for BD)
+    this.apiService.sendPasswordResetCode(mobileNormalized, this.forgotPasswordEmail || undefined).subscribe(
       (response: any) => {
         console.log('Reset code response:', response);
         this.isSendingCode = false;

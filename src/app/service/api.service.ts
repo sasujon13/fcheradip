@@ -42,6 +42,30 @@ export class ApiService {
     return this.http.get<string[]>(url);
   }
 
+  /** Divisions from Location table by country (for profile, etc.). */
+  getDivisionsByCountry(countryCode: string): Observable<string[]> {
+    if (!countryCode) return of([]);
+    return this.http.get<string[]>(`${this.baseUrl}/locations/divisions/`, {
+      params: { country_code: countryCode }
+    });
+  }
+
+  /** Districts from Location table by country and division. */
+  getDistrictsByCountry(countryCode: string, division: string): Observable<string[]> {
+    if (!countryCode || !division) return of([]);
+    return this.http.get<string[]>(`${this.baseUrl}/locations/districts/`, {
+      params: { country_code: countryCode, division }
+    });
+  }
+
+  /** Thanas from Location table by country, division, district. */
+  getThanasByCountry(countryCode: string, division: string, district: string): Observable<string[]> {
+    if (!countryCode || !division || !district) return of([]);
+    return this.http.get<string[]>(`${this.baseUrl}/locations/thanas/`, {
+      params: { country_code: countryCode, division, district }
+    });
+  }
+
   getRDistricts(): Observable<string[]> {
     const url = `${this.baseUrl}/recommend/unique_districts/`;
     return this.http.get<string[]>(url);
@@ -72,24 +96,27 @@ export class ApiService {
     return this.http.get<string[]>(url);
   }
 
-  login(username: string, password: string): Observable<any> {
-    const loginData = { username, password };
+  login(username: string, password: string, countryCode?: string, foundIn?: string): Observable<any> {
+    const loginData: any = { username, password };
+    if (countryCode) loginData.countryCode = countryCode;
+    if (foundIn) loginData.found_in = foundIn;
     return this.http.post(`${this.baseUrl}/login/`, loginData).pipe(
       tap((response: any) => {
         if (response) {
-          this.setToken(response);
-          localStorage.setItem('acctype', response.acctype);
-          localStorage.setItem('fullName', response.fullName);
-          localStorage.setItem('username', response.username);
-          localStorage.setItem('division', response.division);
-          localStorage.setItem('district', response.district);
-          localStorage.setItem('thana', response.thana);
-          localStorage.setItem('union', response.union);
-          localStorage.setItem('village', response.village);
-          localStorage.setItem('group', response.group);
-          localStorage.setItem('gender', response.gender);
+          const token = response.authToken || response.token || response;
+          this.setToken(typeof token === 'string' ? token : (response.authToken || ''));
+          localStorage.setItem('acctype', response.acctype ?? '');
+          localStorage.setItem('fullName', response.fullName ?? '');
+          localStorage.setItem('username', response.username ?? username);
+          localStorage.setItem('division', response.division ?? '');
+          localStorage.setItem('district', response.district ?? '');
+          localStorage.setItem('thana', response.thana ?? '');
+          localStorage.setItem('union', response.union ?? '');
+          localStorage.setItem('village', response.village ?? '');
+          localStorage.setItem('group', response.group ?? '');
+          localStorage.setItem('gender', response.gender ?? '');
           localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('authToken', response);
+          localStorage.setItem('authToken', typeof token === 'string' ? token : (response.authToken || ''));
           localStorage.setItem('formData', JSON.stringify(loginData));
         }
       }),
@@ -125,14 +152,40 @@ export class ApiService {
     );
   }
 
-  update(acctype: string, fullName: string, group: string, gender: string, division: string, district: string, thana: string, union: string, village: string, password: string): Observable<any> {
-    const signupData = { acctype, fullName, group, gender, division, district, thana, union, village, password };
+  update(
+    username: string,
+    acctype: string,
+    fullName: string,
+    group: string,
+    gender: string,
+    division: string,
+    district: string,
+    thana: string,
+    union: string,
+    village: string,
+    password: string,
+    countryCode?: string
+  ): Observable<any> {
+    const signupData: any = {
+      username,
+      acctype,
+      fullName,
+      group,
+      gender,
+      division,
+      district,
+      thana,
+      union,
+      village,
+      password
+    };
+    if (countryCode) signupData.country_code = countryCode;
     return this.http.post(`${this.baseUrl}/profile_update/`, signupData).pipe(
       tap((response: any) => {
         if (response.token) {
           this.setToken(response.token);
           localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('authToken', response.token)
+          localStorage.setItem('authToken', response.token);
           localStorage.setItem('formData', JSON.stringify(signupData));
         }
       }),
@@ -141,6 +194,7 @@ export class ApiService {
       })
     );
   }
+
   updatePassword(username: string, password: string, newpassword: string): Observable<any> {
     const passUpdateData = { username, password, newpassword };
     return this.http.post(`${this.baseUrl}/password_update/`, passUpdateData).pipe(
@@ -189,14 +243,19 @@ export class ApiService {
     return localStorage.getItem('authToken');
   }
 
-  checkMobileNumberExists(username: string): Observable<boolean> {
-    const url = `${this.baseUrl}/username/?username=${username}`;
-    return this.http.get<boolean>(url);
+  /** Returns { exists, found_in? }. found_in is set when exists is true (student|jobseeker|teacher|customer). */
+  checkMobileNumberExists(username: string, countryCode?: string): Observable<{ exists: boolean; found_in?: string }> {
+    let url = `${this.baseUrl}/username/?username=${encodeURIComponent(username)}`;
+    if (countryCode) url += `&countryCode=${encodeURIComponent(countryCode)}`;
+    return this.http.get<{ exists: boolean; found_in?: string }>(url);
   }
 
-  checkPasswordExists(username: string, password: string): Observable<boolean> {
-    const url = `${this.baseUrl}/password/?username=${username}&password=${password}`;
-    return this.http.get<boolean>(url);
+  /** Pass found_in from mobile check so password is validated only in that table. */
+  checkPasswordExists(username: string, password: string, foundIn?: string, countryCode?: string): Observable<{ exists: boolean }> {
+    let url = `${this.baseUrl}/password/?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+    if (foundIn) url += `&found_in=${encodeURIComponent(foundIn)}`;
+    if (countryCode) url += `&countryCode=${encodeURIComponent(countryCode)}`;
+    return this.http.get<{ exists: boolean }>(url);
   }
 
   saveJsonData(jsonData: any) {
@@ -263,8 +322,37 @@ export class ApiService {
     return this.http.get<{ departments?: any[] }>(`${this.baseUrl}/departments/`);
   }
 
+  /** University departments from departments.json (Teacher Level = University). Worldwide, all disciplines. */
+  getUniversityDepartments(): Observable<{ departments: any[]; count: number }> {
+    return this.http.get<{ departments: any[]; count: number }>(`${this.baseUrl}/university_departments/`);
+  }
+
   getGroupsByClass(classCode: string): Observable<{ groups?: any[] }> {
-    return this.http.get<{ groups?: any[] }>(`${this.baseUrl}/groups/`, { params: { class: classCode } });
+    return this.http.get<{ groups?: any[] }>(`${this.baseUrl}/groups_by_class/`, { params: { class_code: classCode } });
+  }
+
+  /** Unique levels/classes for a country from cheradip_subject (for signup Class and Level dropdowns). */
+  getLevelsByCountry(countryCode: string): Observable<{ levels: string[]; country_code: string }> {
+    return this.http.get<{ levels: string[]; country_code: string }>(
+      `${this.baseUrl}/levels_by_country/`,
+      { params: { country_code: countryCode || '' } }
+    );
+  }
+
+  /** Subjects for Teacher signup by country + level (from cheradip_subject). */
+  getSubjectsByCountryLevel(countryCode: string, level: string): Observable<{ subjects: any[] }> {
+    return this.http.get<{ subjects: any[] }>(
+      `${this.baseUrl}/subjects_by_country_level/`,
+      { params: { country_code: countryCode || '', level: level || '' } }
+    );
+  }
+
+  /** Groups for Student signup by country + level (from cheradip_subject.groups). */
+  getGroupsByCountryLevel(countryCode: string, level: string): Observable<{ groups: any[] }> {
+    return this.http.get<{ groups: any[] }>(
+      `${this.baseUrl}/groups_by_country_level/`,
+      { params: { country_code: countryCode || '', level: level || '' } }
+    );
   }
 
   signupWithData(formData: any): Observable<any> {

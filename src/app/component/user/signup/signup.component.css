@@ -102,6 +102,205 @@ form {
   min-width: 0;
 }
 
+/* Date of Birth: text input + visible teal calendar icon (opens native date picker) */
+.dob-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+}
+.dob-wrapper .dob-input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 36px;
+}
+.dob-calendar-wrap {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  border-radius: 6px;
+  color: #008080;
+  pointer-events: auto;
+}
+.dob-calendar-wrap:hover {
+  background: rgba(0, 128, 128, 0.12);
+  color: #006666;
+}
+.dob-calendar-wrap {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+.dob-calendar-wrap .dob-calendar-icon {
+  font-size: 18px;
+  color: #008080;
+  pointer-events: none;
+}
+
+/* Custom calendar panel */
+.dob-form-group .form-field {
+  position: relative;
+}
+.dob-calendar-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  min-width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 128, 128, 0.15);
+  padding: 14px;
+  font-size: 14px;
+}
+.dob-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 128, 128, 0.2);
+}
+.dob-calendar-title {
+  font-weight: 600;
+  color: #008080;
+  font-size: 15px;
+}
+.dob-calendar-nav {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 128, 128, 0.08);
+  color: #008080;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s;
+}
+.dob-calendar-nav:hover {
+  background: rgba(0, 128, 128, 0.18);
+}
+.dob-calendar-dropdowns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+.dob-calendar-select {
+  padding: 6px 10px;
+  border: 1px solid rgba(0, 128, 128, 0.35);
+  border-radius: 8px;
+  background: #fff;
+  color: #008080;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  min-width: 0;
+}
+.dob-calendar-select-month {
+  flex: 1;
+  max-width: 120px;
+}
+.dob-calendar-select-year {
+  width: 72px;
+  flex-shrink: 0;
+}
+.dob-calendar-select:hover {
+  border-color: #008080;
+  background: rgba(0, 128, 128, 0.06);
+}
+.dob-calendar-select:focus {
+  border-color: #008080;
+  box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
+}
+.dob-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.dob-calendar-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.dob-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.dob-calendar-day {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dob-calendar-day:hover:not(.dob-calendar-day--disabled):not(.dob-calendar-day--empty) {
+  background: rgba(0, 128, 128, 0.12);
+  color: #008080;
+}
+.dob-calendar-day--selected {
+  background: linear-gradient(135deg, #008080 0%, #00a0a0 100%);
+  color: #fff;
+}
+.dob-calendar-day--selected:hover {
+  background: linear-gradient(135deg, #006666 0%, #008080 100%);
+  color: #fff;
+}
+.dob-calendar-day--empty {
+  cursor: default;
+  visibility: hidden;
+}
+.dob-calendar-day--disabled {
+  color: #bbb;
+  cursor: not-allowed;
+}
+.dob-calendar-day--disabled:hover {
+  background: transparent;
+}
+
+.form-field .other-dept {
+  margin-top: 10px;
+  padding-left: 0;
+}
+.form-field .other-dept .other-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #555;
+}
+.form-field .other-dept .text-muted {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #777;
+}
+
 /* Full-width auxiliary row (error, etc.) — aligns with field */
 .form-group > .error-message {
   flex: 1 1 100%;
@@ -207,21 +406,22 @@ select.form-control {
 }
 
 .phone-code {
-  padding: 8px 12px;
-  background: #f5f5f5;
+  padding: 8px 0 8px 12px;
   border-radius: 8px;
-  font-weight: 600;
-  color: #666;
-  font-size: 13px;
+  font-weight: 400;
+  color: #000;
   white-space: nowrap;
+  letter-spacing: 1.5px !important;
 }
 
 .phone-input {
   flex: 1;
   border: none !important;
-  padding: 8px 12px !important;
+  padding: 8px 12px 8px 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+  margin-left: -5px !important;
+  letter-spacing: 1px !important;
 }
 
 .phone-input:focus {
@@ -279,6 +479,7 @@ select.form-control {
   font-size: 11px;
   color: #666;
   font-style: italic;
+  margin-left: auto;
 }
 
 .password-field-with-hint {
@@ -306,6 +507,7 @@ select.form-control {
   border: none;
   box-shadow: none;
   padding-right: 40px;
+  letter-spacing: 1.5px !important;
 }
 
 .password-input-wrapper .toggle-password {
@@ -319,6 +521,10 @@ select.form-control {
   font-size: 12px;
   color: #dc3545;
   margin-top: 4px;
+}
+
+.error-message.password-incomplete {
+  color: #e67e22;
 }
 
 .error-message a {

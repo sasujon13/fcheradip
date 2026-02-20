@@ -1,158 +1,411 @@
-/* Import shared styles */
+/* Login – same UI as signup */
 @import '../../../shared/styles/header.shared.css';
 
-/* Login component-specific styles */
-div.login_signup_form {
+.login_signup_form {
   max-width: 420px;
-  margin: 130px auto;
-  padding: 24px;
-  background-color: rgba(1, 128, 128, 0.1);
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(1, 128, 128, 0.75);
+  margin: 100px auto 40px;
+  padding: 30px;
+  background: linear-gradient(135deg, rgba(1, 128, 128, 0.08) 0%, rgba(1, 128, 128, 0.15) 100%);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(1, 128, 128, 0.2);
   user-select: none;
 }
 
-/* Form rows use auth.shared.css .form-group / .label-colon / .form-field (same as Country row) */
+h2 {
+  text-align: center;
+  margin-bottom: 22px;
+  color: #008080;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 10px;
+}
+
+.form-group > .label-colon {
+  flex: 0 0 138px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.form-group > .label-colon > label {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.form-group > .label-colon > .colon {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: #444;
+}
+
+.form-group > .form-field {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.form-group > .form-field > .error-message {
+  margin-top: 4px;
+}
 
 .country-selector-wrapper {
-  border-radius: 8px;
-  border: 1px solid rgba(0, 128, 128, 0.25);
-  padding: 4px 8px;
-  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 128, 128, 0.2);
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: white;
   box-sizing: border-box;
 }
 
-/* Phone row: size from auth.shared.css (same as other fields) */
+.form-control:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
 
-/* Form layout and field styling from auth.shared.css (form-group, form-field, same as Country) */
+.form-control.is-invalid {
+  border-color: #dc3545;
+}
 
-button {
-  padding: 10px;
-  background-color: teal;
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  padding: 4px;
+  transition: all 0.2s ease;
+}
+
+.phone-input-wrapper:focus-within {
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.phone-code {
+  padding: 8px 0 8px 12px;
+  border-radius: 8px;
+  font-weight: 400;
+  color: #000;
+  white-space: nowrap;
+  letter-spacing: 1.5px !important;
+}
+
+.phone-input {
+  flex: 1;
+  border: none !important;
+  padding: 8px 12px 8PX 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin-left: -5px !important;
+  letter-spacing: 1px !important;
+}
+
+.phone-input:focus {
+  outline: none;
+  box-shadow: none !important;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: white;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.password-input-wrapper:focus-within {
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.password-input-wrapper .form-control {
+  flex: 1;
+  border: none;
+  box-shadow: none;
+  padding-right: 40px;
+  letter-spacing: 1.5px !important;
+}
+
+.toggle-password {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+  position: absolute;
+  right: 8px;
+}
+
+.toggle-password:hover {
+  color: #008080;
+}
+
+.error-message {
+  font-size: 12px;
+  color: #dc3545;
+  margin-top: 4px;
+}
+.error-message2 {
+  text-align: center;
+  margin: auto;
+}
+
+.error-message a {
+  color: #008080;
+  text-decoration: underline;
+}
+
+.form-submit-btn {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #008080 0%, #00a0a0 100%);
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 128, 128, 0.3);
 }
 
-button:hover {
-  background-color: rgb(105, 185, 185);
+.form-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 128, 128, 0.4);
 }
 
-button:last-child {
+.form-submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.forgot-password-link {
+  text-align: center;
+  margin-top: 4px;
+}
+
+.forgot-password-link a {
+  color: #008080;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.forgot-password-link a:hover {
+  color: #006666;
+}
+
+.login-link {
+  text-align: center;
   margin-top: 20px;
-  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 128, 128, 0.2);
 }
 
-.switchButton {
-  margin: -10px auto 0 auto !important;
-  display: block;
-  text-align: center;
-  padding: 3px 14px;
-  background-color: rgba(1, 128, 128, 0.25);
-  color: black;
+.login-link p {
+  color: #666;
+  margin-bottom: 10px;
+  font-size: 14px;
 }
 
-p {
-  color: darkred;
-  text-align: center;
-  margin-top: 15px;
+.switch-btn {
+  display: inline-block;
+  padding: 8px 24px;
+  background: transparent;
+  color: #008080;
+  border: 2px solid #008080;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
 }
 
-/* ... Your existing styles ... */
-
-.gender_options {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+.switch-btn:hover {
+  background: #008080;
+  color: white;
 }
 
-.gender_options label {
-  display: flex;
-  align-items: center;
-  margin-top: -50px;
-  cursor: pointer;
-}
-
-.gender_options input[type="radio"] {
-  margin-right: 5px;
-  margin-top: 28px;
-  cursor: pointer;
-}
-
-input.other {
-  margin-left: 10px;
-}
-
-/* ... Your existing styles ... */
-
-.mobile-number-container {
+/* Modal – Forgot Password */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   position: relative;
-  /* Add this */
 }
 
-.mobile-number-container input[type="text"] {
-  flex-grow: 1;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  padding-left: 40px;
-  /* Adjust padding to make space for the prefix */
-}
-
-.mobile-number-container input[type="text"]:read-only {
-  background-color: #f2f2f2;
-}
-
-.mobile-number-container input[type="text"]::placeholder {
-  color: #ccc;
-}
-
-.mobile-number-container input[type="text"]::before {
-  content: "+880";
+.modal-close {
   position: absolute;
-  /* Add this */
-  left: 10px;
-  /* Adjust this value as needed */
-  top: 50%;
-  transform: translateY(-50%);
-  font-weight: bold;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  line-height: 1;
+  padding: 4px;
 }
 
-/* .form-control and .error-message in auth.shared.css */
-
-.submitError {
-  margin-top: 10px !important;
-  margin-bottom: -15px !important;
-  width: 100% !important;
-  margin-left: 0px !important;
-  text-align: center !important;
+.modal-close:hover {
+  color: #008080;
 }
 
-/* .input-group-append in auth.shared.css (inside .form-field) */
+.modal-content h3 {
+  margin: 0 0 8px 0;
+  color: #008080;
+  font-size: 22px;
+  font-weight: 600;
+}
 
-/* Forgot password modal: same field styling as Country row */
+.modal-content p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
 .modal-content .form-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.modal-content .form-group .label-colon {
+  flex: none;
 }
 
 .modal-content .form-group label {
   margin: 0;
-  font-weight: 500;
-  color: #333;
-  font-size: 14px;
+  font-weight: 600;
+  color: #444;
+  font-size: 13px;
 }
 
-.modal-content .form-group .form-control {
-  padding: 8px 12px;
-  border: 1px solid rgba(0, 128, 128, 0.25);
-  border-radius: 8px;
+.modal-content .form-control {
+  padding: 12px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
   font-size: 14px;
   width: 100%;
   box-sizing: border-box;
+}
+
+.modal-content .form-control:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.modal-content .btn-primary {
+  width: 100%;
+  padding: 14px;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #008080 0%, #00a0a0 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 128, 128, 0.3);
+}
+
+.modal-content .btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 128, 128, 0.4);
+}
+
+.modal-content .btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.modal-content .hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.modal-content .error-message {
+  font-size: 12px;
+  color: #dc3545;
+  margin-top: 8px;
+}
+
+.modal-content .success-message {
+  font-size: 12px;
+  color: #008080;
+  margin-top: 8px;
+}
+
+.modal-content .resend-link {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.modal-content .resend-link a {
+  color: #008080;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+@media screen and (max-width: 480px) {
+  .login_signup_form {
+    margin: 80px 16px 30px;
+    padding: 24px 20px;
+  }
+  h2 {
+    font-size: 24px;
+  }
 }

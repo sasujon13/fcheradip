@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Renderer2 } from '@angular/core';
+import { Component, OnInit, OnDestroy, Renderer2, HostListener } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, Validators, ValidatorFn } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
@@ -24,13 +24,41 @@ function passwordStrengthValidator(): ValidatorFn {
   };
 }
 
-/** Retype password must match password. */
-function passwordMatchValidator(group: AbstractControl): { [key: string]: boolean } | null {
+/** Retype password: check character-by-character from position 0; on first mismatch show mismatch; only if all typed chars match and retype is shorter show incomplete. */
+function passwordMatchValidator(group: AbstractControl): { [key: string]: unknown } | null {
   const g = group as FormGroup;
-  const p = g.get('password')?.value;
-  const r = g.get('retypePassword')?.value;
-  if (p == null || p === '' || r == null || r === '') return null;
-  return p === r ? null : { passwordMismatch: true };
+  const p = String(g.get('password')?.value ?? '');
+  const r = String(g.get('retypePassword')?.value ?? '');
+  if (r === '') return null;
+  const minLen = Math.min(p.length, r.length);
+  for (let i = 0; i < minLen; i++) {
+    if (p[i] !== r[i]) {
+      return { passwordMismatch: true, mismatchAt: i };
+    }
+  }
+  if (r.length < p.length) return { passwordIncomplete: true };
+  if (r.length > p.length) return { passwordMismatch: true, mismatchAt: p.length };
+  return null;
+}
+
+/** Valid DD/MM/YYYY and at least 5 years old (maxDate is 5 years ago). */
+function dobDDMMYYYYValidator(maxDateIso: string): ValidatorFn {
+  return (control: AbstractControl): { [key: string]: boolean } | null => {
+    const v = control?.value;
+    if (!v || typeof v !== 'string') return null; // required is separate
+    const parts = v.trim().split('/');
+    if (parts.length !== 3) return { invalidDob: true };
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return { invalidDob: true };
+    if (month < 1 || month > 12 || day < 1 || day > 31) return { invalidDob: true };
+    const d = new Date(year, month - 1, day);
+    if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return { invalidDob: true };
+    const max = new Date(maxDateIso);
+    if (d > max) return { invalidDob: true }; // too young
+    return null;
+  };
 }
 
 @Component({
@@ -53,11 +81,23 @@ export class SignupComponent implements OnInit, OnDestroy {
   phoneMinLength = 10;
   phoneMaxLength = 11;
 
-  // Date of birth settings
+  // Date of birth: stored as DD/MM/YYYY
   maxDate: string;
+  showDOBCalendar = false;
+  calendarViewDate: Date;
+  readonly calendarDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  readonly calendarMonthOptions: { value: number; label: string }[] = [
+    { value: 0, label: 'January' }, { value: 1, label: 'February' }, { value: 2, label: 'March' },
+    { value: 3, label: 'April' }, { value: 4, label: 'May' }, { value: 5, label: 'June' },
+    { value: 6, label: 'July' }, { value: 7, label: 'August' }, { value: 8, label: 'September' },
+    { value: 9, label: 'October' }, { value: 10, label: 'November' }, { value: 11, label: 'December' }
+  ];
+  calendarYearOptions: number[] = [];
+  private maxDateObj: Date;
 
   // Student: Groups and Departments
   availableGroups: any[] = [];
+  groupsLoaded = false;  // true after groups API call completes (success or error)
   availableDepartments: any[] = [];
   showGroupField = false;
   showDepartmentField = false;
@@ -68,6 +108,24 @@ export class SignupComponent implements OnInit, OnDestroy {
   availableTeacherDepartments: any[] = [];
   showTeacherSubjectField = false;
   showTeacherDepartmentField = false;
+
+  // Levels/Classes from API by country (for Class and Level dropdowns)
+  availableLevels: string[] = [];
+  availableClassOptions: { value: string; label: string }[] = [];
+  readonly defaultClassOptions: { value: string; label: string }[] = [
+    { value: '5', label: 'PSC (1-5)' },
+    { value: '8', label: 'JSC (6-8)' },
+    { value: '9-10', label: 'SSC (9-10)' },
+    { value: '11-12', label: 'HSC (11-12)' },
+    { value: '13-16', label: 'University' }
+  ];
+  readonly defaultLevels = ['PSC', 'JSC', 'SSC', 'HSC', 'University'];
+  private readonly levelToClassMap: Record<string, string> = {
+    'PSC': '5', 'JSC': '8', 'SSC': '9-10', 'HSC': '11-12', 'University': '13-16'
+  };
+  private readonly levelToClassLabel: Record<string, string> = {
+    'PSC': 'PSC (1-5)', 'JSC': 'JSC (6-8)', 'SSC': 'SSC (9-10)', 'HSC': 'HSC (11-12)', 'University': 'University'
+  };
 
   private destroy$ = new Subject<void>();
   private restoringDraft = false;
@@ -84,16 +142,27 @@ export class SignupComponent implements OnInit, OnDestroy {
     private renderer: Renderer2,
     private countryService: CountryService
   ) {
+    const today = new Date();
+    today.setFullYear(today.getFullYear() - 5);
+    this.maxDate = today.toISOString().split('T')[0];
+    this.maxDateObj = new Date(this.maxDate + 'T12:00:00');
+    this.calendarViewDate = new Date(today);
+    this.calendarViewDate.setFullYear(this.calendarViewDate.getFullYear() - 15);
+    this.calendarViewDate.setDate(1);
+    const maxYear = this.maxDateObj.getFullYear();
+    this.calendarYearOptions = Array.from({ length: maxYear - 1940 + 1 }, (_, i) => maxYear - i);
+
     this.authForm = this.fb.group({
       acctype: ['Student', [Validators.required]],
       fullName: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(31)]],
-      dateOfBirth: ['', [Validators.required]],
+      dateOfBirth: ['', [Validators.required, dobDDMMYYYYValidator(this.maxDate)]],
       className: [''],
       group: [''],  // Student 9-10, 11-12
       department: [''],  // Student university
       teacherLevel: [''],  // Teacher: PSC, JSC, SSC, HSC, University
       teacherSubject: [''],  // Teacher SSC/HSC
-      teacherDepartment: [''],  // Teacher University
+      teacherDepartment: [''],  // Teacher University (or 'OTHER' for custom)
+      teacherDepartmentOther: [''],  // Custom department name when teacherDepartment === 'OTHER'
       email: ['', [Validators.required, Validators.email]],
       country: ['United States', [Validators.required]],
       countryCode: ['US', [Validators.required]],
@@ -101,11 +170,6 @@ export class SignupComponent implements OnInit, OnDestroy {
       password: ['', [Validators.required, Validators.minLength(8), passwordStrengthValidator()]],
       retypePassword: ['', [Validators.required]],
     }, { validators: passwordMatchValidator });
-
-    // Set max date to 5 years ago (minimum age)
-    const today = new Date();
-    today.setFullYear(today.getFullYear() - 5);
-    this.maxDate = today.toISOString().split('T')[0];
   }
 
   ngOnInit(): void {
@@ -127,6 +191,11 @@ export class SignupComponent implements OnInit, OnDestroy {
       try {
         const data = JSON.parse(draft);
         const { country_code, password, retypePassword, ...formValues } = data;
+        // If draft stored date as ISO (YYYY-MM-DD), show as DD/MM/YYYY
+        if (formValues.dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(formValues.dateOfBirth)) {
+          const [y, m, d] = formValues.dateOfBirth.split('-');
+          formValues.dateOfBirth = `${d}/${m}/${y}`;
+        }
         this.restoringDraft = true;
         const draftCountryCode = country_code || data.countryCode || 'BD';
         this.restoredDraftCountryCode = draftCountryCode; // keep this country even if IP/detect overwrites later
@@ -187,20 +256,38 @@ export class SignupComponent implements OnInit, OnDestroy {
         this.selectedCountry = country;
         this.authForm.patchValue({ countryCode: country.country_code, country: country.country_name }, { emitEvent: false });
         this.phoneMinLength = country.phone_length_min || 10;
-        this.phoneMaxLength = country.phone_length_max || 11;
+        this.phoneMaxLength = this.countryService.getPhoneInputMaxLength(country);
         this.phonePlaceholder = this.countryService.getPhonePlaceholder(country);
         this.updatePhoneValidators();
+        this.applyBangladeshPhoneDisplay(country.country_code);
         this.signupCountryInitialized = true;
+        this.loadLevelsForCountry(country.country_code);
       }
     });
 
-    // Check if mobile number is already registered
+    // Bangladesh: strip leading 0 and cap at 10 digits in the field (so field always shows 10 digits max)
+    this.authForm.get('username')?.valueChanges.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((value) => {
+      const countryCode = this.authForm.get('countryCode')?.value || this.selectedCountry?.country_code;
+      if (!this.countryService.isBangladesh(countryCode)) return;
+      const raw = (value || '').toString();
+      const normalized = this.countryService.normalizeMobileInputForDisplay(countryCode, raw);
+      const currentDigits = raw.replace(/\D/g, '');
+      if (normalized !== currentDigits) {
+        this.authForm.get('username')?.setValue(normalized, { emitEvent: false });
+      }
+    });
+
+    // Check if mobile number is already registered (use normalized number for BD: 0 + 10 digits -> 10 digits)
     this.authForm.get('username')?.valueChanges.pipe(
       debounceTime(500),
       distinctUntilChanged(),
       switchMap((username) => {
-        if (username && username.length >= this.phoneMinLength) {
-          return this.apiService.checkMobileNumberExists(username);
+        const countryCode = this.authForm.get('countryCode')?.value || this.selectedCountry?.country_code;
+        const normalized = this.countryService.normalizeMobileNumber(countryCode, username || '');
+        if (normalized && normalized.length >= this.phoneMinLength) {
+          return this.apiService.checkMobileNumberExists(normalized);
         }
         return of(false);
       }),
@@ -228,6 +315,12 @@ export class SignupComponent implements OnInit, OnDestroy {
     // Watch for teacher level changes
     this.authForm.get('teacherLevel')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.onTeacherLevelChange();
+    });
+    // When Teacher University department changes to/from "Others", update Other field validators
+    this.authForm.get('teacherDepartment')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      if (this.authForm.get('acctype')?.value === 'Teacher' && this.authForm.get('teacherLevel')?.value === 'University') {
+        this.updateTeacherDepartmentOtherValidators();
+      }
     });
   }
 
@@ -257,13 +350,14 @@ export class SignupComponent implements OnInit, OnDestroy {
       } else {
         this.showTeacherSubjectField = false;
         this.showTeacherDepartmentField = false;
-        this.authForm.patchValue({ teacherLevel: '', teacherSubject: '', teacherDepartment: '' });
+        this.authForm.patchValue({ teacherLevel: '', teacherSubject: '', teacherDepartment: '', teacherDepartmentOther: '' });
       }
     } else {
       this.authForm.get('teacherLevel')?.clearValidators();
       this.authForm.get('teacherSubject')?.clearValidators();
       this.authForm.get('teacherDepartment')?.clearValidators();
-      this.authForm.patchValue({ teacherLevel: '', teacherSubject: '', teacherDepartment: '' });
+      this.authForm.get('teacherDepartmentOther')?.clearValidators();
+      this.authForm.patchValue({ teacherLevel: '', teacherSubject: '', teacherDepartment: '', teacherDepartmentOther: '' });
       this.showTeacherSubjectField = false;
       this.showTeacherDepartmentField = false;
       this.onClassChange(this.authForm.get('className')?.value);
@@ -280,45 +374,107 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.showTeacherDepartmentField = false;
     this.availableSubjects = [];
     this.availableTeacherDepartments = [];
-    this.authForm.patchValue({ teacherSubject: '', teacherDepartment: '' });
+    this.authForm.patchValue({ teacherSubject: '', teacherDepartment: '', teacherDepartmentOther: '' });
     this.authForm.get('teacherSubject')?.clearValidators();
     this.authForm.get('teacherDepartment')?.clearValidators();
+    this.authForm.get('teacherDepartmentOther')?.clearValidators();
 
-    if (level === 'SSC' || level === 'HSC') {
+    if (level === 'PSC' || level === 'JSC' || level === 'SSC' || level === 'HSC') {
       this.showTeacherSubjectField = true;
       this.authForm.get('teacherSubject')?.setValidators([Validators.required]);
-      this.loadSubjects();
+      this.loadSubjectsForLevel(level);
     } else if (level === 'University') {
       this.showTeacherDepartmentField = true;
       this.authForm.get('teacherDepartment')?.setValidators([Validators.required]);
       this.loadTeacherDepartments();
+      this.updateTeacherDepartmentOtherValidators();
     }
     this.authForm.get('teacherSubject')?.updateValueAndValidity();
     this.authForm.get('teacherDepartment')?.updateValueAndValidity();
+    this.authForm.get('teacherDepartmentOther')?.updateValueAndValidity();
   }
 
-  loadSubjects(): void {
-    this.apiService.getSubjects().subscribe(
-      (response: any) => {
-        this.availableSubjects = Array.isArray(response) ? response : (response?.results || response?.subjects || []);
-      },
-      (error: unknown) => {
-        console.error('Error loading subjects:', error);
-        this.availableSubjects = [];
-      }
+  private updateTeacherDepartmentOtherValidators(): void {
+    const isOther = (this.authForm.get('teacherDepartment')?.value || '').toUpperCase() === 'OTHER';
+    const ctrl = this.authForm.get('teacherDepartmentOther');
+    if (isOther) {
+      ctrl?.setValidators([Validators.required, Validators.minLength(2), Validators.maxLength(200)]);
+    } else {
+      ctrl?.clearValidators();
+      this.authForm.patchValue({ teacherDepartmentOther: '' }, { emitEvent: false });
+    }
+    ctrl?.updateValueAndValidity();
+  }
+
+  /** Normalize subject name: remove "1st Paper" / "2nd Paper" and trim. */
+  private normalizeSubjectDisplayName(name: string): string {
+    if (!name || typeof name !== 'string') return '';
+    return name
+      .replace(/\s*1st\s*Paper\s*/gi, ' ')
+      .replace(/\s*2nd\s*Paper\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /** Deduplicate by display name, sort ascending, and add displayName. */
+  private processSubjectList(subjects: any[]): any[] {
+    if (!Array.isArray(subjects) || subjects.length === 0) return [];
+    const withDisplay = subjects.map((sub: any) => {
+      const raw = sub.subject_name_bn || sub.subject_name || '';
+      const displayName = this.normalizeSubjectDisplayName(raw) || raw;
+      return { ...sub, displayName };
+    });
+    const seen = new Set<string>();
+    const unique = withDisplay.filter((sub: any) => {
+      const key = (sub.displayName || '').toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return unique.sort((a: any, b: any) =>
+      (a.displayName || '').localeCompare(b.displayName || '', undefined, { sensitivity: 'base' })
     );
   }
 
+  /** Load subjects for Teacher by selected country + level (from cheradip_subject). Fallback to getSubjects() if no country. */
+  loadSubjectsForLevel(level: string): void {
+    const countryCode = this.selectedCountry?.country_code;
+    if (countryCode && level) {
+      this.apiService.getSubjectsByCountryLevel(countryCode, level).subscribe({
+        next: (res) => {
+          const raw = res?.subjects ?? [];
+          this.availableSubjects = this.processSubjectList(raw);
+        },
+        error: (err) => {
+          console.error('Error loading subjects by country/level:', err);
+          this.availableSubjects = [];
+        }
+      });
+    } else {
+      this.apiService.getSubjects().subscribe(
+        (response: any) => {
+          const raw = Array.isArray(response) ? response : (response?.results || response?.subjects || []);
+          this.availableSubjects = this.processSubjectList(raw);
+        },
+        (error: unknown) => {
+          console.error('Error loading subjects:', error);
+          this.availableSubjects = [];
+        }
+      );
+    }
+  }
+
+  /** Load university departments from JSON (worldwide, all disciplines). Used when Teacher Level = University. */
   loadTeacherDepartments(): void {
-    this.apiService.getDepartments().subscribe(
-      (response: any) => {
-        this.availableTeacherDepartments = response?.departments || [];
+    this.apiService.getUniversityDepartments().subscribe({
+      next: (res) => {
+        this.availableTeacherDepartments = res?.departments ?? [];
       },
-      (error: any) => {
-        console.error('Error loading teacher departments:', error);
+      error: (err) => {
+        console.error('Error loading university departments:', err);
         this.availableTeacherDepartments = [];
       }
-    );
+    });
   }
 
   onClassChange(className: string): void {
@@ -328,6 +484,7 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.showGroupField = false;
     this.showDepartmentField = false;
     this.availableGroups = [];
+    this.groupsLoaded = false;
     this.availableDepartments = [];
     this.authForm.patchValue({ group: '', department: '' });
     
@@ -340,13 +497,14 @@ export class SignupComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Class 9-10 and 11-12: Load groups
+    // Class 9-10 and 11-12: Load groups by country + level (SSC / HSC) from cheradip_subject
     if (className === '9-10' || className === '11-12') {
       this.showGroupField = true;
       this.showDepartmentField = false;
+      this.groupsLoaded = false;
       this.authForm.get('group')?.setValidators([Validators.required]);
       this.authForm.get('department')?.clearValidators();
-      this.loadGroupsForClass(className);
+      this.loadGroupsForLevel(className);
       this.authForm.get('group')?.updateValueAndValidity();
       this.authForm.get('department')?.updateValueAndValidity();
       return;
@@ -365,35 +523,60 @@ export class SignupComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadGroupsForClass(classCode: string): void {
-    this.apiService.getGroupsByClass(classCode).subscribe(
-      (response: any) => {
-        this.availableGroups = response?.groups || [];
-        if (this.availableGroups.length > 0) {
-          // Set default to first group if none selected
-          const currentGroup = this.authForm.get('group')?.value;
-          if (!currentGroup && this.availableGroups.length > 0) {
-            this.authForm.patchValue({ group: this.availableGroups[0].group_code });
+  /** Load groups for Student by country + level from cheradip_subject. Class 9-10 -> SSC, 11-12 -> HSC. */
+  loadGroupsForLevel(classCode: string): void {
+    const countryCode = (this.selectedCountry?.country_code || this.authForm.get('countryCode')?.value || '').toString().trim().toUpperCase();
+    const level = classCode === '9-10' ? 'SSC' : classCode === '11-12' ? 'HSC' : '';
+    if (countryCode && level) {
+      this.apiService.getGroupsByCountryLevel(countryCode, level).subscribe({
+        next: (res) => {
+          this.groupsLoaded = true;
+          this.availableGroups = res?.groups ?? [];
+          if (this.availableGroups.length > 0) {
+            const currentGroup = this.authForm.get('group')?.value;
+            if (!currentGroup) {
+              this.authForm.patchValue({ group: this.availableGroups[0].group_code });
+            }
           }
+        },
+        error: (err) => {
+          console.error('Error loading groups by country/level:', err);
+          this.groupsLoaded = true;
+          this.availableGroups = [];
         }
-      },
-      (error: any) => {
-        console.error('Error loading groups:', error);
-        this.availableGroups = [];
-      }
-    );
+      });
+    } else {
+      this.apiService.getGroupsByClass(classCode).subscribe({
+        next: (response: any) => {
+          this.groupsLoaded = true;
+          this.availableGroups = response?.groups || [];
+          if (this.availableGroups.length > 0) {
+            const currentGroup = this.authForm.get('group')?.value;
+            if (!currentGroup) {
+              this.authForm.patchValue({ group: this.availableGroups[0].group_code });
+            }
+          }
+        },
+        error: (err: any) => {
+          console.error('Error loading groups:', err);
+          this.groupsLoaded = true;
+          this.availableGroups = [];
+        }
+      });
+    }
   }
 
+  /** Load university departments (worldwide, from departments.json). Same list for Student Class 13-16 and Teacher University; not filtered by country. */
   loadDepartments(): void {
-    this.apiService.getDepartments().subscribe(
-      (response: any) => {
-        this.availableDepartments = response?.departments || [];
+    this.apiService.getUniversityDepartments().subscribe({
+      next: (res) => {
+        this.availableDepartments = res?.departments ?? [];
       },
-      (error: any) => {
-        console.error('Error loading departments:', error);
+      error: (err) => {
+        console.error('Error loading departments:', err);
         this.availableDepartments = [];
       }
-    );
+    });
   }
 
   /** Update only signup form and phone rules. Does not change header language/country. */
@@ -407,9 +590,36 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.authForm.patchValue({ country: country.country_name, countryCode: country.country_code }, { emitEvent: false });
 
     this.phoneMinLength = country.phone_length_min || 10;
-    this.phoneMaxLength = country.phone_length_max || 11;
+    this.phoneMaxLength = this.countryService.getPhoneInputMaxLength(country);
     this.phonePlaceholder = this.countryService.getPhonePlaceholder(country);
     this.updatePhoneValidators();
+    this.applyBangladeshPhoneDisplay(country.country_code);
+
+    this.loadLevelsForCountry(country.country_code);
+    // Reload level-dependent options for new country
+    const level = this.authForm.get('teacherLevel')?.value;
+    if (level === 'PSC' || level === 'JSC' || level === 'SSC' || level === 'HSC') this.loadSubjectsForLevel(level);
+    const className = this.authForm.get('className')?.value;
+    if (className === '9-10' || className === '11-12') this.loadGroupsForLevel(className);
+  }
+
+  /** Load unique levels/classes for country from cheradip_subject; used for Class (Student) and Level (Teacher) dropdowns. */
+  private loadLevelsForCountry(countryCode: string): void {
+    if (!countryCode) return;
+    this.apiService.getLevelsByCountry(countryCode).subscribe({
+      next: (res) => {
+        this.availableLevels = res?.levels?.length ? res.levels : this.defaultLevels;
+        this.availableClassOptions = (res?.levels?.length)
+          ? res.levels
+              .filter((l: string) => this.levelToClassMap[l] != null)
+              .map((l: string) => ({ value: this.levelToClassMap[l], label: this.levelToClassLabel[l] || l }))
+          : this.defaultClassOptions;
+      },
+      error: () => {
+        this.availableLevels = this.defaultLevels;
+        this.availableClassOptions = this.defaultClassOptions;
+      }
+    });
   }
 
   onCountrySelect(): void {
@@ -444,14 +654,236 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.updateDefaultPassword();
   }
 
+  /** Open the custom calendar panel. */
+  openDOBCalendar(event?: Event): void {
+    event?.stopPropagation();
+    const dob = this.authForm.get('dateOfBirth')?.value;
+    if (dob && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dob)) {
+      const [d, m, y] = dob.split('/').map(Number);
+      if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        this.calendarViewDate = new Date(y, m - 1, 1);
+      }
+    } else {
+      this.calendarViewDate = new Date(this.maxDateObj);
+      this.calendarViewDate.setMonth(this.calendarViewDate.getMonth() - 12);
+      this.calendarViewDate.setDate(1);
+    }
+    this.showDOBCalendar = true;
+  }
+
+  closeDOBCalendar(): void {
+    this.showDOBCalendar = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const t = event.target as HTMLElement;
+    if (this.showDOBCalendar && t && !t.closest('.dob-calendar-panel') && !t.closest('.dob-calendar-wrap')) {
+      this.closeDOBCalendar();
+    }
+  }
+
+  calendarPrevMonth(): void {
+    this.calendarViewDate = new Date(this.calendarViewDate.getFullYear(), this.calendarViewDate.getMonth() - 1, 1);
+  }
+
+  calendarNextMonth(): void {
+    this.calendarViewDate = new Date(this.calendarViewDate.getFullYear(), this.calendarViewDate.getMonth() + 1, 1);
+  }
+
+  get calendarViewMonth(): number {
+    return this.calendarViewDate.getMonth();
+  }
+  set calendarViewMonth(month: number) {
+    this.calendarViewDate = new Date(this.calendarViewDate.getFullYear(), month, 1);
+  }
+
+  get calendarViewYear(): number {
+    return this.calendarViewDate.getFullYear();
+  }
+  set calendarViewYear(year: number) {
+    this.calendarViewDate = new Date(year, this.calendarViewDate.getMonth(), 1);
+  }
+
+  onCalendarMonthChange(value: string): void {
+    const month = parseInt(value, 10);
+    if (!isNaN(month) && month >= 0 && month <= 11) this.calendarViewMonth = month;
+  }
+
+  onCalendarYearChange(value: string): void {
+    const year = parseInt(value, 10);
+    if (!isNaN(year) && year >= 1940 && year <= this.maxDateObj.getFullYear()) this.calendarViewYear = year;
+  }
+
+  /** Build calendar grid: array of weeks, each week array of { day, date, disabled }. */
+  getCalendarWeeks(): { day: number | null; date: Date | null; disabled: boolean }[][] {
+    const year = this.calendarViewDate.getFullYear();
+    const month = this.calendarViewDate.getMonth();
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
+    const startWeekday = first.getDay();
+    const daysInMonth = last.getDate();
+    const max = this.maxDateObj;
+    const weeks: { day: number | null; date: Date | null; disabled: boolean }[][] = [];
+    let week: { day: number | null; date: Date | null; disabled: boolean }[] = [];
+    for (let i = 0; i < startWeekday; i++) week.push({ day: null, date: null, disabled: true });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const disabled = date > max;
+      week.push({ day: d, date, disabled });
+      if (week.length === 7) {
+        weeks.push(week);
+        week = [];
+      }
+    }
+    if (week.length) {
+      while (week.length < 7) week.push({ day: null, date: null, disabled: true });
+      weeks.push(week);
+    }
+    return weeks;
+  }
+
+  isSelectedDOBDate(cell: { day: number | null; date: Date | null; disabled: boolean }): boolean {
+    if (!cell.date) return false;
+    const v = this.authForm.get('dateOfBirth')?.value || '';
+    const parts = v.split('/');
+    if (parts.length !== 3) return false;
+    const d = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const y = parseInt(parts[2], 10);
+    return cell.date.getDate() === d && cell.date.getMonth() + 1 === m && cell.date.getFullYear() === y;
+  }
+
+  selectDOBDate(item: { day: number | null; date: Date | null; disabled: boolean }): void {
+    if (!item.date || item.disabled) return;
+    const d = item.date.getDate();
+    const m = item.date.getMonth() + 1;
+    const y = item.date.getFullYear();
+    const dd = d < 10 ? '0' + d : '' + d;
+    const mm = m < 10 ? '0' + m : '' + m;
+    this.authForm.get('dateOfBirth')?.setValue(`${dd}/${mm}/${y}`, { emitEvent: true });
+    this.closeDOBCalendar();
+    this.updateDefaultPassword();
+  }
+
+  /** Format digits as DD/MM/YYYY (day/month/year). Slashes always visible; update DOM immediately. */
+  onDOBInput(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const raw = (input.value || '').replace(/\D/g, '');
+    const formatted = this.formatDOBSlashes(raw);
+    const ctrl = this.authForm.get('dateOfBirth');
+    if (ctrl) ctrl.setValue(formatted, { emitEvent: true });
+    // Keep slashes always visible: set input value so DOM is never missing "/"
+    input.value = formatted;
+    const selStart = input.selectionStart ?? 0;
+    let newCursor = Math.min(selStart, formatted.length);
+    if (formatted[newCursor] === '/') newCursor++;
+    input.setSelectionRange(newCursor, newCursor);
+    this.updateDefaultPassword();
+  }
+
+  /** Build DD/MM/YYYY from raw digits only. */
+  private formatDOBSlashes(raw: string): string {
+    let s = raw.slice(0, 2);
+    if (raw.length > 2) s += '/' + raw.slice(2, 4);
+    if (raw.length > 4) s += '/' + raw.slice(4, 8);
+    return s;
+  }
+
+  /** Backspace/Delete: remove only digits, never the "/" characters. */
+  onDOBKeydown(e: KeyboardEvent): void {
+    const input = e.target as HTMLInputElement;
+    const value = input.value || '';
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const hasSelection = start !== end;
+      const wouldRemoveSlash = hasSelection
+        ? value.slice(start, end).includes('/')
+        : (e.key === 'Backspace' && start > 0 && value[start - 1] === '/') ||
+          (e.key === 'Delete' && start < value.length && value[start] === '/');
+      if (wouldRemoveSlash) {
+        e.preventDefault();
+        if (hasSelection) {
+          // Remove only digits in the selection, then re-format so "/" stay visible
+          const withoutSelectionDigits = value
+            .split('')
+            .map((c, i) => (i >= start && i < end && /\d/.test(c) ? '' : c))
+            .join('');
+          const raw = withoutSelectionDigits.replace(/\D/g, '');
+          const formatted = this.formatDOBSlashes(raw);
+          const ctrl = this.authForm.get('dateOfBirth');
+          if (ctrl) ctrl.setValue(formatted, { emitEvent: true });
+          input.value = formatted;
+          const newCursor = Math.min(start, formatted.length);
+          setTimeout(() => input.setSelectionRange(newCursor, newCursor), 0);
+          this.updateDefaultPassword();
+        } else {
+          if (e.key === 'Backspace' && start > 0) {
+            const digitIdx = this.lastDigitIndexBefore(value, start);
+            if (digitIdx >= 0) this.removeDOBDigit(input, digitIdx);
+          } else if (e.key === 'Delete' && start < value.length) {
+            const digitIdx = this.firstDigitIndexAfter(value, start);
+            if (digitIdx >= 0) this.removeDOBDigit(input, digitIdx);
+          }
+        }
+      }
+    }
+  }
+
+  private lastDigitIndexBefore(value: string, pos: number): number {
+    for (let i = pos - 1; i >= 0; i--) if (/\d/.test(value[i])) return i;
+    return -1;
+  }
+
+  private firstDigitIndexAfter(value: string, pos: number): number {
+    for (let i = pos + 1; i < value.length; i++) if (/\d/.test(value[i])) return i;
+    return -1;
+  }
+
+  private removeDOBDigit(input: HTMLInputElement, removeIdx: number): void {
+    const value = input.value || '';
+    const newValue = value.slice(0, removeIdx) + value.slice(removeIdx + 1);
+    const raw = newValue.replace(/\D/g, '');
+    const formatted = this.formatDOBSlashes(raw);
+    const ctrl = this.authForm.get('dateOfBirth');
+    if (ctrl) ctrl.setValue(formatted, { emitEvent: true });
+    // Keep slashes visible: set input value immediately
+    input.value = formatted;
+    const digitsBefore = (value.slice(0, removeIdx).match(/\d/g) || []).length;
+    const newCursor = digitsBefore <= 2 ? digitsBefore : digitsBefore <= 4 ? digitsBefore + 1 : digitsBefore + 2;
+    setTimeout(() => {
+      input.setSelectionRange(newCursor, newCursor);
+    }, 0);
+    this.updateDefaultPassword();
+  }
+
+  /** Parse DD/MM/YYYY and return year, or undefined if invalid. */
+  private parseDDMMYYYY(value: string): number | undefined {
+    if (!value || typeof value !== 'string') return undefined;
+    const s = value.trim();
+    const parts = s.split('/');
+    if (parts.length !== 3) return undefined;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return undefined;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return undefined;
+    const d = new Date(year, month - 1, day);
+    if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return undefined;
+    return year;
+  }
+
   updateDefaultPassword(): void {
     const fullName = this.authForm.get('fullName')?.value || '';
     const dateOfBirth = this.authForm.get('dateOfBirth')?.value;
 
     if (fullName && fullName.length >= 3 && dateOfBirth) {
+      const birthYear = this.parseDDMMYYYY(dateOfBirth);
+      if (birthYear == null) return;
       const namePart = fullName.substring(0, 3);
       const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
-      const birthYear = new Date(dateOfBirth).getFullYear();
       this.defaultPassword = `${formattedName}@${birthYear}`;
       const pwd = this.authForm.get('password');
       if (pwd && !pwd.value) {
@@ -465,10 +897,7 @@ export class SignupComponent implements OnInit, OnDestroy {
 
   getYearFromDOB(): number | undefined {
     const dateOfBirth = this.authForm.get('dateOfBirth')?.value;
-    if (dateOfBirth) {
-      return new Date(dateOfBirth).getFullYear();
-    }
-    return undefined;
+    return dateOfBirth ? this.parseDDMMYYYY(dateOfBirth) : undefined;
   }
 
   togglePasswordVisibility(): void {
@@ -517,6 +946,17 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.authForm.get('username')?.updateValueAndValidity();
   }
 
+  /** When country is BD, normalize username field: strip leading 0 and cap at 10 digits. */
+  private applyBangladeshPhoneDisplay(countryCode: string): void {
+    if (!this.countryService.isBangladesh(countryCode)) return;
+    const ctrl = this.authForm.get('username');
+    const raw = (ctrl?.value || '').toString();
+    const normalized = this.countryService.normalizeMobileInputForDisplay(countryCode, raw);
+    if (normalized !== raw.replace(/\D/g, '')) {
+      ctrl?.setValue(normalized, { emitEvent: false });
+    }
+  }
+
   onAuth(): void {
     const acctype = this.authForm.value.acctype;
     const className = this.authForm.value.className;
@@ -540,16 +980,24 @@ export class SignupComponent implements OnInit, OnDestroy {
     // Teacher validation
     if (acctype === 'Teacher') {
       const level = this.authForm.value.teacherLevel;
-      if (level === 'SSC' || level === 'HSC') {
+      if (level === 'PSC' || level === 'JSC' || level === 'SSC' || level === 'HSC') {
         if (!this.authForm.value.teacherSubject) {
           this.snackBar.open('Please select a subject', 'Close', { duration: 3000 });
           return;
         }
       }
       if (level === 'University') {
-        if (!this.authForm.value.teacherDepartment) {
+        const dept = this.authForm.value.teacherDepartment;
+        if (!dept) {
           this.snackBar.open('Please select a department', 'Close', { duration: 3000 });
           return;
+        }
+        if ((dept || '').toUpperCase() === 'OTHER') {
+          const other = (this.authForm.value.teacherDepartmentOther || '').trim();
+          if (!other) {
+            this.snackBar.open('Please enter your department name', 'Close', { duration: 3000 });
+            return;
+          }
         }
       }
     }
@@ -559,10 +1007,12 @@ export class SignupComponent implements OnInit, OnDestroy {
       const useDefaultPassword = pwdControl?.pristine && this.defaultPassword;
       const passwordToUse = useDefaultPassword ? this.defaultPassword : (this.authForm.value.password || '');
       const birthYear = this.getYearFromDOB();
+      const countryCode = this.authForm.value.countryCode || this.selectedCountry?.country_code || 'BD';
+      const usernameNormalized = this.countryService.normalizeMobileNumber(countryCode, this.authForm.value.username || '');
       const formData: any = {
         acctype: this.authForm.value.acctype,
         fullName: this.authForm.value.fullName,
-        username: this.authForm.value.username,
+        username: usernameNormalized,
         password: passwordToUse,
         date_of_birth: this.authForm.value.dateOfBirth,
         year_of_birth: birthYear,
@@ -572,7 +1022,9 @@ export class SignupComponent implements OnInit, OnDestroy {
         teacher_level: acctype === 'Teacher' ? (this.authForm.value.teacherLevel || null) : null,
         teacher_subject_code: acctype === 'Teacher' ? (this.authForm.value.teacherSubject || null) : null,
         teacher_department_code: acctype === 'Teacher' ? (this.authForm.value.teacherDepartment || null) : null,
-        gender: 'Male',
+        teacher_department_name: acctype === 'Teacher' && (this.authForm.value.teacherDepartment || '').toUpperCase() === 'OTHER'
+          ? (this.authForm.value.teacherDepartmentOther || '').trim() || null
+          : null,
         email: this.authForm.value.email,
         country_code: this.authForm.value.countryCode || this.selectedCountry?.country_code || 'BD',
       };

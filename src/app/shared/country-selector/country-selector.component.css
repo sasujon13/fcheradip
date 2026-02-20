@@ -5,6 +5,60 @@
   font-family: 'Segoe UI', Arial, sans-serif;
 }
 
+/* Loading state: circular progress in place of selector (login/signup forms) */
+.selector-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  background: #fafafa;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.country-selector.loading .selector-loading {
+  border-color: rgba(0, 128, 128, 0.3);
+  background: rgba(0, 128, 128, 0.04);
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(0, 128, 128, 0.2);
+  border-top-color: #008080;
+  border-radius: 50%;
+  animation: country-load-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-text {
+  font-size: 13px;
+  color: #666;
+}
+
+@keyframes country-load-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Loading inside dropdown list */
+.dropdown-list .loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 16px;
+}
+
+.dropdown-list .loading .loading-spinner {
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+}
+
 /* Selector Input */
 .selector-input {
   display: flex;

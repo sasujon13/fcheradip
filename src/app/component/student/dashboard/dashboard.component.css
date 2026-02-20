@@ -6,7 +6,7 @@
 .dashboard-container {
   padding: 20px;
   max-width: 1200px;
-  margin: 0 auto;
+  margin: auto;
 }
 
 .dashboard-title {

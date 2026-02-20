@@ -10,13 +10,14 @@
   --student-bg: #ffffff;
   --student-border: #e0e0e0;
   --student-text: #333333;
+  --student-badge: #ffea03;
   --student-text-light: #666666;
 }
 
 /* Common Button Styles */
 .student-btn {
   background-color: var(--student-primary);
-  color: white;
+  color: var(--student-badge);
   border: none;
   border-radius: 4px;
   padding: 8px 16px;
@@ -31,14 +32,14 @@
 }
 
 .student-btn-secondary {
-  background-color: white;
+  background-color: var(--student-badge);
   color: var(--student-primary);
   border: 1px solid var(--student-primary);
 }
 
 .student-btn-secondary:hover {
   background-color: var(--student-primary);
-  color: white;
+  color: var(--student-badge);
 }
 
 /* Progress Bar */
@@ -58,7 +59,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--student-badge);
   font-size: 12px;
   font-weight: bold;
 }
@@ -101,7 +102,7 @@
 .student-selector-btn:hover,
 .student-selector-btn.active {
   background: var(--student-primary);
-  color: white;
+  color: var(--student-badge);
 }
 
 /* Stats Display (Gaming Features) */
@@ -114,7 +115,7 @@
 
 .student-stat-card {
   background: linear-gradient(135deg, var(--student-primary) 0%, var(--student-secondary) 100%);
-  color: white;
+  color: var(--student-badge);
   padding: 20px;
   border-radius: 8px;
   text-align: center;
@@ -136,7 +137,7 @@
   display: inline-block;
   padding: 5px 10px;
   background: var(--student-accent);
-  color: white;
+  color: var(--student-badge);
   border-radius: 15px;
   font-size: 12px;
   font-weight: bold;
@@ -161,7 +162,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--student-badge);
   font-size: 20px;
 }
 
@@ -174,7 +175,7 @@
 
 .student-leaderboard-table th {
   background: var(--student-primary);
-  color: white;
+  color: var(--student-badge);
   padding: 12px;
   text-align: left;
   font-family: 'Roboto Regular', 'Roboto', sans-serif;
@@ -197,7 +198,7 @@
   text-align: center;
   border-radius: 50%;
   background: var(--student-secondary);
-  color: white;
+  color: var(--student-badge);
   font-weight: bold;
 }
 
@@ -244,7 +245,7 @@
 
 .student-option.selected {
   background: var(--student-secondary);
-  color: white;
+  color: var(--student-badge);
   border-color: var(--student-secondary);
 }
 
@@ -253,7 +254,7 @@
   top: 80px;
   right: 20px;
   background: var(--student-primary);
-  color: white;
+  color: var(--student-badge);
   padding: 15px 20px;
   border-radius: 8px;
   font-size: 18px;

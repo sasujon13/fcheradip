@@ -74,6 +74,7 @@ div.profile_back{
   gap: 6px;
   padding: 4px 8px;
   margin-top: -40px;
+  margin-right: -7px;
   cursor: pointer;
   border-radius: 6px;
   background: transparent;
@@ -213,7 +214,7 @@ div.profile_back{
 }
 
 ul.profileMenu {
-  margin-top: 130px;
+  margin-top: 118px;
   position: absolute;
   background-color: teal;
   width: 40px;
@@ -330,7 +331,7 @@ a:hover{
 }
 
 .menu li {
-  margin: 0 16px 0 6px;
+  margin: 0 10px 0 10px;
   border: none;
 }
 
@@ -430,9 +431,9 @@ i.fa-bars{
   .sign_menu{
     display: block;
     position: absolute;
-    margin-top: 129px;
+    margin-top: 132px;
     padding: 5px 10px;
-    margin-right: -10px;
+    margin-right: 0;
   }
   li#menu_item0 {
     margin-top: 0;
@@ -440,14 +441,14 @@ i.fa-bars{
     margin-bottom: -20px;
   }
   li#menu_item1 {
-    margin-left: 80px;
+    margin-left: 10px;
     margin-bottom: 0;
     display: block !important;
   }
   i.fa-bars{
     position: fixed;
     right: 10px;
-    top: 18px;
+    top: 24px;
     font-size: 28px !important;
     display: block;
     z-index: 101;

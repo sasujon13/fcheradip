@@ -2,6 +2,7 @@ import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
+import { CountryService, Country } from 'src/app/service/country.service';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -30,6 +31,7 @@ export class ProfileComponent implements OnInit {
   divisions: string[] = [];
   districts: string[] = [];
   thanas: string[] = [];
+  selectedCountry: Country | null = null;
   username: any;
   fullName: any;
   gender: any;
@@ -54,10 +56,22 @@ export class ProfileComponent implements OnInit {
     private fb: FormBuilder,
     private router: Router,
     private apiService: ApiService,
+    private countryService: CountryService,
     private snackBar: MatSnackBar,
   ) {
     this.authForm = this.fb.group({
-      // ... form controls ...
+      countryCode: ['BD', [Validators.required]],
+      acctype: ['Student'],
+      username: [''],
+      password: [''],
+      fullName: [''],
+      group: ['Science'],
+      gender: ['Male'],
+      division: [''],
+      district: [''],
+      thana: [''],
+      union: [''],
+      village: ['']
     });
   }
 
@@ -66,12 +80,20 @@ export class ProfileComponent implements OnInit {
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
     }
-    this.fetchDivisions();
     const savedAuthFormData = localStorage.getItem('authFormData');
-    if (savedAuthFormData) {
-      const authData = JSON.parse(savedAuthFormData);
-      this.authForm.patchValue(authData);
+    const formData = localStorage.getItem('formData');
+    const dataToPatch = savedAuthFormData ? JSON.parse(savedAuthFormData) : (formData ? JSON.parse(formData) : null);
+    if (dataToPatch) {
+      this.authForm.patchValue(dataToPatch, { emitEvent: false });
     }
+    const countryCode = (this.authForm.get('countryCode')?.value || 'BD').toString().trim();
+    this.countryService.getCountry(countryCode).subscribe({
+      next: (c) => {
+        this.selectedCountry = c;
+        this.loadLocationsForCountry(c.country_code, false);
+      },
+      error: () => this.loadLocationsForCountry(countryCode, false)
+    });
 
     const scienceC = document.getElementById('science');
     const businessC = document.getElementById('business');
@@ -128,19 +150,19 @@ export class ProfileComponent implements OnInit {
       business3.style.display = 'flex';
     }
     
-    this.authForm = this.fb.group({
-      acctype: ['student', [Validators.required, Validators.maxLength(7)]],
-      username: ['', [Validators.required, Validators.minLength(11), Validators.maxLength(11)]],
-      password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(14)]],
-      fullName: ['', [Validators.required, Validators.maxLength(31)]],
-      group: ['science', [Validators.required, Validators.maxLength(18)]],
-      gender: ['Male', [Validators.required, Validators.maxLength(6)]],
-      division: ['', [Validators.required, Validators.maxLength(31)]],
-      district: ['', [Validators.required, Validators.maxLength(31)]],
-      thana: ['', [Validators.required, Validators.maxLength(31)]],
-      union: ['', [Validators.required, Validators.maxLength(31)]],
-      village: ['', [Validators.required, Validators.maxLength(255)]]
-    });
+    this.authForm.get('countryCode')?.setValue(this.authForm.get('countryCode')?.value || 'BD', { emitEvent: false });
+    this.authForm.get('acctype')?.setValidators([Validators.required, Validators.maxLength(7)]);
+    this.authForm.get('username')?.setValidators([Validators.required, Validators.minLength(10), Validators.maxLength(15)]);
+    this.authForm.get('password')?.setValidators([Validators.required, Validators.minLength(6), Validators.maxLength(14)]);
+    this.authForm.get('fullName')?.setValidators([Validators.required, Validators.maxLength(31)]);
+    this.authForm.get('group')?.setValidators([Validators.required, Validators.maxLength(18)]);
+    this.authForm.get('gender')?.setValidators([Validators.required, Validators.maxLength(6)]);
+    this.authForm.get('division')?.setValidators([Validators.required, Validators.maxLength(31)]);
+    this.authForm.get('district')?.setValidators([Validators.required, Validators.maxLength(31)]);
+    this.authForm.get('thana')?.setValidators([Validators.required, Validators.maxLength(31)]);
+    this.authForm.get('union')?.setValidators([Validators.required, Validators.maxLength(31)]);
+    this.authForm.get('village')?.setValidators([Validators.required, Validators.maxLength(255)]);
+    this.authForm.updateValueAndValidity();
 
     this.username = localStorage.getItem('username');
     this.jsonData.username = this.username;
@@ -221,9 +243,9 @@ export class ProfileComponent implements OnInit {
     }
     else {
       if (this.authForm.valid && this.isPasswordMismatch === false) {
+        const username = this.authForm.value.username;
         const acctype = this.authForm.value.acctype;
         const fullName = this.authForm.value.fullName;
-        const username = this.authForm.value.username;
         const password = this.authForm.value.password;
         const group = this.authForm.value.group;
         const gender = this.authForm.value.gender;
@@ -232,20 +254,35 @@ export class ProfileComponent implements OnInit {
         const thana = this.authForm.value.thana;
         const union = this.authForm.value.union;
         const village = this.authForm.value.village;
+        const countryCode = this.authForm.value.countryCode;
         const formData = this.authForm.value;
         localStorage.setItem('formData', JSON.stringify(formData));
-        this.apiService.update(acctype, fullName, group, gender, division, district, thana, union, village, password).subscribe(
-          (response) => {
+        this.apiService.update(
+          username,
+          acctype,
+          fullName,
+          group,
+          gender,
+          division,
+          district,
+          thana,
+          union,
+          village,
+          password,
+          countryCode
+        ).subscribe(
+          (response: any) => {
             this.snackBar.open('Profile Update Successful!', 'Close', {
               duration: 3000,
               panelClass: ['success-snackbar'],
             });
+            const token = response?.authToken || response?.token || response;
+            if (token) localStorage.setItem('authToken', token);
             this.logout();
-            const returnUrl = localStorage.getItem('returnUrl') || ''; // Default to root if returnUrl is not set
+            const returnUrl = localStorage.getItem('returnUrl') || '';
             this.router.navigate([returnUrl]);
             localStorage.setItem('returnUrl', '');
             localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('authToken', response)
             localStorage.setItem('formData', JSON.stringify(formData));
           },
           (error) => {
@@ -259,34 +296,81 @@ export class ProfileComponent implements OnInit {
     }
   }
 
+  onCountryChange(country: Country): void {
+    this.selectedCountry = country;
+    this.authForm.patchValue({ countryCode: country.country_code }, { emitEvent: false });
+    this.loadLocationsForCountry(country.country_code, true);
+  }
+
+  /** Load divisions from Location table for the selected country. When clearLocation is true, clear division/district/thana (e.g. on country change). */
+  loadLocationsForCountry(countryCode: string, clearLocation = true): void {
+    if (clearLocation) {
+      this.divisions = [];
+      this.districts = [];
+      this.thanas = [];
+      this.authForm.patchValue({ division: '', district: '', thana: '' }, { emitEvent: false });
+    }
+    if (!countryCode) return;
+    this.apiService.getDivisionsByCountry(countryCode).subscribe({
+      next: (data: string[]) => {
+        this.divisions = data || [];
+        if (!clearLocation && this.authForm.get('division')?.value) {
+          this.loadDistrictsAndThanasForCurrentSelection();
+        }
+      },
+      error: (err) => {
+        console.error('Error fetching divisions by country:', err);
+        this.divisions = [];
+      }
+    });
+  }
+
+  /** Load districts and thanas for current division/district (used when restoring saved form). */
+  private loadDistrictsAndThanasForCurrentSelection(): void {
+    const countryCode = this.authForm.get('countryCode')?.value || this.selectedCountry?.country_code || 'BD';
+    const division = this.authForm.get('division')?.value;
+    const district = this.authForm.get('district')?.value;
+    if (!countryCode || !division) return;
+    this.apiService.getDistrictsByCountry(countryCode, division).subscribe({
+      next: (data: string[]) => {
+        this.districts = data || [];
+        if (district) {
+          this.apiService.getThanasByCountry(countryCode, division, district).subscribe({
+            next: (thanaData: string[]) => { this.thanas = thanaData || []; },
+            error: () => { this.thanas = []; }
+          });
+        }
+      },
+      error: () => { this.districts = []; }
+    });
+  }
+
   onDivisionChange(): void {
+    const countryCode = this.authForm.get('countryCode')?.value || this.selectedCountry?.country_code || 'BD';
     const selectedDivision = this.authForm.get('division')?.value;
-    if (selectedDivision) {
-      this.apiService.getDistricts(selectedDivision).subscribe(districts => {
-        this.districts = districts;
+    this.districts = [];
+    this.thanas = [];
+    this.authForm.patchValue({ district: '', thana: '' }, { emitEvent: false });
+    if (countryCode && selectedDivision) {
+      this.apiService.getDistrictsByCountry(countryCode, selectedDivision).subscribe({
+        next: (data: string[]) => { this.districts = data || []; },
+        error: () => { this.districts = []; }
       });
     }
   }
 
   onDistrictChange(): void {
+    const countryCode = this.authForm.get('countryCode')?.value || this.selectedCountry?.country_code || 'BD';
     const selectedDivision = this.authForm.get('division')?.value;
     const selectedDistrict = this.authForm.get('district')?.value;
-    if (selectedDivision && selectedDistrict) {
-      this.apiService.getThanas(selectedDivision, selectedDistrict).subscribe(thanas => {
-        this.thanas = thanas;
+    this.thanas = [];
+    this.authForm.patchValue({ thana: '' }, { emitEvent: false });
+    if (countryCode && selectedDivision && selectedDistrict) {
+      this.apiService.getThanasByCountry(countryCode, selectedDivision, selectedDistrict).subscribe({
+        next: (data: string[]) => { this.thanas = data || []; },
+        error: () => { this.thanas = []; }
       });
     }
-  }
-
-  fetchDivisions() {
-    this.apiService.getDivisions().subscribe(
-      (data: string[]) => {
-        this.divisions = data;
-      },
-      error => {
-        console.error('Error fetching divisions:', error);
-      }
-    );
   }
 
   togglePasswordVisibility(): void {

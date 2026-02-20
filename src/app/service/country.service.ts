@@ -370,12 +370,13 @@ export class CountryService {
   }
 
   /**
-   * Validate phone number length for country
+   * Validate phone number length for country. For BD, 11 digits with leading 0 is normalized to 10.
    */
   validatePhoneLength(country: Country, phoneNumber: string): boolean {
-    const cleanNumber = phoneNumber.replace(/\D/g, '');
+    const normalized = this.normalizeMobileNumber(country.country_code, phoneNumber);
+    const cleanNumber = normalized.replace(/\D/g, '');
     const minLength = country.phone_length_min || 10;
-    const maxLength = country.phone_length_max || 10;
+    const maxLength = country.phone_length_max ?? 10;
     return cleanNumber.length >= minLength && cleanNumber.length <= maxLength;
   }
 
@@ -468,5 +469,59 @@ export class CountryService {
       .replace(country.phone_code, '')
       .replace(/X/g, '0')
       .trim();
+  }
+
+  /**
+   * Min length for mobile number based on country (from cheradip_country.phone_length_min).
+   */
+  getPhoneMinLength(country: Country | null): number {
+    return country?.phone_length_min ?? 10;
+  }
+
+  /**
+   * Max length for mobile number based on country (from cheradip_country.phone_length_max).
+   */
+  getPhoneMaxLength(country: Country | null): number {
+    return country?.phone_length_max ?? 15;
+  }
+
+  /**
+   * Max length allowed in the input field. For Bangladesh we show only 10 digits (leading 0 is stripped immediately).
+   */
+  getPhoneInputMaxLength(country: Country | null): number {
+    if (!country?.country_code) return 15;
+    if (country.country_code === 'BD') return 10;
+    return country?.phone_length_max ?? 15;
+  }
+
+  /**
+   * Normalize phone input for display (Bangladesh only): strip leading 0 and cap at 10 digits.
+   * So field always shows at most 10 digits; if user types 0 first it is removed immediately.
+   */
+  normalizeMobileInputForDisplay(countryCode: string, value: string): string {
+    if (!value || typeof value !== 'string') return '';
+    const code = (countryCode || '').trim().toUpperCase();
+    if (code !== 'BD') return value;
+    const digits = value.replace(/\D/g, '');
+    const withoutLeadingZero = digits.startsWith('0') ? digits.slice(1) : digits;
+    return withoutLeadingZero.slice(0, 10);
+  }
+
+  /**
+   * For Bangladesh (BD): if user typed 11 digits starting with 0, return 10 digits (strip leading 0).
+   * Otherwise return value as-is. Used before submit and for validation.
+   */
+  normalizeMobileNumber(countryCode: string, value: string): string {
+    if (!value || typeof value !== 'string') return value;
+    const code = (countryCode || '').trim().toUpperCase();
+    if (code !== 'BD') return value;
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 11 && digits.charAt(0) === '0') return digits.slice(1);
+    return value.replace(/\D/g, '') || value;
+  }
+
+  /** True if country is Bangladesh (leading 0 + 10 digits allowed in input). */
+  isBangladesh(countryCode: string | null | undefined): boolean {
+    return (countryCode || '').trim().toUpperCase() === 'BD';
   }
 }

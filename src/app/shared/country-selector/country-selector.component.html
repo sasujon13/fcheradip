@@ -1,6 +1,11 @@
-<div class="country-selector" [class.compact]="compact" [class.open]="isDropdownOpen">
+<div class="country-selector" [class.compact]="compact" [class.open]="isDropdownOpen" [class.loading]="isLoading">
+  <!-- Loading: circular progress when countries are not loaded yet -->
+  <div class="selector-loading" *ngIf="isLoading">
+    <div class="loading-spinner" aria-hidden="true"></div>
+    <span class="loading-text">Loading countries...</span>
+  </div>
   <!-- Selected Country Display / Input: when selected = country flag then name; when none = globe -->
-  <div class="selector-input" (click)="toggleDropdown()">
+  <div class="selector-input" *ngIf="!isLoading" (click)="toggleDropdown()">
     <!-- Flag: selected = country flag (img or emoji), else globe placeholder -->
     <img *ngIf="showFlag && selectedCountry && selectedCountry.flag_url" 
          [src]="selectedCountry!.flag_url" [alt]="selectedCountry!.country_name" class="flag flag-img" />
@@ -30,7 +35,10 @@
   <!-- Dropdown List: flag + name only (no phone code in results) -->
   <div class="dropdown-list" *ngIf="isDropdownOpen">
     <!-- Loading -->
-    <div class="loading" *ngIf="isLoading">Loading...</div>
+    <div class="loading" *ngIf="isLoading">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <span>Loading countries...</span>
+    </div>
 
     <!-- Featured Countries (shown when no search) -->
     <div class="featured-section" *ngIf="!searchControl.value && featuredCountries.length > 0">

@@ -15,7 +15,7 @@
       </div>
     </div>
     <div class="form-group">
-      <span class="label-colon"><label for="username">M. Number</label><span class="colon">:</span></span>
+      <span class="label-colon"><label for="username">Mobile Number</label><span class="colon">:</span></span>
       <div class="form-field">
         <div class="phone-input-wrapper" *ngIf="selectedCountry">
           <span class="phone-code">{{ selectedCountry.phone_code }}</span>
@@ -33,7 +33,7 @@
     <div class="form-group form-group--error" *ngIf="isMobileNumberRegistered">
       <span class="label-colon"></span>
       <div class="form-field">
-        <div class="error-message errormessage">
+        <div class="error-message">
           You don't have an account with this Mobile number. Please <a [routerLink]="['/auth']"
             routerLinkActive="auth">Signup</a> / try with a different Mobile number!
         </div>
@@ -43,39 +43,31 @@
     <div class="form-group">
       <span class="label-colon"><label for="password">Password</label><span class="colon">:</span></span>
       <div class="form-field">
-        <div class="input-group">
-          <input type="{{ showPassword ? 'text' : 'password' }}" formControlName="password" id="password"
+        <div class="password-input-wrapper">
+          <input [type]="showPassword ? 'text' : 'password'" formControlName="password" id="password"
+            placeholder="Enter password"
             class="form-control"
             [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
-          <div class="input-group-append">
-            <span class="input-group-text" (click)="togglePasswordVisibility()">
-              <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
-            </span>
-          </div>
+          <button type="button" class="toggle-password" (click)="togglePasswordVisibility()" title="Show/hide password">
+            <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+          </button>
         </div>
       </div>
     </div>
     <div class="form-group form-group--error" *ngIf="isPasswordMismatch">
-      <span class="label-colon"></span>
-      <div class="form-field"><div class="error-message errormessage">Your Password doesn't match. Please try again or <a href="javascript:void(0)" (click)="openForgotPassword()">Reset Password</a></div></div>
-    </div>
-    <div class="form-group form-group--error" *ngIf="isPasswordLength">
-      <span class="label-colon"></span>
-      <div class="form-field"><div class="error-message errormessage">Password must be within 6 - 14 Characters.</div></div>
-    </div>
+        <div class="error-message error-message2">Your Password doesn't match!<br>Please try again or <a href="javascript:void(0)" (click)="openForgotPassword()">Reset Password</a></div>
+   </div>
 
-    <button type="submit" class="loginButton">Login</button>
-    
-    <!-- Forgot Password Link -->
+    <button type="submit" class="form-submit-btn">Login</button>
     <div class="forgot-password-link">
       <a href="javascript:void(0)" (click)="openForgotPassword()">Forgot Password?</a>
     </div>
   </form>
 
-  <p>Don't have an account?</p>
-  <a [routerLink]="['/auth']" routerLinkActive="auth" style="text-decoration: none;"><button class="switchButton">
-      Signup
-    </button></a>
+  <div class="login-link">
+    <p>Don't have an account?</p>
+    <a [routerLink]="['/auth']" routerLinkActive="auth" class="switch-btn">Signup</a>
+  </div>
 </div>
 
 <!-- Forgot Password Modal -->

@@ -1,178 +1,140 @@
 <div class="login_signup_form">
   <h2>Profile Update</h2>
   <form [formGroup]="authForm" (ngSubmit)="onAuth()">
-    
-    <label for="acctype">Acc. Type</label>
-    <div class="type_options">
-      <label class="student">
-        <input type="radio" id="teacher" formControlName="acctype" name="acctype" value="teacher" class="teacher" /> Teacher
-      </label>
-      <label>
-        <input type="radio" id="student" formControlName="acctype" name="acctype" value="student" class="other" /> Student
-      </label>
-    </div>
-  <label for="fullName">Full Name</label>
-  <input type="text" formControlName="fullName" [(ngModel)]="jsonData.fullName" id="fullName" class="form-control"
-    [ngClass]="{ 'is-invalid': authForm.get('fullName')?.touched && authForm.get('fullName')?.invalid }" />
+  
+      <!-- Country (for phone code) -->
+      <div class="form-group">
+        <span class="label-colon"><label for="country">Country</label><span class="colon">:</span></span>
+        <div class="form-field country-selector-wrapper">
+          <app-country-selector
+            formControlName="countryCode"
+            [showPhoneCode]="false"
+            [showFlag]="true"
+            [compact]="false"
+            (countryChange)="onCountryChange($any($event))">
+          </app-country-selector>
+        </div>
+      </div>
 
-    <label for="group">Group</label>
-    <div class="group_options">
-      <label class="science">
-        <input type="radio" id="science" formControlName="group" name="group" value="science" class="science" /> Science
-      </label>
-      <label>
-        <input type="radio" id="business" formControlName="group" name="group" value="business" class="other" /> Business
-      </label>
-      <label>
-        <input type="radio" id="humanities" formControlName="group" name="group" value="humanities" class="other" /> Arts
-      </label>
-    </div>
-
-    <label for="subjects">Optional<br>Subjects</label>
-    <div class="subject_options" id="scienceSubjects">
-      <label class="phy">
-        <input type="checkbox" id="phy" formControlName="subjects" name="subjects" value="phy" class="phy" /> Physics
-      </label>
-      <label>
-        <input type="checkbox" id="che" formControlName="subjects" name="subjects" value="che" class="other" /> Chemistry
-      </label>
-      <label>
-        <input type="checkbox" id="math" formControlName="subjects" name="subjects" value="math" class="other" /> Math
-      </label>
-    </div>
-    <div class="subject_options2" id="scienceSubjects2">
-      <label>
-        <input type="checkbox" id="bio" formControlName="subjects" name="subjects" value="bio" class="other" /> Biology
-      </label>
-      <label>
-        <input type="checkbox" id="stat" formControlName="subjects" name="subjects" value="stat" class="other" /> Statistics
-      </label>
-      <label>
-        <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agri.
-      </label>
-    </div>
-
-    <div class="subject_options" id="businessSubjects">
-      <label class="acc">
-        <input type="checkbox" id="acc" formControlName="subjects" name="subjects" value="acc" class="acc" /> Accounting
-      </label>
-      <label>
-        <input type="checkbox" id="man" formControlName="subjects" name="subjects" value="man" class="other" /> Management
-      </label>
-    </div>
-    <div class="subject_options2" id="businessSubjects2">
-      <label>
-        <input type="checkbox" id="fin" formControlName="subjects" name="subjects" value="fin" class="other" /> Finance & Bank.
-      </label>
-      <label>
-        <input type="checkbox" id="eco" formControlName="subjects" name="subjects" value="eco" class="other" /> Economics
-      </label>
-    </div>
-    <div class="subject_options3" id="businessSubjects3">
-      <label>
-        <input type="checkbox" id="stat" formControlName="subjects" name="subjects" value="stat" class="other" /> Statistics
-      </label>
-      <label>
-        <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agriculture
-      </label>
-    </div>
-
-    <div class="subject_options" id="humanitiesSubjects">
-      <label class="isl">
-        <input type="checkbox" id="isl" formControlName="subjects" name="subjects" value="isl" class="isl" /> Islamic History
-      </label>
-      <label>
-        <input type="checkbox" id="soc" formControlName="subjects" name="subjects" value="soc" class="other" /> Sociology
-      </label>
-    </div>
-    <div class="subject_options2" id="humanitiesSubjects2">
-      <label>
-        <input type="checkbox" id="civ" formControlName="subjects" name="subjects" value="civ" class="other" /> Civics
-      </label>
-      <label>
-        <input type="checkbox" id="pol" formControlName="subjects" name="subjects" value="pol" class="other" /> Political Science
-      </label>
-    </div>
-    <div class="subject_options3" id="humanitiesSubjects3">
-      <label>
-        <input type="checkbox" id="eco" formControlName="subjects" name="subjects" value="eco" class="other" /> Economics
-      </label>
-      <label>
-        <input type="checkbox" id="agri" formControlName="subjects" name="subjects" value="agri" class="other" /> Agriculture
-      </label>
-    </div>
-
-    <label for="male">Gender</label>
-    <div class="gender_options">
-      <label class="male">
-        <input type="radio" id="male" formControlName="gender" name="gender" value="Male" class="male" /> Male
-      </label>
-      <label>
-        <input type="radio" id="female" formControlName="gender" name="gender" value="Female" class="other" /> Female
-      </label>
-      <label>
-        <input type="radio" id="common" formControlName="gender" name="gender" value="Common" class="other" /> Common
-      </label>
-    </div>
-
-    <label for="division">Division</label>
-    <select class="address form-control" formControlName="division" id="division" (change)="onDivisionChange()"
-      class="form-control"
-      [ngClass]="{ 'is-invalid': authForm.get('division')?.touched && authForm.get('division')?.invalid }">
-      <option value="">Select Division</option>
-      <option *ngFor="let division of divisions" [value]="division">{{ division }}</option>
-    </select>
-
-    <label for="district">District</label>
-    <select class="address form-control" formControlName="district" id="district" (change)="onDistrictChange()"
-      class="form-control"
-      [ngClass]="{ 'is-invalid': authForm.get('district')?.touched && authForm.get('district')?.invalid }">
-      <option value="">Select District</option>
-      <option *ngFor="let district of districts" [value]="district">{{ district }}</option>
-    </select>
-
-    <label for="thana">Thana / UZ</label>
-    <select class="address form-control" formControlName="thana" id="thana" class="form-control"
-      [ngClass]="{ 'is-invalid': authForm.get('thana')?.touched && authForm.get('thana')?.invalid }">
-      <option value="">Select Thana</option>
-      <option *ngFor="let thana of thanas" [value]="thana">{{ thana }}</option>
-    </select>
-
-    <label for="union">PO / Union</label>
-    <input type="text" formControlName="union" [(ngModel)]="jsonData.union" id="union"
-      placeholder="Your Post Office / Union" class="form-control"
-      [ngClass]="{ 'is-invalid': authForm.get('union')?.touched && authForm.get('union')?.invalid }" />
-
-    <label for="village">Local Address</label>
-    <textarea id="village" formControlName="village" [(ngModel)]="jsonData.village" id="village" class="form-control"
-      [ngClass]="{ 'is-invalid': authForm.get('village')?.touched && authForm.get('village')?.invalid }"
-      placeholder="Enter Your Village, Para/Moholla, Road No, Block No, Quarter No, Floor No etc....."></textarea>
-    <div #consoleOutput class="console-output"></div>
-    <label for="password">Current Password</label>
-    <div class="input-group">
-      <input type="{{ showPassword ? 'text' : 'password' }}" style="text-align: center;" formControlName="password" id="password"
-        class="form-control"
-        [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
-      <div class="input-group-append">
-        <span class="input-group-text" (click)="togglePasswordVisibility()">
-          <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
-        </span>
+    <div class="form-group">
+      <span class="label-colon"><label for="acctype">Acc. Type</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <div class="group-options type_options">
+          <label class="radio-option" [class.active]="authForm.get('acctype')?.value === 'Teacher'">
+            <input type="radio" id="teacher" formControlName="acctype" name="acctype" value="Teacher" /> Teacher
+          </label>
+          <label class="radio-option" [class.active]="authForm.get('acctype')?.value === 'Student'">
+            <input type="radio" id="student" formControlName="acctype" name="acctype" value="Student" /> Student
+          </label>
+          <label class="radio-option" [class.active]="authForm.get('acctype')?.value === 'JobSeeker'">
+            <input type="radio" id="jobseeker" formControlName="acctype" name="acctype" value="JobSeeker" /> Job Seeker
+          </label>
+        </div>
       </div>
     </div>
-    <div *ngIf="isPasswordMismatch" class="error-message errormessage">
-      Your Password doesn't match. Please try again or 
-      <a href="javascript:void(0)" (click)="openChangePassword()">Reset Password</a>
-    </div>
-    <div *ngIf="isPasswordLength" class="error-message errormessage">
-      Password must be within 6 - 14 Characters.
+
+    <div class="form-group">
+      <span class="label-colon"><label for="fullName">Full Name</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <input type="text" formControlName="fullName" [(ngModel)]="jsonData.fullName" id="fullName" class="form-control"
+          placeholder="Enter your full name"
+          [ngClass]="{ 'is-invalid': authForm.get('fullName')?.touched && authForm.get('fullName')?.invalid }" />
+      </div>
     </div>
 
-    <button type="submit">Update Profile</button>
-    
-    <!-- Change Password Button -->
-    <button type="button" class="change-password-btn" (click)="openChangePassword()">
-      Change Password
-    </button>
+    <div class="form-group">
+      <span class="label-colon"><label for="male">Gender</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <div class="group-options">
+          <label class="radio-option" [class.active]="authForm.get('gender')?.value === 'Male'">
+            <input type="radio" id="male" formControlName="gender" name="gender" value="Male" /> Male
+          </label>
+          <label class="radio-option" [class.active]="authForm.get('gender')?.value === 'Female'">
+            <input type="radio" id="female" formControlName="gender" name="gender" value="Female" /> Female
+          </label>
+          <label class="radio-option" [class.active]="authForm.get('gender')?.value === 'Common'">
+            <input type="radio" id="common" formControlName="gender" name="gender" value="Common" /> Others
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="label-colon"><label for="division">Division</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="division" id="division" (change)="onDivisionChange()" class="form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('division')?.touched && authForm.get('division')?.invalid }">
+          <option value="">Select Division</option>
+          <option *ngFor="let division of divisions" [value]="division">{{ division }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="label-colon"><label for="district">District</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="district" id="district" (change)="onDistrictChange()" class="form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('district')?.touched && authForm.get('district')?.invalid }">
+          <option value="">Select District</option>
+          <option *ngFor="let district of districts" [value]="district">{{ district }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="label-colon"><label for="thana">Thana / UZ</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <select formControlName="thana" id="thana" class="form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('thana')?.touched && authForm.get('thana')?.invalid }">
+          <option value="">Select Thana</option>
+          <option *ngFor="let thana of thanas" [value]="thana">{{ thana }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="label-colon"><label for="union">PO / Union</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <input type="text" formControlName="union" [(ngModel)]="jsonData.union" id="union"
+          placeholder="Your Post Office / Union" class="form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('union')?.touched && authForm.get('union')?.invalid }" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="label-colon"><label for="village">Local Address</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <textarea formControlName="village" [(ngModel)]="jsonData.village" id="village" class="form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('village')?.touched && authForm.get('village')?.invalid }"
+          placeholder="Village, Para/Moholla, Road No, Block No, Quarter No, Floor No etc." rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="label-colon"><label for="password">Password</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <div class="password-input-wrapper">
+          <input [type]="showPassword ? 'text' : 'password'" formControlName="password" id="password"
+            placeholder="Enter current password"
+            class="form-control"
+            [ngClass]="{ 'is-invalid': authForm.get('password')?.touched && authForm.get('password')?.invalid }" />
+          <button type="button" class="toggle-password" (click)="togglePasswordVisibility()" title="Show/hide password">
+            <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
+          </button>
+        </div>
+        <div *ngIf="isPasswordMismatch" class="error-message">
+          Your Password doesn't match. Please try again or
+          <a href="javascript:void(0)" (click)="openChangePassword()">Reset Password</a>
+        </div>
+        <div *ngIf="isPasswordLength" class="error-message">
+          Password must be within 6 - 14 Characters.
+        </div>
+      </div>
+    </div>
+
+    <div #consoleOutput class="console-output"></div>
+    <button type="submit" class="form-submit-btn">Update Profile</button>
+    <button type="button" class="change-password-btn" (click)="openChangePassword()">Change Password</button>
   </form>
 </div>
 

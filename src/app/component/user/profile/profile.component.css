@@ -1,13 +1,411 @@
-/* Import shared styles */
+/* Profile Update – same UI as signup */
 @import '../../../shared/styles/header.shared.css';
 
-.console-output{
-    margin: -12px auto 12px auto;
-    width: max-content;
-    text-align: center; 
-    color: darkred;
+.login_signup_form {
+  max-width: 520px;
+  margin: 100px auto 40px;
+  padding: 30px;
+  background: linear-gradient(135deg, rgba(1, 128, 128, 0.08) 0%, rgba(1, 128, 128, 0.15) 100%);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(1, 128, 128, 0.2);
+  user-select: none;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 22px;
+  color: #008080;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0 10px;
+}
+
+.form-group > .label-colon {
+  flex: 0 0 138px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.form-group > .label-colon > label {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.form-group > .label-colon > .colon {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: #444;
+}
+
+.form-group > .form-field {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: white;
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.form-control.is-invalid {
+  border-color: #dc3545;
+}
+
+select.form-control {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Radio/checkbox options – same as signup group-options */
+.group-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radio-option {
+  flex: 1 1 auto;
+  min-width: 80px;
+  text-align: center;
+  padding: 10px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  background: white;
+}
+
+.radio-option input {
+  display: none;
+}
+
+.radio-option.active {
+  border-color: #008080;
+  background: rgba(0, 128, 128, 0.08);
+  color: #008080;
+  font-weight: 600;
+}
+
+.radio-option:hover:not(.active) {
+  border-color: #aaa;
+  background: #fafafa;
+}
+
+.checkbox-option.active {
+  border-color: #008080;
+  background: rgba(0, 128, 128, 0.08);
+  color: #008080;
+}
+
+.subject-options-wrap .group-options {
+  margin-bottom: 8px;
+}
+
+.subject-options-wrap .group-options:last-child {
+  margin-bottom: 0;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: white;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.password-input-wrapper:focus-within {
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.password-input-wrapper .form-control {
+  flex: 1;
+  border: none;
+  box-shadow: none;
+  padding-right: 40px;
+}
+
+.toggle-password {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+  position: absolute;
+  right: 8px;
+}
+
+.toggle-password:hover {
+  color: #008080;
+}
+
+.error-message {
+  font-size: 12px;
+  color: #dc3545;
+  margin-top: 4px;
+}
+
+.error-message a {
+  color: #008080;
+  text-decoration: underline;
+}
+
+.console-output {
+  margin: 0 auto;
+  width: max-content;
+  text-align: center;
+  color: #dc3545;
+  font-size: 12px;
+}
+
+.form-submit-btn {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #008080 0%, #00a0a0 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 128, 128, 0.3);
+}
+
+.form-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 128, 128, 0.4);
+}
+
+.form-submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.change-password-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  background: transparent;
+  color: #008080;
+  border: 2px solid #008080;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.change-password-btn:hover {
+  background: #008080;
+  color: white;
+}
+
+/* Modal – Change Password */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  line-height: 1;
+  padding: 4px;
+}
+
+.modal-close:hover {
+  color: #008080;
+}
+
+.modal-content h3 {
+  margin: 0 0 8px 0;
+  color: #008080;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.modal-content p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.modal-content .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.modal-content .form-group .label-colon {
+  flex: none;
+  padding-top: 0;
+}
+
+.modal-content .form-group label {
+  margin: 0;
+  font-weight: 600;
+  color: #444;
+  font-size: 13px;
+}
+
+.modal-content .form-control {
+  padding: 12px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-content .form-control:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.modal-content .btn-primary {
+  width: 100%;
+  padding: 14px;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #008080 0%, #00a0a0 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 128, 128, 0.3);
+}
+
+.modal-content .btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 128, 128, 0.4);
+}
+
+.modal-content .btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.modal-content .hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.modal-content .error-message {
+  font-size: 12px;
+  color: #dc3545;
+  margin-top: 8px;
+}
+
+.modal-content .success-message {
+  font-size: 12px;
+  color: #008080;
+  margin-top: 8px;
+}
+
+.modal-content .resend-link {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.modal-content .resend-link a {
+  color: #008080;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+@media screen and (max-width: 480px) {
+  .login_signup_form {
+    margin: 80px 16px 30px;
+    padding: 24px 20px;
+    max-width: 100%;
   }
-  button{
-      margin: 15px auto 12px auto !important;
-      width: 200px;
+  h2 {
+    font-size: 24px;
   }
+  .form-group > .label-colon {
+    flex: 0 0 120px;
+  }
+  .radio-option {
+    flex: 1 1 40%;
+  }
+}
