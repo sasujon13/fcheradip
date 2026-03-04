@@ -109,8 +109,8 @@ export class SignupComponent implements OnInit, OnDestroy {
   showTeacherSubjectField = false;
   showTeacherDepartmentField = false;
 
-  // Levels/Classes from API by country (for Class and Level dropdowns)
-  availableLevels: string[] = [];
+  // Levels/Classes from API by country (for Class and Level dropdowns). Each item: { level, level_tr, label }.
+  availableLevels: Array<{ level: string; level_tr: string; label: string }> = [];
   availableClassOptions: { value: string; label: string }[] = [];
   readonly defaultClassOptions: { value: string; label: string }[] = [
     { value: '5', label: 'PSC (1-5)' },
@@ -119,7 +119,13 @@ export class SignupComponent implements OnInit, OnDestroy {
     { value: '11-12', label: 'HSC (11-12)' },
     { value: '13-16', label: 'University' }
   ];
-  readonly defaultLevels = ['PSC', 'JSC', 'SSC', 'HSC', 'University'];
+  readonly defaultLevels: Array<{ level: string; level_tr: string; label: string }> = [
+    { level: 'PSC', level_tr: 'PSC', label: 'PSC' },
+    { level: 'JSC', level_tr: 'JSC', label: 'JSC' },
+    { level: 'SSC', level_tr: 'SSC', label: 'SSC' },
+    { level: 'HSC', level_tr: 'HSC', label: 'HSC' },
+    { level: 'University', level_tr: 'University', label: 'University' }
+  ];
   private readonly levelToClassMap: Record<string, string> = {
     'PSC': '5', 'JSC': '8', 'SSC': '9-10', 'HSC': '11-12', 'University': '13-16'
   };
@@ -611,8 +617,13 @@ export class SignupComponent implements OnInit, OnDestroy {
         this.availableLevels = res?.levels?.length ? res.levels : this.defaultLevels;
         this.availableClassOptions = (res?.levels?.length)
           ? res.levels
-              .filter((l: string) => this.levelToClassMap[l] != null)
-              .map((l: string) => ({ value: this.levelToClassMap[l], label: this.levelToClassLabel[l] || l }))
+              .filter((l: { level: string; level_tr: string; label: string }) =>
+                this.levelToClassMap[l.level] != null || this.levelToClassMap[l.level_tr] != null)
+              .map((l: { level: string; level_tr: string; label: string }) => {
+                const classVal = this.levelToClassMap[l.level] ?? this.levelToClassMap[l.level_tr];
+                const classLabel = this.levelToClassLabel[l.level] ?? this.levelToClassLabel[l.level_tr] ?? l.label;
+                return { value: classVal, label: classLabel };
+              })
           : this.defaultClassOptions;
       },
       error: () => {

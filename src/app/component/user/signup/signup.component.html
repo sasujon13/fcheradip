@@ -115,7 +115,7 @@
         (change)="onTeacherLevelChange()"
         [ngClass]="{ 'is-invalid': authForm.get('teacherLevel')?.touched && authForm.get('teacherLevel')?.invalid }">
         <option value="">Select Level</option>
-        <option *ngFor="let lvl of (availableLevels.length ? availableLevels : defaultLevels)" [value]="lvl">{{ lvl }}</option>
+        <option *ngFor="let lvl of (availableLevels.length ? availableLevels : defaultLevels)" [value]="lvl.level">{{ lvl.label }}</option>
       </select>
       </div>
     </div>

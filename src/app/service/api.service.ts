@@ -474,8 +474,8 @@ export class ApiService {
   }
 
   /** Unique levels/classes for a country from cheradip_subject (for signup Class and Level dropdowns). */
-  getLevelsByCountry(countryCode: string): Observable<{ levels: string[]; country_code: string }> {
-    return this.http.get<{ levels: string[]; country_code: string }>(
+  getLevelsByCountry(countryCode: string): Observable<{ levels: Array<{ level: string; level_tr: string; label: string }>; country_code: string }> {
+    return this.http.get<{ levels: Array<{ level: string; level_tr: string; label: string }>; country_code: string }>(
       `${this.baseUrl}/levels_by_country/`,
       { params: { country_code: countryCode || '' } }
     );
