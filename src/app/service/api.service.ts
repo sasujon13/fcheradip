@@ -473,6 +473,14 @@ export class ApiService {
     return this.http.get<{ groups?: any[] }>(`${this.baseUrl}/groups_by_class/`, { params: { class_code: classCode } });
   }
 
+  /** Distinct class levels from cheradip_subject for a country (Student signup Class dropdown: Class Zero, Class One, ...). */
+  getClassesByCountry(countryCode: string): Observable<{ classes: Array<{ value: string; label: string; has_groups: boolean }>; country_code: string }> {
+    return this.http.get<{ classes: Array<{ value: string; label: string; has_groups: boolean }>; country_code: string }>(
+      `${this.baseUrl}/classes_by_country/`,
+      { params: { country_code: countryCode || '' } }
+    );
+  }
+
   /** Unique levels/classes for a country from cheradip_subject (for signup Class and Level dropdowns). */
   getLevelsByCountry(countryCode: string): Observable<{ levels: Array<{ level: string; level_tr: string; label: string }>; country_code: string }> {
     return this.http.get<{ levels: Array<{ level: string; level_tr: string; label: string }>; country_code: string }>(

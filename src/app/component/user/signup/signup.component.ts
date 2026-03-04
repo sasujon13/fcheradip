@@ -109,15 +109,17 @@ export class SignupComponent implements OnInit, OnDestroy {
   showTeacherSubjectField = false;
   showTeacherDepartmentField = false;
 
-  // Levels/Classes from API by country (for Class and Level dropdowns). Each item: { level, level_tr, label }.
+  // Levels/Classes from API by country. Levels for Teacher; Classes (Class Zero, Class One...) for Student.
   availableLevels: Array<{ level: string; level_tr: string; label: string }> = [];
-  availableClassOptions: { value: string; label: string }[] = [];
-  readonly defaultClassOptions: { value: string; label: string }[] = [
-    { value: '5', label: 'PSC (1-5)' },
-    { value: '8', label: 'JSC (6-8)' },
-    { value: '9-10', label: 'SSC (9-10)' },
-    { value: '11-12', label: 'HSC (11-12)' },
-    { value: '13-16', label: 'University' }
+  availableClassOptions: { value: string; label: string; has_groups?: boolean }[] = [];
+  readonly defaultClassOptions: { value: string; label: string; has_groups?: boolean }[] = [
+    { value: '0', label: 'Class Zero', has_groups: false },
+    { value: '1', label: 'Class One', has_groups: false },
+    { value: '5', label: 'Class Five', has_groups: false },
+    { value: '8', label: 'Class Eight', has_groups: false },
+    { value: '9-10', label: 'Class 9-10', has_groups: true },
+    { value: '11-12', label: 'Class 11-12', has_groups: true },
+    { value: '13-16', label: 'Degree / University', has_groups: false }
   ];
   readonly defaultLevels: Array<{ level: string; level_tr: string; label: string }> = [
     { level: 'PSC', level_tr: 'PSC', label: 'PSC' },
@@ -385,7 +387,7 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.authForm.get('teacherDepartment')?.clearValidators();
     this.authForm.get('teacherDepartmentOther')?.clearValidators();
 
-    if (level === 'PSC' || level === 'JSC' || level === 'SSC' || level === 'HSC') {
+    if (level && level !== 'University') {
       this.showTeacherSubjectField = true;
       this.authForm.get('teacherSubject')?.setValidators([Validators.required]);
       this.loadSubjectsForLevel(level);
@@ -422,24 +424,23 @@ export class SignupComponent implements OnInit, OnDestroy {
       .trim();
   }
 
-  /** Deduplicate by display name, sort ascending, and add displayName. */
+  /** Deduplicate by display name and add displayName (subject name with subject_name_tr in parentheses when present). */
   private processSubjectList(subjects: any[]): any[] {
     if (!Array.isArray(subjects) || subjects.length === 0) return [];
     const withDisplay = subjects.map((sub: any) => {
-      const raw = sub.subject_name_bn || sub.subject_name || '';
+      const name = (sub.subject_name || sub.subject_name_bn || '').trim();
+      const tr = (sub.subject_name_tr || sub.subject_translated || '').trim();
+      const raw = tr ? `${name} (${tr})` : (name || tr || sub.subject_code || '');
       const displayName = this.normalizeSubjectDisplayName(raw) || raw;
       return { ...sub, displayName };
     });
     const seen = new Set<string>();
-    const unique = withDisplay.filter((sub: any) => {
+    return withDisplay.filter((sub: any) => {
       const key = (sub.displayName || '').toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-    return unique.sort((a: any, b: any) =>
-      (a.displayName || '').localeCompare(b.displayName || '', undefined, { sensitivity: 'base' })
-    );
   }
 
   /** Load subjects for Teacher by selected country + level (from cheradip_subject). Fallback to getSubjects() if no country. */
@@ -485,91 +486,58 @@ export class SignupComponent implements OnInit, OnDestroy {
 
   onClassChange(className: string): void {
     this.currentClassCode = className || '';
-    
-    // Reset fields
     this.showGroupField = false;
     this.showDepartmentField = false;
     this.availableGroups = [];
     this.groupsLoaded = false;
     this.availableDepartments = [];
     this.authForm.patchValue({ group: '', department: '' });
-    
-    // Class 5 and 8: No groups
-    if (className === '5' || className === '8') {
-      this.authForm.get('group')?.clearValidators();
-      this.authForm.get('department')?.clearValidators();
-      this.authForm.get('group')?.updateValueAndValidity();
-      this.authForm.get('department')?.updateValueAndValidity();
-      return;
-    }
-    
-    // Class 9-10 and 11-12: Load groups by country + level (SSC / HSC) from cheradip_subject
-    if (className === '9-10' || className === '11-12') {
+    this.authForm.get('group')?.clearValidators();
+    this.authForm.get('department')?.clearValidators();
+
+    const opt = this.availableClassOptions.find(o => o.value === className);
+    const hasGroups = opt?.has_groups === true;
+    const isUniClass = ['13', '14', '15', '16', '13-16'].includes(className);
+
+    if (hasGroups) {
       this.showGroupField = true;
-      this.showDepartmentField = false;
-      this.groupsLoaded = false;
       this.authForm.get('group')?.setValidators([Validators.required]);
-      this.authForm.get('department')?.clearValidators();
-      this.loadGroupsForLevel(className);
-      this.authForm.get('group')?.updateValueAndValidity();
-      this.authForm.get('department')?.updateValueAndValidity();
-      return;
+      this.loadGroupsForClass(className);
     }
-    
-    // Class 13-16: Load departments
-    if (className === '13-16') {
-      this.showGroupField = false;
+    if (isUniClass) {
       this.showDepartmentField = true;
-      this.authForm.get('group')?.clearValidators();
       this.authForm.get('department')?.setValidators([Validators.required]);
       this.loadDepartments();
-      this.authForm.get('group')?.updateValueAndValidity();
-      this.authForm.get('department')?.updateValueAndValidity();
-      return;
     }
+    this.authForm.get('group')?.updateValueAndValidity();
+    this.authForm.get('department')?.updateValueAndValidity();
   }
 
-  /** Load groups for Student by country + level from cheradip_subject. Class 9-10 -> SSC, 11-12 -> HSC. */
-  loadGroupsForLevel(classCode: string): void {
-    const countryCode = (this.selectedCountry?.country_code || this.authForm.get('countryCode')?.value || '').toString().trim().toUpperCase();
-    const level = classCode === '9-10' ? 'SSC' : classCode === '11-12' ? 'HSC' : '';
-    if (countryCode && level) {
-      this.apiService.getGroupsByCountryLevel(countryCode, level).subscribe({
-        next: (res) => {
-          this.groupsLoaded = true;
-          this.availableGroups = res?.groups ?? [];
-          if (this.availableGroups.length > 0) {
-            const currentGroup = this.authForm.get('group')?.value;
-            if (!currentGroup) {
-              this.authForm.patchValue({ group: this.availableGroups[0].group_code });
-            }
-          }
-        },
-        error: (err) => {
-          console.error('Error loading groups by country/level:', err);
-          this.groupsLoaded = true;
-          this.availableGroups = [];
-        }
-      });
-    } else {
-      this.apiService.getGroupsByClass(classCode).subscribe({
-        next: (response: any) => {
-          this.groupsLoaded = true;
-          this.availableGroups = response?.groups || [];
-          if (this.availableGroups.length > 0) {
-            const currentGroup = this.authForm.get('group')?.value;
-            if (!currentGroup) {
-              this.authForm.patchValue({ group: this.availableGroups[0].group_code });
-            }
-          }
-        },
-        error: (err: any) => {
-          console.error('Error loading groups:', err);
-          this.groupsLoaded = true;
-          this.availableGroups = [];
-        }
-      });
+  /** Load groups for Student from database (Group model via groups_by_class). 9-10, 11-12 map to class_code. */
+  loadGroupsForClass(className: string): void {
+    const classCode = (className === '9-10' || className === '9' || className === '10') ? '9-10' : (className === '11-12' || className === '11' || className === '12') ? '11-12' : '';
+    if (!classCode) {
+      this.groupsLoaded = true;
+      this.availableGroups = [];
+      return;
     }
+    this.apiService.getGroupsByClass(classCode).subscribe({
+      next: (response: any) => {
+        this.groupsLoaded = true;
+        this.availableGroups = response?.groups || [];
+        if (this.availableGroups.length > 0) {
+          const currentGroup = this.authForm.get('group')?.value;
+          if (!currentGroup) {
+            this.authForm.patchValue({ group: this.availableGroups[0].group_code });
+          }
+        }
+      },
+      error: (err: any) => {
+        console.error('Error loading groups from database:', err);
+        this.groupsLoaded = true;
+        this.availableGroups = [];
+      }
+    });
   }
 
   /** Load university departments (worldwide, from departments.json). Same list for Student Class 13-16 and Teacher University; not filtered by country. */
@@ -602,32 +570,34 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.applyBangladeshPhoneDisplay(country.country_code);
 
     this.loadLevelsForCountry(country.country_code);
-    // Reload level-dependent options for new country
+    this.loadClassesForCountry(country.country_code);
     const level = this.authForm.get('teacherLevel')?.value;
-    if (level === 'PSC' || level === 'JSC' || level === 'SSC' || level === 'HSC') this.loadSubjectsForLevel(level);
+    if (level && level !== 'University') this.loadSubjectsForLevel(level);
     const className = this.authForm.get('className')?.value;
-    if (className === '9-10' || className === '11-12') this.loadGroupsForLevel(className);
+    if (['9', '10', '11', '12', '9-10', '11-12'].includes(className)) this.loadGroupsForClass(className);
   }
 
-  /** Load unique levels/classes for country from cheradip_subject; used for Class (Student) and Level (Teacher) dropdowns. */
+  /** Load unique levels for country (Teacher Level dropdown). */
   private loadLevelsForCountry(countryCode: string): void {
     if (!countryCode) return;
     this.apiService.getLevelsByCountry(countryCode).subscribe({
       next: (res) => {
         this.availableLevels = res?.levels?.length ? res.levels : this.defaultLevels;
-        this.availableClassOptions = (res?.levels?.length)
-          ? res.levels
-              .filter((l: { level: string; level_tr: string; label: string }) =>
-                this.levelToClassMap[l.level] != null || this.levelToClassMap[l.level_tr] != null)
-              .map((l: { level: string; level_tr: string; label: string }) => {
-                const classVal = this.levelToClassMap[l.level] ?? this.levelToClassMap[l.level_tr];
-                const classLabel = this.levelToClassLabel[l.level] ?? this.levelToClassLabel[l.level_tr] ?? l.label;
-                return { value: classVal, label: classLabel };
-              })
-          : this.defaultClassOptions;
       },
       error: () => {
         this.availableLevels = this.defaultLevels;
+      }
+    });
+  }
+
+  /** Load class options from cheradip_subject class column (Student Class dropdown: Class Zero, Class One, ...). */
+  private loadClassesForCountry(countryCode: string): void {
+    if (!countryCode) return;
+    this.apiService.getClassesByCountry(countryCode).subscribe({
+      next: (res) => {
+        this.availableClassOptions = (res?.classes?.length ? res.classes : this.defaultClassOptions) as { value: string; label: string; has_groups?: boolean }[];
+      },
+      error: () => {
         this.availableClassOptions = this.defaultClassOptions;
       }
     });
@@ -974,13 +944,13 @@ export class SignupComponent implements OnInit, OnDestroy {
 
     // Student validation
     if (acctype === 'Student') {
-      if (className === '9-10' || className === '11-12') {
+      if (['9', '10', '11', '12', '9-10', '11-12'].includes(className)) {
         if (!this.authForm.value.group) {
           this.snackBar.open('Please select a group', 'Close', { duration: 3000 });
           return;
         }
       }
-      if (className === '13-16') {
+      if (['13', '14', '15', '16', '13-16'].includes(className)) {
         if (!this.authForm.value.department) {
           this.snackBar.open('Please select a department', 'Close', { duration: 3000 });
           return;

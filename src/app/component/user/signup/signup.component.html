@@ -120,15 +120,15 @@
       </div>
     </div>
 
-    <!-- Teacher Subject (PSC, JSC, SSC, HSC – by selected level) -->
+    <!-- Teacher Subject – options from API by selected level (all levels except University) -->
     <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Teacher' && showTeacherSubjectField">
-      <span class="label-colon"><label for="teacherSubject">Subject</label><span class="colon">:</span></span>
+      <span class="label-colon"><label for="teacherSubject">Subject:</label></span>
       <div class="form-field">
         <select formControlName="teacherSubject" id="teacherSubject" class="form-control"
         [ngClass]="{ 'is-invalid': authForm.get('teacherSubject')?.touched && authForm.get('teacherSubject')?.invalid }">
         <option value="">Select Subject</option>
-        <option *ngFor="let sub of availableSubjects" [value]="sub.subject_code">
-          {{ sub.displayName || sub.subject_name_bn || sub.subject_name }}
+        <option *ngFor="let sub of availableSubjects" [value]="sub.id">
+          {{ sub.displayName }}
         </option>
       </select>
         <div *ngIf="availableSubjects.length === 0" class="loading-message">Loading subjects...</div>
@@ -159,9 +159,9 @@
       </div>
     </div>
 
-    <!-- Group (Only for Class 9-10 and 11-12) - dropdown from cheradip_subject.groups -->
+    <!-- Group (only for classes that have groups, e.g. Class Nine–Twelve) -->
     <div class="form-group" *ngIf="showGroupField && authForm.get('acctype')?.value === 'Student'">
-      <span class="label-colon"><label for="group">Group</label><span class="colon">:</span></span>
+      <span class="label-colon"><label for="group">Group:</label></span>
       <div class="form-field">
         <select formControlName="group" id="group" class="form-control"
           [ngClass]="{ 'is-invalid': authForm.get('group')?.touched && authForm.get('group')?.invalid }">
