@@ -37,6 +37,8 @@ export class ProfileComponent implements OnInit {
   gender: any;
   union: any;
   village: any;
+  /** Read-only display: mobile number (username) from profile. */
+  displayUsername: string = '';
 
   // Change Password Modal
   showChangePasswordModal = false;
@@ -65,6 +67,7 @@ export class ProfileComponent implements OnInit {
       username: [''],
       password: [''],
       fullName: [''],
+      dateOfBirth: [''],  // YYYY-MM-DD for input type="date"
       group: ['Science'],
       gender: ['Male'],
       division: [''],
@@ -80,21 +83,81 @@ export class ProfileComponent implements OnInit {
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
     }
+    const username = localStorage.getItem('username');
+    const formData = localStorage.getItem('formData');
+    const acctypeFromStorage = formData ? (() => { try { return JSON.parse(formData).acctype; } catch { return undefined; } })() : undefined;
+    // Fetch profile from API and patch form so account type, full name, DOB, mobile etc. show retrieved values
+    if (username) {
+      this.displayUsername = username;
+      this.apiService.getProfile(username, acctypeFromStorage).subscribe({
+        next: (data: any) => {
+          const patch: any = {
+            acctype: data.acctype || 'Student',
+            fullName: data.fullName || '',
+            countryCode: data.country_code || 'BD',
+            gender: data.gender || 'Male',
+            group: data.group || 'Science',
+            division: data.division || '',
+            district: data.district || '',
+            thana: data.thana || '',
+            union: data.union || '',
+            village: data.village || '',
+            dateOfBirth: data.date_of_birth || '',
+            username: data.username || username
+          };
+          this.authForm.patchValue(patch, { emitEvent: false });
+          this.displayUsername = data.username || username;
+          this.jsonData.fullName = patch.fullName;
+          this.jsonData.union = patch.union;
+          this.jsonData.village = patch.village;
+          const countryCode = (patch.countryCode || 'BD').toString().trim();
+          this.countryService.getCountry(countryCode).subscribe({
+            next: (c) => {
+              this.selectedCountry = c;
+              this.loadLocationsForCountry(c.country_code, false);
+              this.loadDistrictsAndThanasForCurrentSelection();
+            },
+            error: () => this.loadLocationsForCountry(countryCode, false)
+          });
+        },
+        error: () => {
+          this.applyLocalStoragePatch();
+          this.setCountryAndLocations();
+        }
+      });
+    } else {
+      this.applyLocalStoragePatch();
+      this.setCountryAndLocations();
+    }
+
+    this.setupFormValidatorsAndLocalStorageRefs();
+    this.setupValueChangeSubscriptions();
+  }
+
+  private applyLocalStoragePatch(): void {
     const savedAuthFormData = localStorage.getItem('authFormData');
     const formData = localStorage.getItem('formData');
     const dataToPatch = savedAuthFormData ? JSON.parse(savedAuthFormData) : (formData ? JSON.parse(formData) : null);
     if (dataToPatch) {
       this.authForm.patchValue(dataToPatch, { emitEvent: false });
     }
+    const u = localStorage.getItem('username');
+    if (u) this.displayUsername = u;
+  }
+
+  private setCountryAndLocations(): void {
     const countryCode = (this.authForm.get('countryCode')?.value || 'BD').toString().trim();
     this.countryService.getCountry(countryCode).subscribe({
       next: (c) => {
         this.selectedCountry = c;
         this.loadLocationsForCountry(c.country_code, false);
+        this.loadDistrictsAndThanasForCurrentSelection();
       },
       error: () => this.loadLocationsForCountry(countryCode, false)
     });
+  }
 
+  private setupFormValidatorsAndLocalStorageRefs(): void {
     const scienceC = document.getElementById('science');
     const businessC = document.getElementById('business');
     const humanitiesC = document.getElementById('humanities');
@@ -174,13 +237,15 @@ export class ProfileComponent implements OnInit {
     this.jsonData.union = this.union;
     this.village = localStorage.getItem('village');
     this.jsonData.village = this.village;
+  }
 
+  private setupValueChangeSubscriptions(): void {
     this.authForm.get('username')?.valueChanges
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
         switchMap((username) => {
-          if (username.length === 11) {
+          if (username && username.length === 11) {
             return this.apiService.checkMobileNumberExists(username);
           }
           return of(false);
@@ -204,9 +269,8 @@ export class ProfileComponent implements OnInit {
         distinctUntilChanged(),
         switchMap((password) => {
           const username = this.authForm.get('username')?.value;
-          if (password.length > 5 && password.length < 15) {
+          if (password && password.length > 5 && password.length < 15) {
             return this.apiService.checkPasswordExists(username, password);
-
           }
           return of(false);
         })
@@ -225,7 +289,6 @@ export class ProfileComponent implements OnInit {
             this.isPasswordMismatch = false;
         }
       });
-
   }
   hasEmptyFields() {
     const formControls = this.authForm.controls;
@@ -257,6 +320,7 @@ export class ProfileComponent implements OnInit {
         const countryCode = this.authForm.value.countryCode;
         const formData = this.authForm.value;
         localStorage.setItem('formData', JSON.stringify(formData));
+        const dateOfBirth = this.authForm.value.dateOfBirth || null;
         this.apiService.update(
           username,
           acctype,
@@ -269,7 +333,8 @@ export class ProfileComponent implements OnInit {
           union,
           village,
           password,
-          countryCode
+          countryCode,
+          dateOfBirth
         ).subscribe(
           (response: any) => {
             this.snackBar.open('Profile Update Successful!', 'Close', {

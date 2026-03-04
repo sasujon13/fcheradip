@@ -9,6 +9,20 @@
     "src/main.ts"
   ],
   "include": [
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "src/main.ts",
+    "src/app/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.spec.ts",
+    "src/app/component/question/filters/advanced-filters/**",
+    "src/app/component/question/filters/search-bar/**",
+    "src/app/component/question/question-card/**",
+    "src/app/component/question/question-form/**",
+    "src/app/component/question/question-list/**",
+    "src/app/component/question/navigation/chapter-navigator/**",
+    "src/app/component/question/navigation/subject-selector/**",
+    "src/app/component/question/mcq-options/**",
+    "src/app/component/question/question-editor/**"
   ]
 }

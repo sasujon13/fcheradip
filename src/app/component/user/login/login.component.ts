@@ -227,9 +227,15 @@ export class LoginComponent implements OnInit, OnDestroy {
             panelClass: ['success-snackbar'],
           });
           this.logout();
-          const returnUrl = localStorage.getItem('returnUrl') || '';
-          this.router.navigate([returnUrl]);
-          localStorage.setItem('returnUrl', '');
+          const returnUrl = localStorage.getItem('returnUrl') || '/';
+          this.router.navigateByUrl(returnUrl).then(() => {
+            localStorage.setItem('returnUrl', '');
+            const scrollY = sessionStorage.getItem('signupReturnScrollY');
+            if (scrollY != null) {
+              sessionStorage.removeItem('signupReturnScrollY');
+              requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
+            }
+          });
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('username', username);
           if (response && response.authToken) localStorage.setItem('authToken', response.authToken);

@@ -55,6 +55,7 @@ import { ReportComponent } from './component/student/report/report.component';
 import { StatsComponent } from './component/student/stats/stats.component';
 import { LeaderboardComponent } from './component/student/leaderboard/leaderboard.component';
 import { TutorComponent } from './component/student/tutor/tutor.component';
+import { ScraperComponent } from './component/scraper/scraper/scraper.component';
 import { BreadcrumbComponent } from './component/question/navigation/breadcrumb/breadcrumb.component';
 import { SubjectSelectorComponent } from './component/question/navigation/subjectselector/subjectselector.component';
 import { ChapterNavigatorComponent } from './component/question/navigation/chapternavigator/chapternavigator.component';
@@ -122,6 +123,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     StatsComponent,
     LeaderboardComponent,
     TutorComponent,
+    ScraperComponent,
   ],
   imports: [
     BrowserModule,

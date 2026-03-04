@@ -2,6 +2,7 @@ import { Component, ElementRef, OnInit, Renderer2, ViewChild } from '@angular/co
 import { FormBuilder, FormGroup, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
+import { CountryService } from 'src/app/service/country.service';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -26,10 +27,26 @@ export class PasswordComponent implements OnInit {
   jsonData: any;
   username: any = '';
 
+  // Forgot Password Modal (same as login.component.ts)
+  showForgotPasswordModal = false;
+  forgotPasswordStep = 1;
+  forgotPasswordMobile = '';
+  forgotPasswordEmail = '';
+  verificationCode = '';
+  newPassword = '';
+  confirmPassword = '';
+  hasEmail = false;
+  isSendingCode = false;
+  isVerifying = false;
+  isResetting = false;
+  forgotPasswordError = '';
+  forgotPasswordSuccess = '';
+
   constructor(
     private fb: FormBuilder,
     private router: Router,
     private apiService: ApiService,
+    private countryService: CountryService,
     private snackBar: MatSnackBar,
     private http: HttpClient, 
     private renderer: Renderer2
@@ -262,6 +279,122 @@ export class PasswordComponent implements OnInit {
       this.router.navigate(['/products']);
     }
     return formattedMessage;
+  }
+
+  // Forgot Password (same as login.component.ts)
+  openForgotPassword(): void {
+    this.showForgotPasswordModal = true;
+    this.forgotPasswordStep = 1;
+    this.forgotPasswordMobile = this.username || this.authForm.get('username')?.value || '';
+    this.forgotPasswordEmail = '';
+    this.verificationCode = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.forgotPasswordError = '';
+    this.forgotPasswordSuccess = '';
+  }
+
+  closeForgotPasswordModal(): void {
+    this.showForgotPasswordModal = false;
+    this.forgotPasswordStep = 1;
+    this.forgotPasswordError = '';
+    this.forgotPasswordSuccess = '';
+  }
+
+  sendResetCode(): void {
+    this.forgotPasswordError = '';
+    this.forgotPasswordSuccess = '';
+    const formData = localStorage.getItem('formData');
+    let countryCode = 'BD';
+    if (formData) {
+      try {
+        const data = JSON.parse(formData);
+        countryCode = data.country_code || data.countryCode || 'BD';
+      } catch (_) {}
+    }
+    const mobileNormalized = this.countryService.normalizeMobileNumber(countryCode, this.forgotPasswordMobile);
+    const len = mobileNormalized.replace(/\D/g, '').length;
+    const validLength = this.countryService.isBangladesh(countryCode) ? len === 10 : (len >= 10 && len <= 15);
+    if (!this.forgotPasswordMobile || !validLength) {
+      this.forgotPasswordError = this.countryService.isBangladesh(countryCode)
+        ? 'Please enter a valid 10 or 11-digit mobile number (e.g. 01712345678)'
+        : 'Please enter a valid mobile number';
+      return;
+    }
+    this.isSendingCode = true;
+    this.apiService.sendPasswordResetCode(mobileNormalized, this.forgotPasswordEmail || undefined).subscribe(
+      (response: any) => {
+        this.isSendingCode = false;
+        if (response.success) {
+          this.forgotPasswordSuccess = response.message || 'Verification code sent!';
+          this.forgotPasswordStep = 2;
+        } else if (response.needs_email) {
+          this.hasEmail = false;
+          this.forgotPasswordError = 'Please provide an email address to receive the code.';
+        } else {
+          this.forgotPasswordError = response.message || 'Failed to send code. Please try again.';
+        }
+      },
+      (error) => {
+        this.isSendingCode = false;
+        this.forgotPasswordError = error.error?.message || error.error?.error || error.message || 'Failed to send code. Please try again.';
+      }
+    );
+  }
+
+  verifyResetCode(): void {
+    this.forgotPasswordError = '';
+    this.forgotPasswordSuccess = '';
+    if (!this.verificationCode || this.verificationCode.length !== 6) {
+      this.forgotPasswordError = 'Please enter a valid 6-digit code';
+      return;
+    }
+    this.isVerifying = true;
+    this.apiService.verifyCode(this.forgotPasswordMobile, this.verificationCode).subscribe(
+      (response: any) => {
+        this.isVerifying = false;
+        if (response.success) {
+          this.forgotPasswordSuccess = 'Code verified! Set your new password.';
+          this.forgotPasswordStep = 3;
+        } else {
+          this.forgotPasswordError = response.message || 'Invalid or expired code.';
+        }
+      },
+      (error) => {
+        this.isVerifying = false;
+        this.forgotPasswordError = error.error?.message || 'Invalid or expired code.';
+      }
+    );
+  }
+
+  resetPassword(): void {
+    this.forgotPasswordError = '';
+    this.forgotPasswordSuccess = '';
+    if (!this.newPassword || this.newPassword.length < 6 || this.newPassword.length > 14) {
+      this.forgotPasswordError = 'Password must be 6-14 characters';
+      return;
+    }
+    if (this.newPassword !== this.confirmPassword) {
+      this.forgotPasswordError = 'Passwords do not match';
+      return;
+    }
+    this.isResetting = true;
+    this.apiService.resetPasswordWithCode(this.forgotPasswordMobile, this.verificationCode, this.newPassword).subscribe(
+      (response: any) => {
+        this.isResetting = false;
+        if (response.success) {
+          this.forgotPasswordSuccess = 'Password reset successful! You can now login.';
+          this.snackBar.open('Password reset successful!', 'Close', { duration: 5000, panelClass: ['success-snackbar'] });
+          setTimeout(() => this.closeForgotPasswordModal(), 2000);
+        } else {
+          this.forgotPasswordError = response.message || 'Failed to reset password.';
+        }
+      },
+      (error) => {
+        this.isResetting = false;
+        this.forgotPasswordError = error.error?.message || 'Failed to reset password.';
+      }
+    );
   }
 
   confirmPasswordValidator(): ValidatorFn {

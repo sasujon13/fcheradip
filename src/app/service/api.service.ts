@@ -4,12 +4,23 @@ import { catchError, map, tap } from 'rxjs/operators';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+export interface ScraperLibrary {
+  loginUrl?: string;
+  username?: string;
+  password?: string;
+  groups: { name: string; urls: string[] }[];
+  apiBaseUrl?: string;
+  apiUrlTemplate?: string;
+  bearerToken?: string;
+  questionPerPage?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
 
-  private baseUrl = environment.apiUrl;
+  baseUrl = environment.apiUrl;
   public search = new BehaviorSubject<string>("");
   userData: any;
 
@@ -66,13 +77,20 @@ export class ApiService {
     });
   }
 
+  /** Get profile from Customer (GET /api/signup_profile/?username=xxx&acctype=yyy). */
+  getProfile(username: string, acctype?: string): Observable<any> {
+    const params: any = { username };
+    if (acctype) params.acctype = acctype;
+    return this.http.get<any>(`${this.baseUrl}/signup_profile/`, { params });
+  }
+
   getRDistricts(): Observable<string[]> {
-    const url = `${this.baseUrl}/recommend/unique_districts/`;
+    const url = `${this.baseUrl}/recommend7/unique_districts/`;
     return this.http.get<string[]>(url);
   }
 
   getRThanas(district: string): Observable<string[]> {
-    const url = `${this.baseUrl}/recommend/unique_thanas/?district=${district}`;
+    const url = `${this.baseUrl}/recommend7/unique_thanas/?district=${district}`;
     return this.http.get<string[]>(url);
   }
 
@@ -164,7 +182,8 @@ export class ApiService {
     union: string,
     village: string,
     password: string,
-    countryCode?: string
+    countryCode?: string,
+    dateOfBirth?: string | null
   ): Observable<any> {
     const signupData: any = {
       username,
@@ -180,6 +199,7 @@ export class ApiService {
       password
     };
     if (countryCode) signupData.country_code = countryCode;
+    if (dateOfBirth != null && dateOfBirth !== '') signupData.date_of_birth = dateOfBirth;
     return this.http.post(`${this.baseUrl}/profile_update/`, signupData).pipe(
       tap((response: any) => {
         if (response.token) {
@@ -261,6 +281,128 @@ export class ApiService {
   saveJsonData(jsonData: any) {
     return this.http.post(`${this.baseUrl}/save_json_data/`, jsonData);
   }
+
+  /** Run scraper via backend (avoids CORS): fetches pages and returns combined JSON. */
+  runScraper(payload: { base_url: string; params: any; headers: any; page_param?: string; delay_seconds?: number; chapter_name?: string }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/run_scraper/`, payload);
+  }
+
+  /** Fetch a single page (for progress bar). Returns { data, has_more }. */
+  runScraperPage(payload: { base_url: string; params: any; headers: any; page_param?: string; page_number: number; delay_seconds?: number }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/run_scraper_page/`, payload);
+  }
+
+  /** Fetch from questions API and save. Pass session_id so backend uses same browser token (script: token from localStorage). Returns { ok, path, error?, data? }. */
+  scraperFetchAndSave(payload: { group: string; website?: string; base_url: string; params: Record<string, string>; headers: Record<string, string>; filename: string; level1_name?: string; level2_label?: string; chapter_no?: string; session_id?: string }): Observable<{ ok?: boolean; path?: string; error?: string; data?: any }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/fetch_and_save/`, payload);
+  }
+
+  /** GET scraper/file_exists/?group=...&filename=...&website=... (base name). Returns { exists: boolean } if both .json and .csv exist. */
+  scraperFileExists(group: string, filename: string, website?: string): Observable<{ exists: boolean }> {
+    const params: { group: string; filename: string; website?: string } = { group, filename };
+    if (website) params.website = website;
+    return this.http.get<any>(`${this.baseUrl}/scraper/file_exists/`, { params });
+  }
+
+  /** POST scraper/save_subject/ { group, website?, level1_name, questions }. Writes to Scrape/{website}/{group}/. */
+  scraperSaveSubject(payload: { group: string; website?: string; level1_name: string; questions: any[] }): Observable<{ ok?: boolean; path_json?: string; path_csv?: string; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/save_subject/`, payload);
+  }
+
+  /** POST scraper/clear_api_file/ – clear Scrape/api.txt (call when all tasks done, like script). */
+  scraperClearApiFile(): Observable<{ ok?: boolean; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/clear_api_file/`, {});
+  }
+
+  /** GET scraper/root/ – current save folder root (custom or default Desktop). */
+  scraperRootGet(): Observable<{ path: string }> {
+    return this.http.get<any>(`${this.baseUrl}/scraper/root/`);
+  }
+
+  /** POST scraper/root/set/ – set save folder root so project works on any computer. */
+  scraperRootSet(path: string): Observable<{ ok?: boolean; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/root/set/`, { path: path || '' });
+  }
+
+  /** GET scraper/default_root/ – default Desktop path for "Use default" button. */
+  scraperDefaultRootGet(): Observable<{ path: string }> {
+    return this.http.get<any>(`${this.baseUrl}/scraper/default_root/`);
+  }
+
+  /** GET scraper helper: { lastSite, libraries: { daricomma: {...}, other: {...} } } */
+  scraperHelperGet(): Observable<{ lastSite: string; libraries: Record<string, ScraperLibrary> }> {
+    return this.http.get<any>(`${this.baseUrl}/scraper/helper/`);
+  }
+
+  /** POST save scraper helper (lastSite + libraries). */
+  scraperHelperSave(payload: { lastSite: string; libraries: Record<string, ScraperLibrary> }): Observable<{ ok?: boolean; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/helper/`, payload);
+  }
+
+  /** Load website in Selenium. headless=true uses headless Chrome (recommended for data load). Returns session_id. */
+  scraperLoadWebsite(url: string, headless: boolean = true): Observable<{ session_id?: string; url?: string; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/load_website/`, { url, headless });
+  }
+
+  /** Navigate session browser to url. */
+  scraperNavigate(sessionId: string, url: string): Observable<{ ok?: boolean; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/navigate/`, { session_id: sessionId, url });
+  }
+
+  /** Daricomma: sign in on login page. */
+  scraperDaricommaLogin(sessionId: string, loginUrl: string, username: string, password: string): Observable<{ ok?: boolean; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/daricomma_login/`, { session_id: sessionId, login_url: loginUrl, username, password });
+  }
+
+  /** Mantine Select options: combobox_index 0=Level1, 1=Level2; previous_selections for Level2. */
+  scraperCaptureMantine(sessionId: string, comboboxIndex: number, previousSelections: string[]): Observable<{ options: { value: string; text?: string }[]; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/capture_mantine/`, { session_id: sessionId, combobox_index: comboboxIndex, previous_selections: previousSelections });
+  }
+
+  /** Select Level1 & Level2 by visible text (script), capture question API URL from network. Returns { url } for use as base_url in fetch_and_save. */
+  scraperCaptureQuestionUrl(
+    sessionId: string,
+    level1Value: string,
+    level2Value: string,
+    apiBasePrefix?: string,
+    level1Label?: string,
+    level2Label?: string
+  ): Observable<{ url?: string; error?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/capture_question_url/`, {
+      session_id: sessionId,
+      level1_value: level1Value,
+      level2_value: level2Value,
+      level1_label: level1Label || level1Value,
+      level2_label: level2Label || level2Value,
+      api_base_prefix: apiBasePrefix || 'https://api.daricomma.com/v2/question/',
+    });
+  }
+
+  /** Run full scraper (like pressing Enter in script): get Level1 from page, iterate subjects/chapters, fetch and save. Long-running. */
+  scraperRunFull(payload: { session_id: string; group: string; website?: string; api_url_template?: string; api_base_url?: string; bearer_token?: string; question_per_page?: number }): Observable<{ ok?: boolean; error?: string; subjects?: number; chapters?: number }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/run_full/`, payload);
+  }
+
+  /** Capture dropdown options for level (native select). */
+  scraperCaptureDropdown(sessionId: string, level: number, previousSelections: string[]): Observable<{ options: { value: string; text?: string }[]; error?: string; message?: string }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/capture_dropdown/`, { session_id: sessionId, level, previous_selections: previousSelections });
+  }
+
+  /** Close Selenium session. */
+  scraperCloseSession(sessionId: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/close_session/`, { session_id: sessionId });
+  }
+
+  /** Discover dropdowns on a page (Selenium). Returns groups by first dropdown name. */
+  discoverScraperDropdowns(pageUrl: string): Observable<{ groups: { name: string; options: { value: string; text?: string }[] }[] }> {
+    return this.http.get<any>(`${this.baseUrl}/scraper/discover_dropdowns/`, { params: { url: pageUrl } });
+  }
+
+  /** Get dynamic options for a level after previous selections (Selenium). */
+  dynamicScraperDropdown(pageUrl: string, levelIndex: number, selections: string[]): Observable<{ options: { value: string; text?: string }[] }> {
+    return this.http.post<any>(`${this.baseUrl}/scraper/dynamic_dropdown/`, { url: pageUrl, level_index: levelIndex, selections });
+  }
+
   adminRedirect(){
     //return window.location.replace("http://127.0.0.1:8000/api/admin");
     window.location.href = `${this.baseUrl}/admin/`;
@@ -356,13 +498,11 @@ export class ApiService {
   }
 
   signupWithData(formData: any): Observable<any> {
-    const body = {
+    const body: any = {
       acctype: formData.acctype,
       fullName: formData.fullName,
       username: formData.username,
       password: formData.password,
-      group: formData.group || '',
-      gender: formData.gender || 'Male',
       division: formData.division || '',
       district: formData.district || '',
       thana: formData.thana || '',
@@ -370,6 +510,12 @@ export class ApiService {
       village: formData.village || '',
       ...formData
     };
+    // Only send group for Student; for Teacher/Job Seeker send empty (do not default to Science)
+    body.group = formData.acctype === 'Student' ? (formData.group ?? '') : '';
+    // Only send gender if user selected it (do not auto-send Male)
+    if (formData.gender == null || formData.gender === '') {
+      delete body.gender;
+    }
     return this.http.post(`${this.baseUrl}/signup/`, body).pipe(
       tap((response: any) => {
         if (response && (response.token || response.authToken)) {

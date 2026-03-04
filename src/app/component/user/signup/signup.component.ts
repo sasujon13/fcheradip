@@ -1044,9 +1044,18 @@ export class SignupComponent implements OnInit, OnDestroy {
           localStorage.setItem('formData', JSON.stringify(formData));
           localStorage.removeItem(SIGNUP_DRAFT_KEY);
 
-          const returnUrl = localStorage.getItem('returnUrl') || '';
-          this.router.navigate([returnUrl]);
-          localStorage.setItem('returnUrl', '');
+          // Update header immediately: show profile menu, hide login/signup (same as login success)
+          this.showLoggedInHeader();
+
+          const returnUrl = localStorage.getItem('returnUrl') || '/';
+          this.router.navigateByUrl(returnUrl).then(() => {
+            localStorage.setItem('returnUrl', '');
+            const scrollY = sessionStorage.getItem('signupReturnScrollY');
+            if (scrollY != null) {
+              sessionStorage.removeItem('signupReturnScrollY');
+              requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
+            }
+          });
         },
         (error: any) => {
           console.error('Signup error:', error);
@@ -1058,6 +1067,22 @@ export class SignupComponent implements OnInit, OnDestroy {
       );
     } else {
       this.authForm.markAllAsTouched();
+    }
+  }
+
+  /** Update header to show profile menu and hide login/signup (same as login success). */
+  private showLoggedInHeader(): void {
+    const menu_item0 = document.getElementById('menu_item0');
+    const menu_item1 = document.getElementById('menu_item1');
+    const menu_item2 = document.getElementById('menu_item2');
+    const profileMenu = document.getElementById('profileMenu');
+    const sign_menu = document.getElementById('sign_menu');
+    if (menu_item2 && menu_item1 && menu_item0 && profileMenu && sign_menu) {
+      menu_item2.style.display = 'block';
+      menu_item1.style.display = 'none';
+      menu_item0.style.display = 'none';
+      sign_menu.style.display = 'none';
+      profileMenu.style.display = 'block';
     }
   }
 }

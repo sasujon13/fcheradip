@@ -16,6 +16,7 @@
         <li class="menu_item"><a [routerLink]="['/student']" routerLinkActive="student"><i class="fa fa-user-graduate"></i> Student</a></li>
         <li class="menu_item"><a [routerLink]="['/question']" routerLinkActive="question"><i class="fa pencil fa-pencil-square-o"></i> Create Question</a></li>
         <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i></a></li>
+        <li class="menu_item"><a [routerLink]="['/scrape']" routerLinkActive="scrape"><i class="fa fa-download"></i> Scraper</a></li>
         <li class="menu_item"><a [routerLink]="['/about_us']" routerLinkActive="about_us"><i class="fa fa-info-circle"></i></a></li>
         
         <!-- <li class="menu_item"><a [routerLink]="['/live_chat']" routerLinkActive="live_chat"><i class="fa pencil fa-pencil-square-o"></i></a></li>
@@ -80,8 +81,8 @@
           </div>
         </div>
         <ul class="menu sign_menu" id="sign_menu" #sign_menu>
-        <li class="menu_item menu_item0" id="menu_item0"><a [routerLink]="['/login']" routerLinkActive="login"><i class="fa fa-sign-in"></i> Login</a></li>
-        <li class="menu_item menu_item1" id="menu_item1"><a [routerLink]="['/auth']" routerLinkActive="auth"><i class="fa fa-user-plus"></i> SignUp</a></li>
+        <li class="menu_item menu_item0" id="menu_item0"><a href="javascript:void(0)" (click)="navigateToLogin()" class="nav-link" [class.active]="router.isActive('/login', true)"><i class="fa fa-sign-in"></i> Login</a></li>
+        <li class="menu_item menu_item1" id="menu_item1"><a href="javascript:void(0)" (click)="navigateToSignup()" class="nav-link" [class.active]="router.isActive('/auth', true)"><i class="fa fa-user-plus"></i> SignUp</a></li>
       </ul>
       <ul class="profileMenu" id="profileMenu" #profileMenu>
         <li class="menu_item menu_item2" #menu_item2 id="menu_item2" (click)="toggleDropdown()">

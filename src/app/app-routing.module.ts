@@ -42,6 +42,7 @@ import { ReportComponent } from './component/student/report/report.component';
 import { StatsComponent } from './component/student/stats/stats.component';
 import { LeaderboardComponent } from './component/student/leaderboard/leaderboard.component';
 import { TutorComponent } from './component/student/tutor/tutor.component';
+import { ScraperComponent } from './component/scraper/scraper/scraper.component';
 
 const routes: Routes = [
   {path:'', redirectTo:'index',pathMatch:'full'},
@@ -51,20 +52,21 @@ const routes: Routes = [
   {path:'live_chat', component: ChatComponent},
   {path:'books', component: BooksComponent},
   {path:'ntrca', component: NtrcaComponent},
-  {path:'vacant', component: Vacant7Component},
+  {path:'vacant7', component: Vacant7Component},
   {path:'vacant5', component: Vacant5Component},
   {path:'vacant6', component: Vacant6Component},
-  {path:'merit', component: Merit7Component},
+  {path:'merit7', component: Merit7Component},
   {path:'merit5', component: Merit5Component},
   {path:'merit6', component: Merit6Component},
   {path:'institute', component: BanbeisComponent},
   {path:'institutes', component: InstituteComponent},
-  {path:'recommend', component: Recommend7Component},
+  {path:'recommend7', component: Recommend7Component},
   {path:'recommend5', component: Recommend5Component},
   {path:'recommend6', component: Recommend6Component},
   {path:'choice', component: ChoiceComponent},
   {path:'order', component: OrderComponent, canActivate: [AuthGuard]},
   {path:'cart', component: CartComponent},
+  {path:'scrape', component: ScraperComponent},
   {path:'index', component: IndexComponent},
   {path:'login', component: LoginComponent},
   {path:'auth', component: SignupComponent},

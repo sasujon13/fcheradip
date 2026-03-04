@@ -2,6 +2,7 @@ import { Component, OnInit, Renderer2 } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { debounceTime, Subject } from 'rxjs';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-institute',
@@ -10,7 +11,8 @@ import { debounceTime, Subject } from 'rxjs';
 })
 export class InstituteComponent implements OnInit {
 
-  baseUrl: string = 'https://cheradip.com/api/institutes/'
+  /** Use local API in dev (e.g. /api) or production API; no hardcoded cheradip.com */
+  baseUrl: string = `${environment.apiUrl}/institutes/`;
 
   dataSource: any[] = [];
   searchTerm: string = '';

@@ -1,6 +1,6 @@
-
 import { Component, OnInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-recommend7',
@@ -9,8 +9,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 })
 
 export class Recommend7Component implements OnInit {
-  baseUrl: string = 'https://cheradip.com/api/recommend/'
-  baseUrl2: string = 'https://cheradip.com/api/institute/'
+  baseUrl: string = `${environment.apiUrl}/recommend7/`
+  baseUrl2: string = `${environment.apiUrl}/institute/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;
   private startX = 0;
@@ -803,7 +803,7 @@ export class Recommend7Component implements OnInit {
       return;
     }
 
-    this.http.get<any>(`https://cheradip.com/api/token/?token=${this.newToken}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
       next: (res) => {
         const result = res?.results?.[0];
         console.log(result);
@@ -818,7 +818,7 @@ export class Recommend7Component implements OnInit {
           setTimeout(() => this.showNoDataAlert8 = true);
 
           // 🔁 Update Token Status = 1 on the server
-          this.http.post(`https://cheradip.com/api/token/${result.id}/update_status/`, { Status: 1 })
+          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 })
             .subscribe({
               next: () => console.log("Token status updated to 1"),
               error: err => console.error("Failed to update token status", err)

@@ -5,6 +5,7 @@ import { ChoiceService } from 'src/app/service/choice.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-banbeis',
@@ -13,7 +14,7 @@ import { map } from 'rxjs/operators';
 })
 
 export class BanbeisComponent implements OnInit {
-  baseUrl: string = 'https://cheradip.com/api/institute/'
+  baseUrl: string = `${environment.apiUrl}/institute/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;
   private startX = 0;

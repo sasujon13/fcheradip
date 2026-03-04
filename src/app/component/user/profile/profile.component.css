@@ -65,6 +65,49 @@ form {
   min-width: 0;
 }
 
+.form-field-with-edit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.form-field-with-edit .readonly-value,
+.form-field-with-edit .password-input-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-field-with-edit .readonly-value {
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #333;
+  background: #f5f5f5;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+}
+
+.edit-icon-link {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: #008080;
+  border-radius: 10px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.edit-icon-link:hover {
+  background: rgba(0, 128, 128, 0.12);
+  color: #006666;
+}
+
+.edit-icon-link .fa {
+  font-size: 18px;
+}
+
 .form-control {
   width: 100%;
   padding: 12px 14px;

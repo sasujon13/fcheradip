@@ -347,6 +347,7 @@ import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { CountryService, Country } from '../../service/country.service';
 import { Subscription } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { environment } from '../../../environments/environment';
 
 
 @Component({
@@ -373,7 +374,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.isDropdownOpen = !this.isDropdownOpen;
     this.resetInactivityTimeout();
   }
-  baseUrl = 'https://cheradip.com';
+  baseUrl = environment.apiUrl;
   @ViewChild('marquee', { static: true }) marqueeElement!: ElementRef;
   public notifications: any[] = [];
   private currentIndex = 0;
@@ -439,7 +440,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   constructor(
     private apiService: ApiService,
-    private router: Router,
+    public router: Router,
     private countryService: CountryService,
     private snackBar: MatSnackBar) { }
 
@@ -831,7 +832,25 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.apiService.search.next(this.searchTerm);
   }
 
+  /** Save current page and scroll, then go to signup so we can return after signup. */
+  navigateToSignup(): void {
+    const url = this.router.url || '/';
+    if (!url.startsWith('/auth'))
+      localStorage.setItem('returnUrl', url);
+    sessionStorage.setItem('signupReturnScrollY', String(window.scrollY));
+    this.router.navigate(['/auth']);
+  }
 
+  /** Save current page and scroll, then go to login so we can return after login. */
+  navigateToLogin(): void {
+    const url = this.router.url || '/';
+    if (!url.startsWith('/login'))
+      localStorage.setItem('returnUrl', url);
+    sessionStorage.setItem('signupReturnScrollY', String(window.scrollY));
+    this.router.navigate(['/login']);
+  }
+
+  /** Log out and stay on same page/position (like after login/signup). */
   logout(): void {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('loginStatus');
@@ -847,9 +866,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
       menu_item1.style.display = 'block';
       menu_item2.style.display = 'none';
       profileMenu.style.display = 'none';
-
     }
-    this.router.navigate(['']);
+    // Do not navigate: stay on same page and scroll position (like after login/signup)
   }
 
   resetInactivityTimeout() {

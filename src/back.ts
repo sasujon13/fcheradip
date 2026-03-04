@@ -5,6 +5,7 @@ import { ChoiceService } from 'src/app/service/choice.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-ntrca',
@@ -13,8 +14,8 @@ import { map } from 'rxjs/operators';
 })
 
 export class NtrcaComponent implements OnInit {
-  baseUrl: string = 'https://cheradip.com/api/vacant6/'
-  baseUrl2: string = 'https://cheradip.com/api/institute/'
+  baseUrl: string = `${environment.apiUrl}/vacant6/`
+  baseUrl2: string = `${environment.apiUrl}/institute/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;
   private startX = 0;
@@ -601,7 +602,7 @@ export class NtrcaComponent implements OnInit {
     }
 
     // Use token
-    this.http.post<any>('https://cheradip.com/api/token', { token: this.token, eiin }).subscribe({
+    this.http.post<any>(`${environment.apiUrl}/token`, { token: this.token, eiin }).subscribe({
       next: (res) => {
         if (res.success && res.remaining > 0) {
           this.tokenCounter = res.remaining;
@@ -655,7 +656,7 @@ export class NtrcaComponent implements OnInit {
       return;
     }
 
-    this.http.get<any>(`https://cheradip.com/api/token?token=${this.token}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token?token=${this.token}`).subscribe({
       next: (res) => {
         if (res.success && res.counter > 0) {
           this.tokenCounter = res.counter;

@@ -1,0 +1,94 @@
+<div class="scraper-page">
+  <div class="scraper-inner">
+    <h1 class="scraper-title">Web Scraper</h1>
+    <section class="scraper-section">
+      <div class="form-group">
+        <span class="label-colon"><label>Website</label><span class="colon">:</span></span>
+        <div class="form-field">
+          <select [(ngModel)]="sitePreset" (ngModelChange)="onSitePresetChange()">
+            <option value="daricomma">Daricomma</option>
+            <option value="chorcha">Chorcha</option>
+            <option value="eprosnobank">eProsnobank</option>
+            <option value="livemcq">Livemcq</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="scraper-section">
+      <div class="form-group">
+        <span class="label-colon"><label>Login URL</label><span class="colon">:</span></span>
+        <div class="form-field">
+          <input type="url" [(ngModel)]="loginUrl" (blur)="persistHelper()" placeholder="https://www.daricomma.com/sign-in">
+        </div>
+      </div>
+      <div class="form-group form-group-one-row">
+        <span class="label-colon"><label>Username</label><span class="colon">:</span></span>
+        <div class="form-field form-field-fixed">
+          <input type="text" [(ngModel)]="username" (blur)="persistHelper()" placeholder="Mobile / Email">
+        </div>
+        <span class="label-colon"><label>Password</label><span class="colon">:</span></span>
+        <div class="form-field form-field-fixed">
+          <input type="password" [(ngModel)]="password" (blur)="persistHelper()" placeholder="Password">
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="label-colon"><label>API Base URL</label><span class="colon">:</span></span>
+        <div class="form-field">
+          <input type="url" [(ngModel)]="apiBaseUrl" (blur)="persistHelper()" placeholder="https://api.daricomma.com/v2/question/">
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="label-colon"><label>API URL Template</label><span class="colon">:</span></span>
+        <div class="form-field">
+          <input type="url" [(ngModel)]="apiUrlTemplate" (blur)="persistHelper()" placeholder="https://api.daricomma.com/v2/question/7e93e529-3405-40ad-b003-895dacf21e9f">
+        </div>
+      </div>
+      <div class="form-group form-group-one-row">
+        <span class="label-colon"><label>questionPerPage</label><span class="colon">:</span></span>
+        <div class="form-field form-field-short">
+          <input type="number" [(ngModel)]="questionPerPage" (blur)="persistHelper()" min="1">
+        </div>
+        <span class="label-colon"><label>Bearer Token</label><span class="colon">:</span></span>
+        <div class="form-field">
+          <input type="password" [(ngModel)]="bearerToken" (blur)="persistHelper()" placeholder="Optional (or from login)">
+        </div>
+      </div>
+    </section>
+
+    <section class="scraper-section">
+      <div class="form-group">
+        <span class="label-colon"></span>
+        <div class="form-field form-field-buttons">
+          <button type="button" class="btn-run" (click)="openLoginPage()" [disabled]="loading || !loginUrl">
+            {{ loading ? 'Opening...' : 'Login and Select First Options' }}
+          </button>
+          <button type="button" class="btn-add" (click)="closeBrowser()" *ngIf="sessionId">Close browser</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="scraper-section" *ngIf="sessionId">
+      <p class="hint">Go to the academic page in the browser, then click Run. Subjects and chapters are loaded from the page automatically and fetched one by one. Files save to Desktop/Scraper.</p>
+      <div class="form-group">
+        <span class="label-colon"></span>
+        <div class="form-field form-field-buttons">
+          <button type="button" class="btn-run" (click)="run()" [disabled]="running || !sessionId">Run</button>
+          <button type="button" class="btn-stop" (click)="stop()" [disabled]="!running">Stop</button>
+        </div>
+      </div>
+      <div class="progress-wrap" *ngIf="running || progress > 0">
+        <div class="progress-bar-outer">
+          <div class="progress-bar-done" [style.width.%]="progress"></div>
+          <div class="progress-bar-remaining" [style.width.%]="100 - progress"></div>
+          <span class="progress-percent">{{ progress | number:'1.0-0' }}%</span>
+        </div>
+      </div>
+      <div class="log-wrap">
+        <textarea #logBox class="log-box" readonly [ngModel]="logText" placeholder="Log output will appear here..."></textarea>
+      </div>
+      <p class="error-msg" *ngIf="error">{{ error }}</p>
+    </section>
+  </div>
+</div>

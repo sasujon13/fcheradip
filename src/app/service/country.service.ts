@@ -248,9 +248,12 @@ export class CountryService {
 
   /**
    * Get single country by code. Falls back to list lookup if detail endpoint fails (404/500/CORS).
+   * 'ORIGINAL' is a frontend-only code for "Website Language" — never call the API for it.
    */
   getCountry(code: string): Observable<Country> {
     const upper = (code || '').toUpperCase();
+    if (upper === CountryService.WEBSITE_LANGUAGE_COUNTRY_CODE)
+      return of(CountryService.getWebsiteLanguageCountry());
     return this.http.get<Country>(`${this.baseUrl}/countries/${code}/`).pipe(
       catchError(() =>
         this.getAllCountries().pipe(

@@ -60,6 +60,14 @@
     </div>
 
     <div class="form-group">
+      <span class="label-colon"><label for="dateOfBirth">Date of Birth</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <input type="date" formControlName="dateOfBirth" id="dateOfBirth" class="form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('dateOfBirth')?.touched && authForm.get('dateOfBirth')?.invalid }" />
+      </div>
+    </div>
+
+    <div class="form-group">
       <span class="label-colon"><label for="division">Division</label><span class="colon">:</span></span>
       <div class="form-field">
         <select formControlName="division" id="division" (change)="onDivisionChange()" class="form-control"
@@ -110,9 +118,20 @@
       </div>
     </div>
 
+    <!-- Mobile No: read-only, edit icon links to /mobile -->
+    <div class="form-group">
+      <span class="label-colon"><label for="mobileDisplay">Mobile No</label><span class="colon">:</span></span>
+      <div class="form-field form-field-with-edit">
+        <span class="readonly-value" id="mobileDisplay">{{ displayUsername || authForm.get('username')?.value }}</span>
+        <a [routerLink]="['/mobile']" class="edit-icon-link" title="Change mobile number" aria-label="Edit mobile">
+          <i class="fa fa-pencil"></i>
+        </a>
+      </div>
+    </div>
+
     <div class="form-group">
       <span class="label-colon"><label for="password">Password</label><span class="colon">:</span></span>
-      <div class="form-field">
+      <div class="form-field form-field-with-edit">
         <div class="password-input-wrapper">
           <input [type]="showPassword ? 'text' : 'password'" formControlName="password" id="password"
             placeholder="Enter current password"
@@ -122,9 +141,11 @@
             <i class="fa {{ showPassword ? 'fa-eye-slash' : 'fa-eye' }}"></i>
           </button>
         </div>
+        <a [routerLink]="['/password']" class="edit-icon-link" title="Change password" aria-label="Edit password">
+          <i class="fa fa-pencil"></i>
+        </a>
         <div *ngIf="isPasswordMismatch" class="error-message">
-          Your Password doesn't match. Please try again or
-          <a href="javascript:void(0)" (click)="openChangePassword()">Reset Password</a>
+          Your Password doesn't match. Please try again.
         </div>
         <div *ngIf="isPasswordLength" class="error-message">
           Password must be within 6 - 14 Characters.
@@ -134,7 +155,6 @@
 
     <div #consoleOutput class="console-output"></div>
     <button type="submit" class="form-submit-btn">Update Profile</button>
-    <button type="button" class="change-password-btn" (click)="openChangePassword()">Change Password</button>
   </form>
 </div>
 

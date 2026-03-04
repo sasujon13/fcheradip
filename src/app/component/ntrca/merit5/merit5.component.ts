@@ -1,6 +1,6 @@
 import { Component, OnInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-merit5',
@@ -8,7 +8,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
   styleUrls: ['./merit5.component.css']
 })
 export class Merit5Component implements OnInit {
-  baseUrl: string = 'https://cheradip.com/api/merit5/'
+  baseUrl: string = `${environment.apiUrl}/merit5/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;
   private startX = 0;
