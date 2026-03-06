@@ -497,6 +497,19 @@ export class ApiService {
     );
   }
 
+  /** Subjects for Degree / Honours / Masters (class 13-16) by country. */
+  getSubjectsForDegree(countryCode: string): Observable<{ subjects: any[] }> {
+    return this.http.get<{ subjects: any[] }>(
+      `${this.baseUrl}/subjects_for_degree/`,
+      { params: { country_code: countryCode || '' } }
+    );
+  }
+
+  /** Submit a new subject request (Degree level). Body: subject_name, subject_translated, degree_type (optional), country_code (optional). */
+  submitPendingSubjectRequest(body: { subject_name: string; subject_translated: string; degree_type?: string; country_code?: string }): Observable<{ id: number; message: string }> {
+    return this.http.post<{ id: number; message: string }>(`${this.baseUrl}/pending_subject_request/`, body);
+  }
+
   /** Groups for Student signup by country + level (from cheradip_subject.groups). */
   getGroupsByCountryLevel(countryCode: string, level: string): Observable<{ groups: any[] }> {
     return this.http.get<{ groups: any[] }>(

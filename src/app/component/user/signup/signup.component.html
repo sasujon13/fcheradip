@@ -120,42 +120,52 @@
       </div>
     </div>
 
-    <!-- Teacher Subject – options from API by selected level (all levels except University) -->
+    <!-- Teacher Subject – options from API by selected level (PSC/JSC/SSC/HSC or Degree / Honours / Masters) -->
     <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Teacher' && showTeacherSubjectField">
-      <span class="label-colon"><label for="teacherSubject">Subject:</label></span>
+      <span class="label-colon"><label for="teacherSubject">Subject</label><span class="colon">:</span></span>
       <div class="form-field">
         <select formControlName="teacherSubject" id="teacherSubject" class="form-control"
+        (change)="onTeacherSubjectChange()"
         [ngClass]="{ 'is-invalid': authForm.get('teacherSubject')?.touched && authForm.get('teacherSubject')?.invalid }">
         <option value="">Select Subject</option>
-        <option *ngFor="let sub of availableSubjects" [value]="sub.id">
+        <option *ngFor="let sub of availableSubjects" [value]="getTeacherSubjectOptionValue(sub)">
           {{ sub.displayName }}
         </option>
+        <option *ngIf="authForm.get('teacherLevel')?.value === 'University'" value="__ADD_SUBJECT__" class="add-subject-option">Add subject if not Listed</option>
       </select>
-        <div *ngIf="availableSubjects.length === 0" class="loading-message">Loading subjects...</div>
+        <div *ngIf="availableSubjects.length === 0 && authForm.get('teacherLevel')?.value !== 'University'" class="loading-message">Loading subjects...</div>
       </div>
     </div>
 
-    <!-- Teacher Department (University only) - from departments.json worldwide + Others -->
-    <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Teacher' && showTeacherDepartmentField">
-      <span class="label-colon"><label for="teacherDepartment">Department</label><span class="colon">:</span></span>
-      <div class="form-field">
-        <select formControlName="teacherDepartment" id="teacherDepartment" class="form-control"
-        [ngClass]="{ 'is-invalid': authForm.get('teacherDepartment')?.touched && authForm.get('teacherDepartment')?.invalid }">
-        <option value="">Select Department</option>
-        <option *ngFor="let dept of availableTeacherDepartments" [value]="dept.dept_code">
-          {{ dept.dept_name }}
-          <span *ngIf="dept.faculty"> ({{ dept.faculty }})</span>
-        </option>
-        <option value="OTHER">Others (specify below)</option>
-      </select>
-        <div *ngIf="(authForm.get('teacherDepartment')?.value || '').toUpperCase() === 'OTHER'" class="form-group other-dept">
-          <label for="teacherDepartmentOther" class="other-label"></label>
-          <input type="text" formControlName="teacherDepartmentOther" id="teacherDepartmentOther"
-            class="form-control" placeholder="Your Department Full Name"
-            [ngClass]="{ 'is-invalid': authForm.get('teacherDepartmentOther')?.touched && authForm.get('teacherDepartmentOther')?.invalid }" />
-          <small class="text-muted">Your entry (Ex: Computer Science Engineering (Engineering)) may be added to the list for future signups.</small>
-        </div>
-        <div *ngIf="availableTeacherDepartments.length === 0 && (authForm.get('teacherDepartment')?.value || '').toUpperCase() !== 'OTHER'" class="loading-message">Loading departments...</div>
+    <!-- Add new subject pane (Degree / Honours / Masters) -->
+    <div class="form-group add-subject-pane" *ngIf="showAddSubjectPane && authForm.get('acctype')?.value === 'Teacher' && authForm.get('teacherLevel')?.value === 'University'">
+      <div class="pane-box">
+        <h4>Request a new subject</h4>
+        <p class="text-muted">Both fields are required. Your request will be reviewed before the subject is added.</p>
+        <form [formGroup]="addSubjectForm" (ngSubmit)="submitNewSubjectRequest()">
+          <div class="form-group">
+            <label for="newSubjectName">Subject name</label>
+            <input type="text" formControlName="subject_name" id="newSubjectName" class="form-control" placeholder="e.g. Bengali" />
+            <small class="text-danger" *ngIf="addSubjectForm.get('subject_name')?.invalid && addSubjectForm.get('subject_name')?.touched">Required</small>
+          </div>
+          <div class="form-group">
+            <label for="newSubjectTranslated">Subject name (translated)</label>
+            <input type="text" formControlName="subject_translated" id="newSubjectTranslated" class="form-control" placeholder="e.g. Bengali (English)" />
+            <small class="text-danger" *ngIf="addSubjectForm.get('subject_translated')?.invalid && addSubjectForm.get('subject_translated')?.touched">Required</small>
+          </div>
+          <div class="form-group">
+            <label for="newDegreeType">Degree Type</label>
+            <select formControlName="degree_type" id="newDegreeType" class="form-control">
+              <option value="">Select (optional)</option>
+              <option *ngFor="let opt of degreeTypeOptions" [value]="opt">{{ opt }}</option>
+            </select>
+            <small class="text-muted">Stored in Groups when the subject is approved.</small>
+          </div>
+          <div class="pane-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="addSubjectForm.invalid || addSubjectSubmitting">Submit request</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="closeAddSubjectPane()">Cancel</button>
+          </div>
+        </form>
       </div>
     </div>
 

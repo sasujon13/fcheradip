@@ -119,21 +119,25 @@ export class SignupComponent implements OnInit, OnDestroy {
     { value: '8', label: 'Class Eight', has_groups: false },
     { value: '9-10', label: 'Class 9-10', has_groups: true },
     { value: '11-12', label: 'Class 11-12', has_groups: true },
-    { value: '13-16', label: 'Degree / University', has_groups: false }
+    { value: '13-16', label: 'Degree / Honours / Masters', has_groups: false }
   ];
   readonly defaultLevels: Array<{ level: string; level_tr: string; label: string }> = [
     { level: 'PSC', level_tr: 'PSC', label: 'PSC' },
     { level: 'JSC', level_tr: 'JSC', label: 'JSC' },
     { level: 'SSC', level_tr: 'SSC', label: 'SSC' },
     { level: 'HSC', level_tr: 'HSC', label: 'HSC' },
-    { level: 'University', level_tr: 'University', label: 'University' }
+    { level: 'University', level_tr: 'Degree / Honours / Masters', label: 'Degree / Honours / Masters' }
   ];
   private readonly levelToClassMap: Record<string, string> = {
     'PSC': '5', 'JSC': '8', 'SSC': '9-10', 'HSC': '11-12', 'University': '13-16'
   };
   private readonly levelToClassLabel: Record<string, string> = {
-    'PSC': 'PSC (1-5)', 'JSC': 'JSC (6-8)', 'SSC': 'SSC (9-10)', 'HSC': 'HSC (11-12)', 'University': 'University'
+    'PSC': 'PSC (1-5)', 'JSC': 'JSC (6-8)', 'SSC': 'SSC (9-10)', 'HSC': 'HSC (11-12)', 'University': 'Degree / Honours / Masters'
   };
+
+  showAddSubjectPane = false;
+  addSubjectSubmitting = false;
+  addSubjectForm!: FormGroup;
 
   private destroy$ = new Subject<void>();
   private restoringDraft = false;
@@ -178,6 +182,11 @@ export class SignupComponent implements OnInit, OnDestroy {
       password: ['', [Validators.required, Validators.minLength(8), passwordStrengthValidator()]],
       retypePassword: ['', [Validators.required]],
     }, { validators: passwordMatchValidator });
+    this.addSubjectForm = this.fb.group({
+      subject_name: ['', [Validators.required]],
+      subject_translated: ['', [Validators.required]],
+      degree_type: [''],
+    });
   }
 
   ngOnInit(): void {
@@ -389,17 +398,27 @@ export class SignupComponent implements OnInit, OnDestroy {
 
     if (level && level !== 'University') {
       this.showTeacherSubjectField = true;
+      this.showTeacherDepartmentField = false;
       this.authForm.get('teacherSubject')?.setValidators([Validators.required]);
       this.loadSubjectsForLevel(level);
     } else if (level === 'University') {
-      this.showTeacherDepartmentField = true;
-      this.authForm.get('teacherDepartment')?.setValidators([Validators.required]);
-      this.loadTeacherDepartments();
-      this.updateTeacherDepartmentOtherValidators();
+      this.showTeacherSubjectField = true;
+      this.showTeacherDepartmentField = false;
+      this.authForm.get('teacherSubject')?.setValidators([Validators.required]);
+      this.authForm.get('teacherDepartment')?.clearValidators();
+      this.loadSubjectsForDegree();
     }
     this.authForm.get('teacherSubject')?.updateValueAndValidity();
     this.authForm.get('teacherDepartment')?.updateValueAndValidity();
     this.authForm.get('teacherDepartmentOther')?.updateValueAndValidity();
+  }
+
+  onTeacherSubjectChange(): void {
+    const value = this.authForm.get('teacherSubject')?.value;
+    if (value === '__ADD_SUBJECT__') {
+      this.authForm.patchValue({ teacherSubject: '' });
+      this.openAddSubjectPane();
+    }
   }
 
   private updateTeacherDepartmentOtherValidators(): void {
@@ -469,6 +488,70 @@ export class SignupComponent implements OnInit, OnDestroy {
         }
       );
     }
+  }
+
+  /** Option value for Teacher Subject dropdown: subject_code for Degree, id for others (backend expects teacher_subject_code). */
+  getTeacherSubjectOptionValue(sub: any): string | number {
+    return this.authForm.get('teacherLevel')?.value === 'University'
+      ? (sub.subject_code ?? sub.id)
+      : (sub.id ?? sub.subject_code);
+  }
+
+  /** Degree Type options for "Add subject" (stored in Groups column on approve). */
+  readonly degreeTypeOptions = [
+    'Degree', 'Honours (Pass)', 'Honours', 'B.Sc', 'BSS', 'BBA', 'MBA', 'MSS', 'MSC', 'Others'
+  ];
+
+  openAddSubjectPane(): void {
+    this.showAddSubjectPane = true;
+    this.addSubjectForm.reset({ subject_name: '', subject_translated: '', degree_type: '' });
+  }
+
+  closeAddSubjectPane(): void {
+    this.showAddSubjectPane = false;
+  }
+
+  submitNewSubjectRequest(): void {
+    if (this.addSubjectForm.invalid || this.addSubjectSubmitting) return;
+    const countryCode = this.selectedCountry?.country_code || this.authForm.value.countryCode || 'BD';
+    this.addSubjectSubmitting = true;
+    const degreeType = (this.addSubjectForm.value.degree_type || '').trim() || undefined;
+    this.apiService.submitPendingSubjectRequest({
+      subject_name: this.addSubjectForm.value.subject_name!.trim(),
+      subject_translated: this.addSubjectForm.value.subject_translated!.trim(),
+      ...(degreeType ? { degree_type: degreeType } : {}),
+      country_code: countryCode,
+    }).subscribe({
+      next: (res) => {
+        this.addSubjectSubmitting = false;
+        this.showAddSubjectPane = false;
+        this.snackBar.open(res?.message || 'Your subject request has been submitted for review.', 'Close', { duration: 5000 });
+      },
+      error: (err) => {
+        this.addSubjectSubmitting = false;
+        const msg = err?.error?.error || err?.message || 'Request failed.';
+        this.snackBar.open(msg, 'Close', { duration: 4000 });
+      },
+    });
+  }
+
+  /** Load subjects for Degree / Honours / Masters (Teacher Level = University) from API. */
+  loadSubjectsForDegree(): void {
+    const countryCode = this.selectedCountry?.country_code;
+    if (!countryCode) {
+      this.availableSubjects = [];
+      return;
+    }
+    this.apiService.getSubjectsForDegree(countryCode).subscribe({
+      next: (res) => {
+        const raw = res?.subjects ?? [];
+        this.availableSubjects = this.processSubjectList(raw);
+      },
+      error: (err) => {
+        console.error('Error loading subjects for degree:', err);
+        this.availableSubjects = [];
+      }
+    });
   }
 
   /** Load university departments from JSON (worldwide, all disciplines). Used when Teacher Level = University. */
@@ -968,17 +1051,9 @@ export class SignupComponent implements OnInit, OnDestroy {
         }
       }
       if (level === 'University') {
-        const dept = this.authForm.value.teacherDepartment;
-        if (!dept) {
-          this.snackBar.open('Please select a department', 'Close', { duration: 3000 });
+        if (!this.authForm.value.teacherSubject) {
+          this.snackBar.open('Please select a subject', 'Close', { duration: 3000 });
           return;
-        }
-        if ((dept || '').toUpperCase() === 'OTHER') {
-          const other = (this.authForm.value.teacherDepartmentOther || '').trim();
-          if (!other) {
-            this.snackBar.open('Please enter your department name', 'Close', { duration: 3000 });
-            return;
-          }
         }
       }
     }
@@ -1002,8 +1077,8 @@ export class SignupComponent implements OnInit, OnDestroy {
         department: acctype === 'Student' ? (this.authForm.value.department || null) : null,
         teacher_level: acctype === 'Teacher' ? (this.authForm.value.teacherLevel || null) : null,
         teacher_subject_code: acctype === 'Teacher' ? (this.authForm.value.teacherSubject || null) : null,
-        teacher_department_code: acctype === 'Teacher' ? (this.authForm.value.teacherDepartment || null) : null,
-        teacher_department_name: acctype === 'Teacher' && (this.authForm.value.teacherDepartment || '').toUpperCase() === 'OTHER'
+        teacher_department_code: acctype === 'Teacher' && this.authForm.value.teacherLevel !== 'University' ? (this.authForm.value.teacherDepartment || null) : null,
+        teacher_department_name: acctype === 'Teacher' && this.authForm.value.teacherLevel !== 'University' && (this.authForm.value.teacherDepartment || '').toUpperCase() === 'OTHER'
           ? (this.authForm.value.teacherDepartmentOther || '').trim() || null
           : null,
         email: this.authForm.value.email,

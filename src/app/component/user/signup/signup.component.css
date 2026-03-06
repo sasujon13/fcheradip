@@ -616,3 +616,64 @@ select.form-control {
     font-size: 14px;
   }
 }
+
+/* Add new subject pane (Degree / Honours / Masters) */
+.add-subject-link {
+  margin-top: 8px;
+}
+.add-subject-link .btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #008080;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.add-subject-link .btn-link:hover {
+  color: #006666;
+}
+.add-subject-pane {
+  margin-top: 8px;
+}
+.add-subject-pane .pane-box {
+  padding: 16px;
+  background: rgba(0, 128, 128, 0.06);
+  border: 1px solid rgba(0, 128, 128, 0.2);
+  border-radius: 12px;
+}
+.add-subject-pane .pane-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  color: #008080;
+}
+.add-subject-pane .pane-box .text-muted {
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.add-subject-pane .pane-box .form-group {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px 0;
+}
+.add-subject-pane .pane-box .form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+}
+.add-subject-pane .pane-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.add-subject-pane .pane-actions .btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* Add subject if not Listed option – blue */
+select.form-control option.add-subject-option {
+  color: #0066cc;
+  font-weight: 600;
+}
