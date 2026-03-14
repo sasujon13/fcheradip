@@ -121,7 +121,10 @@
           </td>
 
           <td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
-          <td>{{ vacancy.EIIN }}<br>{{ vacancy.Name }}</td>
+          <td class="institute-name-cell">{{ vacancy.EIIN }}<br>
+            <ng-container *ngIf="getInstituteNameLines(vacancy.Name) as nameLines">
+              <span class="institute-line">{{ nameLines.line1 }}</span><span class="institute-line" *ngIf="nameLines.line2">{{ nameLines.line2 }}</span><span class="institute-line" *ngIf="nameLines.line3">{{ nameLines.line3 }}</span>
+            </ng-container></td>
 
           <td>{{ vacancy.District }} - {{ vacancy.Thana }} - {{ vacancy.parameter?.results?.[0]?.Rejion || 'N/A' }}<br>
             {{ vacancy.parameter?.results?.[0]?.Mouza ||

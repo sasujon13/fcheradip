@@ -143,7 +143,7 @@
           <!-- <td>{{ vacancy.EIIN }}</td> -->
           <td>{{ vacancy.Roll }}<br>{{ vacancy.Name }}<br>{{ vacancy.Merit }}</td>
           <td>{{ vacancy.Mark }}<br>{{ vacancy.Rank }}<br>{{ vacancy.Serial }}</td>
-          <td>{{ vacancy.Batch }}<br>{{ vacancy.Designation }}<br>{{ vacancy.Subject }}</td>
+          <td>{{ vacancy.Post }}<br>{{ vacancy.Designation }}<br>{{ vacancy.Subject }}</td>
           <td style="text-align: center;">
             <ng-container *ngIf="isEIINUnlocked(vacancy.EIIN)">
               ✅<br>Unlocked<br>{{ vacancy.EIIN }}
@@ -159,8 +159,10 @@
               </div>
             </ng-container>
           </td>
-          <td>{{ vacancy.parameter?.results?.[0]?.InstituteType || 'N/A' }}<br>{{ vacancy.parameter?.results?.[0]?.Name
-            || 'N/A' }}</td>
+          <td class="institute-name-cell">{{ vacancy.parameter?.results?.[0]?.InstituteType || 'N/A' }}<br>
+            <ng-container *ngIf="getInstituteNameLines(vacancy.parameter?.results?.[0]?.Name) as nameLines">
+              <span class="institute-line">{{ nameLines.line1 }}</span><span class="institute-line" *ngIf="nameLines.line2">{{ nameLines.line2 }}</span><span class="institute-line" *ngIf="nameLines.line3">{{ nameLines.line3 }}</span>
+            </ng-container></td>
           <td>
             <ng-container *ngIf="vacancy.parameter?.results?.[0]?.EducationLevels; else noMpo">
               <div *ngFor="let mpo of vacancy.parameter.results[0].EducationLevels.split(',')">

@@ -1196,13 +1196,23 @@ table.mytable{
   margin: auto;
   height: auto;
   text-align: left;
+  table-layout: auto;
+}
+
+table.mytable td,
+table.mytable th {
+  width: auto;
+  white-space: nowrap;
 }
 
 .table-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   cursor: grab;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
   user-select: none;
   white-space: nowrap;
 }

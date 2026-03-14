@@ -465,6 +465,25 @@ export class Vacant5Component implements OnInit {
     return this.expandedRows[eiin] ? data : data.slice(0, 2);
   }
 
+  getInstituteNameLines(name: string | null | undefined): { line1: string; line2: string; line3: string } {
+    const raw = (name || '').replace(/\s+/g, ' ').trim();
+    if (!raw) return { line1: 'N/A', line2: '', line3: '' };
+    if (raw.length <= 24) return { line1: raw, line2: '', line3: '' };
+    const spaceBefore24 = raw.lastIndexOf(' ', 24);
+    if (spaceBefore24 <= 0) return { line1: raw, line2: '', line3: '' };
+    let line1 = raw.substring(0, spaceBefore24).trim();
+    let line2 = raw.substring(spaceBefore24).trim();
+    let line3 = '';
+    if (line2.length > 24) {
+      const spaceBefore24L2 = line2.lastIndexOf(' ', 24);
+      if (spaceBefore24L2 > 0) {
+        line3 = line2.substring(spaceBefore24L2).trim();
+        line2 = line2.substring(0, spaceBefore24L2).trim();
+      }
+    }
+    return { line1, line2, line3 };
+  }
+
   toggleExpand(eiin: string): void {
     this.expandedRows[eiin] = !this.expandedRows[eiin];
   }

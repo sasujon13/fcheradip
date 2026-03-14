@@ -1151,17 +1151,34 @@ span.mx-3 {
 
 table.mytable {
   font-size: 10px;
-  width: 1920px;
+  width: auto;
+  min-width: 768px;
   margin: auto;
   height: auto;
   text-align: left;
+  table-layout: auto;
+}
+
+table.mytable td,
+table.mytable th {
+  width: auto;
+  white-space: nowrap;
+}
+
+/* Institute name: exactly 2 lines; each .institute-line does not wrap */
+table.mytable td.institute-name-cell .institute-line {
+  display: block;
+  white-space: nowrap;
 }
 
 .table-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   cursor: grab;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
   user-select: none;
   white-space: nowrap;
 }
