@@ -41,6 +41,11 @@ export class InstituteComponent implements OnInit {
   /** When current search returned no results, we show last shown results and this message. */
   lastShownMessage: string | null = null;
 
+  /** Token box: 8-digit token input and apply (shared with college-theme via localStorage). */
+  newToken: string = '';
+  freeUnlockLimit = 10;
+  unlockedEIINs: Set<string> = new Set();
+
   constructor(
     private apiService: ApiService,
     private http: HttpClient,
@@ -49,6 +54,11 @@ export class InstituteComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const storedLimit = localStorage.getItem('freeUnlockLimit');
+    this.freeUnlockLimit = Number(storedLimit) || 10;
+    const stored = localStorage.getItem('unlockedEIINs');
+    if (stored) this.unlockedEIINs = new Set(JSON.parse(stored));
+
     this.getTypes();
     this.getDivisions();
     this.loadInstitutes();
@@ -317,5 +327,24 @@ export class InstituteComponent implements OnInit {
     const start = (this.pageIndex - 1) * this.pageSize + 1;
     const end = Math.min(this.pageIndex * this.pageSize, this.totalInstitutes);
     return `   ${start} - ${end}   `;
+  }
+
+  /** Validate and apply 8-digit token; updates freeUnlockLimit from API and persists to localStorage. */
+  applyToken(): void {
+    if (!this.newToken || this.newToken.trim().length !== 8) return;
+
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
+      next: (res) => {
+        const result = res?.results?.[0];
+        if (result && result.Counter != null && Number(result.Status) === 0) {
+          const newLimit = Number(result.Counter);
+          this.freeUnlockLimit += newLimit;
+          localStorage.setItem('freeUnlockLimit', this.freeUnlockLimit.toString());
+          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 })
+            .subscribe({ next: () => {}, error: () => {} });
+        }
+      },
+      error: () => {}
+    });
   }
 }

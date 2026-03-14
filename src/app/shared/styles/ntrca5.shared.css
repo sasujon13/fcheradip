@@ -1317,10 +1317,10 @@ button.view {
   padding: 12px 12px 12px 0;
   background: transparent;
   border: none;
-  margin-top: -91px;
+  margin-top: -65px;
   border-radius: 8px;
   text-align: center;
-  position: absolute;
+  position: fixed;
 }
 
 .token-input-box input {

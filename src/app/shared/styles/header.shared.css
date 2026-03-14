@@ -11,13 +11,14 @@ div.notification{
 }
 div.profile_back{
   text-align: center;
-  margin-top: 62px;
+  margin-top: 57px;
   margin-bottom: 0;
   width: 32px;
   height: 42px;
   right: 0;
   position: fixed;
   background-color: #ffffff;
+  border-bottom-left-radius: 50%;
   z-index: 3;
 }
 .navbar {

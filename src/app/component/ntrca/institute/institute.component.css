@@ -2,6 +2,60 @@
 @import '../../../shared/styles/header.shared.css';
 
 /* Institute component-specific styles */
+
+
+
+.tokenbox {
+  position: relative;
+  max-width: 1920px;
+  margin: 0 auto;
+  width: 100%;
+  z-index: 1001 !important;
+}
+
+.token-input-box {
+  padding: 12px 12px 12px 0;
+  background: transparent;
+  border: none;
+  margin-top: -73px;
+  border-radius: 8px;
+  text-align: center;
+  position: fixed;
+}
+
+.token-input-box input {
+  padding: 0px 12px;
+  font-size: 14px;
+  width: 132px;
+  border: 5px solid teal;
+  border-left: 18px solid teal;
+}
+
+.token-input-box button {
+  padding: 5px 14px;
+  font-size: 14px;
+  background-color: teal;
+  color: white;
+  border: none;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
+  margin-left: -7px;
+}
+
+.hover-message-box {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff8dc;
+  border: 1px solid #ccc;
+  padding: 10px;
+  width: max-content;
+  box-shadow: 0 0 10px #00808080;
+  z-index: 100;
+  border-radius: 12px;
+}
+
 div.comment {
   text-align: -webkit-center;
 }

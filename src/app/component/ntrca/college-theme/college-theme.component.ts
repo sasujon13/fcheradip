@@ -9,6 +9,10 @@ import { environment } from 'src/environments/environment';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { slugForUrlDisplay } from 'src/app/url-serializer';
 
+/** Token / unlock state for institute view (persisted in localStorage). */
+const STORAGE_FREE_UNLOCK_LIMIT = 'freeUnlockLimit';
+const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
+
 @Component({
   selector: 'app-college-theme',
   templateUrl: './college-theme.component.html',
@@ -25,6 +29,11 @@ export class CollegeThemeComponent implements OnInit {
   error: string | null = null;
   data: any = null;
 
+  /** Token box: 8-digit token input and apply. */
+  newToken: string = '';
+  freeUnlockLimit = 10;
+  unlockedEIINs: Set<string> = new Set();
+
   constructor(
     @Inject(DOCUMENT) private doc: Document,
     private route: ActivatedRoute,
@@ -35,6 +44,11 @@ export class CollegeThemeComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const storedLimit = localStorage.getItem(STORAGE_FREE_UNLOCK_LIMIT);
+    this.freeUnlockLimit = Number(storedLimit) || 10;
+    const stored = localStorage.getItem(STORAGE_UNLOCKED_EIINS);
+    if (stored) this.unlockedEIINs = new Set(JSON.parse(stored));
+
     this.route.paramMap.subscribe(() => {
       this.slug = this.getSlugFromUrl();
       this.eiin = this.extractEiin(this.slug);
@@ -491,5 +505,24 @@ export class CollegeThemeComponent implements OnInit {
   private showCopyFeedback(): void {
     this.copyFeedback = true;
     setTimeout(() => (this.copyFeedback = false), 1500);
+  }
+
+  /** Validate and apply 8-digit token; updates freeUnlockLimit from API and persists to localStorage. */
+  applyToken(): void {
+    if (!this.newToken || this.newToken.trim().length !== 8) return;
+
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
+      next: (res) => {
+        const result = res?.results?.[0];
+        if (result && result.Counter != null && Number(result.Status) === 0) {
+          const newLimit = Number(result.Counter);
+          this.freeUnlockLimit += newLimit;
+          localStorage.setItem(STORAGE_FREE_UNLOCK_LIMIT, this.freeUnlockLimit.toString());
+          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 })
+            .subscribe({ next: () => {}, error: () => {} });
+        }
+      },
+      error: () => {}
+    });
   }
 }
