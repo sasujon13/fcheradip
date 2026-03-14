@@ -32,6 +32,7 @@ import { MobileComponent } from './component/user/mobile/mobile.component';
 import { SignupComponent } from './component/user/signup/signup.component';
 import { CountrySelectorComponent } from './shared/country-selector/country-selector.component';
 import { AlertComponent } from './component/faqs/alert/alert.component';
+import { NtrcaFooterSectionComponent } from './shared/ntrca-footer-section/ntrca-footer-section.component';
 import { AboutComponent } from './component/user/about/about.component';
 import { ChatComponent } from './component/faqs/chat/chat.component';
 import { PackagesComponent } from './component/products/packages/packages.component';
@@ -88,6 +89,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     hDirective,
     LoginComponent,
     AlertComponent,
+    NtrcaFooterSectionComponent,
     AdminComponent,
     ProfileComponent,
     MyorderComponent,

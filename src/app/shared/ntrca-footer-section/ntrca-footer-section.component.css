@@ -1,0 +1,202 @@
+/* Styles for shared NTRCA footer block (token box, container, why-choose, cta, alerts, loading, gap) */
+:host {
+  display: block;
+}
+
+:host .tokenbox {
+  position: relative;
+  max-width: 1920px;
+  margin: 0 auto;
+  width: 100%;
+  z-index: 1001 !important;
+}
+
+:host .token-input-box2 {
+  padding: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  text-align: center;
+  position: relative;
+}
+
+:host .token-input-box2 input {
+  padding: 8px;
+  font-size: 16px;
+  margin-right: 10px;
+  width: 160px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+:host .token-input-box2 button {
+  padding: 8px 14px;
+  font-size: 16px;
+  background-color: teal;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+:host .hover-message-container {
+  position: relative;
+  display: inline-block;
+}
+
+:host .hover-message-container:hover .hover-message-box {
+  display: block;
+}
+
+:host .hover-message-box {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff8dc;
+  border: 1px solid #ccc;
+  padding: 10px;
+  width: max-content;
+  max-width: 320px;
+  box-shadow: 0 0 10px #00808080;
+  z-index: 100;
+  border-radius: 12px;
+}
+
+:host .hover-message-box a {
+  color: blue;
+  text-decoration: underline;
+}
+
+:host main {
+  padding: 2rem 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+:host .why-choose h2 {
+  color: #005f73;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #00b4db;
+  padding-bottom: 0.5rem;
+}
+
+:host .why-choose ul {
+  list-style: none;
+  padding: 0;
+}
+
+:host .why-choose ul > li {
+  background: #e0f7fa;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border: none;
+  border-left: 4px solid #00b4db;
+  border-radius: 5px;
+}
+
+:host .why-choose ol > li {
+  background: #e0f7fa;
+  margin-bottom: none;
+  border: none;
+}
+
+:host .why-choose ol {
+  padding: 1rem;
+  list-style: none;
+  background: #e0f7fa;
+  margin-bottom: 1rem;
+  margin-top: -8px;
+}
+
+:host .cta {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+:host .cta h2 {
+  font-size: 1.8rem;
+  color: #028090;
+  margin-bottom: 0.5rem;
+}
+
+:host .cta p {
+  font-size: 1.1rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+:host .btn {
+  background-color: #00b4db;
+  color: white;
+  padding: 0.8rem 1.5rem;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 30px;
+  transition: background 0.3s ease;
+}
+
+:host .btn:hover {
+  background-color: #50dffe;
+}
+
+:host .gap {
+  margin-top: 30px;
+}
+
+:host .loading-indicator {
+  text-align: center;
+  font-weight: bold;
+  color: #007bff;
+  padding: 10px;
+  font-size: 16px;
+  animation: ntrca-footer-pulse 1s infinite;
+  z-index: 1000;
+}
+
+@keyframes ntrca-footer-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+:host .spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ccc;
+  border-top: 2px solid teal;
+  border-radius: 50%;
+  animation: ntrca-footer-spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+:host .pdf-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+:host .spinner2 {
+  width: 60px;
+  height: 60px;
+  border: 6px solid #ccc;
+  border-top-color: teal;
+  border-radius: 50%;
+  animation: ntrca-footer-spin 0.8s linear infinite;
+}
+
+@keyframes ntrca-footer-spin {
+  to { transform: rotate(360deg); }
+}
+
+:host li a {
+  text-decoration: none;
+  font-size: 18px;
+  padding: 0;
+}
