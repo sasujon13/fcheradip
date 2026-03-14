@@ -1468,8 +1468,11 @@ ul.filterx {
 /* Same as /institutes: dropdown header and filter button showing selections */
 .dropdown-header {
   border: none;
-  padding: 5px 20px;
-  margin-bottom: -10px;
+  padding-top: 2px;
+  padding-bottom: 5px;
+  padding-left: 20px;
+  padding-right: 20px;
+  margin-bottom: -3px;
 }
 
 .filter-btn {
