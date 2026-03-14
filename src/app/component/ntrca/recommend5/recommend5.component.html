@@ -61,10 +61,12 @@
 
     <div class="filter">
       <div class="dropdownx mb-3">
-        <button class="btn btn-outline-primary dropdown-toggle filter" type="button" data-bs-toggle="dropdown">
-          Select Districts
+        <button class="btn btn-outline-primary dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+          <span class="filter-label" *ngIf="selectedDistricts.length === 0">Districts</span>
+          <span class="filter-selections" *ngIf="selectedDistricts.length > 0" [title]="selectedDistricts.join(', ')">{{ selectedDistricts.join(', ') }}</span>
         </button>
         <ul class="dropdown-menu scrollable-menu filterx">
+          <li class="dropdown-header">Select District</li>
           <li *ngFor="let district of districts" class="filter">
             <label class="dropdown-item">
               <input type="checkbox" [checked]="selectedDistricts.includes(district)"
@@ -72,22 +74,22 @@
               {{ district }}
             </label>
           </li>
-
         </ul>
       </div>&nbsp;&nbsp;&nbsp;&nbsp;
 
       <div class="dropdownx mb-3" *ngIf="thanas.length > 0">
-        <button class="btn btn-outline-success dropdown-toggle filter" type="button" data-bs-toggle="dropdown">
-          Select Thanas
+        <button class="btn btn-outline-success dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+          <span class="filter-label" *ngIf="selectedThanas.length === 0">Thanas</span>
+          <span class="filter-selections" *ngIf="selectedThanas.length > 0" [title]="selectedThanas.join(', ')">{{ selectedThanas.join(', ') }}</span>
         </button>
         <ul class="dropdown-menu scrollable-menu filterx">
+          <li class="dropdown-header">Select Thana</li>
           <li *ngFor="let thana of thanas" class="filter">
             <label class="dropdown-item">
               <input type="checkbox" [checked]="selectedThanas.includes(thana)" (change)="onThanaChange(thana, $event)">
               {{ thana }}
             </label>
           </li>
-
         </ul>
       </div>
     </div>
@@ -100,16 +102,8 @@
   </form>
 
 
-  <div *ngIf="vacancies.length > 0" class="mt-3">
-    <p style="background: rgba(0, 128, 128, 0.25);
-      width: 400px;
-      position: absolute;
-      text-align: center;
-      padding: 6px 0 4px 0;
-      border-radius: 25px;
-      border: 1px dotted orange;
-      z-index: 1;
-      color: darkred;" [innerHTML]="recordRange"></p> <!-- Displaying record range with bold text -->
+  <div *ngIf="vacancies.length > 0" class="mt-3 record-range-wrapper">
+    <p class="record-range-msg" [innerHTML]="recordRange"></p> <!-- Displaying record range with bold text -->
   </div>
 
   <!-- Results Table -->

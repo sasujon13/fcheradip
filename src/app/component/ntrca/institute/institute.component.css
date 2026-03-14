@@ -172,6 +172,12 @@ li {
   position: relative;
 }
 
+/* Dropdown panels on top of other fields when opened */
+.dropdown-menu,
+.dropdownx .dropdown-menu {
+  z-index: 1050;
+}
+
 .dropdown-header{
   border: none;
   padding: 5px 20px;

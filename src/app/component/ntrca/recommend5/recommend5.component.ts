@@ -242,7 +242,9 @@ export class Recommend5Component implements OnInit {
   selectedThanas: string[] = [];
   thanas: string[] = [];
   vacancies: any[] = [];
-  totalCount: number = 0; 
+  totalCount: number = 0;
+  /** Total rows in table (no filter), for "of total X Records!" */
+  totalRecordsInDb: number = 0;
   currentPage: number = 1;
   totalPages: number = 1;
   pageSize: number = 100;
@@ -259,6 +261,7 @@ export class Recommend5Component implements OnInit {
   ngOnInit(): void {
 
     this.getDistricts();
+    this.getTotalTableCount();
 
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
@@ -300,6 +303,11 @@ export class Recommend5Component implements OnInit {
     }
     this.http.get<string[]>(`${this.baseUrl}unique_districts/`, { params })
       .subscribe(res => this.districts = res);
+  }
+
+  getTotalTableCount() {
+    this.http.get<{ count: number }>(`${this.baseUrl}total_table_count/`)
+      .subscribe(res => this.totalRecordsInDb = res.count ?? 0);
   }
 
   onSubjectCodeChange() {
@@ -386,7 +394,7 @@ export class Recommend5Component implements OnInit {
         this.totalPages = Math.ceil(this.totalCount / this.pageSize);
         const startRecord = (this.currentPage - 1) * this.pageSize + 1;
         const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
-        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total 22,115 Records!`;
+        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
 
         setTimeout(() => {
           const el = this.scrollContainer?.nativeElement;

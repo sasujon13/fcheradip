@@ -248,6 +248,7 @@ export class Vacant5Component implements OnInit {
   selectedDistricts: string[] = [];
   vacancies: any[] = [];
   totalCount: number = 0; // Total number of records
+  totalRecordsInDb: number = 0;
   currentPage: number = 1; // Current page number
   totalPages: number = 1;
   pageSize: number = 100;
@@ -261,6 +262,7 @@ export class Vacant5Component implements OnInit {
 
   ngOnInit(): void {
 
+    this.getTotalTableCount();
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
     const unlockedEIINs = localStorage.getItem('unlockedEIINs');
@@ -301,6 +303,11 @@ export class Vacant5Component implements OnInit {
       rows.push(districts.slice(i, i + columns));
     }
     return rows;
+  }
+
+  getTotalTableCount() {
+    this.http.get<{ count: number }>(`${this.baseUrl}total_table_count/`)
+      .subscribe(res => this.totalRecordsInDb = res.count ?? 0);
   }
 
   onSubmit(): void {
@@ -347,7 +354,7 @@ export class Vacant5Component implements OnInit {
       this.totalPages = Math.ceil(this.totalCount / this.pageSize);
       const startRecord = (this.currentPage - 1) * this.pageSize + 1;
       const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
-      this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total 96,685 Records!`;
+      this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
 
       // Scroll to container
       setTimeout(() => {

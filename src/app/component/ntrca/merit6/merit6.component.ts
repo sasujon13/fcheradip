@@ -233,6 +233,7 @@ export class Merit6Component implements OnInit {
   selectedDistricts: string[] = [];
   vacancies: any[] = [];
   totalCount: number = 0; // Total number of records
+  totalRecordsInDb: number = 0;
   currentPage: number = 1; // Current page number
   totalPages: number = 1;
   pageSize: number = 100;
@@ -252,6 +253,7 @@ export class Merit6Component implements OnInit {
 
   ngOnInit(): void {
 
+    this.getTotalTableCount();
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
     const unlockedEIINs = localStorage.getItem('unlockedEIINs');
@@ -333,6 +335,11 @@ export class Merit6Component implements OnInit {
     return rows;
   }
 
+  getTotalTableCount() {
+    this.http.get<{ count: number }>(`${this.baseUrl}total_table_count/`)
+      .subscribe(res => this.totalRecordsInDb = res.count ?? 0);
+  }
+
   onSubmit(): void {
     this.currentPage = 1;
     this.loading = true;
@@ -367,7 +374,7 @@ export class Merit6Component implements OnInit {
         // Calculate the range of records to display
         const startRecord = (this.currentPage - 1) * this.pageSize + 1;
         const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
-        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> Total (3996+60,634)=64,630 Records!`;
+        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
         setTimeout(() => {
           if (this.scrollContainer?.nativeElement) {
             const element = this.scrollContainer.nativeElement;

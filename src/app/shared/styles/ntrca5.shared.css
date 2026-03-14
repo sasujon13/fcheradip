@@ -1458,3 +1458,60 @@ button.filter {
 ul.filterx {
   width: 188px;
 }
+
+/* Dropdown panels on top of other fields when opened */
+.dropdown-menu,
+.dropdownx .dropdown-menu {
+  z-index: 1050;
+}
+
+/* Same as /institutes: dropdown header and filter button showing selections */
+.dropdown-header {
+  border: none;
+  padding: 5px 20px;
+  margin-bottom: -10px;
+}
+
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 220px;
+  min-width: 120px;
+}
+
+.filter-btn .filter-label {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.filter-btn .filter-selections {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  text-align: right;
+  font-weight: 500;
+  width: 100%;
+}
+
+/* Record range: centered under search bar, middle aligned with search button */
+.record-range-wrapper {
+  width: 100%;
+  text-align: center;
+  margin-top: 0.5rem;
+  margin-bottom: -20px;
+}
+.record-range-msg {
+  display: inline-block;
+  background: rgba(0, 128, 128, 0.25);
+  padding: 6px 16px 4px 16px;
+  border-radius: 25px;
+  border: 1px dotted orange;
+  color: darkred;
+  text-align: center;
+  margin: 0;
+  z-index: 1;
+}
