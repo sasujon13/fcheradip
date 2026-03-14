@@ -1,12 +1,13 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { Location } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, filter } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
+import { slugForUrlDisplay } from 'src/app/url-serializer';
 
 @Component({
   selector: 'app-college-theme',
@@ -16,6 +17,8 @@ import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 export class CollegeThemeComponent implements OnInit {
   private banbeisUrl = `${environment.apiUrl}/banbeis/`;
   private institutesUrl = `${environment.apiUrl}/institutes/`;
+  /** Direct fetch by EIIN (no search). Used when opening from sitemap / eiin or eiin-name URL. */
+  private instituteByEiinUrl = `${environment.apiUrl}/institute/`;
   slug: string = '';
   eiin: string = '';
   loading = true;
@@ -25,6 +28,7 @@ export class CollegeThemeComponent implements OnInit {
   constructor(
     @Inject(DOCUMENT) private doc: Document,
     private route: ActivatedRoute,
+    private router: Router,
     private location: Location,
     private http: HttpClient,
     private lastInstitutes: LastInstitutesService
@@ -35,7 +39,55 @@ export class CollegeThemeComponent implements OnInit {
       this.slug = this.getSlugFromUrl();
       this.eiin = this.extractEiin(this.slug);
       this.loadData();
+      this.scheduleUrlNormalize();
     });
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd)
+    ).subscribe(() => this.scheduleUrlNormalize());
+  }
+
+  private normalizeScheduled = false;
+  private scheduleUrlNormalize(): void {
+    if (this.normalizeScheduled) return;
+    this.normalizeScheduled = true;
+    setTimeout(() => {
+      this.normalizeUrlToDisplayForm();
+      this.normalizeScheduled = false;
+    }, 150);
+  }
+
+  /**
+   * After opening from sitemap or an encoded link, rewrite the URL so the address bar
+   * shows Bengali (and Unicode) instead of percent-encoded form (%E0%A6%...).
+   */
+  private normalizeUrlToDisplayForm(): void {
+    const slug = this.getSlugFromUrl();
+    if (!slug) return;
+    const displayPath = `/institutes/${slugForUrlDisplay(slug)}`;
+    const current = (this.location.path() || '').replace(/^\/?/, '/').split('?')[0].split('#')[0];
+    const currentDecoded = this.decodePathForCompare(current);
+    const displayDecoded = this.decodePathForCompare(displayPath);
+    const hasEncodedUnicode = /%[0-9A-Fa-f]{2}%[0-9A-Fa-f]{2}/.test(current);
+    if (currentDecoded !== displayDecoded || hasEncodedUnicode) {
+      this.router.navigateByUrl(displayPath, { replaceUrl: true });
+      // Force address bar to show Bengali; retry in case Router or browser overwrites
+      [50, 200, 500].forEach((ms, i) => {
+        setTimeout(() => {
+          const now = (this.location.path() || '').replace(/^\/?/, '/').split('?')[0];
+          if (/%[0-9A-Fa-f]{2}%[0-9A-Fa-f]{2}/.test(now)) {
+            this.location.replaceState(displayPath);
+          }
+        }, ms);
+      });
+    }
+  }
+
+  private decodePathForCompare(path: string): string {
+    try {
+      return decodeURIComponent(path);
+    } catch {
+      return path;
+    }
   }
 
   /**
@@ -96,11 +148,14 @@ export class CollegeThemeComponent implements OnInit {
       this.loading = false;
       return;
     }
-    if (this.eiin) {
+    // Sitemap / direct links: slug is "903458" or "903458-ফ্রোবেল একাডেমি" – use EIIN and load from banbeis + institutes only (no search)
+    const eiinFromSlug = this.extractEiin(this.slug);
+    if (eiinFromSlug) {
+      this.eiin = eiinFromSlug;
       this.loadDataByEiin(this.eiin);
       return;
     }
-    // Slug is a name: search institutes; if no match, use last shown institutes (from storage) and replace URL with found EIIN
+    // Slug is name-only: search institutes; if no match, use last shown (from storage) and replace URL with eiin-name
     this.http.get<any>(`${this.institutesUrl}?q=${encodeURIComponent(this.slug)}&page=1`).pipe(
       map(res => {
         const list = res?.results || [];
@@ -130,7 +185,7 @@ export class CollegeThemeComponent implements OnInit {
         const useBengali = this.slugLooksBengali(this.slug) && nameBn;
         const newSlug = useBengali ? `${foundEiin}-${nameBn}` : (name ? `${foundEiin}-${name}` : foundEiin);
         if (newSlug !== this.slug) {
-          this.location.replaceState(`/institutes/${encodeURIComponent(newSlug)}`);
+          this.location.replaceState(`/institutes/${slugForUrlDisplay(newSlug)}`);
         }
       },
       error: () => {
@@ -140,6 +195,7 @@ export class CollegeThemeComponent implements OnInit {
     });
   }
 
+  /** Load institute data by EIIN from banbeis and institutes APIs (no search). */
   private loadDataByEiin(eiin: string): void {
     const banbeis$ = this.http.get<any>(`${this.banbeisUrl}?eiin=${encodeURIComponent(eiin)}`).pipe(
       map(res => {
@@ -149,7 +205,7 @@ export class CollegeThemeComponent implements OnInit {
       }),
       catchError(() => of(null))
     );
-    const institutes$ = this.http.get<any>(`${this.institutesUrl}?q=${encodeURIComponent(eiin)}&page=1`).pipe(
+    const institutes$ = this.http.get<any>(`${this.instituteByEiinUrl}?eiin=${encodeURIComponent(eiin)}`).pipe(
       map(res => {
         const list = res?.results || [];
         return list.length ? list[0] : null;

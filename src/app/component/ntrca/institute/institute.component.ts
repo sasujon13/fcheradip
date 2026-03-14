@@ -226,9 +226,11 @@ export class InstituteComponent implements OnInit {
   }
 
   handleInstitutesResponse(res: any, page: number) {
-    const results = res?.results ?? [];
-    const count = res?.count ?? 0;
+    let results = res?.results ?? [];
+    let count = res?.count ?? 0;
     if (results.length > 0) {
+      results = this.applyEiinPriority(results, this.searchTerm);
+      count = results.length;
       this.lastInstitutes.setLastShown(this.searchTerm, results);
       this.lastShownMessage = null;
       this.dataSource = results;
@@ -262,6 +264,30 @@ export class InstituteComponent implements OnInit {
     if (event.key === 'Enter') {
       this.onSearch();
     }
+  }
+
+  /**
+   * When user types a number: prioritize EIIN match (EIIN &lt; 10 digits).
+   * If 11 digits, treat as mobile search and do nothing. If &gt;2 results and search is EIIN-like, keep only EIIN matches.
+   */
+  private applyEiinPriority(results: any[], searchTerm: string): any[] {
+    const q = (searchTerm || '').trim();
+    if (q === '') return results;
+    const onlyDigits = /^\d+$/.test(q);
+    if (!onlyDigits) return results;
+    const len = q.length;
+    if (len >= 11) return results; // mobile number, no EIIN priority
+    if (len >= 10) return results; // EIIN is less than 10 digits
+    const eiinMatches = results.filter((inst) => this.getEiinFromInst(inst) === q);
+    const rest = results.filter((inst) => this.getEiinFromInst(inst) !== q);
+    const sorted = [...eiinMatches, ...rest];
+    if (sorted.length > 2) return eiinMatches.length > 0 ? eiinMatches : sorted;
+    return sorted;
+  }
+
+  private getEiinFromInst(inst: any): string {
+    const v = inst?.eiinNo ?? inst?.EIIN ?? inst?.id;
+    return v != null && v !== '' ? String(v).trim() : '';
   }
 
   /** Full slug for institute URL: "eiinNo-Institute Name" or just "eiinNo" if no name. */
