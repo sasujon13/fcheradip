@@ -248,6 +248,14 @@
   [showAlert]="showNoDataAlert2"></app-alert>
 <app-alert [message]="'You have to select Districts!!!'" 
   [showAlert]="showNoDataAlert3"></app-alert>
+<app-alert [message]="'Failed to validate Token! Try again to unlock more Details!'"
+  [showAlert]="showNoDataAlert6"></app-alert>
+<app-alert [message]="'Enter a valid 8-digit token to unlock more Details!'"
+  [showAlert]="showNoDataAlert7"></app-alert>
+<app-alert [message]="'Token Successfully Activated, Now Click on Lock Icon to Unlock Informations!'"
+  [showAlert]="showNoDataAlert8"></app-alert>
+<app-alert [message]="'Token Already Used! Request a new 8 Digit Token to unlock more Details!'"
+  [showAlert]="showNoDataAlert11"></app-alert>
 
 <div *ngIf="loading" class="loading-indicator">
   🔄 Please wait... loading data.
