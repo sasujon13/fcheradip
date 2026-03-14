@@ -52,7 +52,7 @@
 
     <div class="form-group selection">
       <label class="selection" style="width: 190px" for="designation">Subject Code :&nbsp;&nbsp;</label>
-      <select id="designation" [(ngModel)]="selectedDesignation" name="designation" class="form-control">
+      <select id="designation" [(ngModel)]="selectedDesignation" name="designation" class="form-control" (ngModelChange)="onSubjectCodeChange()">
         <option style="text-align: center;" value="" disabled selected hidden>Click to Select your Subject Code</option>
         <option *ngFor="let designation of designations" [value]="designation">{{ designation }}</option>
       </select>
@@ -250,13 +250,6 @@
       [disabled]="currentPage === totalPages">Next</button>
   </div>
 
-  <!-- <h1 style="text-align: center; margin-top: 20px; margin-bottom: -20px; color: orangered;"><b>শূন্যপদ দেখতে সমস্যা হলে
-      নিচের ভিডিও দেখুন!</b></h1>
-  <div *ngFor="let link of youtube" class="video-container" style="width: calc(100% - 80px); margin: 40px;">
-    <iframe [src]="link | safeUrl" frameborder="0" allowfullscreen>
-    </iframe>
-  </div>
-  <img src="../../../assets/images/co.jpg" style="width: calc(100% - 80px); margin: 40px;"> -->
   <app-ntrca-footer-section
     [firstAlertMessage]="'Select Subject Code to Search!'"
     [(newToken)]="newToken"

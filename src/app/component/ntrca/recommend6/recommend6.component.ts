@@ -306,8 +306,19 @@ export class Recommend6Component implements OnInit {
   }
 
   getDistricts() {
-    this.http.get<string[]>(`${this.baseUrl}unique_districts/`)
+    let params = new HttpParams();
+    if (this.selectedDesignation) {
+      params = params.set('code', this.selectedDesignation);
+    }
+    this.http.get<string[]>(`${this.baseUrl}unique_districts/`, { params })
       .subscribe(res => this.districts = res);
+  }
+
+  onSubjectCodeChange() {
+    this.selectedDistricts = [];
+    this.selectedThanas = [];
+    this.thanas = [];
+    this.getDistricts();
   }
 
   onDistrictChange(district: string, event: any) {
@@ -326,6 +337,9 @@ export class Recommend6Component implements OnInit {
     }
 
     let params = new HttpParams();
+    if (this.selectedDesignation) {
+      params = params.set('code', this.selectedDesignation);
+    }
     this.selectedDistricts.forEach(d => {
       params = params.append('district', d);
     });
