@@ -29,7 +29,7 @@
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
       <a style="text-decoration: none;" [routerLink]="['/recommend8']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a>
-      <br>৭ম গণবিজ্ঞপ্তি<p class="br br1"></p> <a style="text-decoration: none;" [routerLink]="['/vacant7']" routerLinkActive="active-link"
+      <br>৭ম গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant7']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
       <a style="text-decoration: none;" [routerLink]="['/merit7']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
@@ -74,7 +74,6 @@
     <p class="record-range-msg" [innerHTML]="recordRange"></p>
   </div>
 
-  <!-- Results Table -->
   <div class="table-scroll" #scrollContainer (mousedown)="startScroll($event)" (mouseup)="stopScroll()"
     (mouseleave)="stopScroll()" (mousemove)="onScroll($event)">
     <table class="table mt-4 mytable" *ngIf="vacancies.length > 0">
@@ -116,6 +115,7 @@
   </div>
 
   <app-ntrca-footer-section
+    [firstAlertMessage]="'Select Subject Code to Search!'"
     [(newToken)]="newToken"
     (applyTokenClick)="applyToken()"
     [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"

@@ -22,13 +22,16 @@ import { MobileComponent } from './component/user/mobile/mobile.component';
 import { IndexComponent } from './component/index/index.component';
 import { NtrcaComponent } from './component/ntrca/ntrca/ntrca.component';
 import { Vacant7Component } from './component/ntrca/vacant7/vacant7.component';
+import { Vacant8Component } from './component/ntrca/vacant8/vacant8.component';
 import { Vacant5Component } from './component/ntrca/vacant5/vacant5.component';
 import { Vacant6Component } from './component/ntrca/vacant6/vacant6.component';
 import { Merit7Component } from './component/ntrca/merit7/merit7.component';
+import { Merit8Component } from './component/ntrca/merit8/merit8.component';
 import { Merit5Component } from './component/ntrca/merit5/merit5.component';
 import { Merit6Component } from './component/ntrca/merit6/merit6.component';
 import { BanbeisComponent } from './component/ntrca/banbeis/banbeis.component';
 import { Recommend7Component } from './component/ntrca/recommend7/recommend7.component';
+import { Recommend8Component } from './component/ntrca/recommend8/recommend8.component';
 import { Recommend5Component } from './component/ntrca/recommend5/recommend5.component';
 import { Recommend6Component } from './component/ntrca/recommend6/recommend6.component';
 import { InstituteComponent } from './component/ntrca/institute/institute.component';
@@ -54,9 +57,11 @@ const routes: Routes = [
   {path:'books', component: BooksComponent},
   {path:'ntrca', component: NtrcaComponent},
   {path:'vacant7', component: Vacant7Component},
+  {path:'vacant8', component: Vacant8Component},
   {path:'vacant5', component: Vacant5Component},
   {path:'vacant6', component: Vacant6Component},
   {path:'merit7', component: Merit7Component},
+  {path:'merit8', component: Merit8Component},
   {path:'merit5', component: Merit5Component},
   {path:'merit6', component: Merit6Component},
   {path:'institute', component: BanbeisComponent},
@@ -68,6 +73,7 @@ const routes: Routes = [
     ]
   },
   {path:'recommend7', component: Recommend7Component},
+  {path:'recommend8', component: Recommend8Component},
   {path:'recommend5', component: Recommend5Component},
   {path:'recommend6', component: Recommend6Component},
   {path:'choice', component: ChoiceComponent},

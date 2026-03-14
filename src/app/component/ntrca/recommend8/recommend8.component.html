@@ -29,23 +29,20 @@
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
       <a style="text-decoration: none;" [routerLink]="['/recommend8']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a>
-      <br>৭ম গণবিজ্ঞপ্তি<p class="br br1"></p> <a style="text-decoration: none;" [routerLink]="['/vacant7']"
-        routerLinkActive="active-link" style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i
-          class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
+      <br>৭ম গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant7']" routerLinkActive="active-link"
+        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
       <a style="text-decoration: none;" [routerLink]="['/merit7']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
       <a style="text-decoration: none;" [routerLink]="['/recommend7']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a>
-      <br>৬ষ্ঠ গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant6']"
-        routerLinkActive="active-link" style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i
-          class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
+      <br>৬ষ্ঠ গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant6']" routerLinkActive="active-link"
+        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
       <a style="text-decoration: none;" [routerLink]="['/merit6']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
       <a style="text-decoration: none;" [routerLink]="['/recommend6']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a>
-      <br>৫ম গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant5']"
-        routerLinkActive="active-link" style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i
-          class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
+      <br>৫ম গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant5']" routerLinkActive="active-link"
+        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
       <a style="text-decoration: none;" [routerLink]="['/merit5']" routerLinkActive="active-link"
         style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
       <a style="text-decoration: none;" [routerLink]="['/recommend5']" routerLinkActive="active-link"
@@ -60,39 +57,56 @@
   <form class="selection" (ngSubmit)="onSubmit()">
 
     <div class="form-group selection">
-      <label class="selection" style="width: 190px" for="designation">Designation :&nbsp;&nbsp;</label>
-      <select id="designation" [(ngModel)]="selectedDesignation" name="designation" class="form-control"
-        (change)="onDesignationChange()">
-        <option style="text-align: center;" value="" disabled selected hidden>Click to Select your Designation</option>
+      <label class="selection" style="width: 190px" for="designation">Subject Code :&nbsp;&nbsp;</label>
+      <select id="designation" [(ngModel)]="selectedDesignation" name="designation" class="form-control" (ngModelChange)="onSubjectCodeChange()">
+        <option style="text-align: center;" value="" disabled selected hidden>Click to Select your Subject Code</option>
         <option *ngFor="let designation of designations" [value]="designation">{{ designation }}</option>
       </select>
     </div>
+    <br>
 
-    <div class="form-group selection">
-      <label class="selection" style="width: 90px" for="subject">Post :&nbsp;&nbsp;</label>
-      <select id="subject" [(ngModel)]="selectedSubject" name="subject" class="form-control">
-        <option style="text-align: center;" value="" disabled selected hidden>Click to Select your Subject</option>
-        <option *ngFor="let subject of subjects" [value]="subject">{{ subject }}</option>
-      </select>
+    <div class="filter">
+      <div class="dropdownx mb-3">
+        <button class="btn btn-outline-primary dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+          <span class="filter-label" *ngIf="selectedDistricts.length === 0">Districts</span>
+          <span class="filter-selections" *ngIf="selectedDistricts.length > 0" [title]="selectedDistricts.join(', ')">{{ selectedDistricts.join(', ') }}</span>
+        </button>
+        <ul class="dropdown-menu scrollable-menu filterx">
+          <li class="dropdown-header">Select District</li>
+          <li *ngFor="let district of districts" class="filter">
+            <label class="dropdown-item">
+              <input type="checkbox" [checked]="selectedDistricts.includes(district)"
+                (change)="onDistrictChange(district, $event)">
+              {{ district }}
+            </label>
+          </li>
+        </ul>
+      </div>&nbsp;&nbsp;&nbsp;&nbsp;
+
+      <div class="dropdownx mb-3" *ngIf="thanas.length > 0">
+        <button class="btn btn-outline-success dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+          <span class="filter-label" *ngIf="selectedThanas.length === 0">Thanas</span>
+          <span class="filter-selections" *ngIf="selectedThanas.length > 0" [title]="selectedThanas.join(', ')">{{ selectedThanas.join(', ') }}</span>
+        </button>
+        <ul class="dropdown-menu scrollable-menu filterx">
+          <li class="dropdown-header">Select Thana</li>
+          <li *ngFor="let thana of thanas" class="filter">
+            <label class="dropdown-item">
+              <input type="checkbox" [checked]="selectedThanas.includes(thana)" (change)="onThanaChange(thana, $event)">
+              {{ thana }}
+            </label>
+          </li>
+        </ul>
+      </div>
     </div>
-    <br>
-    <button type="button" class="check"
-      style="margin-bottom: -20px; background-color: orange; color: blue; font-size: 18px; padding: 7px 12px; border-radius: 20px;"
-      (click)="toggleAllDistricts()">
-      Check/Uncheck All Districts
-    </button>
-    <div class="form-group"><br>
-      <table class="district-table">
-        <tr *ngFor="let row of tableRows">
-          <td *ngFor="let district of row"> <input type="checkbox" [checked]="selectedDistricts!.includes(district)"
-              (change)="onDistrictSelectionChange(district, $event)" /> {{ district }} </td>
-        </tr>
-      </table>
+
+    <button type="submit" class="newButton btn btn-primary"><span class="fa fa-search"></span>&nbsp;&nbsp;S e a r c h</button>
+    <div *ngIf="loading" class="loading-indicator2">
+      <span class="fa fa-spinner fa-spin"></span>
     </div>
-    <br>
-    <button type="submit" class="newButton btn btn-primary"><span class="fa fa-search"></span>&nbsp;&nbsp;S e a r c
-      h</button>
+
   </form>
+
 
   <div *ngIf="vacancies.length > 0" class="mt-3 record-range-wrapper">
     <p class="record-range-msg" [innerHTML]="recordRange"></p> <!-- Displaying record range with bold text -->
@@ -108,17 +122,18 @@
             <input type="checkbox" [checked]="isAllSelected" (change)="toggleSelectAll($event)" />
           </th>
           <th>SL</th>
-          <th>EIIN<br>Institute Name</th>
-          <th>District - Thana/Upz - Union<br>Mouza - Ward No</th>
-          <th>Designation<br>Post</th>
-          <th>Type<br>Vacancy</th>
-          <th>Unlock<br>All<br>Info.</th>
+          <!-- <th>EIIN</th> -->
+          <th>Roll<br>Name<br>Quota</th>
+          <th>Mark<br>Rank<br>Serial</th>
+          <th>Batch<br>Designation<br>Subject</th>
+          <th>Unlock<br>All Info<br>EIIN</th>
+          <th>Institute Type<br>Institute Name</th>
           <th>Education Levels</th>
           <th>MPO Levels</th>
-          <th>Teachers Contact</th>
           <th>SSC Depts</th>
           <th>HSC Depts</th>
-          <th>Pre. 3Years Students<br>2023 - 2022 - 2021</th>
+          <th>District - Thana/Upz - Union<br>PostOffice - Mouza - Ward No</th>
+          <th>Pre. 3Years Students<br>2023-2022-2021</th>
           <th>Total Students<br>2024</th>
           <th>Classwise Students<br>2024</th>
         </tr>
@@ -131,24 +146,18 @@
           </td>
 
           <td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
-          <td class="institute-name-cell">{{ vacancy.EIIN }}<br>
-            <ng-container *ngIf="getInstituteNameLines(vacancy.Name) as nameLines">
-              <span class="institute-line">{{ nameLines.line1 }}</span><span class="institute-line" *ngIf="nameLines.line2">{{ nameLines.line2 }}</span><span class="institute-line" *ngIf="nameLines.line3">{{ nameLines.line3 }}</span>
-            </ng-container></td>
-
-          <td>{{ vacancy.District }} - {{ vacancy.Thana }} - {{ vacancy.parameter?.results?.[0]?.Rejion || 'N/A' }}<br>
-            {{ vacancy.parameter?.results?.[0]?.Mouza ||
-            'N/A' }} - Ward No. {{ vacancy.parameter?.results?.[0]?.WardNo || 'N/A' }}</td>
-          <td>{{ vacancy.Designation }}<br>{{ vacancy.Subject }}</td>
-          <td>{{ vacancy.Type }} - {{ vacancy.Vacancy }}</td>
+          <!-- <td>{{ vacancy.EIIN }}</td> -->
+          <td>{{ vacancy.Roll }}<br>{{ vacancy.Name }}<br>{{ vacancy.Merit }}</td>
+          <td>{{ vacancy.Mark }}<br>{{ vacancy.Rank }}<br>{{ vacancy.Serial }}</td>
+          <td>{{ vacancy.Post }}<br>{{ vacancy.Designation }}<br>{{ vacancy.Subject }}</td>
           <td style="text-align: center;">
             <ng-container *ngIf="isEIINUnlocked(vacancy.EIIN)">
-              ✅<br>Unlocked
+              ✅<br>Unlocked<br>{{ vacancy.EIIN }}
             </ng-container>
 
             <ng-container *ngIf="!isEIINUnlocked(vacancy.EIIN)">
               <button *ngIf="!eiinLoading.has(vacancy.EIIN)" (click)="unlockEIIN(vacancy.EIIN)">
-                🔓<br>Unlock
+                🔓<br>Unlock<br>{{ vacancy.EIIN }}
               </button>
               <div *ngIf="eiinLoading.has(vacancy.EIIN)">
                 <span class="spinner"></span>
@@ -156,7 +165,10 @@
               </div>
             </ng-container>
           </td>
-
+          <td class="institute-name-cell">{{ vacancy.parameter?.results?.[0]?.InstituteType || 'N/A' }}<br>
+            <ng-container *ngIf="getInstituteNameLines(vacancy.parameter?.results?.[0]?.Name) as nameLines">
+              <span class="institute-line">{{ nameLines.line1 }}</span><span class="institute-line" *ngIf="nameLines.line2">{{ nameLines.line2 }}</span><span class="institute-line" *ngIf="nameLines.line3">{{ nameLines.line3 }}</span>
+            </ng-container></td>
           <td>
             <ng-container *ngIf="vacancy.parameter?.results?.[0]?.EducationLevels; else noMpo">
               <div *ngFor="let mpo of vacancy.parameter.results[0].EducationLevels.split(',')">
@@ -174,22 +186,6 @@
             <ng-template #noMpo>N/A</ng-template>
           </td>
           <td>
-            <ng-container *ngIf="vacancy.parameter?.results?.[0]?.Contact as contactString; else noMpo">
-              <!-- Show contacts based on expanded state -->
-              <div
-                *ngFor="let mpo of (expandedRows2[vacancy.EIIN] ? contactString.split(',') : contactString.split(',').slice(0, 2))">
-                {{ mpo.trim() }}
-              </div>
-              <div *ngIf="contactString.split(',').length > 2">
-                <button (click)="toggleExpand2(vacancy.EIIN)">
-                  {{ expandedRows2[vacancy.EIIN] ? 'View Less' : 'View All' }}
-                </button>
-              </div>
-            </ng-container>
-            <ng-template #noMpo>N/A</ng-template>
-          </td>
-
-          <td>
             <ng-container *ngIf="vacancy.parameter?.results?.[0]?.SSCDepts; else noMpo">
               <div *ngFor="let mpo of vacancy.parameter.results[0].SSCDepts.split(',')">
                 {{ mpo.trim() }}
@@ -205,6 +201,9 @@
             </ng-container>
             <ng-template #noMpo>N/A</ng-template>
           </td>
+          <td>{{ vacancy.District }} - {{ vacancy.Thana }} - {{ vacancy.parameter?.results?.[0]?.Rejion || 'N/A'
+            }}<br>{{ vacancy.parameter?.results?.[0]?.PostOffice || 'N/A' }} - {{ vacancy.parameter?.results?.[0]?.Mouza
+            || 'N/A' }} - {{ vacancy.parameter?.results?.[0]?.WardNo || 'N/A' }}</td>
           <td>
             <table class="inner-table" *ngIf="vacancy.parameter?.results?.[0]?.PreStats">
               <tr *ngFor="let row of vacancy.parameter.results[0].PreStats.split(';')">
@@ -214,7 +213,6 @@
               </tr>
             </table>
           </td>
-
           <td>
             <table class="inner-table" *ngIf="vacancy.parameter?.results?.[0]?.Record">
               <tr *ngFor="let rec of parseJSON(vacancy.parameter.results[0].Record)">
@@ -241,8 +239,7 @@
       </tbody>
     </table>
     <div class="button-container" style="text-align: center; align-items: center; display: block;">
-      <button class="printBtn" (click)="printSelected()">🖨️ Print Selected ({{ selectedEIINs.size }})</button><br><br>
-      <button class="printBtn" (click)="downloadAsPdf()">Download PDF ({{ selectedEIINs.size }})</button>
+      <button class="printBtn" (click)="printSelected()">🖨️ Print Selected ({{ selectedEIINs.size }})</button>
     </div>
 
   </div>
@@ -255,22 +252,21 @@
       [disabled]="currentPage === totalPages">Next</button>
   </div>
 
-<app-ntrca-footer-section
-  [(newToken)]="newToken"
-  (applyTokenClick)="applyToken()"
-  [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"
-  [showNoDataAlert]="showNoDataAlert"
-  [showNoDataAlert2]="showNoDataAlert2"
-  [showNoDataAlert3]="showNoDataAlert3"
-  [showNoDataAlert4]="showNoDataAlert4"
-  [showNoDataAlert5]="showNoDataAlert5"
-  [showNoDataAlert6]="showNoDataAlert6"
-  [showNoDataAlert7]="showNoDataAlert7"
-  [showNoDataAlert8]="showNoDataAlert8"
-  [showNoDataAlert9]="showNoDataAlert9"
-  [showNoDataAlert10]="showNoDataAlert10"
-  [showNoDataAlert11]="showNoDataAlert11"
-  [loading]="loading"
-  [isGeneratingPdf]="isGeneratingPdf"
-  [isGeneratingPdf2]="isGeneratingPdf2"
-></app-ntrca-footer-section>
+  <app-ntrca-footer-section
+    [firstAlertMessage]="'Select Subject Code to Search!'"
+    [(newToken)]="newToken"
+    (applyTokenClick)="applyToken()"
+    [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"
+    [showNoDataAlert]="showNoDataAlert"
+    [showNoDataAlert2]="showNoDataAlert2"
+    [showNoDataAlert3]="showNoDataAlert3"
+    [showNoDataAlert4]="showNoDataAlert4"
+    [showNoDataAlert5]="showNoDataAlert5"
+    [showNoDataAlert6]="showNoDataAlert6"
+    [showNoDataAlert7]="showNoDataAlert7"
+    [showNoDataAlert8]="showNoDataAlert8"
+    [showNoDataAlert9]="showNoDataAlert9"
+    [showNoDataAlert10]="showNoDataAlert10"
+    [showNoDataAlert11]="showNoDataAlert11"
+    [loading]="loading"
+  ></app-ntrca-footer-section>

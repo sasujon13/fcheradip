@@ -38,13 +38,16 @@ import { ChatComponent } from './component/faqs/chat/chat.component';
 import { PackagesComponent } from './component/products/packages/packages.component';
 import { NtrcaComponent } from './component/ntrca/ntrca/ntrca.component';
 import { Vacant7Component } from './component/ntrca/vacant7/vacant7.component';
+import { Vacant8Component } from './component/ntrca/vacant8/vacant8.component';
 import { Vacant5Component } from './component/ntrca/vacant5/vacant5.component';
 import { Vacant6Component } from './component/ntrca/vacant6/vacant6.component';
 import { Merit7Component } from './component/ntrca/merit7/merit7.component';
+import { Merit8Component } from './component/ntrca/merit8/merit8.component';
 import { Merit5Component } from './component/ntrca/merit5/merit5.component';
 import { Merit6Component } from './component/ntrca/merit6/merit6.component';
 import { BanbeisComponent } from './component/ntrca/banbeis/banbeis.component';
 import { Recommend7Component } from './component/ntrca/recommend7/recommend7.component';
+import { Recommend8Component } from './component/ntrca/recommend8/recommend8.component';
 import { Recommend5Component } from './component/ntrca/recommend5/recommend5.component';
 import { Recommend6Component } from './component/ntrca/recommend6/recommend6.component';
 import { InstituteComponent } from './component/ntrca/institute/institute.component';
@@ -98,13 +101,16 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     MobileComponent,
     NtrcaComponent,
     Vacant7Component,
+    Vacant8Component,
     Vacant5Component,
     Vacant6Component,
     Merit7Component,
+    Merit8Component,
     Merit5Component,
     Merit6Component,
     BanbeisComponent,
     Recommend7Component,
+    Recommend8Component,
     Recommend5Component,
     Recommend6Component,
     InstituteComponent,
