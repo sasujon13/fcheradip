@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, Renderer2 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { Location } from '@angular/common';
@@ -31,7 +31,7 @@ export class CollegeThemeComponent implements OnInit {
     private router: Router,
     private location: Location,
     private http: HttpClient,
-    private lastInstitutes: LastInstitutesService
+    private lastInstitutes: LastInstitutesService,
   ) {}
 
   ngOnInit(): void {

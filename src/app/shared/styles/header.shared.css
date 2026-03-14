@@ -2,7 +2,6 @@
 
 div.notification{
   text-align: center;
-  margin-top: 62px;
   margin-bottom: 0;
   width: 100vw;
   height: 52px;
@@ -38,7 +37,7 @@ div.profile_back{
 .marquee {
   white-space: nowrap;
   text-align: center;
-  margin-top: 79px;
+  margin-top: 72px;
   margin-bottom: -20px;
   position: fixed;
   z-index: 2;
@@ -429,9 +428,9 @@ i.fa-bars{
     transition: top 0.3s ease-in-out;
   }
   .sign_menu{
-    display: block;
+    display: flex !important;
     position: absolute;
-    margin-top: 132px;
+    margin-top: 129px;
     padding: 5px 10px;
     margin-right: 0;
   }
@@ -479,9 +478,6 @@ i.fa-bars{
   }
 }
 @media screen and (max-width: 539px) {
-  .marquee {
-    margin-top: 80px;
-  }
   .search-bar {
     top: 70px;
     margin: 0 auto;

@@ -255,16 +255,6 @@ export class Recommend5Component implements OnInit {
   ];
 
   constructor(private http: HttpClient, private renderer: Renderer2) { }
-  ngAfterViewInit(): void {
-    const signMenu = document.getElementById('sign_menu');
-    if (signMenu) {
-      this.renderer.setStyle(signMenu, 'display', 'none');
-    }
-    const profileMenu = document.getElementById('profileMenu');
-    if (profileMenu) {
-      this.renderer.setStyle(profileMenu, 'display', 'none');
-    }
-  }
 
   ngOnInit(): void {
 

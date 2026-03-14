@@ -238,13 +238,7 @@ export class BanbeisComponent implements OnInit {
     // Add more embed URLs here
   ];
 
-    constructor(private http: HttpClient, private renderer: Renderer2) { }
-    ngAfterViewInit(): void {
-      const signMenu = document.getElementById('sign_menu');
-      if (signMenu) {
-        this.renderer.setStyle(signMenu, 'display', 'flex');
-      }
-    }
+  constructor(private http: HttpClient) { }
 
   ngOnInit(): void {
     const deviceWidth = window.innerWidth;

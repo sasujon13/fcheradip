@@ -36,6 +36,18 @@ export class Merit7Component implements OnInit {
   showNoDataAlert: boolean = false;
   showNoDataAlert2: boolean = false;
   showNoDataAlert3: boolean = false;
+  showNoDataAlert4: boolean = false;
+  showNoDataAlert5: boolean = false;
+  showNoDataAlert6: boolean = false;
+  showNoDataAlert7: boolean = false;
+  showNoDataAlert8: boolean = false;
+  showNoDataAlert9: boolean = false;
+  showNoDataAlert10: boolean = false;
+  showNoDataAlert11: boolean = false;
+  showNoDataAlert12: boolean = false;
+  isGeneratingPdf: boolean = false;
+  isGeneratingPdf2: boolean = false;
+  newToken: string = '';
 
   designationToSubjects: { [key: string]: string[] } = {
     "Assistant Instructor": [
@@ -227,6 +239,10 @@ export class Merit7Component implements OnInit {
   pageSize: number = 100;
   tableRows: string[][] = [];
   maxDistrictSelection: number = 16;
+  freeUnlockLimit = 10;
+  unlockedEIINs: Set<string> = new Set();
+  eiinLoading: Set<string> = new Set();
+  selectedEIINs: Set<string> = new Set();
   youtube: string[] = [
     'https://www.youtube.com/embed/P-ZuTjaMhJA',
     'https://www.youtube.com/embed/fYrfZvcp7xc',
@@ -234,18 +250,16 @@ export class Merit7Component implements OnInit {
   ];
 
   constructor(private http: HttpClient, private renderer: Renderer2) { }
-  ngAfterViewInit(): void {
-    const signMenu = document.getElementById('sign_menu');
-    if (signMenu) {
-      this.renderer.setStyle(signMenu, 'display', 'none');
-    }
-    const profileMenu = document.getElementById('profileMenu');
-    if (profileMenu) {
-      this.renderer.setStyle(profileMenu, 'display', 'none');
-    }
-  }
 
   ngOnInit(): void {
+
+    const selected = localStorage.getItem('selectedEIINs');
+    if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
+    const unlockedEIINs = localStorage.getItem('unlockedEIINs');
+    if (unlockedEIINs) this.unlockedEIINs = new Set(JSON.parse(unlockedEIINs));
+    const stored = localStorage.getItem('freeUnlockLimit');
+    this.freeUnlockLimit = Number(stored) || 10;
+
     const deviceWidth = window.innerWidth;
     let columns = 12; // default
 
@@ -269,6 +283,46 @@ export class Merit7Component implements OnInit {
     }
     document.addEventListener('contextmenu', function (event) {
       event.preventDefault();
+    });
+  }
+
+  applyToken(): void {
+    if (!this.newToken || this.newToken.length !== 8) {
+      this.showNoDataAlert7 = false;
+      setTimeout(() => this.showNoDataAlert7 = true);
+      return;
+    }
+
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
+      next: (res) => {
+        const result = res?.results?.[0];
+        console.log(result);
+
+        if (result && result.Counter && Number(result.Status) === 0) {
+          const newLimit = Number(result.Counter);
+          this.freeUnlockLimit += newLimit;
+
+          localStorage.setItem('freeUnlockLimit', this.freeUnlockLimit.toString());
+
+          this.showNoDataAlert8 = false;
+          setTimeout(() => this.showNoDataAlert8 = true);
+
+          // 🔁 Update Token Status = 1 on the server
+          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 })
+            .subscribe({
+              next: () => console.log("Token status updated to 1"),
+              error: err => console.error("Failed to update token status", err)
+            });
+
+        } else {
+          this.showNoDataAlert11 = false;
+          setTimeout(() => this.showNoDataAlert11 = true);
+        }
+      },
+      error: () => {
+        this.showNoDataAlert6 = false;
+        setTimeout(() => this.showNoDataAlert6 = true);
+      }
     });
   }
 

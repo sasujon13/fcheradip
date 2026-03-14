@@ -262,16 +262,6 @@ export class NtrcaComponent implements OnInit {
   ];
 
   constructor(private http: HttpClient, private renderer: Renderer2) { }
-  ngAfterViewInit(): void {
-    const signMenu = document.getElementById('sign_menu');
-    if (signMenu) {
-      this.renderer.setStyle(signMenu, 'display', 'none');
-    }
-    const profileMenu = document.getElementById('profile_menu');
-    if (profileMenu) {
-      this.renderer.setStyle(profileMenu, 'display', 'none');
-    }
-  }
 
   ngOnInit(): void {
 
@@ -303,9 +293,9 @@ export class NtrcaComponent implements OnInit {
     if (searchBarElement) {
       searchBarElement.style.display = 'block';
     }
-    document.addEventListener('contextmenu', function (event) {
-      event.preventDefault();
-    });
+    // document.addEventListener('contextmenu', function (event) {
+    //   event.preventDefault();
+    // });
 
   }
 
@@ -1017,7 +1007,7 @@ export class NtrcaComponent implements OnInit {
       return;
     }
 
-    this.http.get<any>(`https://cheradip.com/api/token/?token=${this.newToken}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
       next: (res) => {
         const result = res?.results?.[0];
         console.log(result);

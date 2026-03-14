@@ -62,17 +62,10 @@ export class InstituteComponent implements OnInit {
     if (searchBarElement) {
       searchBarElement.style.display = 'block';
     }
-    // document.addEventListener('contextmenu', function (event) {
-    //   event.preventDefault();
-    // });
+    document.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+    });
 
-  }
-
-  ngAfterViewInit(): void {
-    const signMenu = document.getElementById('sign_menu');
-    if (signMenu) {
-      this.renderer.setStyle(signMenu, 'display', 'flex');
-    }
   }
 
   buildFilterParams(): HttpParams {
