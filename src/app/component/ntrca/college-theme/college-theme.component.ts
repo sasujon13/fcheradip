@@ -1,9 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { Location } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
+import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 
 @Component({
   selector: 'app-college-theme',
@@ -20,35 +23,68 @@ export class CollegeThemeComponent implements OnInit {
   data: any = null;
 
   constructor(
+    @Inject(DOCUMENT) private doc: Document,
     private route: ActivatedRoute,
-    private http: HttpClient
+    private location: Location,
+    private http: HttpClient,
+    private lastInstitutes: LastInstitutesService
   ) {}
 
   ngOnInit(): void {
-    this.route.paramMap.subscribe(params => {
-      this.slug = params.get('slug') || '';
+    this.route.paramMap.subscribe(() => {
+      this.slug = this.getSlugFromUrl();
       this.eiin = this.extractEiin(this.slug);
       this.loadData();
     });
   }
 
+  /**
+   * Read slug from URL path so parentheses ( ) [ ] and other special chars are preserved.
+   * Router path params break on these chars; we always read from the actual path.
+   */
+  private getSlugFromUrl(): string {
+    try {
+      let path = (this.location.path() || '').replace(/^\/?/, '/');
+      const prefix = '/institutes/';
+      if (!path.startsWith(prefix)) {
+        return this.route.snapshot.paramMap.get('slug') || '';
+      }
+      let raw = path.slice(prefix.length).replace(/\/+$/, '').split('?')[0].trim();
+      if (!raw) return '';
+      try {
+        raw = decodeURIComponent(raw);
+      } catch {
+        // keep raw
+      }
+      return raw.replace(/\/+$/, '');
+    } catch {
+      return this.route.snapshot.paramMap.get('slug') || '';
+    }
+  }
+
+  /** True if slug contains Bengali script (so we keep/use Bengali URL for SEO). */
+  private slugLooksBengali(slug: string): boolean {
+    return /[\u0980-\u09FF]/.test(slug || '');
+  }
+
   /** True if slug looks like an EIIN (only digits, or digits followed by hyphen). */
   private slugIsEiin(slug: string): boolean {
     if (!slug || !slug.trim()) return false;
-    const s = slug.trim();
+    const s = slug.trim().replace(/\/+$/, '');
     const firstHyphen = s.indexOf('-');
     const beforeHyphen = firstHyphen >= 0 ? s.substring(0, firstHyphen).trim() : s;
     return /^\d+$/.test(beforeHyphen);
   }
 
-  /** Extract EIIN from slug: "100002" or "100002-NAYAVIZORA B. N. A HIGH SCHOOL" yield "100002". Name-only slugs yield "". */
+  /**
+   * Extract EIIN from slug for direct load (no search).
+   * Sitemap/links use eiin or eiin-name; we take leading digits so we always load by EIIN when present.
+   */
   private extractEiin(slug: string): string {
-    if (!slug) return '';
-    const s = slug.trim();
-    if (!this.slugIsEiin(s)) return '';
-    const firstHyphen = s.indexOf('-');
-    if (firstHyphen > 0) return s.substring(0, firstHyphen).trim();
-    return s;
+    if (!slug || !slug.trim()) return '';
+    const s = slug.trim().replace(/\/+$/, '');
+    const leadingDigits = s.match(/^\d+/);
+    return leadingDigits ? leadingDigits[0] : '';
   }
 
   loadData(): void {
@@ -64,7 +100,7 @@ export class CollegeThemeComponent implements OnInit {
       this.loadDataByEiin(this.eiin);
       return;
     }
-    // Slug is a name (e.g. "K. B. M. COLLGE, DINAJPUR"): search institutes, take best match, then load by EIIN
+    // Slug is a name: search institutes; if no match, use last shown institutes (from storage) and replace URL with found EIIN
     this.http.get<any>(`${this.institutesUrl}?q=${encodeURIComponent(this.slug)}&page=1`).pipe(
       map(res => {
         const list = res?.results || [];
@@ -73,7 +109,15 @@ export class CollegeThemeComponent implements OnInit {
       catchError(() => of(null))
     ).subscribe({
       next: (match) => {
-        const foundEiin = match?.eiinNo != null ? String(match.eiinNo) : (match?.EIIN != null ? String(match.EIIN) : '');
+        let foundEiin = match?.eiinNo != null ? String(match.eiinNo) : (match?.EIIN != null ? String(match.EIIN) : '');
+        let foundInstitute = match;
+        if (!foundEiin) {
+          const best = this.lastInstitutes.getBestMatchForSlug(this.slug);
+          if (best) {
+            foundEiin = best.eiin;
+            foundInstitute = best.institute;
+          }
+        }
         if (!foundEiin) {
           this.error = 'No matching institute found for this name.';
           this.loading = false;
@@ -81,6 +125,13 @@ export class CollegeThemeComponent implements OnInit {
         }
         this.eiin = foundEiin;
         this.loadDataByEiin(this.eiin);
+        const name = (foundInstitute?.instituteName ?? foundInstitute?.Name ?? '').trim();
+        const nameBn = (foundInstitute?.instituteNameBn ?? '').trim();
+        const useBengali = this.slugLooksBengali(this.slug) && nameBn;
+        const newSlug = useBengali ? `${foundEiin}-${nameBn}` : (name ? `${foundEiin}-${name}` : foundEiin);
+        if (newSlug !== this.slug) {
+          this.location.replaceState(`/institutes/${encodeURIComponent(newSlug)}`);
+        }
       },
       error: () => {
         this.error = 'Unable to search institutes.';
@@ -110,6 +161,8 @@ export class CollegeThemeComponent implements OnInit {
         this.data = this.mergeData(banbeis, institutes);
         if (!this.data || (!banbeis && !institutes)) {
           this.error = 'No details found for this institute.';
+        } else {
+          this.setInstituteSeoLinks(this.data);
         }
         this.loading = false;
       },
@@ -165,6 +218,44 @@ export class CollegeThemeComponent implements OnInit {
       PostCode: b.PostCode ?? null,
       WardNo: b.WardNo ?? null,
     };
+  }
+
+  /**
+   * Add canonical + hreflang (en/bn) links so both English and Bengali institute URLs
+   * are valid and Google can show the right one for search language.
+   */
+  private setInstituteSeoLinks(data: any): void {
+    const head = this.doc.head;
+    if (!head) return;
+    const eiin = String(data?.EIIN ?? data?.eiinNo ?? '').trim();
+    if (!eiin) return;
+    const nameEn = (data?.instituteName ?? data?.Name ?? '').trim();
+    const nameBn = (data?.instituteNameBn ?? '').trim();
+    const base = this.doc.querySelector('base')?.getAttribute('href') || '/';
+    const baseUrl = base.startsWith('http') ? base.replace(/\/$/, '') : (this.doc.location?.origin || '') + (base === '/' ? '' : base.replace(/\/$/, ''));
+    const slugEn = nameEn ? `${eiin}-${nameEn}` : eiin;
+    const slugBn = nameBn ? `${eiin}-${nameBn}` : slugEn;
+    const urlEn = `${baseUrl}/institutes/${encodeURIComponent(slugEn)}`;
+    const urlBn = `${baseUrl}/institutes/${encodeURIComponent(slugBn)}`;
+    const ids = ['institute-canonical', 'institute-alternate-en', 'institute-alternate-bn'];
+    ids.forEach(id => this.doc.getElementById(id)?.remove());
+    const canonical = this.doc.createElement('link');
+    canonical.rel = 'canonical';
+    canonical.href = urlEn;
+    canonical.id = 'institute-canonical';
+    head.appendChild(canonical);
+    const altEn = this.doc.createElement('link');
+    altEn.rel = 'alternate';
+    altEn.hreflang = 'en';
+    altEn.href = urlEn;
+    altEn.id = 'institute-alternate-en';
+    head.appendChild(altEn);
+    const altBn = this.doc.createElement('link');
+    altBn.rel = 'alternate';
+    altBn.hreflang = 'bn';
+    altBn.href = urlBn;
+    altBn.id = 'institute-alternate-bn';
+    head.appendChild(altBn);
   }
 
   get name(): string {

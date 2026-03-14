@@ -2,6 +2,8 @@ import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 
+import { UrlSerializer } from '@angular/router';
+import { ParenthesisSafeUrlSerializer } from './url-serializer';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HeaderComponent } from './shared/header/header.component';
@@ -142,6 +144,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
   providers: [
     MatSnackBar,
     { provide: HTTP_INTERCEPTORS, useClass: LanguageInterceptor, multi: true },
+    { provide: UrlSerializer, useClass: ParenthesisSafeUrlSerializer },
   ],
   bootstrap: [AppComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],

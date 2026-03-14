@@ -83,6 +83,8 @@
     <i (click)="onSearch()" class="fa fa-search"></i>
   </div>
 
+  <p *ngIf="lastShownMessage" class="last-shown-msg" role="status">{{ lastShownMessage }}</p>
+
 </div>
 <ul class="item-list">
   <li *ngFor="let inst of dataSource">
@@ -157,7 +159,7 @@
       </table>
       <p class="price">{{ inst.mouzaNameBn }}, {{ inst.thanaNameBn }}, {{ inst.districtNameBn }}</p>
       <p class="footer">
-        <a [routerLink]="['/institutes', inst.eiinNo]" routerLinkActive="[inst.eiinNo]" class="item_footer">
+        <a [routerLink]="['/institutes', getInstituteSlug(inst)]" [routerLinkActive]="getInstituteSlug(inst)" class="item_footer">
           <i class="fa fa-shopping-cart"></i>Click to Show More Details...
         </a>
       </p>

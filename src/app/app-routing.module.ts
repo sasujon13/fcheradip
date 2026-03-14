@@ -60,8 +60,13 @@ const routes: Routes = [
   {path:'merit5', component: Merit5Component},
   {path:'merit6', component: Merit6Component},
   {path:'institute', component: BanbeisComponent},
-  {path:'institutes/:slug', component: CollegeThemeComponent},
-  {path:'institutes', component: InstituteComponent},
+  {
+    path: 'institutes',
+    children: [
+      { path: '', component: InstituteComponent },
+      { path: '**', component: CollegeThemeComponent }
+    ]
+  },
   {path:'recommend7', component: Recommend7Component},
   {path:'recommend5', component: Recommend5Component},
   {path:'recommend6', component: Recommend6Component},

@@ -16,14 +16,15 @@ div.comment {
 .package {
   width: 100%;
   text-align: center;
-  background-color: #7ac7bc;
+  background-color: rgb(105, 185, 185);
   ;
   margin-top: 20px;
   height: 285px;
 }
 
 .tblhead {
-  background-color: gold;
+  background-color: teal;
+  color: white;
 }
 
 .tblth {
@@ -37,7 +38,7 @@ div.comment {
 }
 
 td {
-  color: darkgreen;
+  color: white;
 }
 
 del {
@@ -124,6 +125,15 @@ select.itemSize:hover {
   font-size: 18px;
 }
 
+.last-shown-msg {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: darkred;
+  background: #f0f8ff;
+  border-radius: 8px;
+  text-align: center;
+}
 
 @keyframes pulse {
   0% {

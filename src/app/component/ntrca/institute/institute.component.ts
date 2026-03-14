@@ -1,5 +1,6 @@
 import { Component, OnInit, Renderer2 } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
+import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { debounceTime, Subject } from 'rxjs';
 import { environment } from 'src/environments/environment';
@@ -37,7 +38,15 @@ export class InstituteComponent implements OnInit {
   pageIndex: number = 1;
   pageSize: number = 100;
 
-  constructor(private apiService: ApiService, private http: HttpClient, private renderer: Renderer2) { }
+  /** When current search returned no results, we show last shown results and this message. */
+  lastShownMessage: string | null = null;
+
+  constructor(
+    private apiService: ApiService,
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private lastInstitutes: LastInstitutesService
+  ) {}
 
   ngOnInit(): void {
     this.getTypes();
@@ -217,13 +226,30 @@ export class InstituteComponent implements OnInit {
   }
 
   handleInstitutesResponse(res: any, page: number) {
-    this.dataSource = res.results;
-    this.totalInstitutes = res.count;
-    this.pageSize = res.results.length;
+    const results = res?.results ?? [];
+    const count = res?.count ?? 0;
+    if (results.length > 0) {
+      this.lastInstitutes.setLastShown(this.searchTerm, results);
+      this.lastShownMessage = null;
+      this.dataSource = results;
+      this.totalInstitutes = count;
+    } else {
+      const last = this.lastInstitutes.getLastShown();
+      if (last && last.results.length > 0) {
+        this.dataSource = last.results;
+        this.totalInstitutes = last.results.length;
+        this.lastShownMessage = `No results for "${this.searchTerm}". Showing last results for "${last.query}".`;
+      } else {
+        this.dataSource = [];
+        this.totalInstitutes = 0;
+        this.lastShownMessage = null;
+      }
+    }
+    this.pageSize = this.dataSource.length;
     this.pageIndex = page;
     this.pageSize = 100;
-    this.next = res.next;
-    this.previous = res.previous;
+    this.next = res?.next ?? null;
+    this.previous = res?.previous ?? null;
   }
 
 
@@ -236,6 +262,14 @@ export class InstituteComponent implements OnInit {
     if (event.key === 'Enter') {
       this.onSearch();
     }
+  }
+
+  /** Full slug for institute URL: "eiinNo-Institute Name" or just "eiinNo" if no name. */
+  getInstituteSlug(inst: any): string {
+    const eiin = inst?.eiinNo ?? inst?.EIIN ?? inst?.id ?? '';
+    const name = (inst?.instituteName || inst?.Name || '').trim();
+    if (name) return `${eiin}-${name}`;
+    return String(eiin);
   }
 
   onSearch() {
