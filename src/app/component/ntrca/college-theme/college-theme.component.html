@@ -1,0 +1,135 @@
+<div class="college-theme" *ngIf="!loading && !error && data">
+  <header class="ct-header">
+    <div class="ct-header-inner">
+      <div class="ct-wave ct-wave-1" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-2" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-3" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-4" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-5" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-6" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-7" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-8" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-diag ct-wave-diag-1" aria-hidden="true"></div>
+      <div class="ct-wave ct-wave-diag ct-wave-diag-2" aria-hidden="true"></div>
+      <div class="ct-header-inner-content">
+        <h1 class="ct-title">{{ name }}<br>{{ instituteNameBn }}</h1>
+        <p class="ct-eiin"><b>EIIN: {{ data?.EIIN ?? data?.eiinNo ?? '—' }}</b></p>
+      </div>
+    </div>
+  </header>
+
+  <main class="ct-main">
+    <section class="ct-section ct-basic">
+      <h2 class="ct-section-title">Basic Information</h2>
+      <table class="ct-table">
+        <tbody>
+          <tr><th>Name (English)</th><td>{{ data?.Name ?? data?.instituteName ?? '—' }}</td></tr>
+          <tr *ngIf="data?.instituteNameBn"><th>Name (বাংলা)</th><td>{{ data.instituteNameBn }}</td></tr>
+          <tr><th>Institute Type - EIIN</th><td>{{ data?.InstituteType ?? data?.instituteTypeName ?? '—' }} - {{ data?.EIIN ?? data?.eiinNo ?? '—' }}</td></tr>
+          <tr><th>Address</th><td>
+            Division: {{ data?.divisionName ?? data?.Rejion ?? '—' }}<br>
+            District: {{ data?.District ?? data?.districtName ?? '—' }}<br>
+            Thana: {{ data?.Thana ?? data?.thanaName ?? '—' }}<br>
+            Mouza: {{ data?.Mouza ?? data?.mouzaName ?? '—' }}<br>
+            Post Office: {{ data?.PostOffice ?? '—' }} - {{ data?.PostCode ?? '—' }}<br>
+            Ward No: {{ data?.WardNo ?? '—' }}</td></tr>
+          <tr *ngIf="data?.divisionNameBn"><th>ঠিকানা (বাংলা)</th><td>
+            বিভাগ: {{ data.divisionNameBn?? data?.Rejion ?? '—' }}<br>
+            জেলা: {{ data?.districtNameBn ?? '—' }}<br>
+            উপজেলা: {{ data?.thanaNameBn ?? '—' }}<br>
+            মৌজা: {{ data?.mouzaNameBn ?? '—' }}<br>
+            পোস্ট অফিস: {{ data?.PostOffice ?? '—' }} - {{ data?.PostCode ?? '—' }}<br>
+            ওয়ার্ড নং: {{ data?.WardNo ?? '—' }}</td></tr>
+          <tr><th>Govt. Status</th><td>{{ govtStatusText }}</td></tr>
+          <tr *ngIf="data?.year"><th>Year</th><td>{{ data.year }} ({{ data.submissionDate }})</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ct-section" *ngIf="data?.mobile || data?.mobileAlternate || data?.email">
+      <h2 class="ct-section-title">Contact &amp; Registration</h2>
+      <table class="ct-table">
+        <tbody>
+          <tr *ngIf="data?.mobile"><th>Mobile</th><td><span class="ct-copy" (click)="copyToClipboard(data.mobile)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(data.mobile)" (keydown.space)="copyToClipboard(data.mobile); $event.preventDefault()">{{ data.mobile }}</span></td></tr>
+          <tr *ngIf="data?.mobileAlternate"><th>Alternate Mobile</th><td><span class="ct-copy" (click)="copyToClipboard(data.mobileAlternate)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(data.mobileAlternate)" (keydown.space)="copyToClipboard(data.mobileAlternate); $event.preventDefault()">{{ data.mobileAlternate }}</span></td></tr>
+          <tr *ngIf="data?.email"><th>Email</th><td><a [href]="'mailto:' + data.email" class="ct-link ct-copy" (click)="copyToClipboard(data.email, $event)" role="button">{{ data.email }}</a></td></tr>
+          <tr><th>Other Contacts</th><td><span *ngFor="let item of contactList; let i = index"><span class="ct-copy" (click)="copyToClipboard(item)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(item)" (keydown.space)="copyToClipboard(item); $event.preventDefault()">{{ item }}</span>{{ i < contactList.length - 1 ? ', ' : '' }}</span></td></tr>
+        </tbody>
+      </table>
+      <p *ngIf="copyFeedback" class="ct-copy-feedback" aria-live="polite">Copied to clipboard</p>
+    </section>
+
+    <section class="ct-section" *ngIf="data?.EducationLevels || data?.SSCDepts || data?.HSCDepts">
+      <h2 class="ct-section-title">Education &amp; Departments</h2>
+      <table class="ct-table">
+        <tbody>
+          <tr *ngIf="data?.EducationLevels"><th>Education Levels</th><td>{{ data.EducationLevels }}</td></tr>
+          <tr *ngIf="data?.SSCDepts"><th>SSC Departments</th><td>{{ data.SSCDepts }}</td></tr>
+          <tr *ngIf="data?.HSCDepts"><th>HSC Departments</th><td>{{ data.HSCDepts }}</td></tr>
+          <tr *ngIf="data?.MPO"><th>MPO</th><td>{{ data.MPO }}</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ct-section" *ngIf="recordParsed.length">
+      <h2 class="ct-section-title">Total Students of {{ studentsYear }}</h2>
+      <table class="ct-table ct-record-table" [ngClass]="'ct-cols-' + recordVisibleColIndices.length">
+        <thead>
+          <tr>
+            <th *ngFor="let heading of totalStudentsVisibleColumnHeadings">{{ heading }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of recordParsed">
+            <td *ngFor="let colIndex of recordVisibleColIndices">{{ row[colIndex] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ct-section" *ngIf="record2Rows.length">
+      <h2 class="ct-section-title">Class-wise Students of {{ studentsYear }}</h2>
+      <table class="ct-table ct-record-table" [ngClass]="'ct-cols-' + record2VisibleColIndices.length">
+        <thead>
+          <tr>
+            <th *ngFor="let heading of classwiseVisibleColumnHeadings">{{ heading }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of record2Rows">
+            <td *ngFor="let colIndex of record2VisibleColIndices">{{ row[colIndex] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="ct-section" *ngIf="preStatsParsed.length">
+      <h2 class="ct-section-title">Total Students of last 3 Years</h2>
+      <table class="ct-table ct-record-table ct-cols-4">
+        <thead>
+          <tr>
+            <th *ngFor="let heading of preStatsColumnHeadings">{{ heading }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of preStatsParsed">
+            <td *ngFor="let cell of row">{{ cell }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="ct-footer">
+    <a routerLink="/institutes" class="ct-back">← Back to Institute List</a>
+  </footer>
+</div>
+
+<div class="ct-loading" *ngIf="loading">
+  <p>Loading institute details…</p>
+</div>
+
+<div class="ct-error" *ngIf="!loading && error">
+  <p>{{ error }}</p>
+  <a routerLink="/institutes" class="ct-back">← Back to Institute List</a>
+</div>

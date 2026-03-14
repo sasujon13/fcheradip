@@ -131,25 +131,25 @@
         <option *ngFor="let sub of availableSubjects" [value]="getTeacherSubjectOptionValue(sub)">
           {{ sub.displayName }}
         </option>
-        <option *ngIf="authForm.get('teacherLevel')?.value === 'University'" value="__ADD_SUBJECT__" class="add-subject-option">Add subject if not Listed</option>
+        <option value="__ADD_SUBJECT__" class="add-subject-option">Add subject if not Listed</option>
       </select>
         <div *ngIf="availableSubjects.length === 0 && authForm.get('teacherLevel')?.value !== 'University'" class="loading-message">Loading subjects...</div>
       </div>
     </div>
 
-    <!-- Add new subject pane (Degree / Honours / Masters) -->
+    <!-- Add new subject pane: University (Degree / Honours / Masters) -->
     <div class="form-group add-subject-pane" *ngIf="showAddSubjectPane && authForm.get('acctype')?.value === 'Teacher' && authForm.get('teacherLevel')?.value === 'University'">
       <div class="pane-box">
-        <h4>Request a new subject</h4>
+        <h4>Request a new subject (Degree / Honours / Masters)</h4>
         <p class="text-muted">Both fields are required. Your request will be reviewed before the subject is added.</p>
         <form [formGroup]="addSubjectForm" (ngSubmit)="submitNewSubjectRequest()">
           <div class="form-group">
-            <label for="newSubjectName">Subject name</label>
+            <label for="newSubjectName">Subject Name</label>
             <input type="text" formControlName="subject_name" id="newSubjectName" class="form-control" placeholder="e.g. Bengali" />
             <small class="text-danger" *ngIf="addSubjectForm.get('subject_name')?.invalid && addSubjectForm.get('subject_name')?.touched">Required</small>
           </div>
           <div class="form-group">
-            <label for="newSubjectTranslated">Subject name (translated)</label>
+            <label for="newSubjectTranslated">Subject name in English</label>
             <input type="text" formControlName="subject_translated" id="newSubjectTranslated" class="form-control" placeholder="e.g. Bengali (English)" />
             <small class="text-danger" *ngIf="addSubjectForm.get('subject_translated')?.invalid && addSubjectForm.get('subject_translated')?.touched">Required</small>
           </div>
@@ -160,6 +160,41 @@
               <option *ngFor="let opt of degreeTypeOptions" [value]="opt">{{ opt }}</option>
             </select>
             <small class="text-muted">Stored in Groups when the subject is approved.</small>
+          </div>
+          <div class="pane-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="addSubjectForm.invalid || addSubjectSubmitting">Submit request</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="closeAddSubjectPane()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- Add new subject pane: HSC / SSC / JSC / PSC -->
+    <div class="form-group add-subject-pane" *ngIf="showAddSubjectPane && authForm.get('acctype')?.value === 'Teacher' && authForm.get('teacherLevel')?.value !== 'University' && authForm.get('teacherLevel')?.value">
+      <div class="pane-box">
+        <h4>Request a new subject ({{ authForm.get('teacherLevel')?.value || 'HSC' }})</h4>
+        <p class="text-muted">Both fields are required. Your request will be reviewed before the subject is added.</p>
+        <form [formGroup]="addSubjectForm" (ngSubmit)="submitNewSubjectRequest()">
+          <div class="form-group">
+            <label for="newSubjectNameHsc">Subject Name</label>
+            <input type="text" formControlName="subject_name" id="newSubjectNameHsc" class="form-control" placeholder="e.g. Bengali" />
+            <small class="text-danger" *ngIf="addSubjectForm.get('subject_name')?.invalid && addSubjectForm.get('subject_name')?.touched">Required</small>
+          </div>
+          <div class="form-group">
+            <label for="newSubjectTranslatedHsc">Subject name in English</label>
+            <input type="text" formControlName="subject_translated" id="newSubjectTranslatedHsc" class="form-control" placeholder="e.g. Bengali (English)" />
+            <small class="text-danger" *ngIf="addSubjectForm.get('subject_translated')?.invalid && addSubjectForm.get('subject_translated')?.touched">Required</small>
+          </div>
+          <div class="form-group" *ngIf="addSubjectIsPrePrimary">
+            <label>Class</label>
+            <p class="form-control-plaintext mb-0">Class Zero</p>
+          </div>
+          <div class="form-group" *ngIf="!addSubjectIsPrePrimary">
+            <label for="newSubjectClassHsc">Class</label>
+            <select formControlName="class_level" id="newSubjectClassHsc" class="form-control">
+              <option value="">Select class</option>
+              <option *ngFor="let opt of addSubjectClassOptions" [value]="opt.value">{{ opt.label }}</option>
+            </select>
+            <small class="text-danger" *ngIf="addSubjectForm.get('class_level')?.invalid && addSubjectForm.get('class_level')?.touched">Select a class</small>
           </div>
           <div class="pane-actions">
             <button type="submit" class="btn btn-primary" [disabled]="addSubjectForm.invalid || addSubjectSubmitting">Submit request</button>

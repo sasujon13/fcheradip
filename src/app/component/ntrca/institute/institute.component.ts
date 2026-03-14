@@ -44,10 +44,10 @@ export class InstituteComponent implements OnInit {
     this.getDivisions();
     this.loadInstitutes();
     this.searchSubject.pipe(
-      debounceTime(300)
+      debounceTime(200)
     ).subscribe(search => {
       this.searchTerm = search;
-      this.onSearch();
+      this.loadInstitutes(1, search);
     });
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
@@ -227,29 +227,19 @@ export class InstituteComponent implements OnInit {
   }
 
 
-  onKeyUp(event: KeyboardEvent) {
+  onSearchInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
+    this.searchSubject.next(value);
+  }
 
+  onKeyUp(event: KeyboardEvent) {
     if (event.key === 'Enter') {
       this.onSearch();
-    } else if (event.key === ' ') {
-      this.searchSubject.next(value);
     }
   }
 
   onSearch() {
-    const term = this.searchTerm.trim();
-    if (!term) {
-      this.loadInstitutes();
-      return;
-    }
-
-    this.http.get<any>(`${this.baseUrl}?q=${encodeURIComponent(term)}&page=1`).subscribe(res => {
-      this.dataSource = res.results.slice(0, 100);
-      this.totalInstitutes = res.count;
-      this.pageIndex = 1;
-      this.pageSize = this.dataSource.length;
-    });
+    this.loadInstitutes(1, this.searchTerm);
   }
 
   goNext() {

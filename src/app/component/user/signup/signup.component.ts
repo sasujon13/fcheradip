@@ -112,6 +112,8 @@ export class SignupComponent implements OnInit, OnDestroy {
   // Levels/Classes from API by country. Levels for Teacher; Classes (Class Zero, Class One...) for Student.
   availableLevels: Array<{ level: string; level_tr: string; label: string }> = [];
   availableClassOptions: { value: string; label: string; has_groups?: boolean }[] = [];
+  /** Class options from HSC DB for Teacher add-subject (filtered by level in getter). */
+  addSubjectClassOptionsFromApi: { value: string; label: string }[] = [];
   readonly defaultClassOptions: { value: string; label: string; has_groups?: boolean }[] = [
     { value: '0', label: 'Class Zero', has_groups: false },
     { value: '1', label: 'Class One', has_groups: false },
@@ -120,6 +122,14 @@ export class SignupComponent implements OnInit, OnDestroy {
     { value: '9-10', label: 'Class 9-10', has_groups: true },
     { value: '11-12', label: 'Class 11-12', has_groups: true },
     { value: '13-16', label: 'Degree / Honours / Masters', has_groups: false }
+  ];
+  /** Full class options 0–8, 9-10, 11-12 for add-subject, filtered by level. */
+  readonly allAddSubjectClassOptions: { value: string; label: string }[] = [
+    { value: '0', label: 'Class Zero' },
+    { value: '1', label: 'Class One' }, { value: '2', label: 'Class Two' }, { value: '3', label: 'Class Three' },
+    { value: '4', label: 'Class Four' }, { value: '5', label: 'Class Five' },
+    { value: '6', label: 'Class Six' }, { value: '7', label: 'Class Seven' }, { value: '8', label: 'Class Eight' },
+    { value: '9-10', label: 'Class 9-10' }, { value: '11-12', label: 'Class 11-12' }
   ];
   readonly defaultLevels: Array<{ level: string; level_tr: string; label: string }> = [
     { level: 'PSC', level_tr: 'PSC', label: 'PSC' },
@@ -186,6 +196,7 @@ export class SignupComponent implements OnInit, OnDestroy {
       subject_name: ['', [Validators.required]],
       subject_translated: ['', [Validators.required]],
       degree_type: [''],
+      class_level: ['', []],
     });
   }
 
@@ -497,6 +508,44 @@ export class SignupComponent implements OnInit, OnDestroy {
       : (sub.id ?? sub.subject_code);
   }
 
+  /** Pre-primary has no class choice; always Class Zero. */
+  get addSubjectIsPrePrimary(): boolean {
+    const levelValue = this.authForm.get('teacherLevel')?.value;
+    const levels = (this.availableLevels?.length ? this.availableLevels : this.defaultLevels) as Array<{ level: string; level_tr: string; label: string }>;
+    const selected = levels.find((l) => l.level === levelValue);
+    const tr = (selected?.level_tr ?? '').toLowerCase();
+    return tr.includes('pre-primary') || tr.includes('preprimary');
+  }
+
+  /** Allowed class values from selected level/level_tr. Pre-primary → 0 (fixed); Primary/Ibtedayi → 1–5; Junior → 6–8; Secondary/Dakhil → 9-10; Higher Secondary/Alim → 11-12. */
+  private get allowedClassValuesForCurrentLevel(): string[] {
+    const levelValue = this.authForm.get('teacherLevel')?.value;
+    const levels = (this.availableLevels?.length ? this.availableLevels : this.defaultLevels) as Array<{ level: string; level_tr: string; label: string }>;
+    const selected = levels.find((l) => l.level === levelValue);
+    const tr = (selected?.level_tr ?? '').toLowerCase();
+    const level = (selected?.level ?? levelValue ?? '').toUpperCase();
+    // Primary, Ibtedayi (ইবতেদায়ি) → classes 1–5
+    if (tr.includes('primary') && !tr.includes('pre-primary') && !tr.includes('preprimary') || tr.includes('ibtedayi') || level === 'PSC') {
+      return ['1', '2', '3', '4', '5'];
+    }
+    // Junior Dakhil (জুনিয়র দাখিল), Junior Secondary (নিম্ন-মাধ্যমিক) → 6–8
+    if (tr.includes('junior') || level === 'JSC') return ['6', '7', '8'];
+    // Alim (আলিম), Higher Secondary (উচ্চ মাধ্যমিক) → 11-12 (check before "secondary" so "higher secondary" doesn’t match 9-10)
+    if (tr.includes('higher secondary') || tr.includes('alim') || tr.includes('hsc') || level === 'HSC') return ['11-12'];
+    // Dakhil (দাখিল), Secondary (মাধ্যমিক) → 9-10
+    if (tr.includes('secondary') || tr.includes('dakhil') || tr.includes('ssc') || level === 'SSC') return ['9-10'];
+    return ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9-10', '11-12'];
+  }
+
+  /** Class options for add-subject: from HSC DB filtered by level; fallback to static list if API not loaded. */
+  get addSubjectClassOptions(): { value: string; label: string }[] {
+    if (this.addSubjectIsPrePrimary) return [];
+    const allowed = this.allowedClassValuesForCurrentLevel;
+    const fromApi = this.addSubjectClassOptionsFromApi.filter((o) => allowed.includes(o.value));
+    if (fromApi.length > 0) return fromApi;
+    return this.allAddSubjectClassOptions.filter((o) => allowed.includes(o.value));
+  }
+
   /** Degree Type options for "Add subject" (stored in Groups column on approve). */
   readonly degreeTypeOptions = [
     'Degree', 'Honours (Pass)', 'Honours', 'B.Sc', 'BSS', 'BBA', 'MBA', 'MSS', 'MSC', 'Others'
@@ -504,7 +553,25 @@ export class SignupComponent implements OnInit, OnDestroy {
 
   openAddSubjectPane(): void {
     this.showAddSubjectPane = true;
-    this.addSubjectForm.reset({ subject_name: '', subject_translated: '', degree_type: '' });
+    const level = this.authForm.get('teacherLevel')?.value;
+    const classLevelCtrl = this.addSubjectForm.get('class_level');
+    const isPrePrimary = this.addSubjectIsPrePrimary;
+    this.addSubjectForm.reset({
+      subject_name: '',
+      subject_translated: '',
+      degree_type: '',
+      class_level: isPrePrimary ? '0' : '',
+    });
+    if (level !== 'University' && classLevelCtrl) {
+      if (isPrePrimary) {
+        classLevelCtrl.clearValidators();
+      } else {
+        classLevelCtrl.setValidators([Validators.required]);
+      }
+    } else if (classLevelCtrl) {
+      classLevelCtrl.clearValidators();
+    }
+    classLevelCtrl?.updateValueAndValidity();
   }
 
   closeAddSubjectPane(): void {
@@ -514,14 +581,27 @@ export class SignupComponent implements OnInit, OnDestroy {
   submitNewSubjectRequest(): void {
     if (this.addSubjectForm.invalid || this.addSubjectSubmitting) return;
     const countryCode = this.selectedCountry?.country_code || this.authForm.value.countryCode || 'BD';
+    const levelValue = this.authForm.get('teacherLevel')?.value;
+    const levels = (this.availableLevels?.length ? this.availableLevels : this.defaultLevels) as Array<{ level: string; level_tr: string; label: string }>;
+    const selectedLevel = levels.find((l) => l.level === levelValue);
     this.addSubjectSubmitting = true;
     const degreeType = (this.addSubjectForm.value.degree_type || '').trim() || undefined;
-    this.apiService.submitPendingSubjectRequest({
+    const body: { subject_name: string; subject_tr: string; subject_translated?: string; degree_type?: string; country_code: string; level?: string; level_tr?: string; class_level?: number | string } = {
       subject_name: this.addSubjectForm.value.subject_name!.trim(),
-      subject_translated: this.addSubjectForm.value.subject_translated!.trim(),
-      ...(degreeType ? { degree_type: degreeType } : {}),
+      subject_tr: this.addSubjectForm.value.subject_translated!.trim(),
       country_code: countryCode,
-    }).subscribe({
+    };
+    if (levelValue) {
+      body.level = selectedLevel?.level ?? levelValue;
+      if (selectedLevel?.level_tr) body.level_tr = selectedLevel.level_tr;
+    }
+    if (levelValue === 'University' && degreeType) body.degree_type = degreeType;
+    if (levelValue !== 'University') {
+      const isPrePrimary = this.addSubjectIsPrePrimary;
+      const cl = isPrePrimary ? '0' : this.addSubjectForm.value.class_level;
+      if (cl !== '' && cl != null) body.class_level = typeof cl === 'number' ? String(cl) : String(cl);
+    }
+    this.apiService.submitPendingSubjectRequest(body).subscribe({
       next: (res) => {
         this.addSubjectSubmitting = false;
         this.showAddSubjectPane = false;
@@ -654,6 +734,7 @@ export class SignupComponent implements OnInit, OnDestroy {
 
     this.loadLevelsForCountry(country.country_code);
     this.loadClassesForCountry(country.country_code);
+    this.loadAddSubjectClassesForCountry(country.country_code);
     const level = this.authForm.get('teacherLevel')?.value;
     if (level && level !== 'University') this.loadSubjectsForLevel(level);
     const className = this.authForm.get('className')?.value;
@@ -682,6 +763,19 @@ export class SignupComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.availableClassOptions = this.defaultClassOptions;
+      }
+    });
+  }
+
+  /** Load class options from HSC DB for Teacher add-subject (only classes that exist in cheradip_hsc.cheradip_subject). */
+  private loadAddSubjectClassesForCountry(countryCode: string): void {
+    if (!countryCode) return;
+    this.apiService.getClassesByCountry(countryCode, { useHsc: true }).subscribe({
+      next: (res) => {
+        this.addSubjectClassOptionsFromApi = (res?.classes ?? []).map((c) => ({ value: c.value, label: c.label }));
+      },
+      error: () => {
+        this.addSubjectClassOptionsFromApi = [];
       }
     });
   }

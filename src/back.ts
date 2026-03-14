@@ -14,7 +14,7 @@ import { environment } from 'src/environments/environment';
 })
 
 export class NtrcaComponent implements OnInit {
-  baseUrl: string = `${environment.apiUrl}/vacant6/`
+  baseUrl: string = `${environment.apiUrl}/vacancy6/`
   baseUrl2: string = `${environment.apiUrl}/institute/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;

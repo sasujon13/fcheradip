@@ -1,0 +1,359 @@
+/* College theme – primary Teal */
+:host {
+  --ct-teal: #008080;
+  --ct-teal-dark: #006666;
+  --ct-teal-light: #20b2aa;
+  --ct-teal-bg: rgba(0, 128, 128, 0.08);
+  --ct-white: #fff;
+  --ct-text: #1a1a1a;
+  --ct-border: rgba(0, 128, 128, 0.35);
+  /* Multi-color waves */
+  --ct-coral: #e07a5f;
+  --ct-amber: #f2cc8f;
+  --ct-sage: #81b29a;
+  --ct-sky: #6b9ac4;
+}
+
+.college-theme {
+  max-width: 1024px;
+  margin: 100px auto;
+  padding: 0 1rem 3rem;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ct-text);
+}
+
+.ct-header {
+  background: linear-gradient(135deg, var(--ct-teal) 0%, var(--ct-teal-dark) 100%);
+  color: var(--ct-white);
+  padding: 2.5rem 1.5rem;
+  margin: 0 -1rem 2rem;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 4px 14px rgba(0, 102, 102, 0.25);
+}
+
+/* Static: edge curves, blobs, dots. Moving waves are separate .ct-wave divs. */
+.ct-header-inner {
+  max-width: 930px;
+  margin: 0 auto;
+  padding: 15px;
+  color: var(--ct-teal-dark);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.92);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-5 -5 110 410' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23e07a5f' stroke-width='1.5' opacity='0.22' d='M0,-5 Q50,195 0,405'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-5 -5 110 410' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%2381b29a' stroke-width='1.5' opacity='0.22' d='M100,-5 Q50,195 100,405'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 20% 30%, rgba(0, 128, 128, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(32, 178, 170, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(0, 102, 102, 0.06) 0%, transparent 55%),
+    radial-gradient(circle, var(--ct-coral) 1.5px, transparent 1.5px),
+    radial-gradient(circle, var(--ct-amber) 1.2px, transparent 1.2px),
+    radial-gradient(circle, var(--ct-sage) 1px, transparent 1px),
+    radial-gradient(circle, var(--ct-sky) 1.3px, transparent 1.3px);
+  background-size: 100% 100%, 8% 100%, 8% 100%, 100% 100%, 100% 100%, 100% 100%, 16px 16px, 14px 14px, 20px 20px, 18px 18px;
+  background-position: 0 0, 0 0, 100% 0, 0 0, 0 0, 0 0, 0 0, 7px 7px, 2px 10px, 11px 4px;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat, repeat, repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 128, 128, 0.12),
+    0 6px 20px rgba(0, 102, 102, 0.15);
+}
+
+.ct-wave {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+  background-repeat: repeat-x;
+  background-size: 100% 72px;
+  will-change: background-position;
+}
+
+/* All paths extend from x=-15 to x=415 so curves touch div left/right edges (no mid clip) */
+.ct-wave-1 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%23008080' stroke-width='2.5' opacity='0.35' d='M-15,30 Q35,5 85,30 T185,30 T285,30 T385,30 T415,30'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-1 22s linear infinite;
+  animation-delay: 0s;
+}
+.ct-wave-2 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%23e07a5f' stroke-width='1.8' opacity='0.3' d='M-15,45 Q85,15 185,45 T415,45'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-2 17s linear infinite;
+  animation-delay: -4s;
+}
+.ct-wave-3 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%23f2cc8f' stroke-width='1.5' opacity='0.35' d='M-15,15 Q60,45 135,15 T285,15 T385,15 T415,15'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-3 20s linear infinite;
+  animation-delay: -8s;
+}
+.ct-wave-4 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%2381b29a' stroke-width='2' opacity='0.3' d='M-15,50 Q51,20 118,50 T251,50 T385,50 T415,50'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-4 15s linear infinite;
+  animation-delay: -2s;
+}
+.ct-wave-5 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%236b9ac4' stroke-width='1.5' opacity='0.28' d='M-15,20 Q35,45 85,20 T185,20 T285,20 T385,20 T415,20'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-5 19s linear infinite;
+  animation-delay: -5.5s;
+}
+.ct-wave-6 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%23e07a5f' stroke-width='1.2' opacity='0.25' d='M-15,40 Q85,8 185,40 T385,40 T415,40'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-6 24s linear infinite;
+  animation-delay: -11s;
+}
+.ct-wave-7 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%23f2cc8f' stroke-width='1.2' opacity='0.28' d='M-15,8 Q51,38 118,8 T251,8 T385,8 T415,8'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-7 14s linear infinite;
+  animation-delay: -7s;
+}
+.ct-wave-8 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-15 0 430 60'%3E%3Cpath fill='none' stroke='%2381b29a' stroke-width='1.5' opacity='0.22' d='M-15,55 Q35,25 85,55 T185,55 T285,55 T385,55 T415,55'/%3E%3C/svg%3E");
+  animation: ct-wave-scroll-8 21s linear infinite;
+  animation-delay: -3s;
+}
+
+.ct-wave-diag {
+  background-repeat: repeat-x;
+  background-size: 100% 100%;
+  will-change: background-position;
+}
+
+/* Diagonal paths extend past edges so they touch div corners */
+.ct-wave-diag-1 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-20 -10 440 140' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23008080' stroke-width='2' opacity='0.2' d='M-20,-10 C130,50 270,70 420,130'/%3E%3Cpath fill='none' stroke='%236b9ac4' stroke-width='1.5' opacity='0.18' d='M-20,70 Q180,10 420,70'/%3E%3C/svg%3E");
+  animation: ct-wave-diag-scroll 18s linear infinite;
+  animation-delay: -6s;
+}
+
+.ct-wave-diag-2 {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-20 -10 440 140' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23e07a5f' stroke-width='1.5' opacity='0.18' d='M-20,130 C80,50 320,90 420,-10'/%3E%3C/svg%3E");
+  animation: ct-wave-diag-scroll 25s linear infinite;
+  animation-delay: -12s;
+}
+
+.ct-header-inner-content {
+  position: relative;
+  z-index: 1;
+}
+
+.ct-header-inner::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: -20%;
+  width: 80%;
+  height: 120%;
+  background: radial-gradient(ellipse 70% 60% at 30% 40%, rgba(0, 128, 128, 0.08) 0%, transparent 70%);
+  border-radius: 50% 40% 60% 50% / 50% 60% 40% 50%;
+  pointer-events: none;
+}
+
+.ct-header-inner::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  right: -15%;
+  width: 60%;
+  height: 90%;
+  background: radial-gradient(ellipse 60% 70% at 70% 60%, rgba(32, 178, 170, 0.1) 0%, transparent 65%);
+  border-radius: 40% 60% 50% 50% / 60% 40% 50% 50%;
+  pointer-events: none;
+}
+
+.ct-header-inner .ct-title,
+.ct-header-inner .ct-eiin {
+  position: relative;
+  z-index: 1;
+}
+
+.ct-title {
+  margin: 0 0 0.35em;
+  font-size: clamp(1.4rem, 4vw, 1.85rem);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.ct-tagline {
+  margin: 0 0 0.25em;
+  font-size: 1rem;
+  opacity: 0.95;
+  text-align: center;
+}
+
+.ct-eiin {
+  margin: 0;
+  font-size: 1.2rem;
+  opacity: 0.9;
+  text-align: center;
+  margin-top: -10px;
+}
+
+.ct-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.ct-section {
+  background: var(--ct-white);
+  border: 1px solid var(--ct-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0, 128, 128, 0.08);
+}
+
+.ct-section-title {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  font-size: 1.1rem;
+  color: var(--ct-white);
+  background: var(--ct-teal);
+}
+
+.ct-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.ct-table th,
+.ct-table td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--ct-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ct-table th {
+  width: 38%;
+  font-weight: 600;
+  color: var(--ct-teal-dark);
+  background: var(--ct-teal-bg);
+}
+
+.ct-table tr:last-child th,
+.ct-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ct-table-wrap {
+  overflow-x: auto;
+}
+
+.ct-record {
+  padding: 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.ct-record-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.ct-record-table th,
+.ct-record-table td {
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+/* Balanced equal column widths by column count */
+.ct-record-table.ct-cols-3 th:nth-child(1),
+.ct-record-table.ct-cols-3 th:nth-child(2),
+.ct-record-table.ct-cols-3 th:nth-child(3),
+.ct-record-table.ct-cols-3 td:nth-child(1),
+.ct-record-table.ct-cols-3 td:nth-child(2),
+.ct-record-table.ct-cols-3 td:nth-child(3) {
+  width: 33.33%;
+}
+
+.ct-record-table.ct-cols-4 th:nth-child(1),
+.ct-record-table.ct-cols-4 th:nth-child(2),
+.ct-record-table.ct-cols-4 th:nth-child(3),
+.ct-record-table.ct-cols-4 th:nth-child(4),
+.ct-record-table.ct-cols-4 td:nth-child(1),
+.ct-record-table.ct-cols-4 td:nth-child(2),
+.ct-record-table.ct-cols-4 td:nth-child(3),
+.ct-record-table.ct-cols-4 td:nth-child(4) {
+  width: 25%;
+}
+
+.ct-record-table.ct-cols-5 th:nth-child(1),
+.ct-record-table.ct-cols-5 th:nth-child(2),
+.ct-record-table.ct-cols-5 th:nth-child(3),
+.ct-record-table.ct-cols-5 th:nth-child(4),
+.ct-record-table.ct-cols-5 th:nth-child(5),
+.ct-record-table.ct-cols-5 td:nth-child(1),
+.ct-record-table.ct-cols-5 td:nth-child(2),
+.ct-record-table.ct-cols-5 td:nth-child(3),
+.ct-record-table.ct-cols-5 td:nth-child(4),
+.ct-record-table.ct-cols-5 td:nth-child(5) {
+  width: 20%;
+}
+
+.ct-footer,
+.ct-error {
+  margin-top: 2rem;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.ct-back {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  color: var(--ct-teal);
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid var(--ct-teal);
+  border-radius: 8px;
+}
+
+.ct-back:hover {
+  background: var(--ct-teal-bg);
+  color: var(--ct-teal-dark);
+}
+
+.ct-link {
+  color: var(--ct-teal);
+  text-decoration: none;
+}
+
+.ct-link:hover {
+  text-decoration: underline;
+}
+
+.ct-copy {
+  cursor: pointer;
+}
+.ct-copy:hover {
+  opacity: 0.85;
+}
+
+.ct-copy-feedback {
+  margin: 0;
+  padding: 0.35rem 1rem;
+  font-size: 0.85rem;
+  color: var(--ct-teal-dark);
+  background: var(--ct-teal-bg);
+  text-align: center;
+  border-radius: 6px;
+}
+
+.ct-loading,
+.ct-error {
+  max-width: 500px;
+  margin: 2rem auto;
+  padding: 2rem;
+  text-align: center;
+  color: var(--ct-text);
+}
+
+.ct-error p {
+  margin: 0 0 1rem;
+  color: #c00;
+}

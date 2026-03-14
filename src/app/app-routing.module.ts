@@ -32,6 +32,7 @@ import { Recommend7Component } from './component/ntrca/recommend7/recommend7.com
 import { Recommend5Component } from './component/ntrca/recommend5/recommend5.component';
 import { Recommend6Component } from './component/ntrca/recommend6/recommend6.component';
 import { InstituteComponent } from './component/ntrca/institute/institute.component';
+import { CollegeThemeComponent } from './component/ntrca/college-theme/college-theme.component';
 import { QuestionComponent } from './component/question/question/question.component';
 import { StudentComponent } from './component/student/student/student.component';
 import { DashboardComponent } from './component/student/dashboard/dashboard.component';
@@ -59,6 +60,7 @@ const routes: Routes = [
   {path:'merit5', component: Merit5Component},
   {path:'merit6', component: Merit6Component},
   {path:'institute', component: BanbeisComponent},
+  {path:'institutes/:slug', component: CollegeThemeComponent},
   {path:'institutes', component: InstituteComponent},
   {path:'recommend7', component: Recommend7Component},
   {path:'recommend5', component: Recommend5Component},

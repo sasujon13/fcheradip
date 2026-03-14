@@ -473,11 +473,13 @@ export class ApiService {
     return this.http.get<{ groups?: any[] }>(`${this.baseUrl}/groups_by_class/`, { params: { class_code: classCode } });
   }
 
-  /** Distinct class levels from cheradip_subject for a country (Student signup Class dropdown: Class Zero, Class One, ...). */
-  getClassesByCountry(countryCode: string): Observable<{ classes: Array<{ value: string; label: string; has_groups: boolean }>; country_code: string }> {
-    return this.http.get<{ classes: Array<{ value: string; label: string; has_groups: boolean }>; country_code: string }>(
+  /** Distinct class levels from cheradip_subject for a country. useHsc: true → query HSC DB (Teacher add-subject). */
+  getClassesByCountry(countryCode: string, options?: { useHsc?: boolean }): Observable<{ classes: Array<{ value: string; label: string; has_groups?: boolean }>; country_code: string }> {
+    const params: { country_code: string; database?: string } = { country_code: countryCode || '' };
+    if (options?.useHsc) params.database = 'hsc';
+    return this.http.get<{ classes: Array<{ value: string; label: string; has_groups?: boolean }>; country_code: string }>(
       `${this.baseUrl}/classes_by_country/`,
-      { params: { country_code: countryCode || '' } }
+      { params }
     );
   }
 
@@ -505,8 +507,8 @@ export class ApiService {
     );
   }
 
-  /** Submit a new subject request (Degree level). Body: subject_name, subject_translated, degree_type (optional), country_code (optional). */
-  submitPendingSubjectRequest(body: { subject_name: string; subject_translated: string; degree_type?: string; country_code?: string }): Observable<{ id: number; message: string }> {
+  /** Submit a new subject request. Body: subject_name, subject_tr (or subject_translated), degree_type (optional), country_code (optional), level, level_tr, class_level (0-20 for non-University). */
+  submitPendingSubjectRequest(body: { subject_name: string; subject_tr: string; subject_translated?: string; degree_type?: string; country_code?: string; level?: string; level_tr?: string; class_level?: number | string }): Observable<{ id: number; message: string }> {
     return this.http.post<{ id: number; message: string }>(`${this.baseUrl}/pending_subject_request/`, body);
   }
 

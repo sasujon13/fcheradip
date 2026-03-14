@@ -10,8 +10,8 @@ import html2canvas from 'html2canvas';
   styleUrls: ['./vacant5.component.css']
 })
 export class Vacant5Component implements OnInit {
-  baseUrl: string = `${environment.apiUrl}/vacant5/`
-  baseUrl2: string = `${environment.apiUrl}/institute/`
+  baseUrl: string = `${environment.apiUrl}/vacancy5/`
+  baseUrl2: string = `${environment.apiUrl}/banbeis/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;
   private startX = 0;
@@ -374,7 +374,7 @@ export class Vacant5Component implements OnInit {
         for (const eiin of this.unlockedEIINs) {
           const vacancy = this.vacancies.find(v => v.EIIN === eiin);
           if (vacancy) {
-            const url = `${this.baseUrl2}?eiin=${eiin}&ts=${Date.now()}`;
+            const url = `${this.baseUrl2}?eiin=${eiin}`;
             this.http.get<any>(url).subscribe({
               next: (res) => {
                 vacancy.parameter = res;
@@ -512,7 +512,7 @@ export class Vacant5Component implements OnInit {
     this.eiinLoading.add(eiin); // show loader
 
     const fetchAndUnlock = () => {
-      const url = `${this.baseUrl2}?eiin=${eiin}&ts=${Date.now()}`;
+      const url = `${this.baseUrl2}?eiin=${eiin}`;
       this.http.get<any>(url).subscribe({
         next: (res) => {
           vacancy.parameter = res;

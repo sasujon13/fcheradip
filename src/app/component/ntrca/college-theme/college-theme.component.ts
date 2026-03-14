@@ -1,0 +1,348 @@
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { forkJoin, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
+import { environment } from 'src/environments/environment';
+
+@Component({
+  selector: 'app-college-theme',
+  templateUrl: './college-theme.component.html',
+  styleUrls: ['./college-theme.component.css']
+})
+export class CollegeThemeComponent implements OnInit {
+  private banbeisUrl = `${environment.apiUrl}/banbeis/`;
+  private institutesUrl = `${environment.apiUrl}/institutes/`;
+  slug: string = '';
+  eiin: string = '';
+  loading = true;
+  error: string | null = null;
+  data: any = null;
+
+  constructor(
+    private route: ActivatedRoute,
+    private http: HttpClient
+  ) {}
+
+  ngOnInit(): void {
+    this.route.paramMap.subscribe(params => {
+      this.slug = params.get('slug') || '';
+      this.eiin = this.extractEiin(this.slug);
+      this.loadData();
+    });
+  }
+
+  /** True if slug looks like an EIIN (only digits, or digits followed by hyphen). */
+  private slugIsEiin(slug: string): boolean {
+    if (!slug || !slug.trim()) return false;
+    const s = slug.trim();
+    const firstHyphen = s.indexOf('-');
+    const beforeHyphen = firstHyphen >= 0 ? s.substring(0, firstHyphen).trim() : s;
+    return /^\d+$/.test(beforeHyphen);
+  }
+
+  /** Extract EIIN from slug: "100002" or "100002-NAYAVIZORA B. N. A HIGH SCHOOL" yield "100002". Name-only slugs yield "". */
+  private extractEiin(slug: string): string {
+    if (!slug) return '';
+    const s = slug.trim();
+    if (!this.slugIsEiin(s)) return '';
+    const firstHyphen = s.indexOf('-');
+    if (firstHyphen > 0) return s.substring(0, firstHyphen).trim();
+    return s;
+  }
+
+  loadData(): void {
+    this.loading = true;
+    this.error = null;
+    this.data = null;
+    if (!this.slug) {
+      this.error = 'Invalid institute link.';
+      this.loading = false;
+      return;
+    }
+    if (this.eiin) {
+      this.loadDataByEiin(this.eiin);
+      return;
+    }
+    // Slug is a name (e.g. "K. B. M. COLLGE, DINAJPUR"): search institutes, take best match, then load by EIIN
+    this.http.get<any>(`${this.institutesUrl}?q=${encodeURIComponent(this.slug)}&page=1`).pipe(
+      map(res => {
+        const list = res?.results || [];
+        return list.length ? list[0] : null;
+      }),
+      catchError(() => of(null))
+    ).subscribe({
+      next: (match) => {
+        const foundEiin = match?.eiinNo != null ? String(match.eiinNo) : (match?.EIIN != null ? String(match.EIIN) : '');
+        if (!foundEiin) {
+          this.error = 'No matching institute found for this name.';
+          this.loading = false;
+          return;
+        }
+        this.eiin = foundEiin;
+        this.loadDataByEiin(this.eiin);
+      },
+      error: () => {
+        this.error = 'Unable to search institutes.';
+        this.loading = false;
+      }
+    });
+  }
+
+  private loadDataByEiin(eiin: string): void {
+    const banbeis$ = this.http.get<any>(`${this.banbeisUrl}?eiin=${encodeURIComponent(eiin)}`).pipe(
+      map(res => {
+        const results = res?.results || res;
+        const list = Array.isArray(results) ? results : [results];
+        return list.length ? list[0] : null;
+      }),
+      catchError(() => of(null))
+    );
+    const institutes$ = this.http.get<any>(`${this.institutesUrl}?q=${encodeURIComponent(eiin)}&page=1`).pipe(
+      map(res => {
+        const list = res?.results || [];
+        return list.length ? list[0] : null;
+      }),
+      catchError(() => of(null))
+    );
+    forkJoin({ banbeis: banbeis$, institutes: institutes$ }).subscribe({
+      next: ({ banbeis, institutes }) => {
+        this.data = this.mergeData(banbeis, institutes);
+        if (!this.data || (!banbeis && !institutes)) {
+          this.error = 'No details found for this institute.';
+        }
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'Unable to load institute details.';
+        this.loading = false;
+      }
+    });
+  }
+
+  private mergeData(banbeis: any, institute: any): any {
+    const b = banbeis || {};
+    const i = institute || {};
+    return {
+      ...b,
+      ...i,
+      Name: b.Name ?? i.instituteName ?? null,
+      instituteName: i.instituteName ?? b.Name ?? null,
+      instituteNameBn: i.instituteNameBn ?? null,
+      EIIN: b.EIIN ?? i.eiinNo ?? null,
+      eiinNo: i.eiinNo ?? b.EIIN ?? null,
+      District: b.District ?? i.districtName ?? null,
+      districtName: i.districtName ?? b.District ?? null,
+      Thana: b.Thana ?? i.thanaName ?? null,
+      thanaName: i.thanaName ?? b.Thana ?? null,
+      InstituteType: b.InstituteType ?? i.instituteTypeName ?? null,
+      instituteTypeName: i.instituteTypeName ?? b.InstituteType ?? null,
+      Mouza: b.Mouza ?? i.mouzaName ?? null,
+      mouzaName: i.mouzaName ?? b.Mouza ?? null,
+      Contact: b.Contact ?? null,
+      Record2: b.Record2 ?? null,
+      Record: b.Record ?? null,
+      PreStats: b.PreStats ?? null,
+      EducationLevels: b.EducationLevels ?? null,
+      SSCDepts: b.SSCDepts ?? null,
+      HSCDepts: b.HSCDepts ?? null,
+      MPO: b.MPO ?? null,
+      Rejion: b.Rejion ?? i.divisionName ?? null,
+      divisionName: i.divisionName ?? b.Rejion ?? null,
+      GovtStatus: b.GovtStatus,
+      isGovt: i.isGovt,
+      mobile: i.mobile ?? null,
+      mobileAlternate: i.mobileAlternate ?? null,
+      email: i.email ?? null,
+      year: i.year ?? null,
+      submissionDate: i.submissionDate ?? null,
+      divisionNameBn: i.divisionNameBn ?? null,
+      districtNameBn: i.districtNameBn ?? null,
+      thanaNameBn: i.thanaNameBn ?? null,
+      instituteTypeNameBn: i.instituteTypeNameBn ?? null,
+      mouzaNameBn: i.mouzaNameBn ?? null,
+      PostOffice: b.PostOffice ?? null,
+      PostCode: b.PostCode ?? null,
+      WardNo: b.WardNo ?? null,
+    };
+  }
+
+  get name(): string {
+    return this.data?.Name ?? this.data?.instituteName ?? '—';
+  }
+
+  get instituteNameBn(): string {
+    return this.data?.instituteNameBn ?? '';
+  }
+
+  get govtStatusText(): string {
+    if (this.data?.GovtStatus != null) return this.data.GovtStatus ? 'Government' : 'Non-Government';
+    if (this.data?.isGovt != null) return this.data.isGovt ? 'Government' : 'Non-Government';
+    return '—';
+  }
+
+  /** Current year minus 1 for "Total Students of YYYY" / "Class-wise Students of YYYY" (updates every year). */
+  get studentsYear(): number {
+    return new Date().getFullYear() - 1;
+  }
+
+  /** Parse Record into rows of 3 columns (array of arrays). */
+  get recordParsed(): string[][] {
+    const raw = this.data?.Record;
+    if (!raw) return [];
+    const arr = this.parseRecordOrRecord2(raw);
+    return arr.map(row => this.normalizeRow(row, 3));
+  }
+
+  /** Parse Record2 into rows of 5 columns (array of arrays). Supports JSON or Python-tuple-style strings. */
+  get record2Parsed(): any[] {
+    const raw = this.data?.Record2;
+    if (!raw) return [];
+    if (typeof raw === 'string') {
+      const arr = this.parseRecordOrRecord2(raw);
+      return Array.isArray(arr) ? arr.slice(0, 100) : [];
+    }
+    try {
+      const parsed = raw;
+      const arr = Array.isArray(parsed) ? parsed : (parsed?.Record2 && Array.isArray(parsed.Record2) ? parsed.Record2 : (parsed?.results?.[0]?.Record2 ? (Array.isArray(parsed.results[0].Record2) ? parsed.results[0].Record2 : []) : []));
+      return Array.isArray(arr) ? arr.slice(0, 100) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Record2 as rows of 5 cells each (string[][]). */
+  get record2Rows(): string[][] {
+    const rows = this.record2Parsed;
+    return rows.map(row => this.normalizeRow(row, 5));
+  }
+
+  private parseRecordOrRecord2(raw: any): any[] {
+    if (!raw) return [];
+    try {
+      const str = typeof raw === 'string' ? raw.trim().replace(/\n/g, '').replace(/'/g, '"').replace(/\(/g, '[').replace(/\)/g, ']') : null;
+      const parsed = typeof raw === 'string' ? (str?.startsWith('[') ? JSON.parse(str) : []) : (Array.isArray(raw) ? raw : []);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private normalizeRow(row: any, cols: number): string[] {
+    const arr = Array.isArray(row)
+      ? row.map((c: any) => (c != null ? String(c).trim() : ''))
+      : (row && typeof row === 'object' ? Object.values(row).map((c: any) => (c != null ? String(c).trim() : '')).slice(0, cols) : []);
+    const padded = arr.slice(0, cols);
+    while (padded.length < cols) padded.push('');
+    return padded;
+  }
+
+  /** Column indices to show for Record (3 columns): hide columns where every cell is "কোনোটিই নয়". */
+  get recordVisibleColIndices(): number[] {
+    const rows = this.recordParsed;
+    if (!rows.length) return [0, 1, 2];
+    const colCount = 3;
+    const skip = 'কোনোটিই নয়';
+    const indices: number[] = [];
+    for (let c = 0; c < colCount; c++) {
+      const allSkip = rows.every(r => (r[c] || '').trim() === skip);
+      if (!allSkip) indices.push(c);
+    }
+    return indices;
+  }
+
+  /** Column indices to show for Record2 (5 columns): hide columns where every cell is "কোনোটিই নয়". */
+  get record2VisibleColIndices(): number[] {
+    const rows = this.record2Rows;
+    if (!rows.length) return [0, 1, 2, 3, 4];
+    const colCount = 5;
+    const skip = 'কোনোটিই নয়';
+    const indices: number[] = [];
+    for (let c = 0; c < colCount; c++) {
+      const allSkip = rows.every(r => (r[c] || '').trim() === skip);
+      if (!allSkip) indices.push(c);
+    }
+    return indices;
+  }
+
+  record2Keys(row: any): string[] {
+    return row && typeof row === 'object' ? Object.keys(row) : [];
+  }
+
+  /** Parse PreStats "Level,y1,y2,y3;Level2,..." into rows of 4 columns: Level, year-3, year-2, year-1. */
+  get preStatsParsed(): string[][] {
+    const raw = this.data?.PreStats;
+    if (typeof raw !== 'string' || !raw.trim()) return [];
+    return raw
+      .split(';')
+      .map(s => s.split(',').map(c => c.trim()))
+      .filter(row => row.some(c => c.length > 0))
+      .map(row => {
+        const pad = row.slice(0, 4);
+        while (pad.length < 4) pad.push('');
+        return pad;
+      });
+  }
+
+  /** Column headings for PreStats: Level, then years (currentYear-3), (currentYear-2), (currentYear-1). */
+  get preStatsColumnHeadings(): string[] {
+    const y = new Date().getFullYear();
+    return ['Level', String(y - 3), String(y - 2), String(y - 1)];
+  }
+
+  get classwiseColumnHeadings(): string[] {
+    return ['Level', 'Class', 'Group', 'Department', 'Students'];
+  }
+
+  get totalStudentsVisibleColumnHeadings(): string[] {
+    return ['Level', 'Group', 'Total Students'];
+  }
+
+  /** Headings for visible columns only (matches record2VisibleColIndices). */
+  get classwiseVisibleColumnHeadings(): string[] {
+    const all = this.classwiseColumnHeadings;
+    return this.record2VisibleColIndices.map(i => all[i] ?? '');
+  }
+
+  get contactList(): string[] {
+    const c = this.data?.Contact;
+    if (typeof c !== 'string') return [];
+    return c.split(',').map((s: string) => s.trim()).filter(Boolean);
+  }
+
+  copyToClipboard(text: string, event?: Event): void {
+    if (event) event.preventDefault();
+    if (!text || typeof text !== 'string') return;
+    const t = text.trim();
+    if (!t) return;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(t).then(() => this.showCopyFeedback()).catch(() => this.fallbackCopy(t));
+    } else {
+      this.fallbackCopy(t);
+    }
+  }
+
+  private fallbackCopy(text: string): void {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      this.showCopyFeedback();
+    } catch {
+      // ignore
+    }
+  }
+
+  copyFeedback = false;
+
+  private showCopyFeedback(): void {
+    this.copyFeedback = true;
+    setTimeout(() => (this.copyFeedback = false), 1500);
+  }
+}

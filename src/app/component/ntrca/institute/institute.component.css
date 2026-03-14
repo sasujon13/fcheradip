@@ -158,9 +158,14 @@ li {
   border: 2px solid rgba(0, 128, 128, 0.75);
   border-radius: 5px;
   padding: 0;
-  margin-bottom: 10px;
   background-color: transparent;
   position: relative;
+}
+
+.dropdown-header{
+  border: none;
+  padding: 5px 20px;
+  margin-bottom: -10px;
 }
 
 ul.filterItem li {
@@ -410,6 +415,32 @@ button.filter{
     border-bottom-left-radius: 14px;
     border-top-right-radius: 14px;
     letter-spacing: 2px;
+}
+
+/* Filter dropdown button: when nothing selected show label; when selected show only comma-separated list, right-aligned */
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 220px;
+  min-width: 120px;
+}
+
+.filter-btn .filter-label {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.filter-btn .filter-selections {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  text-align: right;
+  font-weight: 500;
+  width: 100%;
 }
  
  p.br {
