@@ -1,30 +1,62 @@
 <div class="created-questions-page">
-  <h2>Created Questions</h2>
-  <p class="page-desc">Your saved question sets. You can rename, download (PDF/DOCX), or delete.</p>
   <p *ngIf="error" class="error-msg">{{ error }}</p>
   <p *ngIf="loading" class="loading">Loading…</p>
-  <ul *ngIf="!loading && sets.length" class="sets-list">
-    <li *ngFor="let set of sets" class="set-item">
-      <div class="set-info">
-        <span class="set-name-counter">{{ set.name }}_{{ set.counter }}</span>
-        <span class="set-header" *ngIf="set.question_header"> — {{ set.question_header }}</span>
-        <span class="set-meta">{{ set.questions?.length || 0 }} questions</span>
-        <span class="set-date" *ngIf="set.created_at">{{ set.created_at | date:'short' }}</span>
-      </div>
-      <div class="set-actions">
-        <ng-container *ngIf="renamingId === set.id; else viewActions">
-          <input type="text" [(ngModel)]="renameValue" (keyup.enter)="saveRename()" (keyup.escape)="cancelRename()" class="rename-input" />
-          <button type="button" class="btn-sm" (click)="saveRename()">Save</button>
-          <button type="button" class="btn-sm btn-cancel" (click)="cancelRename()">Cancel</button>
-        </ng-container>
-        <ng-template #viewActions>
-          <button type="button" class="btn-sm" (click)="startRename(set)">Rename</button>
-          <button type="button" class="btn-sm" (click)="downloadSet(set, 'pdf')">PDF</button>
-          <button type="button" class="btn-sm" (click)="downloadSet(set, 'docx')">DOCX</button>
-          <button type="button" class="btn-sm btn-danger" (click)="deleteSet(set)">Delete</button>
-        </ng-template>
-      </div>
-    </li>
-  </ul>
+  <div *ngIf="!loading && sets.length" class="filter-row">
+    <label for="filterSubject">Subject</label>
+    <select id="filterSubject" [(ngModel)]="selectedSubject" (ngModelChange)="selectedChapter = ''" class="filter-select">
+      <option *ngFor="let o of subjectOptions" [value]="o.value">{{ o.label }}</option>
+    </select>
+    <label for="filterChapter">Chapter</label>
+    <select id="filterChapter" [(ngModel)]="selectedChapter" class="filter-select">
+      <option *ngFor="let o of chapterOptions" [value]="o.value">{{ o.label }}</option>
+    </select>
+    <span class="filter-count">{{ filteredSets.length }} of {{ sets.length }}</span>
+  </div>
+  <div *ngIf="!loading && sets.length && filteredSets.length" class="sets-table-wrap">
+    <table class="sets-table">
+      <thead>
+        <tr>
+          <th class="col-sl">SL</th>
+          <th class="col-title">List of Questions Created by You</th>
+          <th class="col-meta-actions">
+            <span class="th-actions-wrap">
+              <button type="button" class="btn-download-all" (click)="downloadAllPdf()" [disabled]="downloadingAllPdf || !filteredSets.length" title="Download all as PDF">
+                <i class="fa fa-file-pdf-o"></i> Download All
+              </button>
+            </span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let set of filteredSets; let i = index" class="set-row">
+          <td class="col-sl">{{ i + 1 }}</td>
+          <td class="col-title">
+            <ng-container *ngIf="renamingId === set.id; else showName">
+              <input type="text" [(ngModel)]="renameValue" (keyup.enter)="saveRename()" (keyup.escape)="cancelRename()" class="rename-input" />
+              <button type="button" class="btn-icon btn-save" (click)="saveRename()" title="Save"><i class="fa fa-check"></i></button>
+              <button type="button" class="btn-icon btn-cancel" (click)="cancelRename()" title="Cancel"><i class="fa fa-times"></i></button>
+            </ng-container>
+            <ng-template #showName>
+              <span class="set-name-counter">{{ set.name }}_{{ set.counter }}</span>
+              <span class="set-header" *ngIf="set.question_header"> — {{ set.question_header }}</span>
+            </ng-template>
+          </td>
+          <td class="col-meta-actions">
+            <span class="meta-inline">{{ set.questions?.length || 0 }} questions</span>
+            <span class="meta-inline" *ngIf="set.created_at">{{ set.created_at | date:'short' }}</span>
+            <span class="actions-inline">
+              <ng-container *ngIf="renamingId !== set.id">
+                <button type="button" class="btn-icon" (click)="startRename(set)" title="Rename"><i class="fa fa-pencil"></i></button>
+                <button type="button" class="btn-icon" (click)="downloadSet(set, 'pdf')" title="Download PDF"><i class="fa fa-file-pdf-o"></i></button>
+                <button type="button" class="btn-icon" (click)="downloadSet(set, 'docx')" title="Download DOCX"><i class="fa fa-file-word-o"></i></button>
+                <button type="button" class="btn-icon btn-danger" (click)="deleteSet(set)" title="Delete"><i class="fa fa-trash-o"></i></button>
+              </ng-container>
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p *ngIf="!loading && sets.length && !filteredSets.length" class="no-items">No question sets match the selected Subject and Chapter.</p>
   <p *ngIf="!loading && !sets.length" class="no-items">No saved question sets yet. Create questions from the Question page and use Save to download and save here.</p>
 </div>
