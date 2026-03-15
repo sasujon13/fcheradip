@@ -21,12 +21,18 @@
 }
 
 :host .token-input-box2 input {
-  padding: 8px;
+  padding: 5px 7px;
   font-size: 16px;
   margin-right: 10px;
   width: 160px;
   border-radius: 4px;
-  border: 1px solid #ccc;
+  border: 3px solid teal;
+}
+
+:host .token-input-box2 input:focus,
+:host .token-input-box2 input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px teal;
 }
 
 :host .token-input-box2 button {

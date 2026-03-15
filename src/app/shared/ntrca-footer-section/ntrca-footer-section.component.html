@@ -2,7 +2,7 @@
   <div class="token-input-box2">
     <br>
     <div class="hover-message-container">
-      <input type="text" [ngModel]="newToken" (ngModelChange)="newTokenChange.emit($event)" placeholder="Enter 8-digit token" maxlength="8" />
+      <input type="text" [ngModel]="newToken" (ngModelChange)="newTokenChange.emit($event)" placeholder="Enter 8-Digit Token" maxlength="8" />
       <button (click)="applyTokenClick.emit()">Apply Token</button>
       <p style="margin-top: 7px;">Remaining unlocks: <b>{{ remainingUnlocks }}</b></p>
       <div class="hover-message-box" style="text-align: left;">

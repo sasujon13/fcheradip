@@ -2,7 +2,7 @@
   <div class="token-input-box">
     <br>
     <div class="hover-message-container">
-      <input type="text" [(ngModel)]="newToken" placeholder="Enter 8-digit token" maxlength="8" />
+      <input type="text" [(ngModel)]="newToken" placeholder="8-Digit Token" maxlength="8" />
       <button (click)="applyToken()">Apply Token</button>
       <p style="margin-top: 7px;">Remaining unlocks: <b>{{ (freeUnlockLimit || 0) - unlockedEIINs.size
           }}</b></p>
