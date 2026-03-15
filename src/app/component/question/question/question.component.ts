@@ -297,6 +297,11 @@ export class QuestionComponent implements OnInit {
     return this.topicQuestions.filter((q: any) => this.selectedQuestionIds.has(q.id));
   }
 
+  /** Smart Question Creator – to be defined later. */
+  onSmartQuestionCreator(): void {
+    // TODO: define behavior
+  }
+
   /** Navigate to create page with selected questions (click on "Create Question (N Selected)"). */
   goToCreateQuestion(): void {
     const questions = this.selectedQuestionsForCreate;

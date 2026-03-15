@@ -659,7 +659,8 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.authForm.get('department')?.clearValidators();
 
     const opt = this.availableClassOptions.find(o => o.value === className);
-    const hasGroups = opt?.has_groups === true;
+    // Show Group for class 9-10 (SSC) and 11-12 (HSC); use option flag or class value so it works with API-driven class list too
+    const hasGroups = opt?.has_groups === true || ['9-10', '11-12', '9', '10', '11', '12'].includes(className || '');
     const isUniClass = ['13', '14', '15', '16', '13-16'].includes(className);
 
     if (hasGroups) {
@@ -687,7 +688,11 @@ export class SignupComponent implements OnInit, OnDestroy {
     this.apiService.getGroupsByClass(classCode).subscribe({
       next: (response: any) => {
         this.groupsLoaded = true;
-        this.availableGroups = response?.groups || [];
+        const raw = response?.groups || [];
+        // API returns string[] from cheradip_subject; normalize to { group_code, group_name } for dropdown
+        this.availableGroups = raw.map((g: any) =>
+          typeof g === 'string' ? { group_code: g, group_name: g } : { group_code: g?.group_code ?? g, group_name: g?.group_name ?? g?.group_code ?? g }
+        );
         if (this.availableGroups.length > 0) {
           const currentGroup = this.authForm.get('group')?.value;
           if (!currentGroup) {

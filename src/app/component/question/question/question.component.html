@@ -104,15 +104,24 @@
     </main>
   </div>
 
-  <!-- Floating button: 100px from bottom, teal, white text; only when questions selected -->
-  <button
-    *ngIf="selectedCount > 0"
-    type="button"
-    class="create-question-fab"
-    (click)="goToCreateQuestion()"
-    title="Create question set with selected questions"
-  >
-    <span class="create-question-fab-line">Create Question ({{ selectedCount }} Selected)</span>
-    <span class="create-question-fab-line create-question-fab-sub">Smart Question Creator</span>
-  </button>
+  <!-- Fixed floating buttons: 100px from bottom. >539px: single row; <=539px: stacked (Smart on top, Create below) -->
+  <div class="fab-wrapper">
+    <button
+      type="button"
+      class="fab-btn fab-smart"
+      (click)="onSmartQuestionCreator()"
+      title="Smart Question Creator"
+    >
+      Smart Question Creator
+    </button>
+    <button
+      *ngIf="selectedCount > 0"
+      type="button"
+      class="fab-btn fab-create"
+      (click)="goToCreateQuestion()"
+      title="Create question set with selected questions"
+    >
+      Create Question ({{ selectedCount }} Selected)
+    </button>
+  </div>
 </div>

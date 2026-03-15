@@ -9,9 +9,9 @@
     </p>
   </div>
 
-  <div class="creator-settings">
-    <h2>Layout settings</h2>
-    <div class="settings-grid">
+  <div class="creator-main">
+    <aside class="creator-settings-col">
+      <h2>Layout settings</h2>
       <div class="setting-item">
         <label for="questionHeader">Question header</label>
         <input id="questionHeader" type="text" [(ngModel)]="questionHeader" placeholder="e.g. Section A" />
@@ -19,14 +19,33 @@
       <div class="setting-item">
         <label for="pageSize">Page size</label>
         <select id="pageSize" [(ngModel)]="pageSize">
-          <option value="A4">A4</option>
-          <option value="Letter">Letter</option>
-          <option value="A3">A3</option>
+          <option *ngFor="let p of pageSizes" [value]="p.value">{{ p.label }}</option>
         </select>
       </div>
       <div class="setting-item">
-        <label for="pageMargin">Page margin (mm)</label>
-        <input id="pageMargin" type="number" min="0" [(ngModel)]="pageMargin" />
+        <label>Margins</label>
+        <select [(ngModel)]="marginPreset" (ngModelChange)="onMarginPresetChange()">
+          <option value="narrow">Narrow (0.5")</option>
+          <option value="standard">Standard (1")</option>
+          <option value="wide">Wide (1.5", 1", 1", 1.5")</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
+        <label>Top (mm)</label>
+        <input type="number" min="0" [(ngModel)]="marginTop" />
+      </div>
+      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
+        <label>Right (mm)</label>
+        <input type="number" min="0" [(ngModel)]="marginRight" />
+      </div>
+      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
+        <label>Bottom (mm)</label>
+        <input type="number" min="0" [(ngModel)]="marginBottom" />
+      </div>
+      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
+        <label>Left (mm)</label>
+        <input type="number" min="0" [(ngModel)]="marginLeft" />
       </div>
       <div class="setting-item">
         <label for="questionsPadding">Questions padding (px)</label>
@@ -36,15 +55,32 @@
         <label for="questionsGap">Questions gap (px)</label>
         <input id="questionsGap" type="number" min="0" [(ngModel)]="questionsGap" />
       </div>
+      <div class="creator-actions">
+        <button type="button" class="btn-smart" (click)="onSmartQuestionCreator()">Smart Question Creator</button>
+        <button type="button" class="btn-save" (click)="save()" [disabled]="saving || questions.length === 0">Save</button>
+      </div>
+    </aside>
+    <div class="creator-preview-col">
+      <h2>Preview</h2>
+      <div class="preview-paper" [style.width.px]="previewWidth">
+        <div class="preview-header" *ngIf="questionHeader">{{ questionHeader }}</div>
+        <div class="preview-questions">
+          <div *ngFor="let q of questions; let i = index" class="preview-q" [style.padding.px]="questionsPadding" [style.marginBottom.px]="questionsGap">
+            <strong>{{ i + 1 }}.</strong> {{ q.question }}
+            <div class="preview-options" *ngIf="q.option_1 || q.option_2">
+              <span *ngIf="q.option_1">A. {{ q.option_1 }}</span>
+              <span *ngIf="q.option_2"> B. {{ q.option_2 }}</span>
+              <span *ngIf="q.option_3"> C. {{ q.option_3 }}</span>
+              <span *ngIf="q.option_4"> D. {{ q.option_4 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="creator-actions">
-    <button type="button" class="btn-smart" (click)="onSmartQuestionCreator()">Smart Question Creator</button>
-  </div>
-
-  <div class="creator-questions">
-    <h2>Questions ({{ questions.length }}) – remove any you don't want</h2>
+  <div class="creator-questions-section">
+    <h2>All questions ({{ questions.length }}) – remove any you don't want</h2>
     <ul class="creator-questions-list">
       <li *ngFor="let q of questions" class="creator-question-item">
         <div class="creator-question-body">
@@ -60,5 +96,28 @@
       </li>
     </ul>
     <p *ngIf="questions.length === 0" class="no-questions">No questions left. Go back to add more.</p>
+  </div>
+
+  <p *ngIf="saveSuccessMessage" class="save-success">{{ saveSuccessMessage }}</p>
+</div>
+
+<!-- Export format dialog (first time save) -->
+<div class="export-dialog-overlay" *ngIf="showExportFormatDialog" (click)="showExportFormatDialog = false">
+  <div class="export-dialog" (click)="$event.stopPropagation()">
+    <h3>Choose export format</h3>
+    <div class="export-radio">
+      <label><input type="radio" name="exportFormat" value="both" [(ngModel)]="exportFormat" /> Both PDF and DOCX</label>
+    </div>
+    <div class="export-radio">
+      <label><input type="radio" name="exportFormat" value="pdf" [(ngModel)]="exportFormat" /> Only PDF</label>
+    </div>
+    <div class="export-radio">
+      <label><input type="radio" name="exportFormat" value="docx" [(ngModel)]="exportFormat" /> Only DOCX</label>
+    </div>
+    <p class="export-dialog-hint">You can change this later by visiting <strong>Profile Settings</strong>.</p>
+    <div class="export-dialog-actions">
+      <button type="button" class="btn-cancel" (click)="showExportFormatDialog = false">Cancel</button>
+      <button type="button" class="btn-confirm" (click)="confirmExportFormat()">Continue</button>
+    </div>
   </div>
 </div>

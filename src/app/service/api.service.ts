@@ -263,6 +263,21 @@ export class ApiService {
     return localStorage.getItem('authToken');
   }
 
+  /** Whether the user is considered logged in (has auth token). */
+  isLoggedIn(): boolean {
+    return !!this.getToken();
+  }
+
+  /** GET customer settings (requires auth). Returns { settings }. */
+  getCustomerSettings(): Observable<{ settings: Record<string, any> }> {
+    return this.http.get<{ settings: Record<string, any> }>(`${this.baseUrl}/customer_settings/`);
+  }
+
+  /** POST customer settings (merge). Body: { settings }. Returns { settings }. */
+  updateCustomerSettings(settings: Record<string, any>): Observable<{ settings: Record<string, any> }> {
+    return this.http.post<{ settings: Record<string, any> }>(`${this.baseUrl}/customer_settings/`, { settings });
+  }
+
   /** Returns { exists, found_in? }. found_in is set when exists is true (student|jobseeker|teacher|customer). */
   checkMobileNumberExists(username: string, countryCode?: string): Observable<{ exists: boolean; found_in?: string }> {
     let url = `${this.baseUrl}/username/?username=${encodeURIComponent(username)}`;

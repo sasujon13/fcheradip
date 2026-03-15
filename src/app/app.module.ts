@@ -13,6 +13,7 @@ import { FaqsComponent } from './component/faqs/faqs/faqs.component';
 import { OrderComponent } from './component/cart/order/order.component';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { LanguageInterceptor } from './service/language.interceptor';
+import { AuthInterceptor } from './service/auth.interceptor';
 import { FilterPipe } from './shared/filter.pipe';
 import { SafeUrlPipe } from './shared/safe-url.pipe';
 import { OrderByPipe } from './shared/orderBy.pipe';
@@ -156,6 +157,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
   providers: [
     MatSnackBar,
     { provide: HTTP_INTERCEPTORS, useClass: LanguageInterceptor, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
     { provide: UrlSerializer, useClass: ParenthesisSafeUrlSerializer },
   ],
   bootstrap: [AppComponent],
