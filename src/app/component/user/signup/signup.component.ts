@@ -1201,14 +1201,9 @@ export class SignupComponent implements OnInit, OnDestroy {
         country_code: this.authForm.value.countryCode || this.selectedCountry?.country_code || 'BD',
       };
 
-      this.apiService.signupWithData(formData).subscribe(
-        (response: any) => {
-          this.snackBar.open(`Account created! Your password is: ${passwordToUse}`, 'Close', {
-            duration: 10000,
-            panelClass: ['success-snackbar'],
-          });
-
-          // Store user data
+      this.apiService.signupWithData(formData).subscribe({
+        next: (response: any) => {
+          // Log in immediately: no overlay, no delay
           localStorage.setItem('username', formData.username);
           localStorage.setItem('fullName', formData.fullName);
           localStorage.setItem('isLoggedIn', 'true');
@@ -1216,7 +1211,6 @@ export class SignupComponent implements OnInit, OnDestroy {
           localStorage.setItem('formData', JSON.stringify(formData));
           localStorage.removeItem(SIGNUP_DRAFT_KEY);
 
-          // Update header immediately: show profile menu, hide login/signup (same as login success)
           this.showLoggedInHeader();
 
           const returnUrl = localStorage.getItem('returnUrl') || '/';
@@ -1228,15 +1222,21 @@ export class SignupComponent implements OnInit, OnDestroy {
               requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
             }
           });
+
+          // Success message: 3 seconds, Teal
+          this.snackBar.open('Successfully logged in.', 'Close', {
+            duration: 3000,
+            panelClass: ['success-snackbar'],
+          });
         },
-        (error: any) => {
+        error: (error: any) => {
           console.error('Signup error:', error);
           this.snackBar.open('Signup failed. Please try again.', 'Close', {
             duration: 5000,
             panelClass: ['error-snackbar'],
           });
-        }
-      );
+        },
+      });
     } else {
       this.authForm.markAllAsTouched();
     }

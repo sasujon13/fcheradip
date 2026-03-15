@@ -84,6 +84,27 @@
   background-color: rgb(203, 230, 230);
     text-shadow: -0.25px 0.25px white;
 }
+
+  /* Signup/login success: Teal */
+  .mat-mdc-snack-bar-container.success-snackbar .mat-mdc-snack-bar-label,
+  .mat-mdc-snack-bar-container.success-snackbar .mdc-snackbar__label {
+    background-color: #008080 !important;
+    color: #fff !important;
+  }
+  .mat-mdc-snack-bar-container.success-snackbar .mdc-snackbar__surface {
+    background-color: #008080 !important;
+  }
+
+  /* Signup/login failure: Red */
+  .mat-mdc-snack-bar-container.error-snackbar .mat-mdc-snack-bar-label,
+  .mat-mdc-snack-bar-container.error-snackbar .mdc-snackbar__label {
+    background-color: #c62828 !important;
+    color: #fff !important;
+  }
+  .mat-mdc-snack-bar-container.error-snackbar .mdc-snackbar__surface {
+    background-color: #c62828 !important;
+  }
+
 .menu_item2{
   display: none;
 }
