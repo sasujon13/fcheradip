@@ -1,0 +1,30 @@
+<div class="created-questions-page">
+  <h2>Created Questions</h2>
+  <p class="page-desc">Your saved question sets. You can rename, download (PDF/DOCX), or delete.</p>
+  <p *ngIf="error" class="error-msg">{{ error }}</p>
+  <p *ngIf="loading" class="loading">Loading…</p>
+  <ul *ngIf="!loading && sets.length" class="sets-list">
+    <li *ngFor="let set of sets" class="set-item">
+      <div class="set-info">
+        <span class="set-name-counter">{{ set.name }}_{{ set.counter }}</span>
+        <span class="set-header" *ngIf="set.question_header"> — {{ set.question_header }}</span>
+        <span class="set-meta">{{ set.questions?.length || 0 }} questions</span>
+        <span class="set-date" *ngIf="set.created_at">{{ set.created_at | date:'short' }}</span>
+      </div>
+      <div class="set-actions">
+        <ng-container *ngIf="renamingId === set.id; else viewActions">
+          <input type="text" [(ngModel)]="renameValue" (keyup.enter)="saveRename()" (keyup.escape)="cancelRename()" class="rename-input" />
+          <button type="button" class="btn-sm" (click)="saveRename()">Save</button>
+          <button type="button" class="btn-sm btn-cancel" (click)="cancelRename()">Cancel</button>
+        </ng-container>
+        <ng-template #viewActions>
+          <button type="button" class="btn-sm" (click)="startRename(set)">Rename</button>
+          <button type="button" class="btn-sm" (click)="downloadSet(set, 'pdf')">PDF</button>
+          <button type="button" class="btn-sm" (click)="downloadSet(set, 'docx')">DOCX</button>
+          <button type="button" class="btn-sm btn-danger" (click)="deleteSet(set)">Delete</button>
+        </ng-template>
+      </div>
+    </li>
+  </ul>
+  <p *ngIf="!loading && !sets.length" class="no-items">No saved question sets yet. Create questions from the Question page and use Save to download and save here.</p>
+</div>

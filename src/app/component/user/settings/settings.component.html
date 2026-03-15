@@ -1,0 +1,14 @@
+<div class="login_signup_form settings-form">
+  <h2>Settings</h2>
+  <p class="settings-desc">Choose how question sets are downloaded (PDF, DOCX, or both).</p>
+  <div class="form-group">
+    <label>Download format</label>
+    <div class="export-options">
+      <label class="radio-option"><input type="radio" name="exportFormat" value="both" [(ngModel)]="exportFormat" /> Both PDF and DOCX</label>
+      <label class="radio-option"><input type="radio" name="exportFormat" value="pdf" [(ngModel)]="exportFormat" /> Only PDF</label>
+      <label class="radio-option"><input type="radio" name="exportFormat" value="docx" [(ngModel)]="exportFormat" /> Only DOCX</label>
+    </div>
+  </div>
+  <button type="button" class="btn-save" (click)="save()" [disabled]="saving">Save</button>
+  <p *ngIf="message" class="settings-message" [class.error]="message.startsWith('Failed')">{{ message }}</p>
+</div>

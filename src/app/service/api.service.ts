@@ -15,6 +15,16 @@ export interface ScraperLibrary {
   questionPerPage?: number;
 }
 
+export interface CreatedQuestionSet {
+  id: number;
+  name: string;
+  question_header: string;
+  questions: any[];
+  counter: number;
+  file_name_base: string;
+  created_at?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -294,6 +304,31 @@ export class ApiService {
     filename: string;
   }): Observable<Blob> {
     return this.http.post(`${this.baseUrl}/export_questions/`, payload, { responseType: 'blob' });
+  }
+
+  /** Created question sets: list */
+  getCreatedQuestionSets(): Observable<CreatedQuestionSet[]> {
+    return this.http.get<CreatedQuestionSet[]>(`${this.baseUrl}/created_question_sets/`);
+  }
+
+  /** Created question sets: create (name, question_header, questions) */
+  createQuestionSet(payload: { name: string; question_header: string; questions: any[] }): Observable<CreatedQuestionSet> {
+    return this.http.post<CreatedQuestionSet>(`${this.baseUrl}/created_question_sets/`, payload);
+  }
+
+  /** Created question sets: get one */
+  getCreatedQuestionSet(id: number): Observable<CreatedQuestionSet> {
+    return this.http.get<CreatedQuestionSet>(`${this.baseUrl}/created_question_sets/${id}/`);
+  }
+
+  /** Created question sets: rename (PATCH name) */
+  renameQuestionSet(id: number, name: string): Observable<{ name: string; file_name_base: string }> {
+    return this.http.patch<{ name: string; file_name_base: string }>(`${this.baseUrl}/created_question_sets/${id}/`, { name });
+  }
+
+  /** Created question sets: delete */
+  deleteQuestionSet(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/created_question_sets/${id}/`);
   }
 
   /** Returns { exists, found_in? }. found_in is set when exists is true (student|jobseeker|teacher|customer). */

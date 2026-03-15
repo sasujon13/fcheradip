@@ -199,8 +199,13 @@ export class QuestionCreatorComponent implements OnInit {
     forkJoin(requests).subscribe({
       next: (blobs) => {
         toRequest.forEach((fmt, i) => this.downloadBlob(blobs[i], fmt === 'pdf' ? this.defaultPdfName : this.defaultDocxName));
-        this.saveSuccessMessage = `Created and downloaded: ${toRequest.map(f => f === 'pdf' ? this.defaultPdfName : this.defaultDocxName).join(', ')}.`;
+        this.saveSuccessMessage = `Created and downloaded: ${toRequest.map(f => f === 'pdf' ? this.defaultPdfName : this.defaultDocxName).join(', ')}. Saved to Created Questions.`;
         this.saving = false;
+        this.apiService.createQuestionSet({
+          name: this.defaultFileNameBase,
+          question_header: this.questionHeader,
+          questions: this.questions,
+        }).subscribe({ error: () => {} });
       },
       error: () => {
         this.saveSuccessMessage = 'Failed to generate files. Please try again.';

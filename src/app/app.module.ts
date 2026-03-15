@@ -30,6 +30,8 @@ import { MyorderComponent } from './component/cart/myorder/myorder.component';
 import { PasswordComponent } from './component/user/password/password.component';
 import { IndexComponent } from './component/index/index.component';
 import { MobileComponent } from './component/user/mobile/mobile.component';
+import { SettingsComponent } from './component/user/settings/settings.component';
+import { CreatedQuestionsComponent } from './component/user/created-questions/created-questions.component';
 import { SignupComponent } from './component/user/signup/signup.component';
 import { CountrySelectorComponent } from './shared/country-selector/country-selector.component';
 import { AlertComponent } from './component/faqs/alert/alert.component';
@@ -99,6 +101,8 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     NtrcaHeaderSectionComponent,
     AdminComponent,
     ProfileComponent,
+    SettingsComponent,
+    CreatedQuestionsComponent,
     MyorderComponent,
     PasswordComponent,
     IndexComponent,

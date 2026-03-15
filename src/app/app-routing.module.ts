@@ -19,6 +19,8 @@ import { ProfileComponent } from './component/user/profile/profile.component';
 import { MyorderComponent } from './component/cart/myorder/myorder.component';
 import { PasswordComponent } from './component/user/password/password.component';
 import { MobileComponent } from './component/user/mobile/mobile.component';
+import { SettingsComponent } from './component/user/settings/settings.component';
+import { CreatedQuestionsComponent } from './component/user/created-questions/created-questions.component';
 import { IndexComponent } from './component/index/index.component';
 import { NtrcaComponent } from './component/ntrca/ntrca/ntrca.component';
 import { Vacant7Component } from './component/ntrca/vacant7/vacant7.component';
@@ -89,6 +91,8 @@ const routes: Routes = [
   {path: 'admin', component: AdminComponent},
   {path: 'myorder', component: MyorderComponent, canActivate: [AuthGuard]},
   {path: 'profile', component: ProfileComponent, canActivate: [AuthGuard]},
+  {path: 'settings', component: SettingsComponent, canActivate: [AuthGuard]},
+  {path: 'created-questions', component: CreatedQuestionsComponent, canActivate: [AuthGuard]},
   {path: 'password', component: PasswordComponent, canActivate: [AuthGuard]},
   {path: 'mobile', component: MobileComponent, canActivate: [AuthGuard]},
   {path: 'question', component: QuestionComponent},
