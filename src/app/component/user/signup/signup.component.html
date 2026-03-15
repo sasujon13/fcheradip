@@ -102,7 +102,7 @@
         <select formControlName="className" id="className" class="form-control"
         [ngClass]="{ 'is-invalid': authForm.get('className')?.touched && authForm.get('className')?.invalid }">
         <option value="">Select Class</option>
-        <option *ngFor="let opt of (availableClassOptions.length ? availableClassOptions : defaultClassOptions)" [value]="opt.value">{{ opt.label }}</option>
+        <option *ngFor="let opt of (availableClassOptions.length ? availableClassOptions : defaultClassOptions)" [value]="opt.value">{{ getClassDisplayLabel(opt.value) }}</option>
       </select>
       </div>
     </div>

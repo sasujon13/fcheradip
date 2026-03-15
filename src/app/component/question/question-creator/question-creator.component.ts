@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
 
 export const QUESTION_CREATOR_STATE_KEY = 'questionCreatorReturnState';
@@ -179,11 +180,41 @@ export class QuestionCreatorComponent implements OnInit {
   private doSave(format: ExportFormat): void {
     this.saving = true;
     this.saveSuccessMessage = '';
-    const names: string[] = [];
-    if (format === 'both' || format === 'pdf') names.push(this.defaultPdfName);
-    if (format === 'both' || format === 'docx') names.push(this.defaultDocxName);
-    // TODO: call backend to generate and return PDF/DOCX, or generate client-side
-    this.saveSuccessMessage = `Will create: ${names.join(', ')}. (Generation can be wired to backend later.)`;
-    this.saving = false;
+    const payload = {
+      questions: this.questions,
+      questionHeader: this.questionHeader,
+      pageSize: this.pageSize,
+      marginTop: this.marginTop,
+      marginRight: this.marginRight,
+      marginBottom: this.marginBottom,
+      marginLeft: this.marginLeft,
+      filename: this.defaultFileNameBase,
+    };
+    const toRequest: ('pdf' | 'docx')[] = [];
+    if (format === 'both' || format === 'pdf') toRequest.push('pdf');
+    if (format === 'both' || format === 'docx') toRequest.push('docx');
+    const requests = toRequest.map(fmt =>
+      this.apiService.exportQuestions({ ...payload, format: fmt })
+    );
+    forkJoin(requests).subscribe({
+      next: (blobs) => {
+        toRequest.forEach((fmt, i) => this.downloadBlob(blobs[i], fmt === 'pdf' ? this.defaultPdfName : this.defaultDocxName));
+        this.saveSuccessMessage = `Created and downloaded: ${toRequest.map(f => f === 'pdf' ? this.defaultPdfName : this.defaultDocxName).join(', ')}.`;
+        this.saving = false;
+      },
+      error: () => {
+        this.saveSuccessMessage = 'Failed to generate files. Please try again.';
+        this.saving = false;
+      },
+    });
+  }
+
+  private downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }

@@ -114,13 +114,25 @@ export class SignupComponent implements OnInit, OnDestroy {
   availableClassOptions: { value: string; label: string; has_groups?: boolean }[] = [];
   /** Class options from HSC DB for Teacher add-subject (filtered by level in getter). */
   addSubjectClassOptionsFromApi: { value: string; label: string }[] = [];
+  /** Display label for class value in Student dropdown: "0 (Zero)", "9-10 (Nine-Ten)", etc. Values 0–8, 9-10, 11-12, 13-16 still stored as-is. */
+  readonly classDisplayLabels: Record<string, string> = {
+    '0': '0 (Zero)', '1': '1 (One)', '2': '2 (Two)', '3': '3 (Three)', '4': '4 (Four)',
+    '5': '5 (Five)', '6': '6 (Six)', '7': '7 (Seven)', '8': '8 (Eight)',
+    '9-10': '9-10 (Nine-Ten)', '11-12': '11-12 (Eleven-Twelve)',
+    '13-16': 'Degree / Honours / Masters'
+  };
   readonly defaultClassOptions: { value: string; label: string; has_groups?: boolean }[] = [
-    { value: '0', label: 'Class Zero', has_groups: false },
-    { value: '1', label: 'Class One', has_groups: false },
-    { value: '5', label: 'Class Five', has_groups: false },
-    { value: '8', label: 'Class Eight', has_groups: false },
-    { value: '9-10', label: 'Class 9-10', has_groups: true },
-    { value: '11-12', label: 'Class 11-12', has_groups: true },
+    { value: '0', label: '0 (Zero)', has_groups: false },
+    { value: '1', label: '1 (One)', has_groups: false },
+    { value: '2', label: '2 (Two)', has_groups: false },
+    { value: '3', label: '3 (Three)', has_groups: false },
+    { value: '4', label: '4 (Four)', has_groups: false },
+    { value: '5', label: '5 (Five)', has_groups: false },
+    { value: '6', label: '6 (Six)', has_groups: false },
+    { value: '7', label: '7 (Seven)', has_groups: false },
+    { value: '8', label: '8 (Eight)', has_groups: false },
+    { value: '9-10', label: '9-10 (Nine-Ten)', has_groups: true },
+    { value: '11-12', label: '11-12 (Eleven-Twelve)', has_groups: true },
     { value: '13-16', label: 'Degree / Honours / Masters', has_groups: false }
   ];
   /** Full class options 0–8, 9-10, 11-12 for add-subject, filtered by level. */
@@ -144,6 +156,11 @@ export class SignupComponent implements OnInit, OnDestroy {
   private readonly levelToClassLabel: Record<string, string> = {
     'PSC': 'PSC (1-5)', 'JSC': 'JSC (6-8)', 'SSC': 'SSC (9-10)', 'HSC': 'HSC (11-12)', 'University': 'Degree / Honours / Masters'
   };
+
+  /** Display label for Student class dropdown; use friendly text (e.g. "9-10 (Nine-Ten)") so API and default options look the same. */
+  getClassDisplayLabel(value: string): string {
+    return value ? (this.classDisplayLabels[value] ?? value) : '';
+  }
 
   showAddSubjectPane = false;
   addSubjectSubmitting = false;

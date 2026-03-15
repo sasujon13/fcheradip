@@ -278,6 +278,24 @@ export class ApiService {
     return this.http.post<{ settings: Record<string, any> }>(`${this.baseUrl}/customer_settings/`, { settings });
   }
 
+  /**
+   * POST export_questions: generate PDF or DOCX. Returns blob. Body: questions, questionHeader, pageSize,
+   * marginTop, marginRight, marginBottom, marginLeft, format ('pdf'|'docx'), filename (base without extension).
+   */
+  exportQuestions(payload: {
+    questions: any[];
+    questionHeader: string;
+    pageSize: string;
+    marginTop: number;
+    marginRight: number;
+    marginBottom: number;
+    marginLeft: number;
+    format: 'pdf' | 'docx';
+    filename: string;
+  }): Observable<Blob> {
+    return this.http.post(`${this.baseUrl}/export_questions/`, payload, { responseType: 'blob' });
+  }
+
   /** Returns { exists, found_in? }. found_in is set when exists is true (student|jobseeker|teacher|customer). */
   checkMobileNumberExists(username: string, countryCode?: string): Observable<{ exists: boolean; found_in?: string }> {
     let url = `${this.baseUrl}/username/?username=${encodeURIComponent(username)}`;
