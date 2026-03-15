@@ -98,7 +98,7 @@
     </div>
 
   <div class="search-bar">
-    <input type="text" placeholder="Type Institute Name or EIIN No." [(ngModel)]="searchTerm" (input)="onSearchInput($event)" (keyup)="onKeyUp($event)" />
+    <input type="text" placeholder="Type Institute's Name, EIIN or anything else..." [(ngModel)]="searchTerm" (input)="onSearchInput($event)" (keyup)="onKeyUp($event)" />
     <i (click)="onSearch()" class="fa fa-search"></i>
   </div>
 

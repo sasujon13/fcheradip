@@ -256,6 +256,15 @@ export class Recommend5Component implements OnInit {
     // Add more embed URLs here
   ];
 
+  /** Current calendar year for dynamic table headers. */
+  get currentYear(): number {
+    return new Date().getFullYear();
+  }
+  get yearMinus1(): number { return this.currentYear - 1; }
+  get yearMinus2(): number { return this.currentYear - 2; }
+  get yearMinus3(): number { return this.currentYear - 3; }
+  get yearMinus4(): number { return this.currentYear - 4; }
+
   constructor(private http: HttpClient, private renderer: Renderer2) { }
 
   ngOnInit(): void {
@@ -647,8 +656,8 @@ export class Recommend5Component implements OnInit {
         <th>EIIN<br>Institute Name</th>
         <th>District - Thana/Upz - Union<br>Mouza - Ward No</th>
         <th>Designation<br>Post</th>
-        <th>Total Students<br>2024</th>
-        <th>Classwise Students<br>2024</th>
+        <th>Total Students<br>${this.yearMinus1}</th>
+        <th>Classwise Students<br>${this.yearMinus1}</th>
       </tr>
     `;
 
@@ -760,9 +769,9 @@ export class Recommend5Component implements OnInit {
                 <th>Teachers Contact</th>
                 <th>SSC Depts</th>
                 <th>HSC Depts</th>
-                <th>Pre. 3Years Students<br>2023 - 2022 - 2021</th>
-                <th>Total Students<br>2024</th>
-                <th>Classwise Students<br>2024</th>
+                <th>Pre. 3 Years Students<br>${this.yearMinus2} - ${this.yearMinus3} - ${this.yearMinus4}</th>
+                <th>Total Students<br>${this.yearMinus1}</th>
+                <th>Classwise Students<br>${this.yearMinus1}</th>
               </tr>
             </thead>
             <tbody>
