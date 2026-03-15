@@ -1,0 +1,152 @@
+/* Shared NTRCA header: token box + mainmsg + notice links – CSS copied from ntrca5.shared.css block */
+:host {
+  display: block;
+}
+
+/* ---- .tokenbox ---- */
+:host .tokenbox {
+  position: relative;
+  max-width: 1920px;
+  margin: 0 auto;
+  width: 100%;
+  z-index: 1001 !important;
+}
+
+/* ---- .token-input-box (top fixed bar) ---- */
+:host .token-input-box {
+  padding: 12px 12px 12px 0;
+  background: transparent;
+  border: none;
+  margin-top: -91px;
+  border-radius: 8px;
+  text-align: center;
+  position: fixed;
+}
+
+:host .token-input-box input {
+  padding: 0px 12px;
+  font-size: 14px;
+  width: 132px;
+  border: 5px solid teal;
+  border-left: 18px solid teal;
+}
+
+:host .token-input-box input:focus,
+:host .token-input-box input:focus-visible {
+  outline: none;
+  border-color: teal;
+  box-shadow: 0 0 0 2px teal;
+}
+
+:host .token-input-box button {
+  padding: 5px 14px;
+  font-size: 14px;
+  background-color: teal;
+  color: white;
+  border: none;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
+  margin-left: -7px;
+}
+
+/* ---- .hover-message-container / .hover-message-box ---- */
+:host .hover-message-container {
+  position: relative;
+  display: inline-block;
+}
+
+:host .hover-message-container:hover .hover-message-box {
+  display: block;
+}
+
+:host .hover-message-box {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff8dc;
+  border: 1px solid #ccc;
+  padding: 10px;
+  width: max-content;
+  box-shadow: 0 0 10px #00808080;
+  z-index: 100;
+  border-radius: 12px;
+}
+
+:host .hover-message-box a {
+  color: blue;
+  text-decoration: underline;
+}
+
+/* ---- h1.msg (main message heading) ---- */
+:host h1.msg {
+  text-align: center;
+  color: darkred;
+  text-shadow: 0 0 15px teal;
+  margin: 126px 0 -15px 0 !important;
+  font-family: roboto regular;
+  font-size: 24px;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 50vw 100vw;
+  -webkit-background-clip: text;
+  background-image: linear-gradient(to right, teal, gold, teal);
+  animation: ntrca-header-msg-gradient 7s linear infinite;
+  padding: 7px;
+}
+
+@keyframes ntrca-header-msg-gradient {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+/* ---- notice links: active state + icon ---- */
+:host a.active-link {
+  color: darkred !important;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+:host .fa-info-circle {
+  background-color: seagreen;
+  color: white;
+  border: 3px dotted white;
+  border-radius: 50%;
+  font-size: 8px;
+  display: table-caption;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- p.br / p.br1 (line breaks in notice block) ---- */
+:host p.br {
+  margin-top: -10px;
+  display: none;
+}
+
+@media screen and (min-width: 320px) {
+  :host p.br {
+    display: block;
+    margin-top: -18px;
+  }
+}
+
+@media screen and (min-width: 575px) {
+  :host p.br {
+    display: none;
+  }
+  :host p.br1 {
+    display: block;
+    margin-top: -18px;
+  }
+}
+
+@media screen and (min-width: 768px) {
+  :host p.br.br1 {
+    display: none;
+  }
+}

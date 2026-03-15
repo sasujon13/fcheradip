@@ -1,53 +1,8 @@
-<div class="tokenbox">
-  <div class="token-input-box">
-    <br>
-    <div class="hover-message-container">
-      <input type="text" [(ngModel)]="newToken" placeholder="8-Digit Token" maxlength="8" />
-      <button (click)="applyToken()">Apply Token</button>
-      <p style="margin-top: 7px;">Remaining unlocks: <b>{{ (freeUnlockLimit || 0) - unlockedEIINs.size
-          }}</b></p>
-      <div class="hover-message-box" style="text-align: left;">
-        1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
-        2. Send Money to <strong>01722710298</strong> (Personal) Tk 200<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Using <strong>bKash / Nagad</strong> to Unlock &nbsp;<strong>1000</strong>&nbsp;
-        Institutes.<br>
-        3. WhatsApp / Message me the <strong>TrxID</strong> for Token and,<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then Place the <strong>Token</strong> & Click on <strong>Apply Token</strong>
-        Button!
-      </div>
-    </div>
-  </div>
-</div>
-<div class="mainmsg" style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
-  <h1 class="msg"> শিক্ষক নিয়োগের বিস্তারিত তথ্যভিত্তিক অ্যানালাইসিস<br></h1>
-</div>
-<div class="mainmsg" style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
-  <h2 style="text-align: center; margin-top: 30px; margin-bottom: 10px; color: teal;"><b>
-      ৮ম গণবিজ্ঞপ্তি<p class="br br1"></p> <a style="text-decoration: none;" [routerLink]="['/vacant8']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
-      <a style="text-decoration: none;" [routerLink]="['/merit8']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
-      <a style="text-decoration: none;" [routerLink]="['/recommend8']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a>
-      <br>৭ম গণবিজ্ঞপ্তি<p class="br br1"></p> <a style="text-decoration: none;" [routerLink]="['/vacant7']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
-      <a style="text-decoration: none;" [routerLink]="['/merit7']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
-      <a style="text-decoration: none;" [routerLink]="['/recommend7']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a>
-      <br>৬ষ্ঠ গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant6']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
-      <a style="text-decoration: none;" [routerLink]="['/merit6']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
-      <a style="text-decoration: none;" [routerLink]="['/recommend6']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a>
-      <br>৫ম গণবিজ্ঞপ্তি<p class="br"></p> <a style="text-decoration: none;" [routerLink]="['/vacant5']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;শূন্যপদ</a>
-      <a style="text-decoration: none;" [routerLink]="['/merit5']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;আবেদনযোগ্য প্রার্থী</a>
-      <a style="text-decoration: none;" [routerLink]="['/recommend5']" routerLinkActive="active-link"
-        style="text-decoration: none;">&nbsp;&nbsp;&nbsp;<i class="fas fa-info-circle"></i>&nbsp;সুপারিশ</a></b></h2>
-</div>
+<app-ntrca-header-section
+  [(newToken)]="newToken"
+  (applyTokenClick)="applyToken()"
+  [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"
+></app-ntrca-header-section>
 <div class="mainmsg" style="text-align: center;">
   <h1 class="msg">ট্রেড ইন্সট্রাক্টর/সহকারি শিক্ষক/প্রদর্শক/প্রভাষক  <b>আইসিটি</b> লিখিত কোর্স! <br><br> কেন আপনি <b>Cheradip</b> এর সাথে যুক্ত হবেন???</h1>
 </div>
