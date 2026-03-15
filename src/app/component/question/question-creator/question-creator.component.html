@@ -1,0 +1,64 @@
+<div class="question-creator-container">
+  <div class="creator-header">
+    <button type="button" class="btn-back" (click)="goBack()">&larr; Back to Questions</button>
+    <h1>Create Question Set</h1>
+    <p class="creator-context" *ngIf="context.subject_tr">
+      {{ context.level_tr }} &ndash; {{ context.subject_tr }}
+      <span *ngIf="context.chapter"> &ndash; {{ context.chapter }}</span>
+      <span *ngIf="context.topic"> &ndash; {{ context.topic }}</span>
+    </p>
+  </div>
+
+  <div class="creator-settings">
+    <h2>Layout settings</h2>
+    <div class="settings-grid">
+      <div class="setting-item">
+        <label for="questionHeader">Question header</label>
+        <input id="questionHeader" type="text" [(ngModel)]="questionHeader" placeholder="e.g. Section A" />
+      </div>
+      <div class="setting-item">
+        <label for="pageSize">Page size</label>
+        <select id="pageSize" [(ngModel)]="pageSize">
+          <option value="A4">A4</option>
+          <option value="Letter">Letter</option>
+          <option value="A3">A3</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label for="pageMargin">Page margin (mm)</label>
+        <input id="pageMargin" type="number" min="0" [(ngModel)]="pageMargin" />
+      </div>
+      <div class="setting-item">
+        <label for="questionsPadding">Questions padding (px)</label>
+        <input id="questionsPadding" type="number" min="0" [(ngModel)]="questionsPadding" />
+      </div>
+      <div class="setting-item">
+        <label for="questionsGap">Questions gap (px)</label>
+        <input id="questionsGap" type="number" min="0" [(ngModel)]="questionsGap" />
+      </div>
+    </div>
+  </div>
+
+  <div class="creator-actions">
+    <button type="button" class="btn-smart" (click)="onSmartQuestionCreator()">Smart Question Creator</button>
+  </div>
+
+  <div class="creator-questions">
+    <h2>Questions ({{ questions.length }}) – remove any you don't want</h2>
+    <ul class="creator-questions-list">
+      <li *ngFor="let q of questions" class="creator-question-item">
+        <div class="creator-question-body">
+          <span class="creator-question-text">{{ q.question }}</span>
+          <div class="creator-question-options" *ngIf="q.option_1 || q.option_2">
+            <span *ngIf="q.option_1">A: {{ q.option_1 }}</span>
+            <span *ngIf="q.option_2"> B: {{ q.option_2 }}</span>
+            <span *ngIf="q.option_3"> C: {{ q.option_3 }}</span>
+            <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
+          </div>
+        </div>
+        <button type="button" class="btn-remove" (click)="removeQuestion(q.id)" title="Remove">Remove</button>
+      </li>
+    </ul>
+    <p *ngIf="questions.length === 0" class="no-questions">No questions left. Go back to add more.</p>
+  </div>
+</div>

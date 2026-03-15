@@ -103,4 +103,16 @@
       </ng-container>
     </main>
   </div>
+
+  <!-- Floating button: 100px from bottom, teal, white text; only when questions selected -->
+  <button
+    *ngIf="selectedCount > 0"
+    type="button"
+    class="create-question-fab"
+    (click)="goToCreateQuestion()"
+    title="Create question set with selected questions"
+  >
+    <span class="create-question-fab-line">Create Question ({{ selectedCount }} Selected)</span>
+    <span class="create-question-fab-line create-question-fab-sub">Smart Question Creator</span>
+  </button>
 </div>

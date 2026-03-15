@@ -286,6 +286,35 @@ export class QuestionComponent implements OnInit {
     this.selectedQuestionIds = new Set();
   }
 
+  /** Selected count for floating button. */
+  get selectedCount(): number {
+    return this.selectedQuestionIds?.size ?? 0;
+  }
+
+  /** Selected question objects (from topicQuestions) to pass to creator page. */
+  get selectedQuestionsForCreate(): any[] {
+    if (!this.topicQuestions.length) return [];
+    return this.topicQuestions.filter((q: any) => this.selectedQuestionIds.has(q.id));
+  }
+
+  /** Navigate to create page with selected questions (click on "Create Question (N Selected)"). */
+  goToCreateQuestion(): void {
+    const questions = this.selectedQuestionsForCreate;
+    if (!questions.length) return;
+    this.router.navigate(['/question/create'], {
+      state: {
+        questions,
+        context: {
+          level_tr: this.selectedLevel,
+          class_level: this.selectedClass,
+          subject_tr: this.selectedSubject?.subject_tr,
+          chapter: this.currentChapter,
+          topic: this.selectedTopic
+        }
+      }
+    });
+  }
+
   loadQuestionForEdit(id: number): void {
     this.apiService.getQuestionById(id).subscribe({
       next: (q) => { this.editQuestion = q; },

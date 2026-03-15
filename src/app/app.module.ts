@@ -54,6 +54,7 @@ import { Recommend6Component } from './component/ntrca/recommend6/recommend6.com
 import { InstituteComponent } from './component/ntrca/institute/institute.component';
 import { CollegeThemeComponent } from './component/ntrca/college-theme/college-theme.component';
 import { QuestionComponent } from './component/question/question/question.component';
+import { QuestionCreatorComponent } from './component/question/question-creator/question-creator.component';
 import { StudentComponent } from './component/student/student/student.component';
 import { DashboardComponent } from './component/student/dashboard/dashboard.component';
 import { LiveexamComponent } from './component/student/liveexam/liveexam.component';
@@ -118,6 +119,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     InstituteComponent,
     CollegeThemeComponent,
     QuestionComponent,
+    QuestionCreatorComponent,
     BreadcrumbComponent,
     SubjectSelectorComponent,
     ChapterNavigatorComponent,
