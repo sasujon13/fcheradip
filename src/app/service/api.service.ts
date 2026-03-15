@@ -306,6 +306,23 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/export_questions/`, payload, { responseType: 'blob' });
   }
 
+  /**
+   * POST export_questions_bulk: body { items: [ { questions, questionHeader, filename, pageSize?, marginTop?, ... }, ... ] }.
+   * Returns a single ZIP blob (all PDFs). One download.
+   */
+  exportQuestionsBulk(items: Array<{
+    questions: any[];
+    questionHeader: string;
+    filename: string;
+    pageSize?: string;
+    marginTop?: number;
+    marginRight?: number;
+    marginBottom?: number;
+    marginLeft?: number;
+  }>): Observable<Blob> {
+    return this.http.post(`${this.baseUrl}/export_questions_bulk/`, { items }, { responseType: 'blob' });
+  }
+
   /** Created question sets: list */
   getCreatedQuestionSets(): Observable<CreatedQuestionSet[]> {
     return this.http.get<CreatedQuestionSet[]>(`${this.baseUrl}/created_question_sets/`);

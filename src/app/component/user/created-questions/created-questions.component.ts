@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { finalize } from 'rxjs/operators';
 import { ApiService, CreatedQuestionSet } from '../../../service/api.service';
 
 @Component({
@@ -141,46 +142,33 @@ export class CreatedQuestionsComponent implements OnInit {
     });
   }
 
-  /** Download PDF for all currently filtered sets (one after another with short delay). */
+  /** Download all filtered sets as a single ZIP (one click, one save prompt). */
   downloadAllPdf(): void {
     const list = this.filteredSets;
     if (!list.length) return;
     this.downloadingAllPdf = true;
-    let index = 0;
-    const delayMs = 400;
-    const doNext = () => {
-      if (index >= list.length) {
-        this.downloadingAllPdf = false;
-        return;
-      }
-      const set = list[index];
-      index += 1;
-      const payload = {
-        questions: set.questions,
-        questionHeader: set.question_header || '',
-        pageSize: 'A4',
-        marginTop: 25.4,
-        marginRight: 25.4,
-        marginBottom: 25.4,
-        marginLeft: 25.4,
-        format: 'pdf' as const,
-        filename: set.file_name_base,
-      };
-      this.apiService.exportQuestions(payload).subscribe({
-        next: (blob) => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = set.file_name_base + '.pdf';
-          a.click();
-          URL.revokeObjectURL(url);
-          setTimeout(doNext, delayMs);
-        },
-        error: () => {
-          setTimeout(doNext, delayMs);
-        }
-      });
-    };
-    doNext();
+    const items = list.map(set => ({
+      questions: set.questions,
+      questionHeader: set.question_header || '',
+      filename: set.file_name_base,
+      pageSize: 'A4',
+      marginTop: 25.4,
+      marginRight: 25.4,
+      marginBottom: 25.4,
+      marginLeft: 25.4,
+    }));
+    this.apiService.exportQuestionsBulk(items).pipe(
+      finalize(() => { this.downloadingAllPdf = false; })
+    ).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'created_questions_all.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {}
+    });
   }
 }
