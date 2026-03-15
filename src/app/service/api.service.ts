@@ -568,7 +568,60 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/reset_password_with_code/`, { username, code, newPassword });
   }
 
-  // Question-related methods
+  // Question section: levels, subjects, chapters from cheradip_hsc
+  /** Distinct levels (level_tr) from cheradip_subject in cheradip_hsc (for question page first dropdown). */
+  getQuestionLevels(): Observable<{ levels: Array<{ level: string; level_tr: string; label: string }>; error?: string }> {
+    return this.http.get<{ levels: Array<{ level: string; level_tr: string; label: string }>; error?: string }>(
+      `${this.baseUrl}/question_levels/`
+    );
+  }
+  /** Classes for a level from cheradip_hsc.cheradip_subject (query param level_tr). */
+  getQuestionClasses(levelTr: string): Observable<{ classes: Array<{ value: string; label: string }>; error?: string }> {
+    return this.http.get<{ classes: Array<{ value: string; label: string }>; error?: string }>(
+      `${this.baseUrl}/question_classes/`,
+      { params: { level_tr: levelTr || '' } }
+    );
+  }
+  /** Groups for level (and optional class) from cheradip_subject.groups; empty if none. */
+  getQuestionGroups(levelTr: string, classLevel?: string): Observable<{ groups: string[]; error?: string }> {
+    const params: any = { level_tr: levelTr || '' };
+    if (classLevel) params.class_level = classLevel;
+    return this.http.get<{ groups: string[]; error?: string }>(`${this.baseUrl}/question_groups/`, { params });
+  }
+  /** Subjects for level (optional class_level and group filter). */
+  getQuestionSubjects(params: { level_tr: string; class_level?: string; group?: string }): Observable<{ subjects: Array<{ level_tr: string; class_level: string; subject_tr: string; id: string; name: string }>; error?: string }> {
+    const p: any = { level_tr: params.level_tr || '' };
+    if (params.class_level) p.class_level = params.class_level;
+    if (params.group) p.group = params.group;
+    return this.http.get<{ subjects: Array<{ level_tr: string; class_level: string; subject_tr: string; id: string; name: string }>; error?: string }>(
+      `${this.baseUrl}/question_subjects/`,
+      { params: p }
+    );
+  }
+  /** Unique chapters from subject question table; ordered by chapter_no ascending. */
+  getQuestionChapters(params: { level_tr: string; class_level: string; subject_tr: string }): Observable<{ chapters: Array<{ id: string; name: string }>; error?: string }> {
+    return this.http.get<{ chapters: Array<{ id: string; name: string }>; error?: string }>(
+      `${this.baseUrl}/question_chapters/`,
+      { params: { level_tr: params.level_tr || '', class_level: params.class_level || '', subject_tr: params.subject_tr || '' } }
+    );
+  }
+  /** Unique topics from subject question table; optional chapter filter; ordered by topic ascending. */
+  getQuestionTopics(params: { level_tr: string; class_level: string; subject_tr: string; chapter?: string }): Observable<{ topics: Array<{ id: string; name: string }>; error?: string }> {
+    const p: any = { level_tr: params.level_tr || '', class_level: params.class_level || '', subject_tr: params.subject_tr || '' };
+    if (params.chapter) p.chapter = params.chapter;
+    return this.http.get<{ topics: Array<{ id: string; name: string }>; error?: string }>(
+      `${this.baseUrl}/question_topics/`,
+      { params: p }
+    );
+  }
+  /** List questions from HSC subject table by topic (and optional chapter) for user to select. */
+  getQuestionListByTopic(params: { level_tr: string; class_level: string; subject_tr: string; topic: string; chapter?: string }): Observable<{ questions: any[]; error?: string }> {
+    const p: any = { level_tr: params.level_tr || '', class_level: params.class_level || '', subject_tr: params.subject_tr || '', topic: params.topic || '' };
+    if (params.chapter) p.chapter = params.chapter;
+    return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/question_list/`, { params: p });
+  }
+
+  // Question CRUD
   getQuestionById(id: number): Observable<any> {
     return this.http.get(`${this.baseUrl}/questions/${id}/`);
   }

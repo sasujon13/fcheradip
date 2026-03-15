@@ -1,22 +1,80 @@
 <div class="question-container">
+  <!-- Single-line filter row (like institute: division, district, thana); wraps and centers -->
+  <div class="question-filter-row">
+    <div class="question-filter-item">
+      <label class="question-filter-label">Level</label>
+      <select class="question-filter-select" [value]="selectedLevel" (change)="onLevelChange($any($event.target).value)">
+        <option value="">Select Level</option>
+        <option *ngFor="let lvl of levels" [value]="lvl.level_tr">{{ lvl.label }}</option>
+      </select>
+    </div>
+    <div class="question-filter-item" *ngIf="classes.length > 1">
+      <label class="question-filter-label">Class</label>
+      <select class="question-filter-select" [value]="selectedClass" (change)="onClassChange($any($event.target).value)">
+        <option value="">Select Class</option>
+        <option *ngFor="let c of classes" [value]="c.value">{{ c.label }}</option>
+      </select>
+    </div>
+    <div class="question-filter-item" *ngIf="groups.length > 0">
+      <label class="question-filter-label">Group</label>
+      <select class="question-filter-select" [value]="selectedGroup" (change)="onGroupChange($any($event.target).value)">
+        <option value="">Select Group</option>
+        <option *ngFor="let g of groups" [value]="g">{{ g }}</option>
+      </select>
+    </div>
+    <div class="question-filter-item" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass)">
+      <label class="question-filter-label">Subject</label>
+      <select class="question-filter-select" [value]="selectedSubject?.subject_tr ?? ''" (change)="onSubjectSelect($any($event.target).value)">
+        <option value="">Select Subject</option>
+        <option *ngFor="let sub of subjects" [value]="sub.subject_tr">{{ sub.name }}</option>
+      </select>
+    </div>
+    <div class="question-filter-item" *ngIf="selectedSubject">
+      <label class="question-filter-label">Chapter</label>
+      <select class="question-filter-select" [value]="currentChapter" (change)="onChapterChange($any($event.target).value)">
+        <option value="">Select Chapter</option>
+        <option *ngFor="let ch of chapters" [value]="ch.id">{{ ch.name }}</option>
+      </select>
+    </div>
+    <div class="question-filter-item" *ngIf="selectedSubject && currentChapter">
+      <label class="question-filter-label">Topic</label>
+      <select class="question-filter-select" [value]="selectedTopic" (change)="onTopicChange($any($event.target).value)">
+        <option value="">Select Topic</option>
+        <option *ngFor="let t of topics" [value]="t.id">{{ t.name }}</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Questions for selected topic: user selects which questions to use -->
+  <div class="topic-questions-section" *ngIf="selectedTopic && topicQuestions.length > 0">
+    <div class="topic-questions-header">
+      <h3>Questions for topic: {{ selectedTopic }}</h3>
+      <div class="topic-questions-actions">
+        <button type="button" class="btn-link" (click)="selectAllTopicQuestions()">Select all</button>
+        <span class="sep">|</span>
+        <button type="button" class="btn-link" (click)="clearTopicQuestionSelection()">Clear selection</button>
+        <span class="selected-count">{{ selectedQuestionIds?.size ?? 0 }} selected</span>
+      </div>
+    </div>
+    <ul class="topic-questions-list">
+      <li *ngFor="let q of topicQuestions" class="topic-question-item">
+        <label class="topic-question-label">
+          <input type="checkbox" [checked]="isQuestionSelected(q.id)" (change)="toggleQuestionSelection(q.id)" />
+          <span class="topic-question-text">{{ q.question }}</span>
+        </label>
+        <div class="topic-question-options" *ngIf="q.option_1 || q.option_2">
+          <span *ngIf="q.option_1">A: {{ q.option_1 }}</span>
+          <span *ngIf="q.option_2"> B: {{ q.option_2 }}</span>
+          <span *ngIf="q.option_3"> C: {{ q.option_3 }}</span>
+          <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <p *ngIf="selectedTopic && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for this topic.</p>
+
   <div class="question-layout">
-    <aside class="sidebar">
-      <app-subjectselector 
-        [subjects]="subjects"
-        [currentSubject]="currentSubject"
-        (subjectChange)="onSubjectChange($any($event))"
-      ></app-subjectselector>
-      
-      <app-chapternavigator 
-        *ngIf="currentSubject"
-        [chapters]="chapters"
-        [currentChapter]="currentChapter"
-        (chapterChange)="onChapterChange($any($event))"
-      ></app-chapternavigator>
-    </aside>
-    
     <main class="main-content">
-      <!-- Form view: create or edit (for edit, wait until question is loaded) -->
       <app-questionform
         *ngIf="isFormMode && (!isEditRoute || editQuestion !== null)"
         [question]="editQuestion"
@@ -26,16 +84,15 @@
         (cancel)="onCancelForm()"
       ></app-questionform>
 
-      <!-- List view -->
       <ng-container *ngIf="!isFormMode">
         <div class="action-bar">
           <app-searchbar (searchChange)="onSearch($any($event))"></app-searchbar>
           <button class="btn-primary create-btn" (click)="onCreateQuestion()">
-            <i class="fa fa-plus"></i> Create Question2
+            <i class="fa fa-plus"></i> Create Question
           </button>
         </div>
-        
-        <app-questionlist 
+
+        <app-questionlist
           [questions]="questions"
           [currentPage]="currentPage"
           [totalPages]="totalPages"
