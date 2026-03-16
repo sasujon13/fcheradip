@@ -96,7 +96,6 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     OrderByPipe,
     hDirective,
     LoginComponent,
-    AlertComponent,
     NtrcaFooterSectionComponent,
     NtrcaHeaderSectionComponent,
     AdminComponent,
@@ -156,6 +155,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     BrowserAnimationsModule,
     MatSnackBarModule,
     SignupComponent,
+    AlertComponent,
     CountrySelectorComponent,
   ],
   providers: [

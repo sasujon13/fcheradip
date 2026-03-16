@@ -1,9 +1,10 @@
-import { Component, OnInit, OnDestroy, Renderer2, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, Renderer2, HostListener } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, Validators, ValidatorFn } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { CountrySelectorComponent } from '../../../shared/country-selector/country-selector.component';
+import { AlertComponent } from '../../faqs/alert/alert.component';
 import { ApiService } from '../../../service/api.service';
 import { CountryService, Country } from '../../../service/country.service';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
@@ -64,7 +65,7 @@ function dobDDMMYYYYValidator(maxDateIso: string): ValidatorFn {
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [CommonModule, RouterModule, ReactiveFormsModule, CountrySelectorComponent],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule, CountrySelectorComponent, AlertComponent],
   templateUrl: './signup.component.html',
   styleUrls: ['./signup.component.css']
 })
@@ -173,13 +174,19 @@ export class SignupComponent implements OnInit, OnDestroy {
   /** True after user (or our default) sets country in signup; prevents header/service from overwriting signup form. */
   private signupCountryInitialized = false;
 
+  /** Auth alert (same snackbar as NTRCA: success = teal, error = darkred) */
+  authAlertMessage = '';
+  showAuthAlert = false;
+  authAlertIsSuccess = false;
+
   constructor(
     private fb: FormBuilder,
     private router: Router,
     private apiService: ApiService,
     private snackBar: MatSnackBar,
     private renderer: Renderer2,
-    private countryService: CountryService
+    private countryService: CountryService,
+    private cdr: ChangeDetectorRef
   ) {
     const today = new Date();
     today.setFullYear(today.getFullYear() - 5);
@@ -1223,23 +1230,26 @@ export class SignupComponent implements OnInit, OnDestroy {
             }
           });
 
-          // Success message: 3 seconds, Teal
-          this.snackBar.open('Successfully logged in.', 'Close', {
-            duration: 3000,
-            panelClass: ['success-snackbar'],
-          });
+          this.showAuthAlertMessage('Successfully logged in.', true);
         },
         error: (error: any) => {
           console.error('Signup error:', error);
-          this.snackBar.open('Signup failed. Please try again.', 'Close', {
-            duration: 5000,
-            panelClass: ['error-snackbar'],
-          });
+          this.showAuthAlertMessage('Signup failed. Please try again.', false);
         },
       });
     } else {
       this.authForm.markAllAsTouched();
     }
+  }
+
+  /** Show auth alert (same snackbar as NTRCA: success = teal, error = darkred). Reset first so it re-shows on every submit. */
+  private showAuthAlertMessage(msg: string, isSuccess: boolean): void {
+    this.showAuthAlert = false;
+    this.authAlertMessage = msg;
+    this.authAlertIsSuccess = isSuccess;
+    this.cdr.detectChanges();
+    this.showAuthAlert = true;
+    this.cdr.detectChanges();
   }
 
   /** Update header to show profile menu and hide login/signup (same as login success). */

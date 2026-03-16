@@ -325,3 +325,5 @@
     <a [routerLink]="['/login']" class="switch-btn">Login</a>
   </div>
 </div>
+
+<app-alert [message]="authAlertMessage" [showAlert]="showAuthAlert" [alertType]="authAlertIsSuccess ? 'success' : 'error'"></app-alert>

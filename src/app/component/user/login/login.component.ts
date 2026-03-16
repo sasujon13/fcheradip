@@ -5,8 +5,8 @@ import { ApiService } from 'src/app/service/api.service';
 import { CountryService, Country } from 'src/app/service/country.service';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { of, Subject } from 'rxjs';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
+import { ChangeDetectorRef } from '@angular/core';
 
 
 @Component({
@@ -49,14 +49,19 @@ export class LoginComponent implements OnInit, OnDestroy {
   forgotPasswordError = '';
   forgotPasswordSuccess = '';
 
+  /** Auth alert (same style as NTRCA snackbar: success = teal, error = darkred) */
+  authAlertMessage = '';
+  showAuthAlert = false;
+  authAlertIsSuccess = false;
+
   constructor(
     private fb: FormBuilder,
     private router: Router,
     private apiService: ApiService,
-    private snackBar: MatSnackBar,
     private http: HttpClient,
     private renderer: Renderer2,
-    private countryService: CountryService
+    private countryService: CountryService,
+    private cdr: ChangeDetectorRef
   ) {
     this.authForm = this.fb.group({
       countryCode: ['BD', [Validators.required]],
@@ -222,27 +227,27 @@ export class LoginComponent implements OnInit, OnDestroy {
       localStorage.setItem('formData', JSON.stringify(formData));
       this.apiService.login(username, password, countryCode || undefined, this.loginFoundIn ?? undefined).subscribe({
         next: (response) => {
-          this.snackBar.open('Signin Successful!', 'Close', {
-            duration: 3000,
-            panelClass: ['success-snackbar'],
-          });
-          this.logout();
-          const returnUrl = localStorage.getItem('returnUrl') || '/';
-          this.router.navigateByUrl(returnUrl).then(() => {
-            localStorage.setItem('returnUrl', '');
-            const scrollY = sessionStorage.getItem('signupReturnScrollY');
-            if (scrollY != null) {
-              sessionStorage.removeItem('signupReturnScrollY');
-              requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
-            }
-          });
+          this.showAuthAlertMessage('LoggedIn successfully!', true);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('username', username);
           if (response && response.authToken) localStorage.setItem('authToken', response.authToken);
           localStorage.setItem('formData', JSON.stringify(formData));
+          this.logout();
+          const returnUrl = localStorage.getItem('returnUrl') || '/';
+          setTimeout(() => {
+            this.router.navigateByUrl(returnUrl).then(() => {
+              localStorage.setItem('returnUrl', '');
+              const scrollY = sessionStorage.getItem('signupReturnScrollY');
+              if (scrollY != null) {
+                sessionStorage.removeItem('signupReturnScrollY');
+                requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
+              }
+            });
+          }, 3000);
         },
         error: () => {
           this.isPasswordMismatch = true;
+          this.showAuthAlertMessage('Your Password doesn\'t match! Please try again.', false);
         }
       });
     } else {
@@ -254,6 +259,17 @@ export class LoginComponent implements OnInit, OnDestroy {
   togglePasswordVisibility(): void {
     this.showPassword = !this.showPassword;
   }
+
+  /** Show auth alert (same snackbar as NTRCA: success = teal, error = darkred). Reset first so it re-shows on every submit. */
+  private showAuthAlertMessage(msg: string, isSuccess: boolean): void {
+    this.showAuthAlert = false;
+    this.authAlertMessage = msg;
+    this.authAlertIsSuccess = isSuccess;
+    this.cdr.detectChanges();
+    this.showAuthAlert = true;
+    this.cdr.detectChanges();
+  }
+
   logout(): void {
     const menu_item0 = document.getElementById('menu_item0');
     const menu_item1 = document.getElementById('menu_item1');
@@ -397,10 +413,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.isResetting = false;
         if (response.success) {
           this.forgotPasswordSuccess = 'Password reset successful! You can now login.';
-          this.snackBar.open('Password reset successful!', 'Close', {
-            duration: 5000,
-            panelClass: ['success-snackbar'],
-          });
+          this.showAuthAlertMessage('Password reset successful! You can now login.', true);
           setTimeout(() => {
             this.closeForgotPasswordModal();
           }, 2000);

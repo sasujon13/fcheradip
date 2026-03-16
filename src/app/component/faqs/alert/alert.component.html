@@ -1,6 +1,6 @@
-<div *ngIf="showAlert" class="custom-alert-overlay">
-  <div class="custom-alert-box">
-    <p>{{ message }}</p>
-    <button (click)="showAlert = false">Close</button>
+<div *ngIf="showAlert" class="custom-alert-overlay" (click)="onOverlayClick($event)">
+  <div class="custom-alert-box" [class.alert-success-box]="alertType === 'success'" (click)="$event.stopPropagation()">
+    <p [class.alert-success-text]="alertType === 'success'">{{ message }}</p>
+    <button (click)="onClose()">Close</button>
   </div>
 </div>
