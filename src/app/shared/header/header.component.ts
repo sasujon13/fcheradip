@@ -196,9 +196,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Show token alert (same app-alert as vacant/recommend/merit) and trigger change detection so it renders. */
+  /** Show token alert (same app-alert as vacant/recommend/merit). Reset first so it re-shows on every click. */
   private showTokenAlertMessage(msg: string): void {
+    this.showTokenAlert = false;
     this.tokenAlertMessage = msg;
+    this.cdr.detectChanges();
     this.showTokenAlert = true;
     this.cdr.detectChanges();
   }

@@ -35,7 +35,7 @@
 
 .custom-alert-box button {
   padding: 7px 20px;
-  background-color: red;
+  background-color: darkred;
   border: none;
   color: #fff;
   font-size: 18px;
@@ -45,7 +45,7 @@
 }
 
 .custom-alert-box button:hover {
-  background-color: #0056b3;
+  background-color: teal;
 }
 .alert-box {
   position: fixed;
