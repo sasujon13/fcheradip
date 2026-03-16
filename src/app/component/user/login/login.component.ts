@@ -243,11 +243,10 @@ export class LoginComponent implements OnInit, OnDestroy {
                 requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
               }
             });
-          }, 3000);
+          }, 700);
         },
         error: () => {
           this.isPasswordMismatch = true;
-          this.showAuthAlertMessage('Your Password doesn\'t match! Please try again.', false);
         }
       });
     } else {

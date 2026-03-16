@@ -19,10 +19,11 @@ export class AlertComponent implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['showAlert'] && this.showAlert) {
       this.clearAutoClose();
+      const delayMs = this.alertType === 'success' ? 700 : 3000;
       this.autoCloseTimer = setTimeout(() => {
         this.showAlert = false;
         this.autoCloseTimer = null;
-      }, 3000);
+      }, delayMs);
     }
   }
 
