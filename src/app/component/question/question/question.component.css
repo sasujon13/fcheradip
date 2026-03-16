@@ -32,10 +32,13 @@
   white-space: nowrap;
 }
 
+/* Level, Class, Group, Subject: same CSS as Chapter/Topic trigger (box + ▼ arrow) */
 .question-filter-select {
   min-width: 120px;
   max-width: 200px;
-  padding: 6px 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 26px 6px 10px;
   border: 2px solid teal;
   border-radius: 6px;
   background-color: white;
@@ -45,6 +48,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.question-filter-select:hover {
+  border-color: #006666;
+  background-color: rgba(0, 128, 128, 0.08);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+}
+
+/* Same option color as Chapter/Topic panel options (browser may limit native select option styling) */
+.question-filter-select option {
+  color: #333;
+  background: #fff;
 }
 
 .question-filter-select:focus {
@@ -53,7 +72,17 @@
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
-/* Chapter / Topic: same CSS as Level/Group/Subject; trigger uses .question-filter-select; options have checkbox on left */
+/* Teal color for Select Level, Select Group, Select Subject when placeholder is selected */
+.question-filter-select.placeholder-selected {
+  color: #008080;
+}
+
+.question-filter-select option.filter-select-placeholder,
+.question-filter-select option[value=""] {
+  color: #008080;
+}
+
+/* Chapter / Topic: same CSS design as Level, Group, Subject (label + control); only the opened panel has checkboxes */
 .filter-dropdown-wrap {
   flex-direction: row;
   align-items: center;
@@ -67,12 +96,11 @@
   position: relative;
 }
 
-/* Trigger button: same look as Level/Group/Subject select; overflow hidden so long text doesn't wrap */
+/* Chapter/Topic trigger: identical to .question-filter-select (Level, Group, Subject) */
 .filter-dropdown-btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
   min-width: 120px;
   max-width: 200px;
   padding: 6px 10px;
@@ -85,6 +113,14 @@
   cursor: pointer;
   appearance: none;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-dropdown-btn:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
 .filter-dropdown-btn-label {
@@ -97,12 +133,7 @@
 
 .filter-dropdown-btn:hover {
   border-color: #006666;
-}
-
-.filter-dropdown-btn:focus {
-  outline: none;
-  border-color: #008080;
-  box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
+  background-color: rgba(0, 128, 128, 0.08);
 }
 
 .filter-dropdown-arrow {

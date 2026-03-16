@@ -3,8 +3,8 @@
   <div class="question-filter-row">
     <div class="question-filter-item">
       <label class="question-filter-label">Level</label>
-      <select class="question-filter-select" [value]="selectedLevel" (change)="onLevelChange($any($event.target).value)">
-        <option value="">Select Level</option>
+      <select class="question-filter-select" [class.placeholder-selected]="!selectedLevel" [value]="selectedLevel" (change)="onLevelChange($any($event.target).value)">
+        <option value="" class="filter-select-placeholder">Select Level</option>
         <option *ngFor="let lvl of levels" [value]="lvl.level_tr">{{ lvl.label }}</option>
       </select>
     </div>
@@ -15,18 +15,18 @@
         <option *ngFor="let c of classes" [value]="c.value">{{ c.label }}</option>
       </select>
     </div>
-    <div class="question-filter-item" *ngIf="groups.length > 0">
+    <div class="question-filter-item">
       <label class="question-filter-label">Group</label>
-      <select class="question-filter-select" [value]="selectedGroup" (change)="onGroupChange($any($event.target).value)">
-        <option value="">Select Group</option>
+      <select class="question-filter-select" [class.placeholder-selected]="!selectedGroup" [value]="selectedGroup" (change)="onGroupChange($any($event.target).value)">
+        <option value="" class="filter-select-placeholder">Select Group</option>
         <option *ngFor="let g of groups" [value]="g">{{ g }}</option>
       </select>
     </div>
     <!-- Subject: single-select dropdown -->
     <div class="question-filter-item" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass) && subjects.length > 0">
       <label class="question-filter-label">Subject</label>
-      <select class="question-filter-select" [value]="selectedSubjectTr" (change)="onSubjectChange($any($event.target).value)">
-        <option value="">Select Subject</option>
+      <select class="question-filter-select" [class.placeholder-selected]="!selectedSubjectTr" [value]="selectedSubjectTr" (change)="onSubjectChange($any($event.target).value)">
+        <option value="" class="filter-select-placeholder">Select Subject</option>
         <option *ngFor="let sub of subjects" [value]="sub.subject_tr">{{ sub.name || sub.subject_tr }}</option>
       </select>
     </div>
