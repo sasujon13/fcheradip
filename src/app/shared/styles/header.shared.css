@@ -553,7 +553,7 @@ i.fa-bars{
     top: 16px;
   }
   .badge{
-    margin-left: -64px;
+    margin-left: -100px;
     margin-top: -38px;
   }
   .caution-box{
@@ -563,21 +563,21 @@ i.fa-bars{
     margin-bottom: -8px;
     margin-top: 0;
     padding-bottom: 7px;
-    margin-left: -20px;
+    margin-left: -56px;
     margin-right: 45px;
   }
   .search-bar input {
     background-color: transparent;
   }
   /* Drawer only for main nav (first .menu under .navbar), not for .sign_menu */
+  /* Same padding when open and closed so only max-height animates (no instant shrink) */
   .navbar > .menu {
     display: flex;
     flex-direction: column;
     position: absolute;
-    top: 52px;
+    top: 42px;
     right: 0;
     left: auto;
-    min-width: 220px;
     width: auto;
     max-width: 90vw;
     background-color: teal;
@@ -587,16 +587,21 @@ i.fa-bars{
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.35s ease;
-    padding: 0 10px;
+    padding: 10px;
     pointer-events: none;
     border-radius: 0 0 0 8px;
+    margin-left: 20px;
+    min-width: 185px;
   }
   .navbar > .menu.active {
     max-height: 80vh;
     overflow-y: auto;
-    padding: 10px;
     pointer-events: auto;
     transition: max-height 0.35s ease;
+  }
+  /* Same vertical spacing on li when open and closed so only max-height animates */
+  .navbar > .menu li {
+    margin: 10px 0;
   }
   /* Sign menu (Login/SignUp): always visible like desktop – same height, position, no drawer */
   .sign_menu {
@@ -604,20 +609,20 @@ i.fa-bars{
     flex-direction: row;
     position: absolute;
     right: 0;
-    top: 40px;
+    top: 35px;
     margin-top: 0;
-    margin-bottom: -60px;
-    margin-right: 0;
+    margin-right: -10px;
     max-height: none;
     overflow: visible;
-    min-height: 36px;
     align-items: center;
     background-color: teal;
-    padding: 8px 10px 8px 14px;
+    padding: 1px 0 1px 20px;
     border-top-left-radius: 20px;
     border-bottom-left-radius: 20px;
     border-bottom: 1px solid white;
+    -webkit-user-select: none;
     user-select: none;
+    width: 185px;
   }
   .sign_menu li a {
     padding: 4px 0;
@@ -626,7 +631,7 @@ i.fa-bars{
   }
   .sign_menu li#menu_item0,
   .sign_menu li#menu_item1 {
-    margin: 0 10px 0 0;
+    margin: 0 20px 0 0;
   }
   /* When logged in at ≤839px: hide Login/SignUp, show profile menu */
   header.logged-in .sign_menu,
@@ -649,12 +654,8 @@ i.fa-bars{
     top: 24px;
     font-size: 28px !important;
     display: block;
-    z-index: 101;
+    z-index: 1001;
   }
-  .navbar > .menu.active li {
-    margin: 10px 0;
-  }
-
   .menu-toggle {
     display: block;
     cursor: pointer;

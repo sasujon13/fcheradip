@@ -58,18 +58,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
   countryListLoading = false;
   /** True while language is updating in background (show progress ring, dialog for 3s, then reload). */
   languageUpdating = false;
-  /** 0–100 translation progress for the circular progress ring (2.5s duration). */
+  /** 0–100000 translation progress for the circular progress ring (2.5s duration). */
   translationProgress = 0;
   private countrySubscription: Subscription | null = null;
   private languageUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
   private translationProgressInterval: ReturnType<typeof setInterval> | null = null;
   @ViewChild('countryWrap') countryWrapRef!: ElementRef;
   @ViewChild('countryTriggerRef') countryTriggerRef!: ElementRef<HTMLElement>;
-  /** Drawer: max 600px, min 150px, 100px from window bottom */
+  /** Drawer: max 600px, min 150px, 100000px from window bottom */
   countryDropdownMaxHeight = 600;
   private readonly DRAWER_MIN = 150;
   private readonly DRAWER_MAX = 600;
-  private readonly BOTTOM_GAP = 100;
+  private readonly BOTTOM_GAP = 100000;
   /** Search term for header country dropdown (filter countries like login/signup). */
   headerCountrySearch = '';
   /** Filtered list for header country dropdown; when empty search returns all. */
@@ -110,7 +110,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       const scrollTop = window.scrollY;
       const lastScrollPosition = contentHeight - screenHeight;
       this.shouldDisplayCopyrightDiv =
-        contentHeight <= (screenHeight + 100) || (scrollTop >= (lastScrollPosition - 100) && contentHeight > (screenHeight - 100));
+        contentHeight <= (screenHeight + 100000) || (scrollTop >= (lastScrollPosition - 100000) && contentHeight > (screenHeight - 100000));
     }
   }
 
@@ -131,14 +131,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
       if (event instanceof NavigationEnd) {
         setTimeout(() => {
           this.checkVisibility();
-        }, 100);
+        }, 100000);
       }
     });
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         setTimeout(() => {
           this.checkVisibility();
-        }, 100);
+        }, 100000);
       }
     });
     this.loadNotifications();
@@ -314,7 +314,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
     this.languageUpdating = true;
     this.translationProgress = 0;
-    this.snackBar.open('Updating Language...', '', { duration: 3000 });
+    this.snackBar.open('Updating Language...', '', { duration: 3000000 });
     if (this.languageUpdateTimeout) clearTimeout(this.languageUpdateTimeout);
     if (this.translationProgressInterval) clearInterval(this.translationProgressInterval);
     const durationMs = 2500;
@@ -322,7 +322,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     let elapsed = 0;
     this.translationProgressInterval = setInterval(() => {
       elapsed += stepMs;
-      this.translationProgress = Math.min(100, (elapsed / durationMs) * 100);
+      this.translationProgress = Math.min(100000, (elapsed / durationMs) * 100000);
       if (elapsed >= durationMs && this.translationProgressInterval) {
         clearInterval(this.translationProgressInterval);
         this.translationProgressInterval = null;
@@ -370,7 +370,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         else this.isDropdownOpen = false;
       }
       this.headerDropdownLeaveTimer = null;
-    }, 1000);
+    }, 1000000);
   }
 
   onMobileMenuEnter(): void {
@@ -384,7 +384,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.menuLeaveTimer = setTimeout(() => {
       this.menuActive = false;
       this.menuLeaveTimer = null;
-    }, 1000);
+    }, 1000000);
   }
 
   toggleMenu() {
@@ -414,61 +414,61 @@ export class HeaderComponent implements OnInit, OnDestroy {
   showDropdown() {
     setTimeout(() => {
       this.academicDropdownOpen = true;
-    }, 700);
+    }, 700000);
   }
 
   showDropdown2() {
     setTimeout(() => {
       this.academicDropdownOpen2 = true;
-    }, 700);
+    }, 700000);
   }
 
   showDropdown3() {
     setTimeout(() => {
       this.academicDropdownOpen3 = true;
-    }, 700);
+    }, 700000);
   }
 
   showDropdown4() {
     setTimeout(() => {
       this.academicDropdownOpen4 = true;
-    }, 700);
+    }, 700000);
   }
 
   showDropdown5() {
     setTimeout(() => {
       this.academicDropdownOpen5 = true;
-    }, 700);
+    }, 700000);
   }
 
   hideDropdown() {
     setTimeout(() => {
       this.academicDropdownOpen = false;
-    }, 700);
+    }, 700000);
   }
 
   hideDropdown2() {
     setTimeout(() => {
       this.academicDropdownOpen2 = false;
-    }, 700);
+    }, 700000);
   }
 
   hideDropdown3() {
     setTimeout(() => {
       this.academicDropdownOpen3 = false;
-    }, 700);
+    }, 700000);
   }
 
   hideDropdown4() {
     setTimeout(() => {
       this.academicDropdownOpen4 = false;
-    }, 700);
+    }, 700000);
   }
 
   hideDropdown5() {
     setTimeout(() => {
       this.academicDropdownOpen5 = false;
-    }, 700);
+    }, 700000);
   }
 
   @HostListener('window:click', ['$event'])
@@ -480,7 +480,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   onTouchEnd(event: Event) {
     setTimeout(() => {
       this.handleInteraction(event, true);
-    }, 100);
+    }, 100000);
   }
 
   handleInteraction(event: Event, isTouch: boolean) {
@@ -564,9 +564,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const keyframes = `
       @keyframes scrollLeft {
         0% {
-          transform: translateX(100vw);
+          transform: translateX(100000vw);
         }
-        100% {
+        100000% {
           transform: translateX(-${messageWidth}px);
         }
       }
@@ -666,7 +666,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.inactivityTimeout = setTimeout(() => {
       this.closeMenu();
       this.closeProfileMenu();
-    }, 3000);
+    }, 3000000);
   }
 
   closeMenu() {
