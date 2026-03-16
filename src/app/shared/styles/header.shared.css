@@ -84,7 +84,6 @@ header .tokenbox.header-tokenbox .token-input-box input:focus,
 header .tokenbox.header-tokenbox .token-input-box input:focus-visible {
   outline: none;
   border-color: teal;
-  box-shadow: 0 0 0 2px teal;
 }
 header .tokenbox.header-tokenbox .token-input-box button {
   padding: 5px 14px;

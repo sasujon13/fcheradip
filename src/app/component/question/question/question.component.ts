@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ElementRef, ViewChildren, QueryList } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../service/api.service';
 
@@ -24,7 +24,7 @@ export interface QuestionSubject {
   templateUrl: './question.component.html',
   styleUrls: ['./question.component.css']
 })
-export class QuestionComponent implements OnInit, OnDestroy {
+export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Current subject slug for route (subject_tr). */
   currentSubject: string = '';
   currentChapter: string = '';
@@ -74,12 +74,43 @@ export class QuestionComponent implements OnInit, OnDestroy {
   isEditRoute: boolean = false;
   editQuestion: any | null = null;
 
+  @ViewChildren('filterItem') filterItems!: QueryList<ElementRef<HTMLElement>>;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private apiService: ApiService,
     private elRef: ElementRef<HTMLElement>
   ) { }
+
+  ngAfterViewInit(): void {
+    const run = () => this.updateFilterLineStartMargins();
+    setTimeout(run, 0);
+    this.filterItems.changes.subscribe(() => setTimeout(run, 0));
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateFilterLineStartMargins();
+  }
+
+  /** Mark the first element of each wrapped line so only they get margin-left: 16px */
+  private updateFilterLineStartMargins(): void {
+    if (!this.filterItems?.length) return;
+    const items = this.filterItems.map(f => f.nativeElement);
+    const LINE_THRESHOLD = 2; // px tolerance for same line
+    let prevTop = -1;
+    items.forEach((el, i) => {
+      const rect = el.getBoundingClientRect();
+      const isFirstOnLine = i > 0 && (prevTop < 0 || rect.top > prevTop + LINE_THRESHOLD);
+      if (isFirstOnLine) {
+        el.classList.add('filter-item-line-start');
+      } else {
+        el.classList.remove('filter-item-line-start');
+      }
+      prevTop = rect.top;
+    });
+  }
 
   /** Timer for auto-close when cursor leaves dropdown (1000ms). */
   private dropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;

@@ -1,8 +1,8 @@
 <div class="question-container">
   <!-- Single-line filter row (like institute: division, district, thana); wraps and centers -->
   <div class="question-filter-row">
-    <div class="question-filter-item filter-dropdown-wrap">
-      <label class="question-filter-label">Level</label>
+    <div #filterItem class="question-filter-item filter-dropdown-wrap">
+      <label class="question-filter-label"><b>Filter</b></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('level')">
         <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedLevel" (click)="toggleLevelDropdown($event)" [title]="selectedLevelLabel">
           <span class="filter-dropdown-btn-label">{{ selectedLevelLabel }}</span>
@@ -14,8 +14,8 @@
         </div>
       </div>
     </div>
-    <div class="question-filter-item filter-dropdown-wrap" *ngIf="classes.length > 1">
-      <label class="question-filter-label">Class</label>
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="classes.length > 1">
+      <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('class')">
         <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedClass" (click)="toggleClassDropdown($event)" [title]="selectedClassLabel">
           <span class="filter-dropdown-btn-label">{{ selectedClassLabel }}</span>
@@ -28,7 +28,7 @@
       </div>
     </div>
     <div class="question-filter-item filter-dropdown-wrap" *ngIf="groups.length > 0">
-      <label class="question-filter-label">Group</label>
+      <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('group')">
         <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedGroup" (click)="toggleGroupDropdown($event)" [title]="selectedGroupLabel">
           <span class="filter-dropdown-btn-label">{{ selectedGroupLabel }}</span>
@@ -40,8 +40,8 @@
         </div>
       </div>
     </div>
-    <div class="question-filter-item filter-dropdown-wrap" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass) && subjects.length > 0">
-      <label class="question-filter-label">Subject</label>
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass) && subjects.length > 0">
+      <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('subject')">
         <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedSubjectTr" (click)="toggleSubjectDropdown($event)" [title]="selectedSubjectLabel">
           <span class="filter-dropdown-btn-label">{{ selectedSubjectLabel }}</span>
@@ -55,7 +55,7 @@
     </div>
     <!-- Chapter: first option Select All; checkboxes on left; multi-select -->
     <div class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && chapters.length > 0">
-      <label class="question-filter-label">Chapter</label>
+      <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('chapter')">
         <button type="button" class="filter-dropdown-btn" (click)="toggleChapterDropdown($event)" [title]="selectedChapterName">
           <span class="filter-dropdown-btn-label">{{ selectedChapterName }}</span>
@@ -74,8 +74,8 @@
       </div>
     </div>
     <!-- Topic: first option Select All; checkboxes on left; multi-select -->
-    <div class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && topics.length > 0">
-      <label class="question-filter-label">Topic</label>
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && topics.length > 0">
+      <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('topic')">
         <button type="button" class="filter-dropdown-btn" (click)="toggleTopicDropdown($event)" [title]="selectedTopicName">
           <span class="filter-dropdown-btn-label">{{ selectedTopicName }}</span>
