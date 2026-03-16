@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { ApiService } from '../../service/api.service';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
@@ -48,6 +48,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const size = unlocked ? (JSON.parse(unlocked) as string[]).length : 0;
     return Math.max(0, limit - size);
   }
+  /** Token apply feedback: same app-alert as vacant/recommend/merit (not MatSnackBar). */
+  tokenAlertMessage = '';
+  showTokenAlert = false;
   @ViewChild('marquee', { static: true }) marqueeElement!: ElementRef;
   public notifications: any[] = [];
   private currentIndex = 0;
@@ -116,7 +119,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     public router: Router,
     private countryService: CountryService,
     private snackBar: MatSnackBar,
-    private http: HttpClient) { }
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef) { }
 
   ngOnInit(): void {
     this.router.events.subscribe((event) => {
@@ -192,10 +196,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Apply 8-digit token from header token box (same API as NTRCA pages). */
+  /** Show token alert (same app-alert as vacant/recommend/merit) and trigger change detection so it renders. */
+  private showTokenAlertMessage(msg: string): void {
+    this.tokenAlertMessage = msg;
+    this.showTokenAlert = true;
+    this.cdr.detectChanges();
+  }
+
+  /** Apply 8-digit token from header token box (same API + same app-alert as vacant/recommend/merit). */
   applyToken(): void {
     if (!this.newToken || this.newToken.length !== 8) {
-      this.snackBar.open('Please enter an 8-digit token.', 'Close', { duration: 3000 });
+      this.showTokenAlertMessage('Enter a valid 8-digit token to unlock more Details!');
       return;
     }
     this.http.get<{ results?: Array<{ id?: number; Counter?: number; Status?: number }> }>(
@@ -207,18 +218,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
           const currentLimit = Number(localStorage.getItem('freeUnlockLimit')) || 10;
           const newLimit = currentLimit + Number(result.Counter);
           localStorage.setItem('freeUnlockLimit', newLimit.toString());
-          this.snackBar.open('Token applied. Unlocks added.', 'Close', { duration: 3000 });
           this.newToken = '';
+          this.showTokenAlertMessage('Token Successfully Activated, Now Click on Lock Icon to Unlock Informations!');
           this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 }).subscribe({
             next: () => {},
             error: () => {}
           });
         } else {
-          this.snackBar.open('Invalid or already used token.', 'Close', { duration: 3000 });
+          this.showTokenAlertMessage('Token Already Used! Request a new 8 Digit Token to unlock more Details!');
         }
       },
       error: () => {
-        this.snackBar.open('Failed to apply token.', 'Close', { duration: 3000 });
+        this.showTokenAlertMessage('Failed to validate Token! Try again to unlock more Details!');
       }
     });
   }
