@@ -132,7 +132,7 @@ export class QuestionComponent implements OnInit {
     return lvl ? lvl.label : this.selectedLevel;
   }
 
-  toggleLevelDropdown(): void {
+  toggleLevelDropdown(event?: MouseEvent): void {
     this.levelDropdownOpen = !this.levelDropdownOpen;
     if (this.levelDropdownOpen) {
       this.classDropdownOpen = false;
@@ -140,6 +140,7 @@ export class QuestionComponent implements OnInit {
       this.subjectDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      setTimeout(() => this.positionDropdownPanel(event));
     }
   }
 
@@ -190,7 +191,7 @@ export class QuestionComponent implements OnInit {
     return c ? c.label : this.selectedClass;
   }
 
-  toggleClassDropdown(): void {
+  toggleClassDropdown(event?: MouseEvent): void {
     this.classDropdownOpen = !this.classDropdownOpen;
     if (this.classDropdownOpen) {
       this.levelDropdownOpen = false;
@@ -198,6 +199,7 @@ export class QuestionComponent implements OnInit {
       this.subjectDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      setTimeout(() => this.positionDropdownPanel(event));
     }
   }
 
@@ -228,7 +230,7 @@ export class QuestionComponent implements OnInit {
     return this.selectedGroup;
   }
 
-  toggleGroupDropdown(): void {
+  toggleGroupDropdown(event?: MouseEvent): void {
     this.groupDropdownOpen = !this.groupDropdownOpen;
     if (this.groupDropdownOpen) {
       this.levelDropdownOpen = false;
@@ -236,6 +238,7 @@ export class QuestionComponent implements OnInit {
       this.subjectDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      setTimeout(() => this.positionDropdownPanel(event));
     }
   }
 
@@ -294,7 +297,7 @@ export class QuestionComponent implements OnInit {
     return sub ? (sub.name || sub.subject_tr) : this.selectedSubjectTr;
   }
 
-  toggleSubjectDropdown(): void {
+  toggleSubjectDropdown(event?: MouseEvent): void {
     this.subjectDropdownOpen = !this.subjectDropdownOpen;
     if (this.subjectDropdownOpen) {
       this.levelDropdownOpen = false;
@@ -302,6 +305,7 @@ export class QuestionComponent implements OnInit {
       this.groupDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      setTimeout(() => this.positionDropdownPanel(event));
     }
   }
 
@@ -340,9 +344,12 @@ export class QuestionComponent implements OnInit {
     }
   }
 
-  toggleChapterDropdown(): void {
+  toggleChapterDropdown(event?: MouseEvent): void {
     this.chapterDropdownOpen = !this.chapterDropdownOpen;
-    if (this.chapterDropdownOpen) this.topicDropdownOpen = false;
+    if (this.chapterDropdownOpen) {
+      this.topicDropdownOpen = false;
+      setTimeout(() => this.positionDropdownPanel(event));
+    }
   }
 
   get allChaptersSelected(): boolean {
@@ -386,9 +393,28 @@ export class QuestionComponent implements OnInit {
     this.loadTopics();
   }
 
-  toggleTopicDropdown(): void {
+  toggleTopicDropdown(event?: MouseEvent): void {
     this.topicDropdownOpen = !this.topicDropdownOpen;
-    if (this.topicDropdownOpen) this.chapterDropdownOpen = false;
+    if (this.topicDropdownOpen) {
+      this.chapterDropdownOpen = false;
+      setTimeout(() => this.positionDropdownPanel(event));
+    }
+  }
+
+  /** If the dropdown panel would overflow the right edge, align it to the right so it opens to the left. */
+  positionDropdownPanel(event?: MouseEvent): void {
+    if (!event?.target) return;
+    const wrapper = (event.target as HTMLElement).closest('.filter-dropdown');
+    if (!wrapper) return;
+    const panel = wrapper.querySelector('.filter-dropdown-panel') as HTMLElement;
+    const trigger = wrapper.querySelector('.filter-dropdown-btn') as HTMLElement;
+    if (!panel || !trigger) return;
+    panel.classList.remove('dropdown-panel-right');
+    const tr = trigger.getBoundingClientRect();
+    const pw = panel.offsetWidth;
+    if (tr.left + pw > window.innerWidth) {
+      panel.classList.add('dropdown-panel-right');
+    }
   }
 
   get allTopicsSelected(): boolean {

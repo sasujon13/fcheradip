@@ -158,8 +158,8 @@
   position: absolute;
   top: 100%;
   left: 0;
+  width: max-content;
   min-width: 100%;
-  max-width: 320px;
   margin-top: 4px;
   max-height: 280px;
   overflow-x: hidden;
@@ -170,8 +170,12 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
 }
+.filter-dropdown-panel.dropdown-panel-right {
+  left: auto;
+  right: 0;
+}
 
-/* Option row: checkbox on left, text on right; single line, overflow hidden */
+/* Option row: checkbox on left, text on right; single line, no wrap (panel width = max content) */
 .filter-dropdown-item {
   display: flex;
   align-items: center;
@@ -189,6 +193,7 @@
   cursor: pointer;
   user-select: none;
   box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .filter-dropdown-item:last-child {
@@ -235,7 +240,7 @@
   background: rgba(0, 128, 128, 0.2);
 }
 
-/* Single-select option (Level, Class, Group, Subject): no checkbox; teal hover/focus, text stays #333 */
+/* Single-select option (Level, Class, Group, Subject): no checkbox; teal hover/focus, text stays #333; no wrap */
 .filter-dropdown-item-single {
   display: block;
   width: 100%;
@@ -250,6 +255,7 @@
   cursor: pointer;
   user-select: none;
   box-sizing: border-box;
+  white-space: nowrap;
 }
 .filter-dropdown-item-single:last-child {
   border-bottom: none;
