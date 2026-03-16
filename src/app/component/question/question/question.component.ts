@@ -46,6 +46,10 @@ export class QuestionComponent implements OnInit {
   /** Multi-select: chapter ids. */
   selectedChapterIds: Set<string> = new Set();
   chapterDropdownOpen = false;
+  levelDropdownOpen = false;
+  classDropdownOpen = false;
+  groupDropdownOpen = false;
+  subjectDropdownOpen = false;
   /** Topics from subject table (ordered by topic asc). */
   topics: Array<{ id: string; name: string }> = [];
   /** Multi-select: topic ids. */
@@ -80,6 +84,10 @@ export class QuestionComponent implements OnInit {
     if (this.elRef.nativeElement.contains(target)) return;
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
+    this.levelDropdownOpen = false;
+    this.classDropdownOpen = false;
+    this.groupDropdownOpen = false;
+    this.subjectDropdownOpen = false;
   }
 
   ngOnInit(): void {
@@ -118,6 +126,28 @@ export class QuestionComponent implements OnInit {
     });
   }
 
+  get selectedLevelLabel(): string {
+    if (!this.selectedLevel) return 'Select Level';
+    const lvl = this.levels.find(l => l.level_tr === this.selectedLevel);
+    return lvl ? lvl.label : this.selectedLevel;
+  }
+
+  toggleLevelDropdown(): void {
+    this.levelDropdownOpen = !this.levelDropdownOpen;
+    if (this.levelDropdownOpen) {
+      this.classDropdownOpen = false;
+      this.groupDropdownOpen = false;
+      this.subjectDropdownOpen = false;
+      this.chapterDropdownOpen = false;
+      this.topicDropdownOpen = false;
+    }
+  }
+
+  onLevelSelect(levelTr: string): void {
+    this.levelDropdownOpen = false;
+    this.onLevelChange(levelTr || '');
+  }
+
   onLevelChange(levelTr: string): void {
     this.selectedLevel = levelTr || '';
     this.selectedClass = '';
@@ -154,6 +184,28 @@ export class QuestionComponent implements OnInit {
     this.router.navigate(['/question']);
   }
 
+  get selectedClassLabel(): string {
+    if (!this.selectedClass) return 'Select Class';
+    const c = this.classes.find(x => x.value === this.selectedClass);
+    return c ? c.label : this.selectedClass;
+  }
+
+  toggleClassDropdown(): void {
+    this.classDropdownOpen = !this.classDropdownOpen;
+    if (this.classDropdownOpen) {
+      this.levelDropdownOpen = false;
+      this.groupDropdownOpen = false;
+      this.subjectDropdownOpen = false;
+      this.chapterDropdownOpen = false;
+      this.topicDropdownOpen = false;
+    }
+  }
+
+  onClassSelect(classVal: string): void {
+    this.classDropdownOpen = false;
+    this.onClassChange(classVal || '');
+  }
+
   onClassChange(classVal: string): void {
     this.selectedClass = classVal || '';
     this.selectedGroup = '';
@@ -169,6 +221,27 @@ export class QuestionComponent implements OnInit {
     this.currentChapter = '';
     this.loadGroupsAndSubjects();
     this.router.navigate(['/question']);
+  }
+
+  get selectedGroupLabel(): string {
+    if (!this.selectedGroup) return 'Select Group';
+    return this.selectedGroup;
+  }
+
+  toggleGroupDropdown(): void {
+    this.groupDropdownOpen = !this.groupDropdownOpen;
+    if (this.groupDropdownOpen) {
+      this.levelDropdownOpen = false;
+      this.classDropdownOpen = false;
+      this.subjectDropdownOpen = false;
+      this.chapterDropdownOpen = false;
+      this.topicDropdownOpen = false;
+    }
+  }
+
+  onGroupSelect(group: string): void {
+    this.groupDropdownOpen = false;
+    this.onGroupChange(group || '');
   }
 
   onGroupChange(group: string): void {
@@ -213,6 +286,28 @@ export class QuestionComponent implements OnInit {
       next: (res) => { this.subjects = res.subjects || []; },
       error: () => { this.subjects = []; }
     });
+  }
+
+  get selectedSubjectLabel(): string {
+    if (!this.selectedSubjectTr) return 'Select Subject';
+    const sub = this.subjects.find(s => s.subject_tr === this.selectedSubjectTr);
+    return sub ? (sub.name || sub.subject_tr) : this.selectedSubjectTr;
+  }
+
+  toggleSubjectDropdown(): void {
+    this.subjectDropdownOpen = !this.subjectDropdownOpen;
+    if (this.subjectDropdownOpen) {
+      this.levelDropdownOpen = false;
+      this.classDropdownOpen = false;
+      this.groupDropdownOpen = false;
+      this.chapterDropdownOpen = false;
+      this.topicDropdownOpen = false;
+    }
+  }
+
+  onSubjectSelect(subjectTr: string): void {
+    this.subjectDropdownOpen = false;
+    this.onSubjectChange(subjectTr || '');
   }
 
   onSubjectChange(subjectTr: string): void {

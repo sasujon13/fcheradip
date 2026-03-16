@@ -143,6 +143,10 @@
   background-color: rgba(0, 128, 128, 0.12);
 }
 
+.filter-dropdown-btn.placeholder-selected {
+  color: #008080;
+}
+
 .filter-dropdown-arrow {
   margin-left: 8px;
   font-size: 10px;
@@ -229,6 +233,55 @@
 .filter-dropdown-item-selectall:focus-visible {
   outline: none;
   background: rgba(0, 128, 128, 0.2);
+}
+
+/* Single-select option (Level, Class, Group, Subject): no checkbox; teal hover/focus, text stays #333 */
+.filter-dropdown-item-single {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  box-sizing: border-box;
+}
+.filter-dropdown-item-single:last-child {
+  border-bottom: none;
+}
+.filter-dropdown-item-single:hover {
+  background: rgba(0, 128, 128, 0.2);
+  color: #333;
+}
+.filter-dropdown-item-single:focus,
+.filter-dropdown-item-single:focus-visible {
+  outline: none;
+  background: rgba(0, 128, 128, 0.2);
+  color: #333;
+}
+.filter-dropdown-item-single.selected {
+  background: rgba(0, 128, 128, 0.08);
+  color: #333;
+}
+.filter-dropdown-item-single.selected:hover,
+.filter-dropdown-item-single.selected:focus,
+.filter-dropdown-item-single.selected:focus-visible {
+  background: rgba(0, 128, 128, 0.2);
+  color: #333;
+}
+.filter-dropdown-item-single.filter-dropdown-item-placeholder {
+  color: #008080;
+}
+.filter-dropdown-item-single.filter-dropdown-item-placeholder:hover,
+.filter-dropdown-item-single.filter-dropdown-item-placeholder:focus,
+.filter-dropdown-item-single.filter-dropdown-item-placeholder:focus-visible {
+  background: rgba(0, 128, 128, 0.2);
+  color: #333;
 }
 
 .question-layout {
