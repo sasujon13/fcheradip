@@ -1,7 +1,7 @@
 <div class="login_signup_form">
   <h2>LogIn</h2>
   <form [formGroup]="authForm" (ngSubmit)="onAuth()">
-    <!-- Country (from cheradip_country) -->
+    <!-- Country (from cheradip_country) – drawer, Popular BD/AU/US/IN + most visited, teal bg -->
     <div class="form-group" *ngIf="authForm.get('countryCode')">
       <span class="label-colon"><label for="country">Country</label><span class="colon">:</span></span>
       <div class="form-field country-selector-wrapper">
@@ -10,6 +10,9 @@
           [showPhoneCode]="false"
           [showFlag]="true"
           [compact]="false"
+          [drawerMode]="true"
+          popularSectionBg="rgba(0,128,128,0.2)"
+          [useHeaderPopularList]="true"
           (countryChange)="onCountryChange($any($event))">
         </app-country-selector>
       </div>

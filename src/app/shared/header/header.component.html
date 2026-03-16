@@ -30,7 +30,7 @@
       <div class="header-right-group">
         <!-- Country selector: dropdown icon left of flag, top right -->
         <div class="header-country-wrap" #countryWrap (mouseenter)="onHeaderDropdownEnter('country')" (mouseleave)="onHeaderDropdownLeave('country')">
-          <div class="header-country-trigger" (click)="toggleCountryDropdown()">
+          <div #countryTriggerRef class="header-country-trigger" (click)="toggleCountryDropdown()">
             <span class="header-country-icon" [class.open]="showCountryDropdown">▼</span>
             <span class="header-country-flag-wrapper">
               <!-- Circular progress ring (translation progress), shown only when updating -->
@@ -44,7 +44,7 @@
               <img *ngIf="!currentCountry" src="assets/images/globe.svg" alt="" class="header-country-flag header-country-placeholder" />
             </span>
           </div>
-          <div class="header-country-dropdown" [class.open]="showCountryDropdown">
+          <div class="header-country-dropdown header-country-dropdown-drawer" [class.open]="showCountryDropdown" [style.max-height.px]="showCountryDropdown ? countryDropdownMaxHeight : 0">
             <div class="header-country-loading" *ngIf="countryListLoading">Loading...</div>
             <ng-container *ngIf="!countryListLoading">
               <div class="header-country-section">
@@ -56,7 +56,7 @@
                 </div>
                 <div class="header-country-divider"></div>
               </div>
-              <div class="header-country-section" *ngIf="featuredCountries.length > 0">
+              <div class="header-country-section header-country-section-popular" *ngIf="featuredCountries.length > 0">
                 <div class="header-country-section-title">Popular</div>
                 <div *ngFor="let c of featuredCountries" class="header-country-item"
                      (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">

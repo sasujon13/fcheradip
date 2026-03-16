@@ -29,6 +29,8 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
   @Input() drawerMode: boolean = false;
   /** Background color for the Popular (featured) section, e.g. rgba(0,128,128,0.2) */
   @Input() popularSectionBg: string | null = null;
+  /** When true, Popular = BD, AU, US, IN + most visited (same 5 as header); else use API featured */
+  @Input() useHeaderPopularList: boolean = false;
   @Output() countryChange = new EventEmitter<Country>();
 
   @ViewChild('triggerRef') triggerRef!: ElementRef<HTMLElement>;
@@ -60,11 +62,13 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
 
   ngOnInit(): void {
     this.isLoading = true;
-    // Load featured (optional): show Popular section; sort by country name ascending
-    this.countryService.getFeaturedCountries().subscribe({
-      next: (countries) => this.featuredCountries = this.sortCountriesByName(countries || []),
-      error: () => {}
-    });
+    // Load featured from API only when not using header-style Popular (BD, AU, US, IN + most visited)
+    if (!this.useHeaderPopularList) {
+      this.countryService.getFeaturedCountries().subscribe({
+        next: (countries) => this.featuredCountries = this.sortCountriesByName(countries || []),
+        error: () => {}
+      });
+    }
     // Load all countries; fallback to getCountriesForOptions if main list is empty
     this.countryService.getAllCountries().pipe(
       catchError(() => this.countryService.getCountriesForOptions())
@@ -77,6 +81,7 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
               list = Array.isArray(fallback) ? fallback : [];
               this.allCountries = this.sortCountriesByName(list);
               this.filteredCountries = this.allCountries;
+              if (this.useHeaderPopularList) this.featuredCountries = this.countryService.getHeaderFeaturedCountries(this.allCountries);
               this.isLoading = false;
             },
             error: () => { this.isLoading = false; }
@@ -85,6 +90,7 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
         }
         this.allCountries = this.sortCountriesByName(list);
         this.filteredCountries = this.allCountries;
+        if (this.useHeaderPopularList) this.featuredCountries = this.countryService.getHeaderFeaturedCountries(this.allCountries);
         this.isLoading = false;
       },
       error: () => { this.isLoading = false; }

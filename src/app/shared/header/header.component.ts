@@ -77,6 +77,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private languageUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
   private translationProgressInterval: ReturnType<typeof setInterval> | null = null;
   @ViewChild('countryWrap') countryWrapRef!: ElementRef;
+  @ViewChild('countryTriggerRef') countryTriggerRef!: ElementRef<HTMLElement>;
+  /** Drawer: max 600px, min 150px, 100px from window bottom */
+  countryDropdownMaxHeight = 600;
+  private readonly DRAWER_MIN = 150;
+  private readonly DRAWER_MAX = 600;
+  private readonly BOTTOM_GAP = 100;
 
   isCopyrightVisible = false;
   shouldDisplayCopyrightDiv = false;
@@ -250,26 +256,37 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   toggleCountryDropdown(): void {
     this.showCountryDropdown = !this.showCountryDropdown;
-    if (this.showCountryDropdown && this.featuredCountries.length === 0) {
-      this.loadCountriesForHeaderDropdown();
+    if (this.showCountryDropdown) {
+      this.computeCountryDrawerMaxHeight();
+      if (this.featuredCountries.length === 0 && this.allCountriesForHeader.length > 0) {
+        this.featuredCountries = this.countryService.getHeaderFeaturedCountries(this.allCountriesForHeader);
+      }
+      if (this.allCountriesForHeader.length === 0) {
+        this.loadCountriesForHeaderDropdown();
+      }
     }
+  }
+
+  private computeCountryDrawerMaxHeight(): void {
+    if (!this.countryTriggerRef?.nativeElement) return;
+    const rect = this.countryTriggerRef.nativeElement.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - this.BOTTOM_GAP;
+    this.countryDropdownMaxHeight = Math.max(this.DRAWER_MIN, Math.min(this.DRAWER_MAX, spaceBelow));
   }
 
   private loadCountriesForHeaderDropdown(): void {
     this.countryListLoading = true;
-    this.countryService.getFeaturedCountries().subscribe({
-      next: (list: Country[]) => { this.featuredCountries = list || []; },
-      error: () => { this.featuredCountries = []; }
-    });
     this.countryService.getAllCountries().subscribe({
       next: (list: Country[]) => {
         this.allCountriesForHeader = (list || []).slice().sort((a: Country, b: Country) =>
           (a.country_name || '').localeCompare(b.country_name || '', undefined, { sensitivity: 'base' })
         );
+        this.featuredCountries = this.countryService.getHeaderFeaturedCountries(this.allCountriesForHeader);
         this.countryListLoading = false;
       },
       error: () => {
         this.allCountriesForHeader = [];
+        this.featuredCountries = [];
         this.countryListLoading = false;
       }
     });

@@ -63,6 +63,10 @@ export class CountryService {
   private static readonly PREFERRED_LANG_COUNTRY_KEY = 'preferred_lang_country';
   /** Cache so we can restore icon on reload before API returns, and keep it when API fails. */
   private static readonly SELECTED_COUNTRY_CACHE_KEY = 'selectedCountryCache';
+  /** For header Popular list: 5th slot = country user visits most (last selected real country). */
+  private static readonly MOST_VISITED_COUNTRY_KEY = 'mostVisitedCountryCode';
+  /** Header Popular fixed codes: Bangladesh, Australia, United States, India (order preserved). */
+  private static readonly HEADER_POPULAR_CODES = ['BD', 'AU', 'US', 'IN'];
   private preferredLang$ = new BehaviorSubject<string>(CountryService.getStoredPreferredLang());
 
   /** Fake country for "Website Language" (original Bengali + English mixed). */
@@ -211,6 +215,11 @@ export class CountryService {
     this.setPreferredLang(lang, country.country_code);
     if (save) {
       localStorage.setItem('selectedCountry', country.country_code);
+      if (country.country_code !== CountryService.WEBSITE_LANGUAGE_COUNTRY_CODE) {
+        try {
+          localStorage.setItem(CountryService.MOST_VISITED_COUNTRY_KEY, country.country_code);
+        } catch (_) {}
+      }
       try {
         localStorage.setItem(CountryService.SELECTED_COUNTRY_CACHE_KEY, JSON.stringify({
           country_code: country.country_code,
@@ -302,6 +311,26 @@ export class CountryService {
         return this.getAllCountries();
       })
     );
+  }
+
+  /**
+   * Build header Popular list: exactly 5 — Bangladesh, Australia, United States, India, and the country user visits most (last selected).
+   * Resolves from the given list; most visited is read from localStorage.
+   */
+  getHeaderFeaturedCountries(allCountries: Country[]): Country[] {
+    const list = (allCountries || []).slice();
+    const byCode = (code: string) => list.find(c => (c.country_code || '').toUpperCase() === code.toUpperCase());
+    const featured: Country[] = [];
+    for (const code of CountryService.HEADER_POPULAR_CODES) {
+      const c = byCode(code);
+      if (c) featured.push(c);
+    }
+    const mostVisitedCode = (() => { try { return localStorage.getItem(CountryService.MOST_VISITED_COUNTRY_KEY); } catch { return null; } })();
+    if (mostVisitedCode && !CountryService.HEADER_POPULAR_CODES.includes(mostVisitedCode.toUpperCase())) {
+      const c = byCode(mostVisitedCode);
+      if (c) featured.push(c);
+    }
+    return featured.slice(0, 5);
   }
 
   /**

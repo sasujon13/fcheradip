@@ -213,10 +213,6 @@ header .tokenbox.header-tokenbox .hover-message-box a {
   margin-top: 6px;
   min-width: 260px;
   max-width: 320px;
-  min-height: 120px;
-  max-height: 360px;
-  overflow: auto;
-  overflow-x: hidden;
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -224,6 +220,7 @@ header .tokenbox.header-tokenbox .hover-message-box a {
   z-index: 99999;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -236,6 +233,32 @@ header .tokenbox.header-tokenbox .hover-message-box a {
   pointer-events: auto;
   transform: translateY(0);
   transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s;
+}
+/* Drawer: single scrollbar for entire list; max-height set inline (150–600px, 100px from bottom) */
+.header-country-dropdown-drawer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.header-country-dropdown-drawer.open {
+  overflow-y: auto;
+  transition: max-height 0.35s ease;
+  /* Same scrollbar as login/signup: teal thumb, light track */
+  scrollbar-width: thin;
+  scrollbar-color: #008080 #f1f1f1;
+}
+.header-country-dropdown-drawer::-webkit-scrollbar {
+  width: 6px;
+}
+.header-country-dropdown-drawer::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.header-country-dropdown-drawer::-webkit-scrollbar-thumb {
+  background: #008080;
+  border-radius: 3px;
+}
+.header-country-dropdown-drawer::-webkit-scrollbar-thumb:hover {
+  background: #006666;
 }
 .header-country-loading {
   padding: 16px;
@@ -253,15 +276,22 @@ header .tokenbox.header-tokenbox .hover-message-box a {
   position: sticky;
   top: 0;
 }
+/* Popular section: teal background */
+.header-country-section-popular {
+  background: rgba(0, 128, 128, 0.2);
+}
+.header-country-section-popular .header-country-section-title {
+  background: rgba(0, 128, 128, 0.15);
+}
 .header-country-divider {
   height: 1px;
   background: #eee;
   margin: 2px 0;
 }
+/* Single scrollbar: no inner scroll on list; entire dropdown scrolls */
 .header-country-list {
-  min-height: 80px;
-  max-height: 220px;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: visible;
 }
 .header-country-item {
   display: flex;

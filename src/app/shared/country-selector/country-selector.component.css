@@ -168,6 +168,10 @@
   transform: translateY(0);
   transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s;
 }
+.dropdown-list {
+  scrollbar-width: thin;
+  scrollbar-color: #008080 #f1f1f1;
+}
 
 /* Drawer mode: open like a drawer, max 600px, min 150px, 100px from window bottom */
 .country-selector.drawer-mode .dropdown-list {
@@ -186,6 +190,8 @@
   visibility: visible;
   transform: none;
   pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #008080 #f1f1f1;
 }
 
 /* Loading */
@@ -286,10 +292,14 @@
   font-size: 14px;
 }
 
-/* Countries List (scrollable area) */
+/* Countries List (scrollable area); in drawer mode only the dropdown scrolls */
 .countries-list {
   max-height: 240px;
   overflow-y: auto;
+}
+.country-selector.drawer-mode .countries-list {
+  max-height: none;
+  overflow: visible;
 }
 
 /* Compact Mode (for header) */
@@ -343,13 +353,13 @@
 
 .dropdown-list::-webkit-scrollbar-thumb,
 .countries-list::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: #008080;
   border-radius: 3px;
 }
 
 .dropdown-list::-webkit-scrollbar-thumb:hover,
 .countries-list::-webkit-scrollbar-thumb:hover {
-  background: #aaa;
+  background: #006666;
 }
 
 /* Mobile Responsive */
