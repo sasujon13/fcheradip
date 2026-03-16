@@ -637,6 +637,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionIds = new Set(this.selectedQuestionIds);
   }
 
+  /** Sync selection from checkbox (change) so the check icon shows when clicking the box. */
+  setQuestionSelection(qid: number | string, checked: boolean): void {
+    if (checked) {
+      this.selectedQuestionIds.add(qid);
+    } else {
+      this.selectedQuestionIds.delete(qid);
+    }
+    this.selectedQuestionIds = new Set(this.selectedQuestionIds);
+  }
+
   isQuestionSelected(qid: number | string): boolean {
     return this.selectedQuestionIds.has(qid);
   }

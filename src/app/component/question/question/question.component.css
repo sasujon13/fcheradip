@@ -141,7 +141,7 @@
   white-space: nowrap;
   min-width: 0;
   flex: 1;
-  color: teal;
+  /* color: teal; */
 }
 
 .filter-dropdown-btn:hover {
@@ -409,6 +409,19 @@
   color: #333;
 }
 
+.topic-questions-actions .btn-clear-selection {
+  font-size: 15px;
+  border: none;
+  background: transparent;
+  color: darkred;
+  cursor: pointer;
+}
+.topic-questions-actions .btn-clear-selection:hover {
+  background: transparent;
+  border-color: none;
+  color: red;
+}
+
 .topic-questions-list {
   list-style: none;
   margin: 0;
@@ -421,6 +434,7 @@
   background: white;
   border: 1px solid #e8e8e8;
   border-radius: 6px;
+  cursor: pointer;
 }
 
 .topic-question-label {

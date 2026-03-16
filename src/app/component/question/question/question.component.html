@@ -104,6 +104,7 @@
           <span>{{ allTopicQuestionsSelected ? 'Unselect All' : 'Select All' }}</span>
         </label>
         <span class="selected-count">{{ selectedQuestionIds?.size ?? 0 }} selected</span>
+        <button type="button" class="btn-clear-selection" *ngIf="(selectedQuestionIds?.size ?? 0) > 0" (click)="clearTopicQuestionSelection()">Clear All</button>
       </div>
 
       <!-- Buttons to open question creator: visible when topic(s) selected -->
@@ -115,9 +116,9 @@
       </div>
     </div>
     <ul class="topic-questions-list">
-      <li *ngFor="let q of topicQuestions" class="topic-question-item">
-        <label class="topic-question-label" (click)="toggleQuestionSelection(q.qid); $event.preventDefault()">
-          <input type="checkbox" [checked]="isQuestionSelected(q.qid)" (click)="$event.preventDefault(); $event.stopPropagation(); toggleQuestionSelection(q.qid)" />
+      <li *ngFor="let q of topicQuestions" class="topic-question-item" (click)="toggleQuestionSelection(q.qid)">
+        <label class="topic-question-label" (click)="$event.preventDefault()">
+          <input type="checkbox" [checked]="isQuestionSelected(q.qid)" (click)="$event.stopPropagation()" (change)="setQuestionSelection(q.qid, ($any($event.target)).checked)" />
           <span class="topic-question-text">{{ q.question }}</span>
         </label>
         <div class="topic-question-options" *ngIf="q.option_1 || q.option_2">
