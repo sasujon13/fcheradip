@@ -8,7 +8,7 @@
   margin: 66px auto;
 }
 
-/* Single-line filter row (like institute division/district/thana); wraps and centers */
+/* Single-line filter row: centered; when wraps, new lines also centered */
 .question-filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -17,6 +17,7 @@
   gap: 12px 16px;
   margin-bottom: 20px;
   padding: 12px;
+  text-align: center;
 }
 
 .question-filter-item {
@@ -41,6 +42,9 @@
   color: #333;
   font-size: 14px;
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .question-filter-select:focus {
@@ -63,7 +67,7 @@
   position: relative;
 }
 
-/* Trigger button: same look as Level/Group/Subject select */
+/* Trigger button: same look as Level/Group/Subject select; overflow hidden so long text doesn't wrap */
 .filter-dropdown-btn {
   display: flex;
   align-items: center;
@@ -80,6 +84,15 @@
   text-align: left;
   cursor: pointer;
   appearance: none;
+  overflow: hidden;
+}
+
+.filter-dropdown-btn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .filter-dropdown-btn:hover {
@@ -104,8 +117,10 @@
   top: 100%;
   left: 0;
   min-width: 100%;
+  max-width: 320px;
   margin-top: 4px;
   max-height: 280px;
+  overflow-x: hidden;
   overflow-y: auto;
   border: 2px solid teal;
   border-radius: 6px;
@@ -114,12 +129,13 @@
   z-index: 100;
 }
 
-/* Option row: checkbox on left, text on right (same styling as before) */
+/* Option row: checkbox on left, text on right; single line, overflow hidden */
 .filter-dropdown-item {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   padding: 8px 10px;
   margin: 0;
   border: none;
@@ -130,6 +146,7 @@
   text-align: left;
   cursor: pointer;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .filter-dropdown-item:last-child {
@@ -157,6 +174,7 @@
   font-weight: 600;
   background: rgba(0, 128, 128, 0.08);
   border-bottom: 1px solid #ddd;
+  color: teal;
 }
 
 .filter-dropdown-item-selectall:hover {

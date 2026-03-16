@@ -35,7 +35,7 @@
       <label class="question-filter-label">Chapter</label>
       <div class="filter-dropdown">
         <button type="button" class="filter-dropdown-btn" (click)="toggleChapterDropdown()" [title]="selectedChapterName">
-          {{ selectedChapterName }}
+          <span class="filter-dropdown-btn-label">{{ selectedChapterName }}</span>
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" *ngIf="chapterDropdownOpen">
@@ -55,7 +55,7 @@
       <label class="question-filter-label">Topic</label>
       <div class="filter-dropdown">
         <button type="button" class="filter-dropdown-btn" (click)="toggleTopicDropdown()" [title]="selectedTopicName">
-          {{ selectedTopicName }}
+          <span class="filter-dropdown-btn-label">{{ selectedTopicName }}</span>
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" *ngIf="topicDropdownOpen">
