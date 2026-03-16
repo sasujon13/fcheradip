@@ -169,6 +169,25 @@
   transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s;
 }
 
+/* Drawer mode: open like a drawer, max 600px, min 150px, 100px from window bottom */
+.country-selector.drawer-mode .dropdown-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: none;
+}
+.country-selector.drawer-mode .dropdown-list.open {
+  overflow-y: auto;
+  transition: max-height 0.35s ease;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+}
+
 /* Loading */
 .dropdown-list .loading {
   padding: 16px;
@@ -220,6 +239,14 @@
 
 .country-item.featured:hover {
   background: #fef3c7;
+}
+
+/* When Popular section has custom background (e.g. popularSectionBg), featured items inherit teal tint on hover */
+.featured-section[style*="background"] .country-item.featured {
+  background: transparent;
+}
+.featured-section[style*="background"] .country-item.featured:hover {
+  background: rgba(0, 128, 128, 0.15);
 }
 
 .country-item .flag {

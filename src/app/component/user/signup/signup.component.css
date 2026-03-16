@@ -348,6 +348,68 @@ select.form-control {
   padding-right: 36px;
 }
 
+/* Account Type & Class drawer: opens like a drawer, max 600px, min 150px, 100px from window bottom */
+.signup-drawer-wrap .form-field {
+  position: relative;
+}
+.signup-drawer-trigger {
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+.signup-drawer-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  z-index: 50;
+  transition: max-height 0.35s ease;
+}
+.signup-drawer-panel.closed {
+  max-height: 0 !important;
+  margin-top: 0;
+  border-width: 0;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.2s ease;
+}
+.signup-drawer-inner {
+  overflow-y: auto;
+  padding: 8px;
+  max-height: inherit;
+}
+.signup-drawer-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.signup-drawer-option:hover {
+  background: rgba(0, 128, 128, 0.1);
+  color: #008080;
+}
+.signup-drawer-option.active {
+  background: rgba(0, 128, 128, 0.15);
+  color: #008080;
+  font-weight: 600;
+}
+
 /* Group Radio Options */
 .group-options {
   display: flex;

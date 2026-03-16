@@ -1,11 +1,11 @@
-<div class="country-selector" [class.compact]="compact" [class.open]="isDropdownOpen" [class.loading]="isLoading" (mouseenter)="onDropdownEnter()" (mouseleave)="onDropdownLeave()">
+<div class="country-selector" [class.compact]="compact" [class.open]="isDropdownOpen" [class.loading]="isLoading" [class.drawer-mode]="drawerMode" (mouseenter)="onDropdownEnter()" (mouseleave)="onDropdownLeave()">
   <!-- Loading: circular progress when countries are not loaded yet -->
   <div class="selector-loading" *ngIf="isLoading">
     <div class="loading-spinner" aria-hidden="true"></div>
     <span class="loading-text">Loading countries...</span>
   </div>
   <!-- Selected Country Display / Input: when selected = country flag then name; when none = globe -->
-  <div class="selector-input" *ngIf="!isLoading" (click)="toggleDropdown()">
+  <div #triggerRef class="selector-input" *ngIf="!isLoading" (click)="toggleDropdown()">
     <!-- Flag: selected = country flag (img or emoji), else globe placeholder -->
     <img *ngIf="showFlag && selectedCountry && selectedCountry.flag_url" 
          [src]="selectedCountry!.flag_url" [alt]="selectedCountry!.country_name" class="flag flag-img" />
@@ -32,16 +32,16 @@
     <span class="dropdown-arrow" [class.open]="isDropdownOpen">▼</span>
   </div>
 
-  <!-- Dropdown List: flag + name only (no phone code in results) -->
-  <div class="dropdown-list" [class.open]="isDropdownOpen">
+  <!-- Dropdown List: flag + name only (no phone code in results); drawer mode uses computed max-height -->
+  <div class="dropdown-list" [class.open]="isDropdownOpen" [style.max-height.px]="drawerMode ? (isDropdownOpen ? dropdownListMaxHeight : 0) : null">
     <!-- Loading -->
     <div class="loading" *ngIf="isLoading">
       <div class="loading-spinner" aria-hidden="true"></div>
       <span>Loading countries...</span>
     </div>
 
-    <!-- Featured Countries (shown when no search) -->
-    <div class="featured-section" *ngIf="!searchControl.value && featuredCountries.length > 0">
+    <!-- Featured Countries (shown when no search); optional popularSectionBg e.g. rgba(0,128,128,0.2) -->
+    <div class="featured-section" *ngIf="!searchControl.value && featuredCountries.length > 0" [style.background]="popularSectionBg || null">
       <div class="section-title">Popular</div>
       <div 
         class="country-item featured" 

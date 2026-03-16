@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, Renderer2, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, Renderer2, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, Validators, ValidatorFn } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
@@ -178,6 +178,17 @@ export class SignupComponent implements OnInit, OnDestroy {
   authAlertMessage = '';
   showAuthAlert = false;
   authAlertIsSuccess = false;
+
+  /** Drawer for Account Type and Class: open like a drawer, max 600px, min 150px, keep 100px from window bottom */
+  @ViewChild('accountTypeTrigger') accountTypeTrigger!: ElementRef<HTMLElement>;
+  @ViewChild('classTrigger') classTrigger!: ElementRef<HTMLElement>;
+  accountTypeDrawerOpen = false;
+  classDrawerOpen = false;
+  accountTypeDrawerMaxHeight = 600;
+  classDrawerMaxHeight = 600;
+  private readonly DRAWER_MIN = 150;
+  private readonly DRAWER_MAX = 600;
+  private readonly BOTTOM_GAP = 100;
 
   constructor(
     private fb: FormBuilder,
@@ -868,6 +879,43 @@ export class SignupComponent implements OnInit, OnDestroy {
     if (this.showDOBCalendar && t && !t.closest('.dob-calendar-panel') && !t.closest('.dob-calendar-wrap')) {
       this.closeDOBCalendar();
     }
+    if (t && !t.closest('.signup-drawer-field')) {
+      this.accountTypeDrawerOpen = false;
+      this.classDrawerOpen = false;
+    }
+  }
+
+  private computeDrawerMaxHeight(triggerEl: HTMLElement): number {
+    const rect = triggerEl.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - this.BOTTOM_GAP;
+    return Math.max(this.DRAWER_MIN, Math.min(this.DRAWER_MAX, spaceBelow));
+  }
+
+  toggleAccountTypeDrawer(): void {
+    this.classDrawerOpen = false;
+    if (!this.accountTypeDrawerOpen && this.accountTypeTrigger?.nativeElement) {
+      this.accountTypeDrawerMaxHeight = this.computeDrawerMaxHeight(this.accountTypeTrigger.nativeElement);
+    }
+    this.accountTypeDrawerOpen = !this.accountTypeDrawerOpen;
+  }
+
+  toggleClassDrawer(): void {
+    this.accountTypeDrawerOpen = false;
+    if (!this.classDrawerOpen && this.classTrigger?.nativeElement) {
+      this.classDrawerMaxHeight = this.computeDrawerMaxHeight(this.classTrigger.nativeElement);
+    }
+    this.classDrawerOpen = !this.classDrawerOpen;
+  }
+
+  selectAccountType(value: string): void {
+    this.authForm.get('acctype')?.setValue(value);
+    this.onAccountTypeChange();
+    this.accountTypeDrawerOpen = false;
+  }
+
+  selectClass(value: string): void {
+    this.authForm.get('className')?.setValue(value);
+    this.classDrawerOpen = false;
   }
 
   calendarPrevMonth(): void {

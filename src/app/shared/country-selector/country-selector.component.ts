@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Output, EventEmitter, Input, forwardRef, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, Output, EventEmitter, Input, forwardRef, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
@@ -25,7 +25,13 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
   @Input() showPhoneCode: boolean = true;
   @Input() showFlag: boolean = true;
   @Input() compact: boolean = false;  // Compact mode for header
+  /** When true, dropdown opens like a drawer: max 600px, min 150px, 100px from window bottom */
+  @Input() drawerMode: boolean = false;
+  /** Background color for the Popular (featured) section, e.g. rgba(0,128,128,0.2) */
+  @Input() popularSectionBg: string | null = null;
   @Output() countryChange = new EventEmitter<Country>();
+
+  @ViewChild('triggerRef') triggerRef!: ElementRef<HTMLElement>;
 
   searchControl = new FormControl('');
   selectedCountry: Country | null = null;
@@ -34,6 +40,11 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
   allCountries: Country[] = [];
   isDropdownOpen: boolean = false;
   isLoading: boolean = false;
+  /** In drawer mode: computed max-height (150–600px, 100px from window bottom) */
+  dropdownListMaxHeight: number = 600;
+  private readonly DRAWER_MIN = 150;
+  private readonly DRAWER_MAX = 600;
+  private readonly BOTTOM_GAP = 100;
 
   private destroy$ = new Subject<void>();
   private dropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -158,6 +169,7 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
     const term = (searchTerm || '').trim();
     if (term.length >= 1 && !this.isDropdownOpen) {
       this.isDropdownOpen = true;
+      if (this.drawerMode) this.computeDrawerMaxHeight();
       this.filteredCountries = this.allCountries;
     }
     if (!searchTerm || searchTerm.length < 1) {
@@ -187,10 +199,18 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
     this.onTouched();
   }
 
+  private computeDrawerMaxHeight(): void {
+    if (!this.drawerMode || !this.triggerRef?.nativeElement) return;
+    const rect = this.triggerRef.nativeElement.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - this.BOTTOM_GAP;
+    this.dropdownListMaxHeight = Math.max(this.DRAWER_MIN, Math.min(this.DRAWER_MAX, spaceBelow));
+  }
+
   // Toggle dropdown
   toggleDropdown(): void {
     this.isDropdownOpen = !this.isDropdownOpen;
     if (this.isDropdownOpen) {
+      if (this.drawerMode) this.computeDrawerMaxHeight();
       this.filteredCountries = this.allCountries;
       this.searchControl.setValue('', { emitEvent: false });
     }
@@ -199,6 +219,7 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
   // Open dropdown
   openDropdown(): void {
     this.isDropdownOpen = true;
+    if (this.drawerMode) this.computeDrawerMaxHeight();
     this.filteredCountries = this.allCountries;
   }
 
@@ -248,6 +269,7 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
   // Handle input focus
   onInputFocus(): void {
     this.isDropdownOpen = true;
+    if (this.drawerMode) this.computeDrawerMaxHeight();
     if (this.selectedCountry) {
       // Clear input for searching but keep selection
       this.searchControl.setValue('', { emitEvent: false });

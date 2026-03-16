@@ -3,7 +3,7 @@
   
   <form [formGroup]="authForm" (ngSubmit)="onAuth()">
 
-    <!-- Country (for phone code) -->
+    <!-- Country (for phone code) – drawer mode, Popular section teal background -->
     <div class="form-group">
       <span class="label-colon"><label for="country">Country</label><span class="colon">:</span></span>
       <div class="form-field country-selector-wrapper">
@@ -12,21 +12,28 @@
           [showPhoneCode]="false"
           [showFlag]="true"
           [compact]="false"
+          [drawerMode]="true"
+          popularSectionBg="rgba(0,128,128,0.2)"
           (countryChange)="onCountryChange($any($event))">
         </app-country-selector>
       </div>
     </div>
-    <!-- Account Type -->
-    <div class="form-group">
+    <!-- Account Type (drawer) -->
+    <div class="form-group signup-drawer-wrap">
       <span class="label-colon"><label for="acctype">Account Type</label><span class="colon">:</span></span>
-      <div class="form-field">
-        <select formControlName="acctype" id="acctype" class="form-control"
-        (change)="onAccountTypeChange()"
-        [ngClass]="{ 'is-invalid': authForm.get('acctype')?.touched && authForm.get('acctype')?.invalid }">
-        <option value="Student">Student</option>
-        <option value="Teacher">Teacher</option>
-        <option value="JobSeeker">Job Seeker</option>
-      </select>
+      <div class="form-field signup-drawer-field">
+        <div #accountTypeTrigger class="signup-drawer-trigger form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('acctype')?.touched && authForm.get('acctype')?.invalid }"
+          (click)="toggleAccountTypeDrawer()">
+          {{ authForm.get('acctype')?.value || 'Select' }}
+        </div>
+        <div class="signup-drawer-panel" [class.closed]="!accountTypeDrawerOpen" [style.max-height.px]="accountTypeDrawerMaxHeight">
+          <div class="signup-drawer-inner">
+            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Student'" (click)="selectAccountType('Student')">Student</button>
+            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Teacher'" (click)="selectAccountType('Teacher')">Teacher</button>
+            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'JobSeeker'" (click)="selectAccountType('JobSeeker')">Job Seeker</button>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Full Name -->
@@ -95,15 +102,22 @@
       </div>
     </div>
 
-    <!-- Class (Only for Students) - options from levels_by_country when country selected -->
-    <div class="form-group" *ngIf="authForm.get('acctype')?.value === 'Student'">
+    <!-- Class (Only for Students) - drawer -->
+    <div class="form-group signup-drawer-wrap" *ngIf="authForm.get('acctype')?.value === 'Student'">
       <span class="label-colon"><label for="className">Class</label><span class="colon">:</span></span>
-      <div class="form-field">
-        <select formControlName="className" id="className" class="form-control"
-        [ngClass]="{ 'is-invalid': authForm.get('className')?.touched && authForm.get('className')?.invalid }">
-        <option value="">Select Class</option>
-        <option *ngFor="let opt of (availableClassOptions.length ? availableClassOptions : defaultClassOptions)" [value]="opt.value">{{ getClassDisplayLabel(opt.value) }}</option>
-      </select>
+      <div class="form-field signup-drawer-field">
+        <div #classTrigger class="signup-drawer-trigger form-control"
+          [ngClass]="{ 'is-invalid': authForm.get('className')?.touched && authForm.get('className')?.invalid }"
+          (click)="toggleClassDrawer()">
+          {{ getClassDisplayLabel(authForm.get('className')?.value) || 'Select Class' }}
+        </div>
+        <div class="signup-drawer-panel" [class.closed]="!classDrawerOpen" [style.max-height.px]="classDrawerMaxHeight">
+          <div class="signup-drawer-inner">
+            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('className')?.value === ''" (click)="selectClass('')">Select Class</button>
+            <button type="button" *ngFor="let opt of (availableClassOptions.length ? availableClassOptions : defaultClassOptions)" class="signup-drawer-option"
+              [class.active]="authForm.get('className')?.value === opt.value" (click)="selectClass(opt.value)">{{ getClassDisplayLabel(opt.value) }}</button>
+          </div>
+        </div>
       </div>
     </div>
 
