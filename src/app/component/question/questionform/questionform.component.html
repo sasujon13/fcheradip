@@ -22,13 +22,35 @@
         <input type="text" formControlName="subject" [readonly]="true" class="form-control">
       </div>
 
-      <div class="form-group">
+      <div class="form-group" *ngIf="isNewMode && chapters.length > 0">
+        <label>Chapter <span class="required">*</span></label>
+        <select class="form-control" formControlName="chapter" (change)="onChapterSelect($any($event.target).value)">
+          <option value="">Select Chapter</option>
+          <option *ngFor="let ch of chapters" [value]="ch.id">{{ ch.name }}</option>
+        </select>
+      </div>
+      <div class="form-group" *ngIf="!isNewMode || chapters.length === 0">
         <label>Chapter <span class="required">*</span></label>
         <input type="text" formControlName="chapter" [readonly]="true" class="form-control">
       </div>
 
+      <div class="form-group" *ngIf="isNewMode">
+        <label>Topic <span class="required">*</span></label>
+        <select class="form-control" formControlName="topic" (change)="onTopicSelect($any($event.target).value)">
+          <option value="">Select Topic</option>
+          <option *ngFor="let t of topics" [value]="t.id">{{ t.name }}</option>
+          <option *ngIf="isTopicValueNotInList()" [value]="questionForm.get('topic')?.value">{{ questionForm.get('topic')?.value }}</option>
+          <option [value]="ADD_NEW_TOPIC_ID">+ Add new topic</option>
+        </select>
+        <div class="form-group new-topic-inline" *ngIf="showNewTopicInput">
+          <label>New topic name</label>
+          <input type="text" class="form-control" [(ngModel)]="newTopicName" [ngModelOptions]="{standalone: true}" placeholder="Enter topic name" (keyup.enter)="confirmNewTopic()">
+          <button type="button" class="btn-secondary btn-sm" (click)="confirmNewTopic()">Add topic</button>
+        </div>
+      </div>
+
       <div class="form-group">
-        <label>Question Number <span class="required">*</span></label>
+        <label>Question Number</label>
         <input type="text" formControlName="number" class="form-control">
       </div>
 

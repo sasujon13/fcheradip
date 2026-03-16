@@ -62,6 +62,8 @@ export class QuestionComponent implements OnInit {
   /** Questions for selected topic (from HSC subject table); user can select which to use. */
   topicQuestions: any[] = [];
   topicQuestionsLoaded = false;
+  /** Topics for the current chapter when in form mode (new question); used by question form dropdown. */
+  formTopics: Array<{ id: string; name: string; topic_no?: string }> = [];
   /** Set of question id (from topicQuestions) that user has selected. */
   selectedQuestionIds: Set<number> = new Set();
   currentPage: number = 1;
@@ -106,6 +108,9 @@ export class QuestionComponent implements OnInit {
         this.loadQuestionForEdit(+id);
       } else {
         this.loadData();
+        if (this.isFormMode && !id && this.primarySubject && this.currentChapter) {
+          this.loadFormTopics(this.currentChapter);
+        }
       }
     });
   }
@@ -623,6 +628,24 @@ export class QuestionComponent implements OnInit {
     }
   }
 
+  /** Load topics for the given chapter (for new-question form dropdown). */
+  loadFormTopics(chapterIdOrName: string): void {
+    const sub = this.primarySubject;
+    if (!sub) {
+      this.formTopics = [];
+      return;
+    }
+    this.apiService.getQuestionTopics({
+      level_tr: sub.level_tr,
+      class_level: sub.class_level,
+      subject_tr: sub.subject_tr,
+      chapter: chapterIdOrName
+    }).subscribe({
+      next: (res) => { this.formTopics = res.topics || []; },
+      error: () => { this.formTopics = []; }
+    });
+  }
+
   loadChapters(): void {
     const sub = this.primarySubject;
     if (sub) {
@@ -667,9 +690,10 @@ export class QuestionComponent implements OnInit {
   }
 
   onQuestionSelect(question: any): void {
-    // Navigate to edit question
-    if (this.currentSubject && this.currentChapter) {
-      this.router.navigate(['/question', this.currentSubject, 'chapter', this.currentChapter, 'question', question.id]);
+    // Navigate to edit question (id or qid from HSC table)
+    const qId = question.qid ?? question.id;
+    if (this.currentSubject && this.currentChapter && qId != null) {
+      this.router.navigate(['/question', this.currentSubject, 'chapter', this.currentChapter, 'question', qId]);
     }
   }
 
@@ -687,9 +711,28 @@ export class QuestionComponent implements OnInit {
         error: () => {}
       });
     } else {
-      this.apiService.createQuestion(payload).subscribe({
-        next: () => this.goBackToList(),
-        error: () => {}
+      const sub = this.primarySubject;
+      this.apiService.submitPendingQuestion({
+        level_tr: sub?.level_tr ?? '',
+        class_level: sub?.class_level ?? this.selectedClass ?? '',
+        subject_tr: this.currentSubject || payload.subject || '',
+        chapter_no: payload.chapter_no || (this.chapters.find(c => c.name === payload.chapter || c.id === payload.chapter)?.id) || payload.chapter,
+        chapter: payload.chapter || this.currentChapter,
+        topic_no: payload.topic_no || '',
+        topic: payload.topic || '',
+        question: payload.question || payload.text || '',
+        option_1: payload.option_1,
+        option_2: payload.option_2,
+        option_3: payload.option_3,
+        option_4: payload.option_4,
+        answer: payload.answer || '',
+        explanation: payload.explanation || '',
+        type: payload.type || 'CQ'
+      }).subscribe({
+        next: () => {
+          this.goBackToList();
+        },
+        error: (err) => {}
       });
     }
   }

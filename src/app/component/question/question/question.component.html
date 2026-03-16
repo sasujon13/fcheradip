@@ -27,7 +27,7 @@
         </div>
       </div>
     </div>
-    <div class="question-filter-item filter-dropdown-wrap">
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="groups.length > 0">
       <label class="question-filter-label">Group</label>
       <div class="filter-dropdown">
         <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedGroup" (click)="toggleGroupDropdown($event)" [title]="selectedGroupLabel">
@@ -130,6 +130,12 @@
         [question]="editQuestion"
         [subject]="currentSubject"
         [chapter]="currentChapter"
+        [isNewMode]="!isEditRoute && !editQuestion"
+        [chapters]="chapters"
+        [topics]="formTopics"
+        [levelTr]="primarySubject?.level_tr || ''"
+        [classLevel]="primarySubject?.class_level || selectedClass || ''"
+        (chapterChange)="loadFormTopics($event)"
         (save)="onSaveQuestion($event)"
         (cancel)="onCancelForm()"
       ></app-questionform>
