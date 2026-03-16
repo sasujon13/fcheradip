@@ -608,6 +608,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       }).subscribe({
         next: (res) => {
           (res.questions || []).forEach((q: any) => {
+            if (all.length >= 999) return;
             const qid = q.qid;
             if (qid != null && !seenIds.has(qid)) {
               seenIds.add(qid);
@@ -616,16 +617,24 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           });
           pending--;
           if (pending === 0) {
-            this.topicQuestions = all;
+            this.topicQuestions = all.slice(0, 999);
             this.topicQuestionsLoaded = true;
           }
         },
         error: () => {
           pending--;
-          if (pending === 0) { this.topicQuestions = all; this.topicQuestionsLoaded = true; }
+          if (pending === 0) { this.topicQuestions = all.slice(0, 999); this.topicQuestionsLoaded = true; }
         }
       });
     });
+  }
+
+  /** Max questions shown (no navigating past this). */
+  readonly maxTopicQuestionsShown = 999;
+
+  /** Serial number for loaded questions list: 001, 002, ... 999. */
+  formatSl(index: number): string {
+    return (index + 1).toString().padStart(3, '0');
   }
 
   toggleQuestionSelection(qid: number | string): void {
