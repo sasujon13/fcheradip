@@ -79,8 +79,8 @@ export class QuestionCreatorComponent implements OnInit {
     }
   }
 
-  removeQuestion(id: number): void {
-    this.questions = this.questions.filter(q => q.id !== id);
+  removeQuestion(qid: number | string): void {
+    this.questions = this.questions.filter(q => q.qid !== qid);
   }
 
   goBack(): void {

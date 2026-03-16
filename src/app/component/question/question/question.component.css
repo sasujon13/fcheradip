@@ -4,7 +4,7 @@
 /* Question component-specific styles */
 .question-container {
   padding: 20px;
-  max-width: 1400px;
+  max-width: 1920px;
   margin: 66px auto;
 }
 
@@ -15,7 +15,6 @@
   justify-content: left;
   align-items: center;
   gap: 12px 16px;
-  margin-bottom: 20px;
   padding: 12px;
   text-align: center;
 }
@@ -52,7 +51,7 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
-  accent-color: #008080;
+  accent-color: teal;
 }
 
 .question-filter-select:hover {
@@ -75,18 +74,18 @@
 
 .question-filter-select:focus {
   outline: none;
-  border-color: #008080;
+  border-color: teal;
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
 /* Teal color for Select Level, Select Group, Select Subject when placeholder is selected */
 .question-filter-select.placeholder-selected {
-  color: #008080;
+  color: teal;
 }
 
 .question-filter-select option.filter-select-placeholder,
 .question-filter-select option[value=""] {
-  color: #008080;
+  color: teal;
 }
 
 /* Chapter / Topic: same CSS design as Level, Group, Subject (label + control); only the opened panel has checkboxes */
@@ -126,7 +125,7 @@
 
 .filter-dropdown-btn:focus {
   outline: none;
-  border-color: #008080;
+  border-color: teal;
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
@@ -144,7 +143,7 @@
 }
 
 .filter-dropdown-btn.placeholder-selected {
-  color: #008080;
+  color: teal;
 }
 
 .filter-dropdown-arrow {
@@ -281,7 +280,7 @@
   color: #333;
 }
 .filter-dropdown-item-single.filter-dropdown-item-placeholder {
-  color: #008080;
+  color: teal;
 }
 .filter-dropdown-item-single.filter-dropdown-item-placeholder:hover,
 .filter-dropdown-item-single.filter-dropdown-item-placeholder:focus,
@@ -297,9 +296,49 @@
 .topic-questions-section {
   margin-bottom: 24px;
   padding: 16px;
-  background: #f8f9fa;
+  background: rgba(0, 128, 128, 0.1);
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: teal;
+}
+
+/* Smart Question Creator + Create Question buttons (navigate to question-creator) */
+.creator-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.creator-buttons-row .btn-creator {
+  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.creator-buttons-row .btn-smart-creator {
+  background-color: #006666;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 102, 102, 0.35);
+}
+
+.creator-buttons-row .btn-smart-creator:hover {
+  background-color: #004d4d;
+  box-shadow: 0 4px 12px rgba(0, 102, 102, 0.45);
+}
+
+.creator-buttons-row .btn-create-question {
+  background-color: teal;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 128, 128, 0.35);
+}
+
+.creator-buttons-row .btn-create-question:hover {
+  background-color: teal;
+  box-shadow: 0 4px 12px rgba(0, 128, 128, 0.45);
 }
 
 .topic-questions-header {
@@ -308,7 +347,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .topic-questions-header h3 {
@@ -320,8 +359,9 @@
 .topic-questions-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  gap: 18px;
+  font-size: 16px;
+  margin-left: 13px;
 }
 
 .topic-questions-actions .btn-link {
@@ -333,8 +373,16 @@
   padding: 0;
 }
 
-.topic-questions-actions .sep {
-  color: #999;
+.topic-questions-actions .select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.topic-questions-actions .select-all-label input {
+  margin: 0;
 }
 
 .topic-questions-actions .selected-count {
@@ -441,7 +489,7 @@
   padding: 12px 14px;
   background-color: #ffeb3b;
   color: #333;
-  border: 2px solid #008080;
+  border: 2px solid teal;
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.4;

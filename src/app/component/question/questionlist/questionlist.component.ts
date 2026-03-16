@@ -11,7 +11,7 @@ export class QuestionListComponent implements OnInit {
   @Input() totalPages: number = 1;
   @Output() pageChange = new EventEmitter<number>();
   @Output() questionSelect = new EventEmitter<any>();
-  @Output() questionDelete = new EventEmitter<number>();
+  @Output() questionDelete = new EventEmitter<number | string>();
 
   constructor() { }
 
@@ -26,8 +26,8 @@ export class QuestionListComponent implements OnInit {
     this.questionSelect.emit(question);
   }
 
-  onQuestionDelete(id: number): void {
-    this.questionDelete.emit(id);
+  onQuestionDelete(qid: number | string): void {
+    this.questionDelete.emit(qid);
   }
 }
 

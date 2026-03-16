@@ -65,7 +65,8 @@ export class QuestionComponent implements OnInit {
   /** Topics for the current chapter when in form mode (new question); used by question form dropdown. */
   formTopics: Array<{ id: string; name: string; topic_no?: string }> = [];
   /** Set of question id (from topicQuestions) that user has selected. */
-  selectedQuestionIds: Set<number> = new Set();
+  /** Set of question qid (from topicQuestions). */
+  selectedQuestionIds: Set<number | string> = new Set();
   currentPage: number = 1;
   totalPages: number = 1;
   breadcrumbItems: any[] = [];
@@ -97,18 +98,18 @@ export class QuestionComponent implements OnInit {
     this.route.params.subscribe(params => {
       this.currentSubject = params['subject'] || '';
       this.currentChapter = params['chapterName'] || '';
-      const id = params['id'];
+      const qid = params['id'];
       const urlSegments = this.route.snapshot.url;
       const lastPath = urlSegments.length ? urlSegments[urlSegments.length - 1].path : '';
-      this.isEditRoute = !!id;
-      this.isFormMode = lastPath === 'new' || !!id;
+      this.isEditRoute = !!qid;
+      this.isFormMode = lastPath === 'new' || !!qid;
       this.editQuestion = null;
       this.updateBreadcrumb();
-      if (this.isFormMode && id) {
-        this.loadQuestionForEdit(+id);
+      if (this.isFormMode && qid) {
+        this.loadQuestionForEdit(qid);
       } else {
         this.loadData();
-        if (this.isFormMode && !id && this.primarySubject && this.currentChapter) {
+        if (this.isFormMode && !qid && this.primarySubject && this.currentChapter) {
           this.loadFormTopics(this.currentChapter);
         }
       }
@@ -532,11 +533,10 @@ export class QuestionComponent implements OnInit {
       }).subscribe({
         next: (res) => {
           (res.questions || []).forEach((q: any) => {
-            const id = q.id != null ? q.id : q.qid;
-            if (id != null && !seenIds.has(id)) {
-              seenIds.add(id);
-              const normalized = q.id != null ? q : { ...q, id: q.qid };
-              all.push(normalized);
+            const qid = q.qid;
+            if (qid != null && !seenIds.has(qid)) {
+              seenIds.add(qid);
+              all.push(q);
             }
           });
           pending--;
@@ -553,21 +553,36 @@ export class QuestionComponent implements OnInit {
     });
   }
 
-  toggleQuestionSelection(id: number): void {
-    if (this.selectedQuestionIds.has(id)) {
-      this.selectedQuestionIds.delete(id);
+  toggleQuestionSelection(qid: number | string): void {
+    if (this.selectedQuestionIds.has(qid)) {
+      this.selectedQuestionIds.delete(qid);
     } else {
-      this.selectedQuestionIds.add(id);
+      this.selectedQuestionIds.add(qid);
     }
     this.selectedQuestionIds = new Set(this.selectedQuestionIds);
   }
 
-  isQuestionSelected(id: number): boolean {
-    return this.selectedQuestionIds.has(id);
+  isQuestionSelected(qid: number | string): boolean {
+    return this.selectedQuestionIds.has(qid);
+  }
+
+  /** True when all topic questions are selected. */
+  get allTopicQuestionsSelected(): boolean {
+    return this.topicQuestions.length > 0 && this.selectedQuestionIds.size === this.topicQuestions.length;
+  }
+
+  /** Toggle between select all and unselect all. */
+  toggleSelectAllTopicQuestions(): void {
+    if (this.allTopicQuestionsSelected) {
+      this.selectedQuestionIds = new Set();
+    } else {
+      this.selectedQuestionIds = new Set(this.topicQuestions.map((q: any) => q.qid));
+    }
+    this.selectedQuestionIds = new Set(this.selectedQuestionIds);
   }
 
   selectAllTopicQuestions(): void {
-    this.selectedQuestionIds = new Set(this.topicQuestions.map((q: any) => q.id));
+    this.selectedQuestionIds = new Set(this.topicQuestions.map((q: any) => q.qid));
   }
 
   clearTopicQuestionSelection(): void {
@@ -582,7 +597,7 @@ export class QuestionComponent implements OnInit {
   /** Selected question objects (from topicQuestions) to pass to creator page. */
   get selectedQuestionsForCreate(): any[] {
     if (!this.topicQuestions.length) return [];
-    return this.topicQuestions.filter((q: any) => this.selectedQuestionIds.has(q.id));
+    return this.topicQuestions.filter((q: any) => this.selectedQuestionIds.has(q.qid));
   }
 
   /** Live Chat – open chat or external link. */
@@ -610,8 +625,8 @@ export class QuestionComponent implements OnInit {
     });
   }
 
-  loadQuestionForEdit(id: number): void {
-    this.apiService.getQuestionById(id).subscribe({
+  loadQuestionForEdit(qid: number | string): void {
+    this.apiService.getQuestionById(qid).subscribe({
       next: (q) => { this.editQuestion = q; },
       error: () => { this.isFormMode = false; this.loadData(); }
     });
@@ -682,11 +697,38 @@ export class QuestionComponent implements OnInit {
     // Implement search functionality
   }
 
+  /** Navigate to question-creator page with no selection (from FAB or "Create Question" when nothing selected). */
+  goToQuestionCreator(): void {
+    this.router.navigate(['/question/create'], {
+      state: {
+        questions: [],
+        context: this.primarySubject ? {
+          level_tr: this.selectedLevel,
+          class_level: this.selectedClass,
+          subject_tr: this.primarySubject.subject_tr,
+          chapter: this.currentChapter,
+          topic: this.selectedTopicIds.size ? (this.topics.find(t => this.selectedTopicIds.has(t.id))?.name ?? '') : ''
+        } : undefined
+      }
+    });
+  }
+
+  /** Navigate to question-creator page for Smart Question Creator flow. */
+  goToSmartQuestionCreator(): void {
+    this.router.navigate(['/question/create'], {
+      state: { smartCreator: true, questions: [], context: this.primarySubject ? {
+        level_tr: this.selectedLevel,
+        class_level: this.selectedClass,
+        subject_tr: this.primarySubject.subject_tr,
+        chapter: this.currentChapter,
+        topic: this.selectedTopicIds.size ? (this.topics.find(t => this.selectedTopicIds.has(t.id))?.name ?? '') : ''
+      } : undefined }
+    });
+  }
+
   onCreateQuestion(): void {
-    // Navigate to create question form
-    if (this.currentSubject && this.currentChapter) {
-      this.router.navigate(['/question', this.currentSubject, 'chapter', this.currentChapter, 'new']);
-    }
+    // Navigate to question-creator page (same as "Create Question" button)
+    this.goToQuestionCreator();
   }
 
   onPageChange(page: number): void {
@@ -695,23 +737,22 @@ export class QuestionComponent implements OnInit {
   }
 
   onQuestionSelect(question: any): void {
-    // Navigate to edit question (id or qid from HSC table)
-    const qId = question.qid ?? question.id;
-    if (this.currentSubject && this.currentChapter && qId != null) {
-      this.router.navigate(['/question', this.currentSubject, 'chapter', this.currentChapter, 'question', qId]);
+    const qid = question.qid;
+    if (this.currentSubject && this.currentChapter && qid != null) {
+      this.router.navigate(['/question', this.currentSubject, 'chapter', this.currentChapter, 'question', qid]);
     }
   }
 
-  onQuestionDelete(id: number): void {
-    this.apiService.deleteQuestion(id).subscribe({
+  onQuestionDelete(qid: number | string): void {
+    this.apiService.deleteQuestion(qid).subscribe({
       next: () => this.loadQuestions(),
       error: () => this.loadQuestions()
     });
   }
 
   onSaveQuestion(payload: any): void {
-    if (this.editQuestion?.id) {
-      this.apiService.updateQuestion(this.editQuestion.id, payload).subscribe({
+    if (this.editQuestion?.qid) {
+      this.apiService.updateQuestion(this.editQuestion.qid, payload).subscribe({
         next: () => this.goBackToList(),
         error: () => {}
       });

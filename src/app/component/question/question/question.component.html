@@ -98,18 +98,26 @@
   <!-- Questions for selected topic(s): user selects which questions to use -->
   <div class="topic-questions-section" *ngIf="selectedTopicIds.size > 0 && topicQuestions.length > 0">
     <div class="topic-questions-header">
-      <h3>Questions for selected topic</h3>
       <div class="topic-questions-actions">
-        <button type="button" class="btn-link" (click)="selectAllTopicQuestions()">Select all</button>
-        <span class="sep">|</span>
-        <button type="button" class="btn-link" (click)="clearTopicQuestionSelection()">Clear selection</button>
+        <label class="select-all-label">
+          <input type="checkbox" [checked]="allTopicQuestionsSelected" (change)="toggleSelectAllTopicQuestions()" />
+          <span>{{ allTopicQuestionsSelected ? 'Unselect All' : 'Select All' }}</span>
+        </label>
         <span class="selected-count">{{ selectedQuestionIds?.size ?? 0 }} selected</span>
+      </div>
+
+      <!-- Buttons to open question creator: visible when topic(s) selected -->
+      <div class="creator-buttons-row" *ngIf="selectedTopicIds.size > 0">
+        <button type="button" class="btn-creator btn-smart-creator" (click)="goToSmartQuestionCreator()">Smart Question Creator</button>
+        <button type="button" class="btn-creator btn-create-question" (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
+          {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
+        </button>
       </div>
     </div>
     <ul class="topic-questions-list">
       <li *ngFor="let q of topicQuestions" class="topic-question-item">
-        <label class="topic-question-label" (click)="toggleQuestionSelection(q.id); $event.preventDefault()">
-          <input type="checkbox" [checked]="isQuestionSelected(q.id)" (click)="$event.preventDefault(); $event.stopPropagation(); toggleQuestionSelection(q.id)" />
+        <label class="topic-question-label" (click)="toggleQuestionSelection(q.qid); $event.preventDefault()">
+          <input type="checkbox" [checked]="isQuestionSelected(q.qid)" (click)="$event.preventDefault(); $event.stopPropagation(); toggleQuestionSelection(q.qid)" />
           <span class="topic-question-text">{{ q.question }}</span>
         </label>
         <div class="topic-question-options" *ngIf="q.option_1 || q.option_2">

@@ -92,7 +92,7 @@
             <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
           </div>
         </div>
-        <button type="button" class="btn-remove" (click)="removeQuestion(q.id)" title="Remove">Remove</button>
+        <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">Remove</button>
       </li>
     </ul>
     <p *ngIf="questions.length === 0" class="no-questions">No questions left. Go back to add more.</p>

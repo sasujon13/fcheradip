@@ -707,20 +707,20 @@ export class ApiService {
   }
 
   // Question CRUD
-  getQuestionById(id: number): Observable<any> {
-    return this.http.get(`${this.baseUrl}/questions/${id}/`);
+  getQuestionById(qid: number | string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/questions/${qid}/`);
   }
 
   createQuestion(question: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/questions/`, question);
   }
 
-  updateQuestion(id: number, question: any): Observable<any> {
-    return this.http.put(`${this.baseUrl}/questions/${id}/`, question);
+  updateQuestion(qid: number | string, question: any): Observable<any> {
+    return this.http.put(`${this.baseUrl}/questions/${qid}/`, question);
   }
 
-  deleteQuestion(id: number): Observable<any> {
-    return this.http.delete(`${this.baseUrl}/questions/${id}/`);
+  deleteQuestion(qid: number | string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/questions/${qid}/`);
   }
 
   /** Submit a new question for approval (pending). When approved, it is added with qid = chapter_no_topic_no_0001, ... */
