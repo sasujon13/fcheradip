@@ -281,6 +281,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         menu_item0.style.display = 'none';
         sign_menu.style.display = 'none';
         profileMenu.style.display = 'block';
+        document.querySelector('header')?.classList.add('logged-in');
       }
   }
 

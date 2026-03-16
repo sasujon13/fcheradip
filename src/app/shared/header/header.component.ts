@@ -153,18 +153,22 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const profileMenu = document.getElementById('profileMenu');
     if (menu_item2 && menu_item1 && menu_item0 && sign_menu && profileMenu) {
       this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
+      const headerEl = document.querySelector('header');
       if (this.loginStatus) {
         menu_item2.style.display = 'block';
         menu_item1.style.display = 'none';
         menu_item0.style.display = 'none';
         sign_menu.style.display = 'none';
+        profileMenu.style.display = 'block';
+        headerEl?.classList.add('logged-in');
       }
       else {
         profileMenu.style.display = 'none';
         menu_item2.style.display = 'none';
         menu_item1.style.display = 'block';
         menu_item0.style.display = 'block';
-
+        sign_menu.style.display = '-webkit-inline-box';
+        headerEl?.classList.remove('logged-in');
       }
     }
     this.apiService.search.subscribe((val: any) => {
@@ -579,6 +583,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const profileMenu = document.getElementById('profileMenu');
     const sign_menu = document.getElementById('sign_menu');
     if (menu_item2 && menu_item1 && menu_item0 && profileMenu && sign_menu) {
+      document.querySelector('header')?.classList.remove('logged-in');
       sign_menu.style.display = '-webkit-inline-box';
       menu_item0.style.display = 'block';
       menu_item1.style.display = 'block';

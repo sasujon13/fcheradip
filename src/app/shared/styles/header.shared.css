@@ -509,6 +509,18 @@ i.fa-bars{
     padding: 5px 10px;
     margin-right: 0;
   }
+  /* When logged in at ≤839px: hide Login/SignUp, show profile menu */
+  header.logged-in .sign_menu,
+  header.logged-in li#menu_item0,
+  header.logged-in li#menu_item1 {
+    display: none !important;
+  }
+  header.logged-in ul.profileMenu {
+    display: block !important;
+  }
+  header.logged-in li#menu_item2 {
+    display: block !important;
+  }
   li#menu_item0 {
     margin-top: 0;
     display: block !important;
