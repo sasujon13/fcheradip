@@ -47,16 +47,16 @@
           <div class="header-country-dropdown header-country-dropdown-drawer" [class.open]="showCountryDropdown" [style.max-height.px]="showCountryDropdown ? countryDropdownMaxHeight : 0">
             <div class="header-country-loading" *ngIf="countryListLoading">Loading...</div>
             <ng-container *ngIf="!countryListLoading">
-              <div class="header-country-section">
-                <div class="header-country-section-title">Website Language</div>
-                <div class="header-country-item website-language-item"
-                     (click)="selectHeaderCountry(websiteLanguageCountry)" [class.selected]="currentCountry?.country_code === websiteLanguageCountry.country_code">
-                  <span class="header-country-item-emoji">{{ websiteLanguageCountry.flag_emoji }}</span>
-                  <span class="header-country-item-name">{{ websiteLanguageCountry.country_name }}</span>
-                </div>
-                <div class="header-country-divider"></div>
+              <div class="header-country-search-wrap">
+                <input type="text" class="header-country-search-input"
+                       [value]="headerCountrySearch"
+                       (input)="headerCountrySearch = $any($event.target).value"
+                       (click)="$event.stopPropagation()"
+                       placeholder="Search countries..."
+                       autocomplete="off"
+                       aria-label="Search countries" />
               </div>
-              <div class="header-country-section header-country-section-popular" *ngIf="featuredCountries.length > 0">
+              <div class="header-country-section header-country-section-popular" *ngIf="!headerCountrySearch && featuredCountries.length > 0">
                 <div class="header-country-section-title">Popular</div>
                 <div *ngFor="let c of featuredCountries" class="header-country-item"
                      (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">
@@ -67,13 +67,16 @@
                 <div class="header-country-divider"></div>
               </div>
               <div class="header-country-section">
-                <div class="header-country-section-title">All Countries</div>
+                <div class="header-country-section-title">{{ headerCountrySearch ? 'Search Results (' + filteredCountriesForHeader.length + ')' : 'All Countries' }}</div>
                 <div class="header-country-list">
-                  <div *ngFor="let c of allCountriesForHeader" class="header-country-item"
+                  <div *ngFor="let c of filteredCountriesForHeader" class="header-country-item"
                        (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">
                     <img *ngIf="c.flag_url" [src]="c.flag_url" [alt]="c.country_name" class="header-country-item-flag" />
                     <span *ngIf="!c.flag_url" class="header-country-item-emoji">{{ c.flag_emoji }}</span>
                     <span class="header-country-item-name">{{ c.country_name }}</span>
+                  </div>
+                  <div class="header-country-no-results" *ngIf="filteredCountriesForHeader.length === 0 && headerCountrySearch">
+                    No countries found for "{{ headerCountrySearch }}"
                   </div>
                 </div>
               </div>

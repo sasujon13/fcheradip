@@ -83,6 +83,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private readonly DRAWER_MIN = 150;
   private readonly DRAWER_MAX = 600;
   private readonly BOTTOM_GAP = 100;
+  /** Search term for header country dropdown (filter countries like login/signup). */
+  headerCountrySearch = '';
+  /** Filtered list for header country dropdown; when empty search returns all. */
+  get filteredCountriesForHeader(): Country[] {
+    const q = (this.headerCountrySearch || '').trim().toLowerCase();
+    if (q.length === 0) return this.allCountriesForHeader;
+    return this.allCountriesForHeader.filter(c =>
+      (c.country_name && c.country_name.toLowerCase().includes(q)) ||
+      (c.country_name_native && c.country_name_native.toLowerCase().includes(q))
+    );
+  }
 
   isCopyrightVisible = false;
   shouldDisplayCopyrightDiv = false;
@@ -256,6 +267,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   toggleCountryDropdown(): void {
     this.showCountryDropdown = !this.showCountryDropdown;
+    if (!this.showCountryDropdown) this.headerCountrySearch = '';
     if (this.showCountryDropdown) {
       this.computeCountryDrawerMaxHeight();
       if (this.featuredCountries.length === 0 && this.allCountriesForHeader.length > 0) {
@@ -299,6 +311,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   selectHeaderCountry(country: Country): void {
     this.showCountryDropdown = false;
+    this.headerCountrySearch = '';
     const lang = this.countryService.getLanguageFromCountry(country);
     const currentLang = this.countryService.getPreferredLang();
     // Update icon and save immediately
@@ -347,6 +360,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const target = event.target as HTMLElement;
     if (this.countryWrapRef?.nativeElement?.contains(target)) return;
     this.showCountryDropdown = false;
+    this.headerCountrySearch = '';
     if (target.closest('.profileMenu')) return;
     this.isDropdownOpen = false;
     if (target.closest('.menu') || target.closest('.menu-toggle')) return;
