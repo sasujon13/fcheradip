@@ -224,8 +224,18 @@ header .tokenbox.header-tokenbox .hover-message-box a {
   z-index: 99999;
   display: flex;
   flex-direction: column;
-  visibility: visible;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms;
+}
+.header-country-dropdown.open {
   opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s;
 }
 .header-country-loading {
   padding: 16px;
@@ -316,18 +326,22 @@ ul.dropdown {
   border: 1px solid #ccc;
   z-index: 110;
   background-color: white;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms;
+}
+ul.dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s;
 }
 ul.dropdown li a {
   text-decoration: none;
   color: teal;
-}
-
-.menu_item2.open .dropdown {
-  display: block;
-}
-
-.dropdown {
-  transition: display 0.3s ease-in-out;
 }
 
 .caution-box {
@@ -500,7 +514,7 @@ i.fa-bars{
     display: none;
     position: fixed;
     top: -100%;
-    transition: top 0.3s ease-in-out;
+    transition: top 0.7s ease-in-out;
   }
   .sign_menu{
     display: flex !important;
@@ -548,6 +562,7 @@ i.fa-bars{
     background-color: teal;
     padding: 10px;
     z-index: 102;
+    transition: opacity 0.7s ease, transform 0.7s ease;
   }
 
   .menu.active li {
@@ -609,5 +624,23 @@ i.fa-bars{
 .afterCopyright{
   height: 5px;
   background-color: rgb(105,185,185);
+}
+
+/* NTRCA / Merit / Vacant / Recommend: same smooth open/close as login country selector (700ms, slide + fade) */
+.dropdown-menu,
+.dropdownx .dropdown-menu {
+  display: block !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms !important;
+}
+.dropdownx .dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s !important;
 }
 

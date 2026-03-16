@@ -1476,10 +1476,26 @@ ul.filterx {
   width: 188px;
 }
 
-/* Dropdown panels on top of other fields when opened */
+/* Dropdown panels: same smooth open/close as login country selector (700ms, slide + fade) */
 .dropdown-menu,
 .dropdownx .dropdown-menu {
   z-index: 1050;
+  /* Override Bootstrap's display:none so opacity/visibility can animate (display is not animatable) */
+  display: block !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  /* On close: keep visibility visible during 700ms so fade/slide can run, then hide */
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms !important;
+}
+.dropdownx .dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  /* On open: visibility visible immediately so open animation runs */
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s !important;
 }
 
 /* Same as /institutes: dropdown header and filter button showing selections */

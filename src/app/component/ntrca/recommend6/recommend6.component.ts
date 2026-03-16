@@ -1,4 +1,4 @@
-import { Component, OnInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Renderer2, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 
@@ -8,7 +8,7 @@ import { environment } from 'src/environments/environment';
   styleUrls: ['./recommend6.component.css']
 })
 
-export class Recommend6Component implements OnInit {
+export class Recommend6Component implements OnInit, OnDestroy {
   baseUrl: string = `${environment.apiUrl}/recommend6/`
   baseUrl2: string = `${environment.apiUrl}/banbeis/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
@@ -25,6 +25,11 @@ export class Recommend6Component implements OnInit {
   loading: boolean = false;
   skipAlert: boolean = false;
   newToken: string = '';
+
+  districtDropdownOpen = false;
+  thanaDropdownOpen = false;
+  private dropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private dropdownLeaveKind: 'district' | 'thana' | null = null;
 
   expandedRows: { [eiin: string]: boolean } = {};
   expandedRows2: { [eiin: string]: boolean } = {};
@@ -886,5 +891,54 @@ export class Recommend6Component implements OnInit {
   }
 
   recordRange: string = '';
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (target.closest('.dropdownx')) return;
+    this.districtDropdownOpen = false;
+    this.thanaDropdownOpen = false;
+    this.clearDropdownLeaveTimer();
+  }
+
+  toggleDistrictDropdown(): void {
+    this.thanaDropdownOpen = false;
+    this.districtDropdownOpen = !this.districtDropdownOpen;
+    this.clearDropdownLeaveTimer();
+  }
+
+  toggleThanaDropdown(): void {
+    this.districtDropdownOpen = false;
+    this.thanaDropdownOpen = !this.thanaDropdownOpen;
+    this.clearDropdownLeaveTimer();
+  }
+
+  onDropdownEnter(kind: 'district' | 'thana'): void {
+    this.dropdownLeaveKind = kind;
+    this.clearDropdownLeaveTimer();
+  }
+
+  onDropdownLeave(kind: 'district' | 'thana'): void {
+    this.dropdownLeaveKind = kind;
+    this.dropdownLeaveTimer = setTimeout(() => {
+      if (this.dropdownLeaveKind === kind) {
+        if (kind === 'district') this.districtDropdownOpen = false;
+        else this.thanaDropdownOpen = false;
+      }
+      this.dropdownLeaveTimer = null;
+    }, 1000);
+  }
+
+  private clearDropdownLeaveTimer(): void {
+    if (this.dropdownLeaveTimer) {
+      clearTimeout(this.dropdownLeaveTimer);
+      this.dropdownLeaveTimer = null;
+    }
+    this.dropdownLeaveKind = null;
+  }
+
+  ngOnDestroy(): void {
+    this.clearDropdownLeaveTimer();
+  }
 
 }

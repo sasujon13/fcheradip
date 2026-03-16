@@ -1,4 +1,4 @@
-import { Component, OnInit, Renderer2 } from '@angular/core';
+import { Component, OnInit, OnDestroy, Renderer2, HostListener } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -10,7 +10,7 @@ import { environment } from 'src/environments/environment';
   templateUrl: './institute.component.html',
   styleUrls: ['./institute.component.css']
 })
-export class InstituteComponent implements OnInit {
+export class InstituteComponent implements OnInit, OnDestroy {
 
   /** Use local API in dev (e.g. /api) or production API; no hardcoded cheradip.com */
   baseUrl: string = `${environment.apiUrl}/institutes/`;
@@ -45,6 +45,13 @@ export class InstituteComponent implements OnInit {
   newToken: string = '';
   freeUnlockLimit = 10;
   unlockedEIINs: Set<string> = new Set();
+
+  typeDropdownOpen = false;
+  divisionDropdownOpen = false;
+  districtDropdownOpen = false;
+  thanaDropdownOpen = false;
+  private dropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private dropdownLeaveKind: 'type' | 'division' | 'district' | 'thana' | null = null;
 
   constructor(
     private apiService: ApiService,
@@ -346,5 +353,70 @@ export class InstituteComponent implements OnInit {
       },
       error: () => {}
     });
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (target.closest('.dropdownx')) return;
+    this.typeDropdownOpen = false;
+    this.divisionDropdownOpen = false;
+    this.districtDropdownOpen = false;
+    this.thanaDropdownOpen = false;
+    this.clearDropdownLeaveTimer();
+  }
+
+  toggleTypeDropdown(): void {
+    this.divisionDropdownOpen = this.districtDropdownOpen = this.thanaDropdownOpen = false;
+    this.typeDropdownOpen = !this.typeDropdownOpen;
+    this.clearDropdownLeaveTimer();
+  }
+
+  toggleDivisionDropdown(): void {
+    this.typeDropdownOpen = this.districtDropdownOpen = this.thanaDropdownOpen = false;
+    this.divisionDropdownOpen = !this.divisionDropdownOpen;
+    this.clearDropdownLeaveTimer();
+  }
+
+  toggleDistrictDropdown(): void {
+    this.typeDropdownOpen = this.divisionDropdownOpen = this.thanaDropdownOpen = false;
+    this.districtDropdownOpen = !this.districtDropdownOpen;
+    this.clearDropdownLeaveTimer();
+  }
+
+  toggleThanaDropdown(): void {
+    this.typeDropdownOpen = this.divisionDropdownOpen = this.districtDropdownOpen = false;
+    this.thanaDropdownOpen = !this.thanaDropdownOpen;
+    this.clearDropdownLeaveTimer();
+  }
+
+  onDropdownEnter(kind: 'type' | 'division' | 'district' | 'thana'): void {
+    this.dropdownLeaveKind = kind;
+    this.clearDropdownLeaveTimer();
+  }
+
+  onDropdownLeave(kind: 'type' | 'division' | 'district' | 'thana'): void {
+    this.dropdownLeaveKind = kind;
+    this.dropdownLeaveTimer = setTimeout(() => {
+      if (this.dropdownLeaveKind === kind) {
+        if (kind === 'type') this.typeDropdownOpen = false;
+        else if (kind === 'division') this.divisionDropdownOpen = false;
+        else if (kind === 'district') this.districtDropdownOpen = false;
+        else this.thanaDropdownOpen = false;
+      }
+      this.dropdownLeaveTimer = null;
+    }, 1000);
+  }
+
+  private clearDropdownLeaveTimer(): void {
+    if (this.dropdownLeaveTimer) {
+      clearTimeout(this.dropdownLeaveTimer);
+      this.dropdownLeaveTimer = null;
+    }
+    this.dropdownLeaveKind = null;
+  }
+
+  ngOnDestroy(): void {
+    this.clearDropdownLeaveTimer();
   }
 }

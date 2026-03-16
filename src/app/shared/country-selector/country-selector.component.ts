@@ -36,6 +36,7 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
   isLoading: boolean = false;
 
   private destroy$ = new Subject<void>();
+  private dropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
   private onChange: (value: any) => void = () => {};
   private onTouched: () => void = () => {};
   /** When true, form provided the value (writeValue); do not overwrite with country$ */
@@ -98,6 +99,7 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
   }
 
   ngOnDestroy(): void {
+    this.clearDropdownLeaveTimer();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -200,15 +202,39 @@ export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValue
     this.filteredCountries = this.allCountries;
   }
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (immediately)
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     if (!this.elementRef.nativeElement.contains(event.target)) {
+      this.clearDropdownLeaveTimer();
       this.isDropdownOpen = false;
-      // Reset search to selected country name
       if (this.selectedCountry) {
         this.searchControl.setValue(this.selectedCountry.country_name, { emitEvent: false });
       }
+    }
+  }
+
+  onDropdownEnter(): void {
+    if (this.dropdownLeaveTimer) {
+      clearTimeout(this.dropdownLeaveTimer);
+      this.dropdownLeaveTimer = null;
+    }
+  }
+
+  onDropdownLeave(): void {
+    this.dropdownLeaveTimer = setTimeout(() => {
+      this.isDropdownOpen = false;
+      if (this.selectedCountry) {
+        this.searchControl.setValue(this.selectedCountry.country_name, { emitEvent: false });
+      }
+      this.dropdownLeaveTimer = null;
+    }, 1000);
+  }
+
+  private clearDropdownLeaveTimer(): void {
+    if (this.dropdownLeaveTimer) {
+      clearTimeout(this.dropdownLeaveTimer);
+      this.dropdownLeaveTimer = null;
     }
   }
 

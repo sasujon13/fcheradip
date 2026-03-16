@@ -1,4 +1,4 @@
-<div class="country-selector" [class.compact]="compact" [class.open]="isDropdownOpen" [class.loading]="isLoading">
+<div class="country-selector" [class.compact]="compact" [class.open]="isDropdownOpen" [class.loading]="isLoading" (mouseenter)="onDropdownEnter()" (mouseleave)="onDropdownLeave()">
   <!-- Loading: circular progress when countries are not loaded yet -->
   <div class="selector-loading" *ngIf="isLoading">
     <div class="loading-spinner" aria-hidden="true"></div>
@@ -33,7 +33,7 @@
   </div>
 
   <!-- Dropdown List: flag + name only (no phone code in results) -->
-  <div class="dropdown-list" *ngIf="isDropdownOpen">
+  <div class="dropdown-list" [class.open]="isDropdownOpen">
     <!-- Loading -->
     <div class="loading" *ngIf="isLoading">
       <div class="loading-spinner" aria-hidden="true"></div>

@@ -18,10 +18,10 @@ import { environment } from '../../../environments/environment';
       state('in', style({ transform: 'translateY(0)' })),
       transition('void => *', [
         style({ transform: 'translateY(-100%)' }),
-        animate('0.3s ease-in-out')
+        animate('0.7s ease-in-out')
       ]),
       transition('* => void', [
-        animate('0.3s ease-in-out', style({ transform: 'translateY(100%)' }))
+        animate('0.7s ease-in-out', style({ transform: 'translateY(100%)' }))
       ])
     ])
   ]
@@ -198,6 +198,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
       clearInterval(this.translationProgressInterval);
       this.translationProgressInterval = null;
     }
+    if (this.headerDropdownLeaveTimer) {
+      clearTimeout(this.headerDropdownLeaveTimer);
+      this.headerDropdownLeaveTimer = null;
+    }
+    if (this.menuLeaveTimer) {
+      clearTimeout(this.menuLeaveTimer);
+      this.menuLeaveTimer = null;
+    }
   }
 
   /** Show token alert (same app-alert as vacant/recommend/merit). Reset first so it re-shows on every click. */
@@ -313,10 +321,52 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.selectHeaderCountry(country);
   }
 
+  private headerDropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private headerDropdownLeaveKind: 'profile' | 'country' | null = null;
+  private menuLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+
   @HostListener('document:click', ['$event'])
-  onDocumentClickForCountry(event: Event): void {
-    if (this.countryWrapRef?.nativeElement?.contains(event.target)) return;
+  onDocumentClickForDropdowns(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (this.countryWrapRef?.nativeElement?.contains(target)) return;
     this.showCountryDropdown = false;
+    if (target.closest('.profileMenu')) return;
+    this.isDropdownOpen = false;
+    if (target.closest('.menu') || target.closest('.menu-toggle')) return;
+    this.menuActive = false;
+  }
+
+  onHeaderDropdownEnter(kind: 'profile' | 'country'): void {
+    this.headerDropdownLeaveKind = null;
+    if (this.headerDropdownLeaveTimer) {
+      clearTimeout(this.headerDropdownLeaveTimer);
+      this.headerDropdownLeaveTimer = null;
+    }
+  }
+
+  onHeaderDropdownLeave(kind: 'profile' | 'country'): void {
+    this.headerDropdownLeaveKind = kind;
+    this.headerDropdownLeaveTimer = setTimeout(() => {
+      if (this.headerDropdownLeaveKind === kind) {
+        if (kind === 'country') this.showCountryDropdown = false;
+        else this.isDropdownOpen = false;
+      }
+      this.headerDropdownLeaveTimer = null;
+    }, 1000);
+  }
+
+  onMobileMenuEnter(): void {
+    if (this.menuLeaveTimer) {
+      clearTimeout(this.menuLeaveTimer);
+      this.menuLeaveTimer = null;
+    }
+  }
+
+  onMobileMenuLeave(): void {
+    this.menuLeaveTimer = setTimeout(() => {
+      this.menuActive = false;
+      this.menuLeaveTimer = null;
+    }, 1000);
   }
 
   toggleMenu() {

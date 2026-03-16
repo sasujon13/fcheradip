@@ -22,12 +22,12 @@
   <h1 class="msg">Find Details of any type of Institutes over the Country!</h1><br>
 
     <div class="filter">
-      <div class="dropdownx mb-3">
-        <button class="btn btn-outline-primary dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+      <div class="dropdownx mb-3" (mouseenter)="onDropdownEnter('type')" (mouseleave)="onDropdownLeave('type')">
+        <button class="btn btn-outline-primary dropdown-toggle filter filter-btn" type="button" (click)="toggleTypeDropdown(); $event.stopPropagation()">
           <span class="filter-label" *ngIf="selectedTypes.length === 0">Institute Types</span>
           <span class="filter-selections" *ngIf="selectedTypes.length > 0" [title]="selectedTypes.join(', ')">{{ selectedTypes.join(', ') }}</span>
         </button>
-        <ul class="dropdown-menu scrollable-menu filterx" style="width: 248px;">
+        <ul class="dropdown-menu scrollable-menu filterx" style="width: 248px;" [class.show]="typeDropdownOpen">
           <li class="dropdown-header">Select Institute Type</li>
           <li *ngFor="let type of types" class="filter">
             <label class="dropdown-item">
@@ -39,12 +39,12 @@
 
         </ul>
       </div>&nbsp;&nbsp;&nbsp;&nbsp;
-      <div class="dropdownx mb-3">
-        <button class="btn btn-outline-primary dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+      <div class="dropdownx mb-3" (mouseenter)="onDropdownEnter('division')" (mouseleave)="onDropdownLeave('division')">
+        <button class="btn btn-outline-primary dropdown-toggle filter filter-btn" type="button" (click)="toggleDivisionDropdown(); $event.stopPropagation()">
           <span class="filter-label" *ngIf="selectedDivisions.length === 0">Divisions</span>
           <span class="filter-selections" *ngIf="selectedDivisions.length > 0" [title]="selectedDivisions.join(', ')">{{ selectedDivisions.join(', ') }}</span>
         </button>
-        <ul class="dropdown-menu scrollable-menu filterx">
+        <ul class="dropdown-menu scrollable-menu filterx" [class.show]="divisionDropdownOpen">
           <li class="dropdown-header">Select Division</li>
           <li *ngFor="let division of divisions" class="filter">
             <label class="dropdown-item">
@@ -57,12 +57,12 @@
         </ul>
       </div>&nbsp;&nbsp;&nbsp;&nbsp;
 
-      <div class="dropdownx mb-3" *ngIf="districts.length > 0">
-        <button class="btn btn-outline-success dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+      <div class="dropdownx mb-3" *ngIf="districts.length > 0" (mouseenter)="onDropdownEnter('district')" (mouseleave)="onDropdownLeave('district')">
+        <button class="btn btn-outline-success dropdown-toggle filter filter-btn" type="button" (click)="toggleDistrictDropdown(); $event.stopPropagation()">
           <span class="filter-label" *ngIf="selectedDistricts.length === 0">Districts</span>
           <span class="filter-selections" *ngIf="selectedDistricts.length > 0" [title]="selectedDistricts.join(', ')">{{ selectedDistricts.join(', ') }}</span>
         </button>
-        <ul class="dropdown-menu scrollable-menu filterx">
+        <ul class="dropdown-menu scrollable-menu filterx" [class.show]="districtDropdownOpen">
           <li class="dropdown-header">Select District</li>
           <li *ngFor="let district of districts" class="filter">
             <label class="dropdown-item">
@@ -74,12 +74,12 @@
         </ul>
       </div>&nbsp;&nbsp;&nbsp;&nbsp;
 
-      <div class="dropdownx mb-3" *ngIf="thanas.length > 0">
-        <button class="btn btn-outline-success dropdown-toggle filter filter-btn" type="button" data-bs-toggle="dropdown">
+      <div class="dropdownx mb-3" *ngIf="thanas.length > 0" (mouseenter)="onDropdownEnter('thana')" (mouseleave)="onDropdownLeave('thana')">
+        <button class="btn btn-outline-success dropdown-toggle filter filter-btn" type="button" (click)="toggleThanaDropdown(); $event.stopPropagation()">
           <span class="filter-label" *ngIf="selectedThanas.length === 0">Thanas</span>
           <span class="filter-selections" *ngIf="selectedThanas.length > 0" [title]="selectedThanas.join(', ')">{{ selectedThanas.join(', ') }}</span>
         </button>
-        <ul class="dropdown-menu scrollable-menu filterx">
+        <ul class="dropdown-menu scrollable-menu filterx" [class.show]="thanaDropdownOpen">
           <li class="dropdown-header">Select Thana</li>
           <li *ngFor="let thana of thanas" class="filter">
             <label class="dropdown-item">

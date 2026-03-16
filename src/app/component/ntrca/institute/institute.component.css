@@ -226,10 +226,23 @@ li {
   position: relative;
 }
 
-/* Dropdown panels on top of other fields when opened */
+/* Dropdown panels: same smooth open/close as login country selector (700ms, slide + fade) */
 .dropdown-menu,
 .dropdownx .dropdown-menu {
   z-index: 1050;
+  display: block !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms !important;
+}
+.dropdownx .dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s !important;
 }
 
 .dropdown-header{

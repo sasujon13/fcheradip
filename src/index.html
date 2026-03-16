@@ -48,6 +48,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link href="./assets/css/bootstrap.min.css" rel="stylesheet">
+    <!-- NTRCA dropdowns: smooth open/close like login country selector (must load after Bootstrap) -->
+    <style>
+      body .dropdownx ul.dropdown-menu {
+        display: block !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        transform: translateY(-8px) !important;
+        transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms !important;
+      }
+      body .dropdownx ul.dropdown-menu.show {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        transform: translateY(0) !important;
+        transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s !important;
+      }
+    </style>
     <script src="./assets/js/b7926f3752.js"></script>
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">

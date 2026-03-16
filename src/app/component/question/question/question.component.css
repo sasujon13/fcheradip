@@ -168,6 +168,18 @@
   background: #fff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s linear 700ms;
+}
+.filter-dropdown-panel.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s;
 }
 .filter-dropdown-panel.dropdown-panel-right {
   left: auto;

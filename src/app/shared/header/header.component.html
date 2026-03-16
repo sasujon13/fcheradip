@@ -1,14 +1,14 @@
 
 <header>
   <div class="navbar">
-    <div class="menu-toggle" #menuToggle (click)="toggleMenu()">
+    <div class="menu-toggle" #menuToggle (click)="toggleMenu()" (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
       <i class="fa fa-bars"></i> <a [routerLink]="['/index']" routerLinkActive="index"><img src="./assets/images/cheradip.svg" class="logo"></a>
     </div>
     <!-- <div class="search-bar" id="searchBar">
       <input type="text" class="form-control" name="searchTerm" id="searchTerm" [(ngModel)]="searchTerm" (keyup)="search($event)" placeholder="Search here ... ..">
       <i class="fa fa-search"></i>
     </div> -->
-    <ul class="menu" [class.active]="menuActive" [@flyInOut] (click)="closeMenu()">
+    <ul class="menu" [class.active]="menuActive" [@flyInOut] (click)="closeMenu()" (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
         <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i></a></li>
         <!-- <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li> -->
         <li class="menu_item"><a [routerLink]="['/institutes']" routerLinkActive="institute"><i class="fa fa-search"></i></a></li>
@@ -29,7 +29,7 @@
       
       <div class="header-right-group">
         <!-- Country selector: dropdown icon left of flag, top right -->
-        <div class="header-country-wrap" #countryWrap>
+        <div class="header-country-wrap" #countryWrap (mouseenter)="onHeaderDropdownEnter('country')" (mouseleave)="onHeaderDropdownLeave('country')">
           <div class="header-country-trigger" (click)="toggleCountryDropdown()">
             <span class="header-country-icon" [class.open]="showCountryDropdown">▼</span>
             <span class="header-country-flag-wrapper">
@@ -44,7 +44,7 @@
               <img *ngIf="!currentCountry" src="assets/images/globe.svg" alt="" class="header-country-flag header-country-placeholder" />
             </span>
           </div>
-          <div class="header-country-dropdown" *ngIf="showCountryDropdown">
+          <div class="header-country-dropdown" [class.open]="showCountryDropdown">
             <div class="header-country-loading" *ngIf="countryListLoading">Loading...</div>
             <ng-container *ngIf="!countryListLoading">
               <div class="header-country-section">
@@ -84,10 +84,10 @@
         <li class="menu_item menu_item0" id="menu_item0"><a href="javascript:void(0)" (click)="navigateToLogin()" class="nav-link" [class.active]="router.isActive('/login', true)"><i class="fa fa-sign-in"></i> Login</a></li>
         <li class="menu_item menu_item1" id="menu_item1"><a href="javascript:void(0)" (click)="navigateToSignup()" class="nav-link" [class.active]="router.isActive('/auth', true)"><i class="fa fa-user-plus"></i> SignUp</a></li>
       </ul>
-      <ul class="profileMenu" id="profileMenu" #profileMenu>
+      <ul class="profileMenu" id="profileMenu" #profileMenu (mouseenter)="onHeaderDropdownEnter('profile')" (mouseleave)="onHeaderDropdownLeave('profile')">
         <li class="menu_item menu_item2" #menu_item2 id="menu_item2" (click)="toggleDropdown()">
           <a><i class="fa fa-user"></i></a>
-          <ul class="dropdown" *ngIf="isDropdownOpen">
+          <ul class="dropdown" [class.open]="isDropdownOpen">
             <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew / Upgrade</a></li>
             <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
             <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update Profile</a></li>

@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../service/api.service';
 
@@ -24,7 +24,7 @@ export interface QuestionSubject {
   templateUrl: './question.component.html',
   styleUrls: ['./question.component.css']
 })
-export class QuestionComponent implements OnInit {
+export class QuestionComponent implements OnInit, OnDestroy {
   /** Current subject slug for route (subject_tr). */
   currentSubject: string = '';
   currentChapter: string = '';
@@ -81,10 +81,50 @@ export class QuestionComponent implements OnInit {
     private elRef: ElementRef<HTMLElement>
   ) { }
 
+  /** Timer for auto-close when cursor leaves dropdown (1000ms). */
+  private dropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private dropdownLeaveKind: string | null = null;
+
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-    if (this.elRef.nativeElement.contains(target)) return;
+    if (this.elRef.nativeElement.contains(target) && target.closest('.filter-dropdown')) return;
+    this.closeAllDropdowns();
+  }
+
+  onFilterDropdownEnter(): void {
+    this.dropdownLeaveKind = null;
+    if (this.dropdownLeaveTimer) {
+      clearTimeout(this.dropdownLeaveTimer);
+      this.dropdownLeaveTimer = null;
+    }
+  }
+
+  onFilterDropdownLeave(kind: string): void {
+    this.dropdownLeaveKind = kind;
+    this.dropdownLeaveTimer = setTimeout(() => {
+      if (this.dropdownLeaveKind === kind) this.closeDropdownByKind(kind);
+      this.dropdownLeaveTimer = null;
+    }, 1000);
+  }
+
+  private closeDropdownByKind(kind: string): void {
+    switch (kind) {
+      case 'level': this.levelDropdownOpen = false; break;
+      case 'class': this.classDropdownOpen = false; break;
+      case 'group': this.groupDropdownOpen = false; break;
+      case 'subject': this.subjectDropdownOpen = false; break;
+      case 'chapter': this.chapterDropdownOpen = false; break;
+      case 'topic': this.topicDropdownOpen = false; break;
+    }
+  }
+
+  private closeAllDropdowns(): void {
+    if (this.dropdownLeaveTimer) {
+      clearTimeout(this.dropdownLeaveTimer);
+      this.dropdownLeaveTimer = null;
+    }
+    this.dropdownLeaveKind = null;
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
     this.levelDropdownOpen = false;
@@ -114,6 +154,10 @@ export class QuestionComponent implements OnInit {
         }
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.dropdownLeaveTimer) clearTimeout(this.dropdownLeaveTimer);
   }
 
   /** Load levels from cheradip_hsc (first dropdown). Order by class_level descending (highest first). */
