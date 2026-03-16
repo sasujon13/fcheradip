@@ -532,7 +532,12 @@ export class QuestionComponent implements OnInit {
       }).subscribe({
         next: (res) => {
           (res.questions || []).forEach((q: any) => {
-            if (q.id != null && !seenIds.has(q.id)) { seenIds.add(q.id); all.push(q); }
+            const id = q.id != null ? q.id : q.qid;
+            if (id != null && !seenIds.has(id)) {
+              seenIds.add(id);
+              const normalized = q.id != null ? q : { ...q, id: q.qid };
+              all.push(normalized);
+            }
           });
           pending--;
           if (pending === 0) {
