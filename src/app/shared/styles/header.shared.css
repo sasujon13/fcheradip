@@ -569,18 +569,64 @@ i.fa-bars{
   .search-bar input {
     background-color: transparent;
   }
-  .menu {
-    display: none;
-    position: fixed;
-    top: -100%;
-    transition: top 0.7s ease-in-out;
-  }
-  .sign_menu{
-    display: flex !important;
+  /* Drawer only for main nav (first .menu under .navbar), not for .sign_menu */
+  .navbar > .menu {
+    display: flex;
+    flex-direction: column;
     position: absolute;
-    margin-top: 129px;
-    padding: 5px 10px;
+    top: 52px;
+    right: 0;
+    left: auto;
+    min-width: 220px;
+    width: auto;
+    max-width: 90vw;
+    background-color: teal;
+    z-index: 102;
+    list-style: none;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    padding: 0 10px;
+    pointer-events: none;
+    border-radius: 0 0 0 8px;
+  }
+  .navbar > .menu.active {
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 10px;
+    pointer-events: auto;
+    transition: max-height 0.35s ease;
+  }
+  /* Sign menu (Login/SignUp): always visible like desktop – same height, position, no drawer */
+  .sign_menu {
+    display: flex !important;
+    flex-direction: row;
+    position: absolute;
+    right: 0;
+    top: 40px;
+    margin-top: 0;
+    margin-bottom: -60px;
     margin-right: 0;
+    max-height: none;
+    overflow: visible;
+    min-height: 36px;
+    align-items: center;
+    background-color: teal;
+    padding: 8px 10px 8px 14px;
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
+    border-bottom: 1px solid white;
+    user-select: none;
+  }
+  .sign_menu li a {
+    padding: 4px 0;
+    font-size: 14px !important;
+    display: block;
+  }
+  .sign_menu li#menu_item0,
+  .sign_menu li#menu_item1 {
+    margin: 0 10px 0 0;
   }
   /* When logged in at ≤839px: hide Login/SignUp, show profile menu */
   header.logged-in .sign_menu,
@@ -594,15 +640,8 @@ i.fa-bars{
   header.logged-in li#menu_item2 {
     display: block !important;
   }
-  li#menu_item0 {
-    margin-top: 0;
-    display: block !important;
-    margin-bottom: -20px;
-  }
-  li#menu_item1 {
-    margin-left: 10px;
-    margin-bottom: 0;
-    display: block !important;
+  .header-right-group {
+    position: relative;
   }
   i.fa-bars{
     position: fixed;
@@ -612,19 +651,7 @@ i.fa-bars{
     display: block;
     z-index: 101;
   }
-  .menu.active {
-    display: flex;
-    flex-direction: column;
-    position: absolute;
-    top: 52px;
-    right: 0;
-    background-color: teal;
-    padding: 10px;
-    z-index: 102;
-    transition: opacity 0.7s ease, transform 0.7s ease;
-  }
-
-  .menu.active li {
+  .navbar > .menu.active li {
     margin: 10px 0;
   }
 

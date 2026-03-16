@@ -1,5 +1,4 @@
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { trigger, state, style, transition, animate } from '@angular/animations';
 import { ApiService } from '../../service/api.service';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { CountryService, Country } from '../../service/country.service';
@@ -12,19 +11,7 @@ import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-header',
   templateUrl: './header.component.html',
-  styleUrls: ['./header.component.css'],
-  animations: [
-    trigger('flyInOut', [
-      state('in', style({ transform: 'translateY(0)' })),
-      transition('void => *', [
-        style({ transform: 'translateY(-100%)' }),
-        animate('0.7s ease-in-out')
-      ]),
-      transition('* => void', [
-        animate('0.7s ease-in-out', style({ transform: 'translateY(100%)' }))
-      ])
-    ])
-  ]
+  styleUrls: ['./header.component.css']
 })
 
 export class HeaderComponent implements OnInit, OnDestroy {

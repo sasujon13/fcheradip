@@ -8,7 +8,7 @@
       <input type="text" class="form-control" name="searchTerm" id="searchTerm" [(ngModel)]="searchTerm" (keyup)="search($event)" placeholder="Search here ... ..">
       <i class="fa fa-search"></i>
     </div> -->
-    <ul class="menu" [class.active]="menuActive" [@flyInOut] (click)="closeMenu()" (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
+    <ul class="menu" [class.active]="menuActive" (click)="closeMenu()" (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
         <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i></a></li>
         <!-- <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li> -->
         <li class="menu_item"><a [routerLink]="['/institutes']" routerLinkActive="institute"><i class="fa fa-search"></i></a></li>
