@@ -49,6 +49,110 @@
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
+/* Chapter / Topic: same CSS as Level/Group/Subject; trigger uses .question-filter-select; options have checkbox on left */
+.filter-dropdown-wrap {
+  flex-direction: row;
+  align-items: center;
+}
+
+.filter-dropdown-wrap .question-filter-label {
+  margin: 0;
+}
+
+.filter-dropdown {
+  position: relative;
+}
+
+/* Trigger button: same look as Level/Group/Subject select */
+.filter-dropdown-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 120px;
+  max-width: 200px;
+  padding: 6px 10px;
+  border: 2px solid teal;
+  border-radius: 6px;
+  background-color: white;
+  color: #333;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+}
+
+.filter-dropdown-btn:hover {
+  border-color: #006666;
+}
+
+.filter-dropdown-btn:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
+}
+
+.filter-dropdown-arrow {
+  margin-left: 8px;
+  font-size: 10px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.filter-dropdown-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 2px solid teal;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+/* Option row: checkbox on left, text on right (same styling as before) */
+.filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.filter-dropdown-item:hover {
+  background: rgba(0, 128, 128, 0.08);
+}
+
+.filter-dropdown-item input[type="checkbox"] {
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.filter-dropdown-item span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .question-layout {
   margin-top: 0;
 }

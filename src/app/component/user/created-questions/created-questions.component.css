@@ -94,14 +94,17 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
-  border: 1px solid teal;
-  background: teal;
-  color: white;
+  padding: 2px 12px;
+  border: none;
+  background: transparent;
+  color: teal;
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
+}
+.thead_question{
+  position: sticky;
 }
 .btn-download-all:hover:not(:disabled) {
   background: rgba(0, 128, 128, 0.08);

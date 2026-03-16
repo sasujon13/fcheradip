@@ -22,33 +22,52 @@
         <option *ngFor="let g of groups" [value]="g">{{ g }}</option>
       </select>
     </div>
-    <div class="question-filter-item" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass)">
+    <!-- Subject: single-select dropdown -->
+    <div class="question-filter-item" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass) && subjects.length > 0">
       <label class="question-filter-label">Subject</label>
-      <select class="question-filter-select" [value]="selectedSubject?.subject_tr ?? ''" (change)="onSubjectSelect($any($event.target).value)">
+      <select class="question-filter-select" [value]="selectedSubjectTr" (change)="onSubjectChange($any($event.target).value)">
         <option value="">Select Subject</option>
-        <option *ngFor="let sub of subjects" [value]="sub.subject_tr">{{ sub.name }}</option>
+        <option *ngFor="let sub of subjects" [value]="sub.subject_tr">{{ sub.name || sub.subject_tr }}</option>
       </select>
     </div>
-    <div class="question-filter-item" *ngIf="selectedSubject">
+    <!-- Chapter: same look as Level/Group/Subject; options with checkbox on left -->
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && chapters.length > 0">
       <label class="question-filter-label">Chapter</label>
-      <select class="question-filter-select" [value]="currentChapter" (change)="onChapterChange($any($event.target).value)">
-        <option value="">Select Chapter</option>
-        <option *ngFor="let ch of chapters" [value]="ch.id">{{ ch.name }}</option>
-      </select>
+      <div class="filter-dropdown">
+        <button type="button" class="filter-dropdown-btn" (click)="toggleChapterDropdown()" [title]="selectedChapterName || 'Select Chapter'">
+          {{ selectedChapterName || 'Select Chapter' }}
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" *ngIf="chapterDropdownOpen">
+          <label *ngFor="let ch of chapters" class="filter-dropdown-item" (click)="onChapterSelect(ch.id); $event.preventDefault()">
+            <input type="checkbox" [checked]="selectedChapterId === ch.id" (click)="$event.preventDefault()" />
+            <span>{{ ch.name }}</span>
+          </label>
+        </div>
+      </div>
     </div>
-    <div class="question-filter-item" *ngIf="selectedSubject && currentChapter">
+    <!-- Topic: same look as Level/Group/Subject; options with checkbox on left -->
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && topics.length > 0">
       <label class="question-filter-label">Topic</label>
-      <select class="question-filter-select" [value]="selectedTopic" (change)="onTopicChange($any($event.target).value)">
-        <option value="">Select Topic</option>
-        <option *ngFor="let t of topics" [value]="t.id">{{ t.name }}</option>
-      </select>
+      <div class="filter-dropdown">
+        <button type="button" class="filter-dropdown-btn" (click)="toggleTopicDropdown()" [title]="selectedTopicName || 'Select Topic'">
+          {{ selectedTopicName || 'Select Topic' }}
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" *ngIf="topicDropdownOpen">
+          <label *ngFor="let t of topics" class="filter-dropdown-item" (click)="onTopicSelect(t.id); $event.preventDefault()">
+            <input type="checkbox" [checked]="selectedTopicId === t.id" (click)="$event.preventDefault()" />
+            <span>{{ t.name }}</span>
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Questions for selected topic: user selects which questions to use -->
-  <div class="topic-questions-section" *ngIf="selectedTopic && topicQuestions.length > 0">
+  <!-- Questions for selected topic(s): user selects which questions to use -->
+  <div class="topic-questions-section" *ngIf="selectedTopicId && topicQuestions.length > 0">
     <div class="topic-questions-header">
-      <h3>Questions for topic: {{ selectedTopic }}</h3>
+      <h3>Questions for selected topic</h3>
       <div class="topic-questions-actions">
         <button type="button" class="btn-link" (click)="selectAllTopicQuestions()">Select all</button>
         <span class="sep">|</span>
@@ -58,8 +77,8 @@
     </div>
     <ul class="topic-questions-list">
       <li *ngFor="let q of topicQuestions" class="topic-question-item">
-        <label class="topic-question-label">
-          <input type="checkbox" [checked]="isQuestionSelected(q.id)" (change)="toggleQuestionSelection(q.id)" />
+        <label class="topic-question-label" (click)="toggleQuestionSelection(q.id); $event.preventDefault()">
+          <input type="checkbox" [checked]="isQuestionSelected(q.id)" (click)="$event.preventDefault(); $event.stopPropagation(); toggleQuestionSelection(q.id)" />
           <span class="topic-question-text">{{ q.question }}</span>
         </label>
         <div class="topic-question-options" *ngIf="q.option_1 || q.option_2">
@@ -71,7 +90,7 @@
       </li>
     </ul>
   </div>
-  <p *ngIf="selectedTopic && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for this topic.</p>
+  <p *ngIf="selectedTopicId && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for selected topic.</p>
 
   <div class="question-layout">
     <main class="main-content">

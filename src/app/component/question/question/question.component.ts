@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../service/api.service';
 
@@ -40,11 +40,21 @@ export class QuestionComponent implements OnInit {
   groups: string[] = [];
   selectedGroup: string = '';
   subjects: QuestionSubject[] = [];
-  selectedSubject: QuestionSubject | null = null;
-  chapters: any[] = [];
+  /** Single subject selection. */
+  selectedSubjectTr: string = '';
+  chapters: Array<{ id: string; name: string }> = [];
+  /** Single chapter selection. */
+  selectedChapterId: string = '';
+  chapterDropdownOpen = false;
   /** Topics from subject table (ordered by topic asc). */
   topics: Array<{ id: string; name: string }> = [];
-  selectedTopic: string = '';
+  /** Single topic selection. */
+  selectedTopicId: string = '';
+  topicDropdownOpen = false;
+  get primarySubject(): QuestionSubject | null {
+    if (!this.subjects.length || !this.selectedSubjectTr) return null;
+    return this.subjects.find(s => s.subject_tr === this.selectedSubjectTr) || null;
+  }
   /** Questions for selected topic (from HSC subject table); user can select which to use. */
   topicQuestions: any[] = [];
   topicQuestionsLoaded = false;
@@ -60,8 +70,17 @@ export class QuestionComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private elRef: ElementRef<HTMLElement>
   ) { }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (this.elRef.nativeElement.contains(target)) return;
+    this.chapterDropdownOpen = false;
+    this.topicDropdownOpen = false;
+  }
 
   ngOnInit(): void {
     this.loadQuestionLevels();
@@ -105,11 +124,14 @@ export class QuestionComponent implements OnInit {
     this.selectedGroup = '';
     this.classes = [];
     this.groups = [];
-    this.selectedSubject = null;
+    this.selectedSubjectTr = '';
     this.subjects = [];
     this.chapters = [];
     this.topics = [];
-    this.selectedTopic = '';
+    this.selectedChapterId = '';
+    this.selectedTopicId = '';
+    this.chapterDropdownOpen = false;
+    this.topicDropdownOpen = false;
     this.currentSubject = '';
     this.currentChapter = '';
     if (!this.selectedLevel) {
@@ -135,11 +157,14 @@ export class QuestionComponent implements OnInit {
   onClassChange(classVal: string): void {
     this.selectedClass = classVal || '';
     this.selectedGroup = '';
-    this.selectedSubject = null;
+    this.selectedSubjectTr = '';
     this.subjects = [];
     this.chapters = [];
     this.topics = [];
-    this.selectedTopic = '';
+    this.selectedChapterId = '';
+    this.selectedTopicId = '';
+    this.chapterDropdownOpen = false;
+    this.topicDropdownOpen = false;
     this.currentSubject = '';
     this.currentChapter = '';
     this.loadGroupsAndSubjects();
@@ -148,11 +173,14 @@ export class QuestionComponent implements OnInit {
 
   onGroupChange(group: string): void {
     this.selectedGroup = group || '';
-    this.selectedSubject = null;
+    this.selectedSubjectTr = '';
     this.subjects = [];
     this.chapters = [];
     this.topics = [];
-    this.selectedTopic = '';
+    this.selectedChapterId = '';
+    this.selectedTopicId = '';
+    this.chapterDropdownOpen = false;
+    this.topicDropdownOpen = false;
     this.currentSubject = '';
     this.currentChapter = '';
     this.loadSubjects();
@@ -187,50 +215,84 @@ export class QuestionComponent implements OnInit {
     });
   }
 
-  onSubjectSelect(subjectTr: string): void {
-    const subject = this.subjects.find(s => s.subject_tr === subjectTr) || null;
-    this.onSubjectChange(subject);
+  onSubjectChange(subjectTr: string): void {
+    this.selectedSubjectTr = subjectTr || '';
+    this.onSubjectSelectionChange();
   }
 
-  onSubjectChange(subject: QuestionSubject | null): void {
-    this.selectedSubject = subject;
+  private onSubjectSelectionChange(): void {
     this.chapters = [];
     this.topics = [];
-    this.selectedTopic = '';
-    this.currentSubject = subject ? subject.subject_tr : '';
+    this.selectedChapterId = '';
+    this.selectedTopicId = '';
+    this.chapterDropdownOpen = false;
+    this.topicDropdownOpen = false;
+    this.topicQuestions = [];
+    this.selectedQuestionIds = new Set();
+    const sub = this.primarySubject;
+    this.currentSubject = sub ? sub.subject_tr : '';
     this.currentChapter = '';
-    if (subject) {
+    if (sub) {
       this.apiService.getQuestionChapters({
-        level_tr: subject.level_tr,
-        class_level: subject.class_level,
-        subject_tr: subject.subject_tr
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr
       }).subscribe({
         next: (res) => { this.chapters = res.chapters || []; },
         error: () => { this.chapters = []; }
       });
       this.loadTopics();
     }
-    // Do not navigate here: going to /question/:subject can match a different route and recreate the
-    // component, wiping selectedLevel/selectedSubject. Navigate only when chapter is selected.
   }
 
-  onChapterChange(chapter: string): void {
-    this.currentChapter = chapter || '';
-    this.selectedTopic = '';
+  toggleChapterDropdown(): void {
+    this.chapterDropdownOpen = !this.chapterDropdownOpen;
+    if (this.chapterDropdownOpen) this.topicDropdownOpen = false;
+  }
+
+  onChapterSelect(chapterId: string): void {
+    this.selectedChapterId = chapterId || '';
+    this.chapterDropdownOpen = false;
+    this.onChapterSelectionChange();
+  }
+
+  get selectedChapterName(): string {
+    const ch = this.chapters.find(c => c.id === this.selectedChapterId);
+    return ch ? ch.name : '';
+  }
+
+  private onChapterSelectionChange(): void {
+    this.topics = [];
+    this.selectedTopicId = '';
+    this.topicDropdownOpen = false;
     this.topicQuestions = [];
     this.selectedQuestionIds = new Set();
-    if (this.currentSubject && this.selectedSubject) {
-      this.loadTopics();
-    }
-    // Do not navigate: same as subject - avoids route change and component recreate.
+    this.currentChapter = this.chapters.find(c => c.id === this.selectedChapterId)?.name ?? '';
+    this.loadTopics();
   }
 
-  onTopicChange(topic: string): void {
-    this.selectedTopic = topic || '';
+  toggleTopicDropdown(): void {
+    this.topicDropdownOpen = !this.topicDropdownOpen;
+    if (this.topicDropdownOpen) this.chapterDropdownOpen = false;
+  }
+
+  onTopicSelect(topicId: string): void {
+    this.selectedTopicId = topicId || '';
+    this.topicDropdownOpen = false;
+    this.onTopicSelectionChange();
+  }
+
+  get selectedTopicName(): string {
+    const t = this.topics.find(x => x.id === this.selectedTopicId);
+    return t ? t.name : '';
+  }
+
+  private onTopicSelectionChange(): void {
+    this.topicQuestions = [];
     this.selectedQuestionIds = new Set();
     this.topicQuestionsLoaded = false;
-    if (topic && this.selectedSubject) {
-      this.loadQuestionsByTopic();
+    if (this.selectedTopicId && this.primarySubject) {
+      this.loadQuestionsByTopics();
     } else {
       this.topicQuestions = [];
       this.topicQuestionsLoaded = true;
@@ -238,30 +300,41 @@ export class QuestionComponent implements OnInit {
   }
 
   private loadTopics(): void {
-    if (!this.selectedSubject) return;
+    const sub = this.primarySubject;
+    if (!sub) return;
+    const chapterName = this.selectedChapterId ? (this.chapters.find(c => c.id === this.selectedChapterId)?.name) : undefined;
     this.apiService.getQuestionTopics({
-      level_tr: this.selectedSubject.level_tr,
-      class_level: this.selectedSubject.class_level,
-      subject_tr: this.selectedSubject.subject_tr,
-      chapter: this.currentChapter || undefined
+      level_tr: sub.level_tr,
+      class_level: sub.class_level,
+      subject_tr: sub.subject_tr,
+      chapter: chapterName
     }).subscribe({
       next: (res) => { this.topics = res.topics || []; },
       error: () => { this.topics = []; }
     });
   }
 
-  private loadQuestionsByTopic(): void {
-    if (!this.selectedSubject || !this.selectedTopic) return;
+  private loadQuestionsByTopics(): void {
+    const sub = this.primarySubject;
+    if (!sub || !this.selectedTopicId) return;
     this.topicQuestionsLoaded = false;
+    const topicName = this.topics.find(t => t.id === this.selectedTopicId)?.name ?? this.selectedTopicId;
+    const chapterParam = this.selectedChapterId ? (this.chapters.find(c => c.id === this.selectedChapterId)?.name) : undefined;
     this.apiService.getQuestionListByTopic({
-      level_tr: this.selectedSubject.level_tr,
-      class_level: this.selectedSubject.class_level,
-      subject_tr: this.selectedSubject.subject_tr,
-      chapter: this.currentChapter || undefined,
-      topic: this.selectedTopic
+      level_tr: sub.level_tr,
+      class_level: sub.class_level,
+      subject_tr: sub.subject_tr,
+      chapter: chapterParam || undefined,
+      topic: topicName
     }).subscribe({
-      next: (res) => { this.topicQuestions = res.questions || []; this.topicQuestionsLoaded = true; },
-      error: () => { this.topicQuestions = []; this.topicQuestionsLoaded = true; }
+      next: (res) => {
+        this.topicQuestions = res.questions || [];
+        this.topicQuestionsLoaded = true;
+      },
+      error: () => {
+        this.topicQuestions = [];
+        this.topicQuestionsLoaded = true;
+      }
     });
   }
 
@@ -306,15 +379,17 @@ export class QuestionComponent implements OnInit {
   goToCreateQuestion(): void {
     const questions = this.selectedQuestionsForCreate;
     if (!questions.length) return;
+    const sub = this.primarySubject;
+    const firstTopic = this.selectedTopicId ? (this.topics.find(t => t.id === this.selectedTopicId)?.name ?? '') : '';
     this.router.navigate(['/question/create'], {
       state: {
         questions,
         context: {
           level_tr: this.selectedLevel,
           class_level: this.selectedClass,
-          subject_tr: this.selectedSubject?.subject_tr,
+          subject_tr: sub?.subject_tr,
           chapter: this.currentChapter,
-          topic: this.selectedTopic
+          topic: firstTopic
         }
       }
     });
@@ -344,11 +419,12 @@ export class QuestionComponent implements OnInit {
   }
 
   loadChapters(): void {
-    if (this.selectedSubject) {
+    const sub = this.primarySubject;
+    if (sub) {
       this.apiService.getQuestionChapters({
-        level_tr: this.selectedSubject.level_tr,
-        class_level: this.selectedSubject.class_level,
-        subject_tr: this.selectedSubject.subject_tr
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr
       }).subscribe({
         next: (res) => { this.chapters = res.chapters || []; },
         error: () => { this.chapters = []; }
