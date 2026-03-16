@@ -153,6 +153,16 @@
   min-width: 0;
 }
 
+.filter-dropdown-item-selectall {
+  font-weight: 600;
+  background: rgba(0, 128, 128, 0.08);
+  border-bottom: 1px solid #ddd;
+}
+
+.filter-dropdown-item-selectall:hover {
+  background: rgba(0, 128, 128, 0.12);
+}
+
 .question-layout {
   margin-top: 0;
 }

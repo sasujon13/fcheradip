@@ -30,33 +30,41 @@
         <option *ngFor="let sub of subjects" [value]="sub.subject_tr">{{ sub.name || sub.subject_tr }}</option>
       </select>
     </div>
-    <!-- Chapter: same look as Level/Group/Subject; options with checkbox on left -->
+    <!-- Chapter: first option Select All; checkboxes on left; multi-select -->
     <div class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && chapters.length > 0">
       <label class="question-filter-label">Chapter</label>
       <div class="filter-dropdown">
-        <button type="button" class="filter-dropdown-btn" (click)="toggleChapterDropdown()" [title]="selectedChapterName || 'Select Chapter'">
-          {{ selectedChapterName || 'Select Chapter' }}
+        <button type="button" class="filter-dropdown-btn" (click)="toggleChapterDropdown()" [title]="selectedChapterName">
+          {{ selectedChapterName }}
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" *ngIf="chapterDropdownOpen">
+          <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onChapterSelectAllToggle(); $event.preventDefault()">
+            <input type="checkbox" [checked]="allChaptersSelected" (click)="$event.preventDefault()" />
+            <span>Select All</span>
+          </label>
           <label *ngFor="let ch of chapters" class="filter-dropdown-item" (click)="onChapterSelect(ch.id); $event.preventDefault()">
-            <input type="checkbox" [checked]="selectedChapterId === ch.id" (click)="$event.preventDefault()" />
+            <input type="checkbox" [checked]="selectedChapterIds.has(ch.id)" (click)="$event.preventDefault()" />
             <span>{{ ch.name }}</span>
           </label>
         </div>
       </div>
     </div>
-    <!-- Topic: same look as Level/Group/Subject; options with checkbox on left -->
+    <!-- Topic: first option Select All; checkboxes on left; multi-select -->
     <div class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && topics.length > 0">
       <label class="question-filter-label">Topic</label>
       <div class="filter-dropdown">
-        <button type="button" class="filter-dropdown-btn" (click)="toggleTopicDropdown()" [title]="selectedTopicName || 'Select Topic'">
-          {{ selectedTopicName || 'Select Topic' }}
+        <button type="button" class="filter-dropdown-btn" (click)="toggleTopicDropdown()" [title]="selectedTopicName">
+          {{ selectedTopicName }}
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" *ngIf="topicDropdownOpen">
+          <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onTopicSelectAllToggle(); $event.preventDefault()">
+            <input type="checkbox" [checked]="allTopicsSelected" (click)="$event.preventDefault()" />
+            <span>Select All</span>
+          </label>
           <label *ngFor="let t of topics" class="filter-dropdown-item" (click)="onTopicSelect(t.id); $event.preventDefault()">
-            <input type="checkbox" [checked]="selectedTopicId === t.id" (click)="$event.preventDefault()" />
+            <input type="checkbox" [checked]="selectedTopicIds.has(t.id)" (click)="$event.preventDefault()" />
             <span>{{ t.name }}</span>
           </label>
         </div>
@@ -65,7 +73,7 @@
   </div>
 
   <!-- Questions for selected topic(s): user selects which questions to use -->
-  <div class="topic-questions-section" *ngIf="selectedTopicId && topicQuestions.length > 0">
+  <div class="topic-questions-section" *ngIf="selectedTopicIds.size > 0 && topicQuestions.length > 0">
     <div class="topic-questions-header">
       <h3>Questions for selected topic</h3>
       <div class="topic-questions-actions">
@@ -90,7 +98,7 @@
       </li>
     </ul>
   </div>
-  <p *ngIf="selectedTopicId && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for selected topic.</p>
+  <p *ngIf="selectedTopicIds.size > 0 && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for selected topic(s).</p>
 
   <div class="question-layout">
     <main class="main-content">

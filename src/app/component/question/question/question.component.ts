@@ -43,13 +43,13 @@ export class QuestionComponent implements OnInit {
   /** Single subject selection. */
   selectedSubjectTr: string = '';
   chapters: Array<{ id: string; name: string }> = [];
-  /** Single chapter selection. */
-  selectedChapterId: string = '';
+  /** Multi-select: chapter ids. */
+  selectedChapterIds: Set<string> = new Set();
   chapterDropdownOpen = false;
   /** Topics from subject table (ordered by topic asc). */
   topics: Array<{ id: string; name: string }> = [];
-  /** Single topic selection. */
-  selectedTopicId: string = '';
+  /** Multi-select: topic ids. */
+  selectedTopicIds: Set<string> = new Set();
   topicDropdownOpen = false;
   get primarySubject(): QuestionSubject | null {
     if (!this.subjects.length || !this.selectedSubjectTr) return null;
@@ -128,8 +128,8 @@ export class QuestionComponent implements OnInit {
     this.subjects = [];
     this.chapters = [];
     this.topics = [];
-    this.selectedChapterId = '';
-    this.selectedTopicId = '';
+    this.selectedChapterIds = new Set();
+    this.selectedTopicIds = new Set();
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
     this.currentSubject = '';
@@ -161,8 +161,8 @@ export class QuestionComponent implements OnInit {
     this.subjects = [];
     this.chapters = [];
     this.topics = [];
-    this.selectedChapterId = '';
-    this.selectedTopicId = '';
+    this.selectedChapterIds = new Set();
+    this.selectedTopicIds = new Set();
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
     this.currentSubject = '';
@@ -177,8 +177,8 @@ export class QuestionComponent implements OnInit {
     this.subjects = [];
     this.chapters = [];
     this.topics = [];
-    this.selectedChapterId = '';
-    this.selectedTopicId = '';
+    this.selectedChapterIds = new Set();
+    this.selectedTopicIds = new Set();
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
     this.currentSubject = '';
@@ -223,8 +223,8 @@ export class QuestionComponent implements OnInit {
   private onSubjectSelectionChange(): void {
     this.chapters = [];
     this.topics = [];
-    this.selectedChapterId = '';
-    this.selectedTopicId = '';
+    this.selectedChapterIds = new Set();
+    this.selectedTopicIds = new Set();
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
@@ -250,24 +250,44 @@ export class QuestionComponent implements OnInit {
     if (this.chapterDropdownOpen) this.topicDropdownOpen = false;
   }
 
+  get allChaptersSelected(): boolean {
+    return this.chapters.length > 0 && this.chapters.every(c => this.selectedChapterIds.has(c.id));
+  }
+
+  onChapterSelectAllToggle(): void {
+    if (this.allChaptersSelected) {
+      this.selectedChapterIds = new Set();
+    } else {
+      this.selectedChapterIds = new Set(this.chapters.map(c => c.id));
+    }
+    this.onChapterSelectionChange();
+  }
+
   onChapterSelect(chapterId: string): void {
-    this.selectedChapterId = chapterId || '';
-    this.chapterDropdownOpen = false;
+    const next = new Set(this.selectedChapterIds);
+    if (next.has(chapterId)) next.delete(chapterId);
+    else next.add(chapterId);
+    this.selectedChapterIds = next;
     this.onChapterSelectionChange();
   }
 
   get selectedChapterName(): string {
-    const ch = this.chapters.find(c => c.id === this.selectedChapterId);
-    return ch ? ch.name : '';
+    if (this.selectedChapterIds.size === 0) return 'Select Chapter';
+    if (this.selectedChapterIds.size === 1) {
+      const ch = this.chapters.find(c => this.selectedChapterIds.has(c.id));
+      return ch ? ch.name : '';
+    }
+    return this.selectedChapterIds.size + ' chapters';
   }
 
   private onChapterSelectionChange(): void {
     this.topics = [];
-    this.selectedTopicId = '';
+    this.selectedTopicIds = new Set();
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
     this.selectedQuestionIds = new Set();
-    this.currentChapter = this.chapters.find(c => c.id === this.selectedChapterId)?.name ?? '';
+    const firstCh = this.chapters.find(c => this.selectedChapterIds.has(c.id));
+    this.currentChapter = firstCh ? firstCh.name : '';
     this.loadTopics();
   }
 
@@ -276,22 +296,41 @@ export class QuestionComponent implements OnInit {
     if (this.topicDropdownOpen) this.chapterDropdownOpen = false;
   }
 
+  get allTopicsSelected(): boolean {
+    return this.topics.length > 0 && this.topics.every(t => this.selectedTopicIds.has(t.id));
+  }
+
+  onTopicSelectAllToggle(): void {
+    if (this.allTopicsSelected) {
+      this.selectedTopicIds = new Set();
+    } else {
+      this.selectedTopicIds = new Set(this.topics.map(t => t.id));
+    }
+    this.onTopicSelectionChange();
+  }
+
   onTopicSelect(topicId: string): void {
-    this.selectedTopicId = topicId || '';
-    this.topicDropdownOpen = false;
+    const next = new Set(this.selectedTopicIds);
+    if (next.has(topicId)) next.delete(topicId);
+    else next.add(topicId);
+    this.selectedTopicIds = next;
     this.onTopicSelectionChange();
   }
 
   get selectedTopicName(): string {
-    const t = this.topics.find(x => x.id === this.selectedTopicId);
-    return t ? t.name : '';
+    if (this.selectedTopicIds.size === 0) return 'Select Topic';
+    if (this.selectedTopicIds.size === 1) {
+      const t = this.topics.find(x => this.selectedTopicIds.has(x.id));
+      return t ? t.name : '';
+    }
+    return this.selectedTopicIds.size + ' topics';
   }
 
   private onTopicSelectionChange(): void {
     this.topicQuestions = [];
     this.selectedQuestionIds = new Set();
     this.topicQuestionsLoaded = false;
-    if (this.selectedTopicId && this.primarySubject) {
+    if (this.selectedTopicIds.size && this.primarySubject) {
       this.loadQuestionsByTopics();
     } else {
       this.topicQuestions = [];
@@ -302,39 +341,75 @@ export class QuestionComponent implements OnInit {
   private loadTopics(): void {
     const sub = this.primarySubject;
     if (!sub) return;
-    const chapterName = this.selectedChapterId ? (this.chapters.find(c => c.id === this.selectedChapterId)?.name) : undefined;
-    this.apiService.getQuestionTopics({
-      level_tr: sub.level_tr,
-      class_level: sub.class_level,
-      subject_tr: sub.subject_tr,
-      chapter: chapterName
-    }).subscribe({
-      next: (res) => { this.topics = res.topics || []; },
-      error: () => { this.topics = []; }
+    if (this.selectedChapterIds.size === 0) {
+      this.apiService.getQuestionTopics({
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr
+      }).subscribe({
+        next: (res) => { this.topics = res.topics || []; },
+        error: () => { this.topics = []; }
+      });
+      return;
+    }
+    const done: Array<{ id: string; name: string }> = [];
+    const seen = new Set<string>();
+    let pending = this.selectedChapterIds.size;
+    this.selectedChapterIds.forEach(chapterId => {
+      const chapterParam = this.chapters.find(c => c.id === chapterId);
+      const chapterName = chapterParam?.name ?? chapterId;
+      this.apiService.getQuestionTopics({
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr,
+        chapter: chapterName
+      }).subscribe({
+        next: (res) => {
+          (res.topics || []).forEach((t: { id: string; name: string }) => {
+            if (!seen.has(t.id)) { seen.add(t.id); done.push(t); }
+          });
+          pending--;
+          if (pending === 0) this.topics = done.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        },
+        error: () => { pending--; if (pending === 0) this.topics = done; }
+      });
     });
   }
 
   private loadQuestionsByTopics(): void {
     const sub = this.primarySubject;
-    if (!sub || !this.selectedTopicId) return;
+    if (!sub || !this.selectedTopicIds.size) return;
     this.topicQuestionsLoaded = false;
-    const topicName = this.topics.find(t => t.id === this.selectedTopicId)?.name ?? this.selectedTopicId;
-    const chapterParam = this.selectedChapterId ? (this.chapters.find(c => c.id === this.selectedChapterId)?.name) : undefined;
-    this.apiService.getQuestionListByTopic({
-      level_tr: sub.level_tr,
-      class_level: sub.class_level,
-      subject_tr: sub.subject_tr,
-      chapter: chapterParam || undefined,
-      topic: topicName
-    }).subscribe({
-      next: (res) => {
-        this.topicQuestions = res.questions || [];
-        this.topicQuestionsLoaded = true;
-      },
-      error: () => {
-        this.topicQuestions = [];
-        this.topicQuestionsLoaded = true;
-      }
+    const all: any[] = [];
+    const seenIds = new Set<number>();
+    let pending = this.selectedTopicIds.size;
+    const chapterParam = this.selectedChapterIds.size === 1
+      ? (this.chapters.find(c => this.selectedChapterIds.has(c.id))?.name)
+      : undefined;
+    this.selectedTopicIds.forEach(topicId => {
+      const topicName = this.topics.find(t => t.id === topicId)?.name ?? topicId;
+      this.apiService.getQuestionListByTopic({
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr,
+        chapter: chapterParam || undefined,
+        topic: topicName
+      }).subscribe({
+        next: (res) => {
+          (res.questions || []).forEach((q: any) => {
+            if (q.id != null && !seenIds.has(q.id)) { seenIds.add(q.id); all.push(q); }
+          });
+          pending--;
+          if (pending === 0) {
+            this.topicQuestions = all;
+            this.topicQuestionsLoaded = true;
+          }
+        },
+        error: () => {
+          pending--;
+          if (pending === 0) { this.topicQuestions = all; this.topicQuestionsLoaded = true; }
+        }
+      });
     });
   }
 
@@ -380,7 +455,7 @@ export class QuestionComponent implements OnInit {
     const questions = this.selectedQuestionsForCreate;
     if (!questions.length) return;
     const sub = this.primarySubject;
-    const firstTopic = this.selectedTopicId ? (this.topics.find(t => t.id === this.selectedTopicId)?.name ?? '') : '';
+    const firstTopic = this.selectedTopicIds.size ? (this.topics.find(t => this.selectedTopicIds.has(t.id))?.name ?? '') : '';
     this.router.navigate(['/question/create'], {
       state: {
         questions,
