@@ -401,7 +401,7 @@ export class QuestionComponent implements OnInit {
     }
   }
 
-  /** If the dropdown panel would overflow the right edge, align it to the right so it opens to the left. */
+  /** Position dropdown panel: flip to right if it would overflow; reduce max-height so gap to window bottom is at least 100px. */
   positionDropdownPanel(event?: MouseEvent): void {
     if (!event?.target) return;
     const wrapper = (event.target as HTMLElement).closest('.filter-dropdown');
@@ -410,7 +410,16 @@ export class QuestionComponent implements OnInit {
     const trigger = wrapper.querySelector('.filter-dropdown-btn') as HTMLElement;
     if (!panel || !trigger) return;
     panel.classList.remove('dropdown-panel-right');
+    panel.style.maxHeight = '';
     const tr = trigger.getBoundingClientRect();
+    const marginTop = 4;
+    const minGapToBottom = 100;
+    const defaultMaxHeight = 600;
+    const minPanelHeight = 150;
+    const spaceBelow = window.innerHeight - tr.bottom - marginTop;
+    const maxHeightToFit = spaceBelow - minGapToBottom;
+    const maxHeight = Math.min(defaultMaxHeight, Math.max(minPanelHeight, maxHeightToFit));
+    panel.style.maxHeight = maxHeight + 'px';
     const pw = panel.offsetWidth;
     if (tr.left + pw > window.innerWidth) {
       panel.classList.add('dropdown-panel-right');
@@ -566,9 +575,9 @@ export class QuestionComponent implements OnInit {
     return this.topicQuestions.filter((q: any) => this.selectedQuestionIds.has(q.id));
   }
 
-  /** Smart Question Creator – to be defined later. */
-  onSmartQuestionCreator(): void {
-    // TODO: define behavior
+  /** Live Chat – open chat or external link. */
+  onLiveChat(): void {
+    // TODO: open live chat widget or navigate to chat
   }
 
   /** Navigate to create page with selected questions (click on "Create Question (N Selected)"). */

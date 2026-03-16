@@ -137,9 +137,6 @@
       <ng-container *ngIf="!isFormMode">
         <div class="action-bar">
           <app-searchbar (searchChange)="onSearch($any($event))"></app-searchbar>
-          <button class="btn-primary create-btn" (click)="onCreateQuestion()">
-            <i class="fa fa-plus"></i> Create Question
-          </button>
         </div>
 
         <app-questionlist
@@ -154,24 +151,28 @@
     </main>
   </div>
 
-  <!-- Fixed floating buttons: 100px from bottom. >539px: single row; <=539px: stacked (Smart on top, Create below) -->
+  <!-- Sticky circular FABs at bottom-right: Create Question, Live Chat -->
   <div class="fab-wrapper">
+    <div class="fab-tooltip-wrap">
+      <span class="fab-tooltip">First Select Level, Class/Group, Subject and Topic from Top and then click here to create/add a New Question to Cheradip</span>
+      <button
+        type="button"
+        class="fab-btn fab-circle fab-create"
+        (click)="selectedCount > 0 ? goToCreateQuestion() : onCreateQuestion()"
+        [title]="selectedCount > 0 ? 'Create question set (' + selectedCount + ' selected)' : 'Create Question'"
+        aria-label="Create Question"
+      >
+        <i class="fa fa-plus" aria-hidden="true"></i>
+      </button>
+    </div>
     <button
       type="button"
-      class="fab-btn fab-smart"
-      (click)="onSmartQuestionCreator()"
-      title="Smart Question Creator"
+      class="fab-btn fab-circle fab-chat"
+      (click)="onLiveChat()"
+      title="Live Chat"
+      aria-label="Live Chat"
     >
-      Smart Question Creator
-    </button>
-    <button
-      *ngIf="selectedCount > 0"
-      type="button"
-      class="fab-btn fab-create"
-      (click)="goToCreateQuestion()"
-      title="Create question set with selected questions"
-    >
-      Create Question ({{ selectedCount }} Selected)
+      <i class="fa fa-comments" aria-hidden="true"></i>
     </button>
   </div>
 </div>
