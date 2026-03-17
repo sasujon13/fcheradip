@@ -108,10 +108,13 @@
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" [class.open]="moreFiltersOpen">
-          <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onSubsourceSelectAllToggle(); $event.preventDefault()">
-            <input type="checkbox" [checked]="allSubsourcesSelected" (click)="$event.preventDefault()" />
-            <span>Select All</span>
-          </label>
+          <div class="filter-dropdown-item-selectall-row">
+            <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onSubsourceSelectAllToggle(); $event.preventDefault()">
+              <input type="checkbox" [checked]="allSubsourcesSelected" (click)="$event.preventDefault()" />
+              <span>Select All</span>
+            </label>
+            <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearSubsourceSelection(); $event.stopPropagation()">Clear</button>
+          </div>
           <label *ngFor="let src of subsourceOptions" class="filter-dropdown-item" (click)="onSubsourceToggle(src); $event.preventDefault()">
             <input type="checkbox" [checked]="selectedSubsourceIds.has(src)" (click)="$event.preventDefault()" />
             <span>{{ src }}</span>
