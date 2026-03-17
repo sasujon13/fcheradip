@@ -284,6 +284,27 @@
 }
 
 /* More Filters: two columns Source | Year */
+.filter-dropdown-institute-type-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+}
+.filter-dropdown-institute-type-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  flex-shrink: 0;
+}
+.filter-dropdown-inline .filter-dropdown-panel {
+  min-width: 180px;
+}
+.filter-dropdown-btn-sm {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 .filter-dropdown-source-year-row {
   display: flex;
   gap: 0;

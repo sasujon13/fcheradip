@@ -706,6 +706,11 @@ export class ApiService {
     return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/question_list/`, { params: p });
   }
 
+  /** List institutes from cheradip_source (institute_code, institute_name, institute_type) for More Filters. */
+  getCheradipSources(): Observable<{ sources: Array<{ institute_code: string; institute_name: string; institute_type: string }>; error?: string }> {
+    return this.http.get<{ sources: any[]; error?: string }>(`${this.baseUrl}/cheradip_sources/`);
+  }
+
   // Question CRUD
   getQuestionById(qid: number | string): Observable<any> {
     return this.http.get(`${this.baseUrl}/questions/${qid}/`);

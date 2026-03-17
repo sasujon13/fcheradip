@@ -115,6 +115,19 @@
             </label>
             <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearSubsourceSelection(); $event.stopPropagation()">Clear</button>
           </div>
+          <div class="filter-dropdown-institute-type-row" (click)="$event.stopPropagation()" *ngIf="instituteTypes.length > 0">
+            <label class="filter-dropdown-institute-type-label">Institute type</label>
+            <div class="filter-dropdown filter-dropdown-inline">
+              <button type="button" class="filter-dropdown-btn filter-dropdown-btn-sm" (click)="toggleInstituteTypeDropdown($event)" [title]="selectedInstituteTypeLabel">
+                <span class="filter-dropdown-btn-label">{{ selectedInstituteTypeLabel }}</span>
+                <span class="filter-dropdown-arrow">▼</span>
+              </button>
+              <div class="filter-dropdown-panel" [class.open]="instituteTypeDropdownOpen">
+                <button type="button" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="!selectedInstituteType" (click)="onInstituteTypeSelect(null)">All types</button>
+                <button type="button" *ngFor="let t of instituteTypes" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedInstituteType === t" (click)="onInstituteTypeSelect(t)">{{ t }}</button>
+              </div>
+            </div>
+          </div>
           <div class="filter-dropdown-source-year-row">
             <div class="filter-dropdown-source-col">
               <div class="filter-dropdown-col-header">
@@ -125,7 +138,7 @@
                 </label>
               </div>
               <div class="filter-dropdown-col-list">
-                <label *ngFor="let src of subsourceSources" class="filter-dropdown-item" (click)="onSourceToggle(src); $event.preventDefault()">
+                <label *ngFor="let src of subsourceSourcesFiltered" class="filter-dropdown-item" (click)="onSourceToggle(src); $event.preventDefault()">
                   <input type="checkbox" [checked]="selectedSources.has(src)" (click)="$event.preventDefault()" />
                   <span>{{ src }}</span>
                 </label>

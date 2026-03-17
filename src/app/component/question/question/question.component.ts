@@ -68,6 +68,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   selectedSources: Set<string> = new Set();
   selectedYears: Set<string> = new Set();
   moreFiltersOpen = false;
+  /** Institute type filter: dropdown from cheradip_source; limits which sources appear in Source column. */
+  cheradipInstitutes: Array<{ institute_code: string; institute_name: string; institute_type: string }> = [];
+  instituteTypeByCode: Map<string, string> = new Map();
+  instituteTypes: string[] = [];
+  selectedInstituteType: string | null = null;
+  instituteTypeDropdownOpen = false;
   /** Topics for the current chapter when in form mode (new question); used by question form dropdown. */
   formTopics: Array<{ id: string; name: string; topic_no?: string }> = [];
   /** Set of question id (from topicQuestions) that user has selected. */
@@ -180,6 +186,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnInit(): void {
     this.loadQuestionLevels();
+    this.loadCheradipSources();
     this.route.params.subscribe(params => {
       this.currentSubject = params['subject'] || '';
       this.currentChapter = params['chapterName'] || '';
@@ -714,6 +721,40 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedYears = new Set([...this.selectedYears].filter(x => yearSet.has(x)));
   }
 
+  /** Sources shown in More Filters Source column: only those in API response; if institute type selected, only codes of that type. */
+  get subsourceSourcesFiltered(): string[] {
+    if (!this.selectedInstituteType) return this.subsourceSources;
+    return this.subsourceSources.filter(code => this.instituteTypeByCode.get(code) === this.selectedInstituteType!);
+  }
+
+  private loadCheradipSources(): void {
+    this.apiService.getCheradipSources().subscribe({
+      next: (res) => {
+        const list = res.sources || [];
+        this.cheradipInstitutes = list;
+        this.instituteTypeByCode = new Map(list.map((x: any) => [String(x.institute_code || '').trim(), String(x.institute_type || '').trim()]));
+        const types = new Set(list.map((x: any) => String(x.institute_type || '').trim()).filter(Boolean));
+        this.instituteTypes = Array.from(types).sort();
+      },
+      error: () => { this.cheradipInstitutes = []; this.instituteTypeByCode = new Map(); this.instituteTypes = []; }
+    });
+  }
+
+  get selectedInstituteTypeLabel(): string {
+    if (!this.selectedInstituteType) return 'All types';
+    return this.selectedInstituteType;
+  }
+
+  onInstituteTypeSelect(type: string | null): void {
+    this.selectedInstituteType = type;
+    this.instituteTypeDropdownOpen = false;
+  }
+
+  toggleInstituteTypeDropdown(event?: MouseEvent): void {
+    this.instituteTypeDropdownOpen = !this.instituteTypeDropdownOpen;
+    if (this.instituteTypeDropdownOpen) setTimeout(() => this.positionDropdownPanel(event));
+  }
+
   /** Displayed list: filtered by selected source/year when any selected; empty = show all. */
   getDisplayedQuestions(): { q: any; fullIndex: number }[] {
     const list = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
@@ -723,7 +764,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get allSourcesSelected(): boolean {
-    return this.subsourceSources.length > 0 && this.selectedSources.size === this.subsourceSources.length;
+    const list = this.subsourceSourcesFiltered;
+    return list.length > 0 && this.selectedSources.size === list.length;
   }
 
   get allYearsSelected(): boolean {
@@ -778,7 +820,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.selectedSources = new Set();
       this.selectedYears = new Set();
     } else {
-      this.selectedSources = new Set(this.subsourceSources);
+      this.selectedSources = new Set(this.subsourceSourcesFiltered);
       this.selectedYears = new Set(this.subsourceYears);
     }
   }
@@ -791,6 +833,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
       setTimeout(() => this.positionDropdownPanel(event as MouseEvent));
+    } else {
+      this.instituteTypeDropdownOpen = false;
     }
   }
 
