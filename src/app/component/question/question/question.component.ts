@@ -62,9 +62,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Questions for selected topic (from HSC subject table); user can select which to use. */
   topicQuestions: any[] = [];
   topicQuestionsLoaded = false;
-  /** More Filters: unique subsource values from loaded questions; filter by selected (multi-select). */
-  subsourceOptions: string[] = [];
-  selectedSubsourceIds: Set<string> = new Set();
+  /** More Filters: parsed Source (e.g. ChB) and Year (e.g. 18); two-column filter. */
+  subsourceSources: string[] = [];
+  subsourceYears: string[] = [];
+  selectedSources: Set<string> = new Set();
+  selectedYears: Set<string> = new Set();
   moreFiltersOpen = false;
   /** Topics for the current chapter when in form mode (new question); used by question form dropdown. */
   formTopics: Array<{ id: string; name: string; topic_no?: string }> = [];
@@ -420,8 +422,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
-    this.subsourceOptions = [];
-    this.selectedSubsourceIds = new Set();
+    this.subsourceSources = [];
+    this.subsourceYears = [];
+    this.selectedSources = new Set();
+    this.selectedYears = new Set();
     this.selectedQuestionIds = new Set();
     const sub = this.primarySubject;
     this.currentSubject = sub ? sub.subject_tr : '';
@@ -487,8 +491,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedTopicIds = new Set();
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
-    this.subsourceOptions = [];
-    this.selectedSubsourceIds = new Set();
+    this.subsourceSources = [];
+    this.subsourceYears = [];
+    this.selectedSources = new Set();
+    this.selectedYears = new Set();
     this.selectedQuestionIds = new Set();
     const firstCh = this.chapters.find(c => this.selectedChapterIds.has(c.id));
     this.currentChapter = firstCh ? firstCh.name : '';
@@ -565,16 +571,20 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private onTopicSelectionChange(): void {
     this.topicQuestions = [];
-    this.subsourceOptions = [];
-    this.selectedSubsourceIds = new Set();
+    this.subsourceSources = [];
+    this.subsourceYears = [];
+    this.selectedSources = new Set();
+    this.selectedYears = new Set();
     this.selectedQuestionIds = new Set();
     this.topicQuestionsLoaded = false;
     if (this.selectedTopicIds.size && this.primarySubject) {
       this.loadQuestionsByTopics();
     } else {
       this.topicQuestions = [];
-      this.subsourceOptions = [];
-      this.selectedSubsourceIds = new Set();
+      this.subsourceSources = [];
+      this.subsourceYears = [];
+      this.selectedSources = new Set();
+      this.selectedYears = new Set();
       this.topicQuestionsLoaded = true;
     }
   }
@@ -666,50 +676,111 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  private updateSubsourceOptions(): void {
-    const set = new Set<string>();
-    (this.topicQuestions || []).forEach((q: any) => {
-      const s = (q.subsource != null ? String(q.subsource).trim() : '');
-      if (s) set.add(s);
-    });
-    this.subsourceOptions = Array.from(set).sort();
-    this.selectedSubsourceIds = new Set([...this.selectedSubsourceIds].filter(s => set.has(s)));
+  /** Parse subsource string into tokens { source, year } e.g. "BB'17", "CB'16" -> [{source:'BB',year:'17'},{source:'CB',year:'16'}]. */
+  private parseSubsourceTokens(subsource: string): { source: string; year: string }[] {
+    const s = (subsource != null ? String(subsource).trim() : '').replace(/^["']|["']$/g, '').trim();
+    if (!s) return [];
+    const tokens: { source: string; year: string }[] = [];
+    const parts = s.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+    const re = /^([A-Za-z0-9\-]+)'(\d{2})$/;
+    for (const part of parts) {
+      const m = part.match(re);
+      if (m) tokens.push({ source: m[1], year: m[2] });
+    }
+    return tokens;
   }
 
-  /** Displayed list: filtered by selected subsources when any selected; empty set = show all. */
+  /** True if question's subsource has at least one token matching selected source/year. */
+  private questionMatchesSourceYear(q: any): boolean {
+    const tokens = this.parseSubsourceTokens(q.subsource);
+    if (!tokens.length) return this.selectedSources.size === 0 && this.selectedYears.size === 0;
+    const noSource = this.selectedSources.size === 0;
+    const noYear = this.selectedYears.size === 0;
+    return tokens.some(t => (noSource || this.selectedSources.has(t.source)) && (noYear || this.selectedYears.has(t.year)));
+  }
+
+  private updateSubsourceOptions(): void {
+    const sourceSet = new Set<string>();
+    const yearSet = new Set<string>();
+    (this.topicQuestions || []).forEach((q: any) => {
+      this.parseSubsourceTokens(q.subsource).forEach(t => {
+        sourceSet.add(t.source);
+        yearSet.add(t.year);
+      });
+    });
+    this.subsourceSources = Array.from(sourceSet).sort();
+    this.subsourceYears = Array.from(yearSet).sort((a, b) => a.localeCompare(b));
+    this.selectedSources = new Set([...this.selectedSources].filter(x => sourceSet.has(x)));
+    this.selectedYears = new Set([...this.selectedYears].filter(x => yearSet.has(x)));
+  }
+
+  /** Displayed list: filtered by selected source/year when any selected; empty = show all. */
   getDisplayedQuestions(): { q: any; fullIndex: number }[] {
-    const list = this.selectedSubsourceIds.size === 0
+    const list = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
       ? this.topicQuestions
-      : this.topicQuestions.filter((q: any) => this.selectedSubsourceIds.has((q.subsource != null ? String(q.subsource).trim() : '')));
+      : this.topicQuestions.filter((q: any) => this.questionMatchesSourceYear(q));
     return list.map((q: any) => ({ q, fullIndex: this.topicQuestions.indexOf(q) }));
   }
 
-  get allSubsourcesSelected(): boolean {
-    return this.subsourceOptions.length > 0 && this.selectedSubsourceIds.size === this.subsourceOptions.length;
+  get allSourcesSelected(): boolean {
+    return this.subsourceSources.length > 0 && this.selectedSources.size === this.subsourceSources.length;
+  }
+
+  get allYearsSelected(): boolean {
+    return this.subsourceYears.length > 0 && this.selectedYears.size === this.subsourceYears.length;
   }
 
   get moreFiltersLabel(): string {
-    const n = this.selectedSubsourceIds.size;
-    return n === 0 ? 'More Filters' : `More Filters (${n})`;
+    if (this.selectedSources.size === 0 && this.selectedYears.size === 0) return 'More Filters';
+    const s = this.selectedSources.size;
+    const y = this.selectedYears.size;
+    if (s && y) return `More Filters (${s}×${y})`;
+    if (s) return `More Filters (${s} source${s > 1 ? 's' : ''})`;
+    return `More Filters (${y} year${y > 1 ? 's' : ''})`;
   }
 
-  onSubsourceSelectAllToggle(): void {
-    if (this.allSubsourcesSelected) {
-      this.selectedSubsourceIds = new Set();
-    } else {
-      this.selectedSubsourceIds = new Set(this.subsourceOptions);
-    }
+  onSourceSelectAllToggle(): void {
+    if (this.allSourcesSelected) this.selectedSources = new Set();
+    else this.selectedSources = new Set(this.subsourceSources);
   }
 
-  onSubsourceToggle(src: string): void {
-    const next = new Set(this.selectedSubsourceIds);
-    if (next.has(src)) next.delete(src);
-    else next.add(src);
-    this.selectedSubsourceIds = next;
+  onYearSelectAllToggle(): void {
+    if (this.allYearsSelected) this.selectedYears = new Set();
+    else this.selectedYears = new Set(this.subsourceYears);
+  }
+
+  onSourceToggle(source: string): void {
+    const next = new Set(this.selectedSources);
+    if (next.has(source)) next.delete(source);
+    else next.add(source);
+    this.selectedSources = next;
+  }
+
+  onYearToggle(year: string): void {
+    const next = new Set(this.selectedYears);
+    if (next.has(year)) next.delete(year);
+    else next.add(year);
+    this.selectedYears = next;
   }
 
   clearSubsourceSelection(): void {
-    this.selectedSubsourceIds = new Set();
+    this.selectedSources = new Set();
+    this.selectedYears = new Set();
+  }
+
+  /** Select All / Unselect All for the whole More Filters (both Source and Year columns). */
+  get allSubsourceColumnsSelected(): boolean {
+    return this.allSourcesSelected && this.allYearsSelected;
+  }
+
+  onSubsourceSelectAllToggle(): void {
+    if (this.allSubsourceColumnsSelected) {
+      this.selectedSources = new Set();
+      this.selectedYears = new Set();
+    } else {
+      this.selectedSources = new Set(this.subsourceSources);
+      this.selectedYears = new Set(this.subsourceYears);
+    }
   }
 
   toggleMoreFiltersDropdown(event?: Event): void {
