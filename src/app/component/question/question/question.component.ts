@@ -100,7 +100,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.measureOptionsLayouts();
   }
 
-  /** Mark the first element of each wrapped line so only they get margin-left: 16px */
+  /** Mark the first element of each wrapped line so only they get margin-left: 21px */
   private updateFilterLineStartMargins(): void {
     if (!this.filterItems?.length) return;
     const items = this.filterItems.map(f => f.nativeElement);

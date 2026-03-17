@@ -28,7 +28,7 @@
 }
 /* Only the first element of each wrapped line gets left margin (set via JS) */
 .question-filter-item.filter-item-line-start {
-  margin-left: 17px;
+  margin-left: 18px;
 }
 
 .question-filter-label {

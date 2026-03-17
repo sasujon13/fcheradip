@@ -27,7 +27,7 @@
         </div>
       </div>
     </div>
-    <div class="question-filter-item filter-dropdown-wrap" *ngIf="groups.length > 0">
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="groups.length > 0">
       <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('group')">
         <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedGroup" (click)="toggleGroupDropdown($event)" [title]="selectedGroupLabel">
@@ -54,7 +54,7 @@
       </div>
     </div>
     <!-- Chapter: first option Select All; checkboxes on left; multi-select -->
-    <div class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && chapters.length > 0">
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && chapters.length > 0">
       <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('chapter')">
         <button type="button" class="filter-dropdown-btn" (click)="toggleChapterDropdown($event)" [title]="selectedChapterName">
