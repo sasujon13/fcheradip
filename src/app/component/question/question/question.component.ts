@@ -716,6 +716,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     event?.preventDefault();
     event?.stopPropagation();
     this.moreFiltersOpen = !this.moreFiltersOpen;
+    if (this.moreFiltersOpen) {
+      this.chapterDropdownOpen = false;
+      this.topicDropdownOpen = false;
+      setTimeout(() => this.positionDropdownPanel(event as MouseEvent));
+    }
   }
 
   /** Returns true if any option in the container has content wrapped to multiple lines. */

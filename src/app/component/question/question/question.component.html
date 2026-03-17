@@ -151,7 +151,7 @@
           <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)" (change)="setQuestionSelection(item.q.qid, ($any($event.target)).checked)" />
         </div>
         <div class="topic-question-content">
-          <label class="topic-question-label" (click)="$event.preventDefault()">
+          <label class="topic-question-label" (click)="onQuestionRowClick($event, item.q.qid); $event.preventDefault(); $event.stopPropagation()">
             <ng-container *ngIf="getQuestionDisplayStructure(item.q) as struct">
               <span class="topic-question-text" *ngIf="struct.parts.length === 0">{{ struct.intro }}</span>
               <ng-container *ngIf="struct.parts.length > 0">
