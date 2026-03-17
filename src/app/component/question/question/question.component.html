@@ -123,7 +123,13 @@
         </div>
         <div class="topic-question-content">
           <label class="topic-question-label" (click)="$event.preventDefault()">
-            <span class="topic-question-text">{{ q.question }}</span>
+            <ng-container *ngIf="getQuestionDisplayStructure(q) as struct">
+              <span class="topic-question-text" *ngIf="struct.parts.length === 0">{{ struct.intro }}</span>
+              <ng-container *ngIf="struct.parts.length > 0">
+                <span class="topic-question-text topic-question-intro">{{ struct.intro }}</span>
+                <div *ngFor="let part of struct.parts" class="topic-question-subpart">{{ part }}</div>
+              </ng-container>
+            </ng-container>
           </label>
           <div class="topic-question-options" [class.topic-question-options-1row]="optionsLayouts[i] === '1row'" [class.topic-question-options-2row]="optionsLayouts[i] === '2row' || !optionsLayouts[i]" [class.topic-question-options-4row]="optionsLayouts[i] === '4row'" *ngIf="q.option_1 || q.option_2">
             <span *ngIf="q.option_1" class="topic-question-opt">(ক) {{ getOptionDisplayText(q.option_1) }}</span>

@@ -482,7 +482,23 @@
 .topic-question-text {
   font-size: 14px;
   line-height: 1.4;
+  white-space: pre-line;
   color: #333;
+}
+
+.topic-question-intro {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* সৃজনশীল প্রশ্ন sub-parts (ক)(খ)(গ)(ঘ): 22px left indent when line wraps (match MCQ options) */
+.topic-question-subpart {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  padding-left: 22px;
+  text-indent: -22px;
+  margin-top: 2px;
 }
 
 .topic-question-options {
@@ -500,7 +516,7 @@
 .topic-question-options .topic-question-opt {
   white-space: normal;
   min-width: 0;
-  /* 20px left indent for wrapped lines (continuation lines) */
+  /* 22px left indent for wrapped lines (continuation lines) */
   padding-left: 22px;
   text-indent: -22px;
 }

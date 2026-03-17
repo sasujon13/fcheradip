@@ -721,31 +721,39 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return (index + 1).toString().padStart(3, '0');
   }
 
-  /** Extract display text from option value (plain string or Draft.js JSON). */
+  /** Get question text for display; if type is সৃজনশীল প্রশ্ন, put each (ক)(খ)(গ)(ঘ) on a new line and use (ক)(খ)(গ)(ঘ) labels. */
+  getQuestionDisplayText(q: { question?: unknown; type?: string }): string {
+    const raw = q?.question != null ? String(q.question).trim() : '';
+    if (!raw) return '';
+    const type = (q?.type ?? '').toString().trim();
+    if (type !== 'সৃজনশীল প্রশ্ন') return raw;
+    const withNewlines = raw
+      .replace(/\s+(ক\.|খ\.|গ\.|ঘ\.)/g, '\n$1')
+      .replace(/([।,])\s*(ক\.|খ\.|গ\.|ঘ\.)/g, '$1\n$2');
+    return withNewlines
+      .replace(/ক\./g, '(ক)')
+      .replace(/খ\./g, '(খ)')
+      .replace(/গ\./g, '(গ)')
+      .replace(/ঘ\./g, '(ঘ)');
+  }
+
+  /** For সৃজনশীল প্রশ্ন: { intro, parts }; parts get 22px indent on wrap. Otherwise { intro: full text, parts: [] }. */
+  getQuestionDisplayStructure(q: { question?: unknown; type?: string }): { intro: string; parts: string[] } {
+    const full = this.getQuestionDisplayText(q);
+    if (!full) return { intro: '', parts: [] };
+    const type = (q?.type ?? '').toString().trim();
+    if (type !== 'সৃজনশীল প্রশ্ন') return { intro: full, parts: [] };
+    const lines = full.split('\n').map(s => s.trim()).filter(Boolean);
+    if (lines.length <= 1) return { intro: full, parts: [] };
+    const intro = lines[0];
+    const parts = lines.slice(1);
+    return { intro, parts };
+  }
+
+  /** Display text for option value (plain text; JSON has been removed from DB). */
   getOptionDisplayText(opt: unknown): string {
     if (opt == null) return '';
-    if (typeof opt === 'string') {
-      const trimmed = opt.trim();
-      if (trimmed.startsWith('{') && trimmed.includes('blocks')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          const blocks = parsed?.blocks;
-          if (Array.isArray(blocks) && blocks.length > 0 && blocks[0]?.text != null) {
-            return blocks[0].text;
-          }
-        } catch {
-          return opt;
-        }
-      }
-      return opt;
-    }
-    if (typeof opt === 'object' && opt !== null && 'blocks' in opt) {
-      const blocks = (opt as { blocks?: Array<{ text?: string }> }).blocks;
-      if (Array.isArray(blocks) && blocks.length > 0 && blocks[0]?.text != null) {
-        return blocks[0].text;
-      }
-    }
-    return String(opt);
+    return typeof opt === 'string' ? opt.trim() : String(opt);
   }
 
   toggleQuestionSelection(qid: number | string): void {
