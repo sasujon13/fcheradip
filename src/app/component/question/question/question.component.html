@@ -62,10 +62,13 @@
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" [class.open]="chapterDropdownOpen">
-          <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onChapterSelectAllToggle(); $event.preventDefault()">
-            <input type="checkbox" [checked]="allChaptersSelected" (click)="$event.preventDefault()" />
-            <span>Select All</span>
-          </label>
+          <div class="filter-dropdown-item-selectall-row">
+            <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onChapterSelectAllToggle(); $event.preventDefault()">
+              <input type="checkbox" [checked]="allChaptersSelected" (click)="$event.preventDefault()" />
+              <span>Select All</span>
+            </label>
+            <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearChapterSelection(); $event.stopPropagation()">Clear</button>
+          </div>
           <label *ngFor="let ch of chapters" class="filter-dropdown-item" (click)="onChapterSelect(ch.id); $event.preventDefault()">
             <input type="checkbox" [checked]="selectedChapterIds.has(ch.id)" (click)="$event.preventDefault()" />
             <span>{{ ch.name }}</span>
@@ -82,10 +85,13 @@
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" [class.open]="topicDropdownOpen">
-          <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onTopicSelectAllToggle(); $event.preventDefault()">
-            <input type="checkbox" [checked]="allTopicsSelected" (click)="$event.preventDefault()" />
-            <span>Select All</span>
-          </label>
+          <div class="filter-dropdown-item-selectall-row">
+            <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onTopicSelectAllToggle(); $event.preventDefault()">
+              <input type="checkbox" [checked]="allTopicsSelected" (click)="$event.preventDefault()" />
+              <span>Select All</span>
+            </label>
+            <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearTopicSelection(); $event.stopPropagation()">Clear</button>
+          </div>
           <label *ngFor="let t of topics" class="filter-dropdown-item" (click)="onTopicSelect(t.id); $event.preventDefault()">
             <input type="checkbox" [checked]="selectedTopicIds.has(t.id)" (click)="$event.preventDefault()" />
             <span>{{ t.name }}</span>
@@ -93,17 +99,23 @@
         </div>
       </div>
     </div>
-    <!-- More Filters: filter by subsource (unique values from loaded questions) -->
+    <!-- More Filters: filter by subsource (multi-select checkboxes) -->
     <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && selectedTopicIds.size > 0 && topicQuestionsLoaded">
       <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('moreFilters')">
-        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedSubsource" (click)="toggleMoreFiltersDropdown($event)" [title]="selectedSubsource || 'All subsources'">
-          <span class="filter-dropdown-btn-label">{{ selectedSubsource || 'More Filters' }}</span>
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="selectedSubsourceIds.size === 0" (click)="toggleMoreFiltersDropdown($event)" [title]="moreFiltersLabel">
+          <span class="filter-dropdown-btn-label">{{ moreFiltersLabel }}</span>
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" [class.open]="moreFiltersOpen">
-          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedSubsource" (click)="onSubsourceSelect(null)">All subsources</button>
-          <button type="button" *ngFor="let src of subsourceOptions" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedSubsource === src" (click)="onSubsourceSelect(src)">{{ src }}</button>
+          <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onSubsourceSelectAllToggle(); $event.preventDefault()">
+            <input type="checkbox" [checked]="allSubsourcesSelected" (click)="$event.preventDefault()" />
+            <span>Select All</span>
+          </label>
+          <label *ngFor="let src of subsourceOptions" class="filter-dropdown-item" (click)="onSubsourceToggle(src); $event.preventDefault()">
+            <input type="checkbox" [checked]="selectedSubsourceIds.has(src)" (click)="$event.preventDefault()" />
+            <span>{{ src }}</span>
+          </label>
         </div>
       </div>
     </div>
@@ -130,10 +142,10 @@
       </div>
     </div>
     <ul class="topic-questions-list">
-      <li *ngFor="let item of getDisplayedQuestions(); let i = index" class="topic-question-item" (click)="toggleQuestionSelection(item.q.qid)">
+      <li *ngFor="let item of getDisplayedQuestions(); let i = index" class="topic-question-item" (click)="onQuestionRowClick($event, item.q.qid)">
         <div class="topic-question-sl-col">
           <span class="topic-question-sl">{{ formatSl(i) }}</span>
-          <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)" (click)="$event.stopPropagation()" (change)="setQuestionSelection(item.q.qid, ($any($event.target)).checked)" />
+          <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)" (change)="setQuestionSelection(item.q.qid, ($any($event.target)).checked)" />
         </div>
         <div class="topic-question-content">
           <label class="topic-question-label" (click)="$event.preventDefault()">
@@ -154,7 +166,7 @@
         </div>
       </li>
     </ul>
-    <p *ngIf="selectedSubsource && getDisplayedQuestions().length === 0" class="no-topic-questions">No questions for this subsource.</p>
+    <p *ngIf="selectedSubsourceIds.size > 0 && getDisplayedQuestions().length === 0" class="no-topic-questions">No questions for selected subsource(s).</p>
   </div>
   <p *ngIf="selectedTopicIds.size > 0 && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for selected topic(s).</p>
 

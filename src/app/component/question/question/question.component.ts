@@ -62,9 +62,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Questions for selected topic (from HSC subject table); user can select which to use. */
   topicQuestions: any[] = [];
   topicQuestionsLoaded = false;
-  /** More Filters: unique subsource values from loaded questions; filter by selected one. */
+  /** More Filters: unique subsource values from loaded questions; filter by selected (multi-select). */
   subsourceOptions: string[] = [];
-  selectedSubsource: string | null = null;
+  selectedSubsourceIds: Set<string> = new Set();
   moreFiltersOpen = false;
   /** Topics for the current chapter when in form mode (new question); used by question form dropdown. */
   formTopics: Array<{ id: string; name: string; topic_no?: string }> = [];
@@ -421,7 +421,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
     this.subsourceOptions = [];
-    this.selectedSubsource = null;
+    this.selectedSubsourceIds = new Set();
     this.selectedQuestionIds = new Set();
     const sub = this.primarySubject;
     this.currentSubject = sub ? sub.subject_tr : '';
@@ -468,6 +468,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.onChapterSelectionChange();
   }
 
+  clearChapterSelection(): void {
+    this.selectedChapterIds = new Set();
+    this.onChapterSelectionChange();
+  }
+
   get selectedChapterName(): string {
     if (this.selectedChapterIds.size === 0) return 'Select Chapter';
     if (this.selectedChapterIds.size === 1) {
@@ -483,7 +488,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
     this.subsourceOptions = [];
-    this.selectedSubsource = null;
+    this.selectedSubsourceIds = new Set();
     this.selectedQuestionIds = new Set();
     const firstCh = this.chapters.find(c => this.selectedChapterIds.has(c.id));
     this.currentChapter = firstCh ? firstCh.name : '';
@@ -544,6 +549,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.onTopicSelectionChange();
   }
 
+  clearTopicSelection(): void {
+    this.selectedTopicIds = new Set();
+    this.onTopicSelectionChange();
+  }
+
   get selectedTopicName(): string {
     if (this.selectedTopicIds.size === 0) return 'Select Topic';
     if (this.selectedTopicIds.size === 1) {
@@ -556,7 +566,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   private onTopicSelectionChange(): void {
     this.topicQuestions = [];
     this.subsourceOptions = [];
-    this.selectedSubsource = null;
+    this.selectedSubsourceIds = new Set();
     this.selectedQuestionIds = new Set();
     this.topicQuestionsLoaded = false;
     if (this.selectedTopicIds.size && this.primarySubject) {
@@ -564,7 +574,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     } else {
       this.topicQuestions = [];
       this.subsourceOptions = [];
-      this.selectedSubsource = null;
+      this.selectedSubsourceIds = new Set();
       this.topicQuestionsLoaded = true;
     }
   }
@@ -663,28 +673,49 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       if (s) set.add(s);
     });
     this.subsourceOptions = Array.from(set).sort();
-    if (this.selectedSubsource != null && !this.subsourceOptions.includes(this.selectedSubsource)) {
-      this.selectedSubsource = null;
+    this.selectedSubsourceIds = new Set([...this.selectedSubsourceIds].filter(s => set.has(s)));
+  }
+
+  /** Displayed list: filtered by selected subsources when any selected; empty set = show all. */
+  getDisplayedQuestions(): { q: any; fullIndex: number }[] {
+    const list = this.selectedSubsourceIds.size === 0
+      ? this.topicQuestions
+      : this.topicQuestions.filter((q: any) => this.selectedSubsourceIds.has((q.subsource != null ? String(q.subsource).trim() : '')));
+    return list.map((q: any) => ({ q, fullIndex: this.topicQuestions.indexOf(q) }));
+  }
+
+  get allSubsourcesSelected(): boolean {
+    return this.subsourceOptions.length > 0 && this.selectedSubsourceIds.size === this.subsourceOptions.length;
+  }
+
+  get moreFiltersLabel(): string {
+    const n = this.selectedSubsourceIds.size;
+    return n === 0 ? 'More Filters' : `More Filters (${n})`;
+  }
+
+  onSubsourceSelectAllToggle(): void {
+    if (this.allSubsourcesSelected) {
+      this.selectedSubsourceIds = new Set();
+    } else {
+      this.selectedSubsourceIds = new Set(this.subsourceOptions);
     }
   }
 
-  /** Displayed list: filtered by selected subsource when set. */
-  getDisplayedQuestions(): { q: any; fullIndex: number }[] {
-    const list = this.selectedSubsource
-      ? this.topicQuestions.filter((q: any) => (q.subsource != null ? String(q.subsource).trim() : '') === this.selectedSubsource)
-      : this.topicQuestions;
-    return list.map((q: any) => ({ q, fullIndex: this.topicQuestions.indexOf(q) }));
+  onSubsourceToggle(src: string): void {
+    const next = new Set(this.selectedSubsourceIds);
+    if (next.has(src)) next.delete(src);
+    else next.add(src);
+    this.selectedSubsourceIds = next;
+  }
+
+  clearSubsourceSelection(): void {
+    this.selectedSubsourceIds = new Set();
   }
 
   toggleMoreFiltersDropdown(event?: Event): void {
     event?.preventDefault();
     event?.stopPropagation();
     this.moreFiltersOpen = !this.moreFiltersOpen;
-  }
-
-  onSubsourceSelect(value: string | null): void {
-    this.selectedSubsource = value;
-    this.moreFiltersOpen = false;
   }
 
   /** Returns true if any option in the container has content wrapped to multiple lines. */
@@ -810,6 +841,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.selectedQuestionIds.add(qid);
     }
     this.selectedQuestionIds = new Set(this.selectedQuestionIds);
+  }
+
+  /** Row click: toggle selection when clicking anywhere except the checkbox (checkbox (change) handles itself). */
+  onQuestionRowClick(event: MouseEvent, qid: number | string): void {
+    const target = event.target as HTMLElement;
+    if (target.closest('input[type="checkbox"]')) return;
+    this.toggleQuestionSelection(qid);
   }
 
   /** Sync selection from checkbox (change) so the check icon shows when clicking the box. */
