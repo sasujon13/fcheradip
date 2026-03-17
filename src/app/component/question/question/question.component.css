@@ -500,6 +500,9 @@
 .topic-question-options .topic-question-opt {
   white-space: normal;
   min-width: 0;
+  /* 20px left indent for wrapped lines (continuation lines) */
+  padding-left: 22px;
+  text-indent: -22px;
 }
 
 /* Measure mode: force one row to read content widths */
