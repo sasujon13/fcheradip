@@ -148,7 +148,7 @@
       <li *ngFor="let item of getDisplayedQuestions(); let i = index" class="topic-question-item" (click)="onQuestionRowClick($event, item.q.qid)">
         <div class="topic-question-sl-col">
           <span class="topic-question-sl">{{ formatSl(i) }}</span>
-          <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)" (change)="setQuestionSelection(item.q.qid, ($any($event.target)).checked)" />
+          <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)" (click)="$event.stopPropagation(); toggleQuestionSelection(item.q.qid)" />
         </div>
         <div class="topic-question-content">
           <label class="topic-question-label" (click)="onQuestionRowClick($event, item.q.qid); $event.preventDefault(); $event.stopPropagation()">
