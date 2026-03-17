@@ -93,6 +93,20 @@
         </div>
       </div>
     </div>
+    <!-- More Filters: filter by subsource (unique values from loaded questions) -->
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && selectedTopicIds.size > 0 && topicQuestionsLoaded">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('moreFilters')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedSubsource" (click)="toggleMoreFiltersDropdown($event)" [title]="selectedSubsource || 'All subsources'">
+          <span class="filter-dropdown-btn-label">{{ selectedSubsource || 'More Filters' }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="moreFiltersOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedSubsource" (click)="onSubsourceSelect(null)">All subsources</button>
+          <button type="button" *ngFor="let src of subsourceOptions" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedSubsource === src" (click)="onSubsourceSelect(src)">{{ src }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Questions for selected topic(s): user selects which questions to use -->
@@ -116,14 +130,14 @@
       </div>
     </div>
     <ul class="topic-questions-list">
-      <li *ngFor="let q of topicQuestions; let i = index" class="topic-question-item" (click)="toggleQuestionSelection(q.qid)">
+      <li *ngFor="let item of getDisplayedQuestions(); let i = index" class="topic-question-item" (click)="toggleQuestionSelection(item.q.qid)">
         <div class="topic-question-sl-col">
           <span class="topic-question-sl">{{ formatSl(i) }}</span>
-          <input type="checkbox" [checked]="isQuestionSelected(q.qid)" (click)="$event.stopPropagation()" (change)="setQuestionSelection(q.qid, ($any($event.target)).checked)" />
+          <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)" (click)="$event.stopPropagation()" (change)="setQuestionSelection(item.q.qid, ($any($event.target)).checked)" />
         </div>
         <div class="topic-question-content">
           <label class="topic-question-label" (click)="$event.preventDefault()">
-            <ng-container *ngIf="getQuestionDisplayStructure(q) as struct">
+            <ng-container *ngIf="getQuestionDisplayStructure(item.q) as struct">
               <span class="topic-question-text" *ngIf="struct.parts.length === 0">{{ struct.intro }}</span>
               <ng-container *ngIf="struct.parts.length > 0">
                 <span class="topic-question-text topic-question-intro">{{ struct.intro }}</span>
@@ -131,15 +145,16 @@
               </ng-container>
             </ng-container>
           </label>
-          <div class="topic-question-options" [class.topic-question-options-1row]="optionsLayouts[i] === '1row'" [class.topic-question-options-2row]="optionsLayouts[i] === '2row' || !optionsLayouts[i]" [class.topic-question-options-4row]="optionsLayouts[i] === '4row'" *ngIf="q.option_1 || q.option_2">
-            <span *ngIf="q.option_1" class="topic-question-opt">(ক) {{ getOptionDisplayText(q.option_1) }}</span>
-            <span *ngIf="q.option_2" class="topic-question-opt">(খ) {{ getOptionDisplayText(q.option_2) }}</span>
-            <span *ngIf="q.option_3" class="topic-question-opt">(গ) {{ getOptionDisplayText(q.option_3) }}</span>
-            <span *ngIf="q.option_4" class="topic-question-opt">(ঘ) {{ getOptionDisplayText(q.option_4) }}</span>
+          <div class="topic-question-options" [class.topic-question-options-1row]="optionsLayouts[item.fullIndex] === '1row'" [class.topic-question-options-2row]="optionsLayouts[item.fullIndex] === '2row' || !optionsLayouts[item.fullIndex]" [class.topic-question-options-4row]="optionsLayouts[item.fullIndex] === '4row'" *ngIf="item.q.option_1 || item.q.option_2">
+            <span *ngIf="item.q.option_1" class="topic-question-opt">(ক) {{ getOptionDisplayText(item.q.option_1) }}</span>
+            <span *ngIf="item.q.option_2" class="topic-question-opt">(খ) {{ getOptionDisplayText(item.q.option_2) }}</span>
+            <span *ngIf="item.q.option_3" class="topic-question-opt">(গ) {{ getOptionDisplayText(item.q.option_3) }}</span>
+            <span *ngIf="item.q.option_4" class="topic-question-opt">(ঘ) {{ getOptionDisplayText(item.q.option_4) }}</span>
           </div>
         </div>
       </li>
     </ul>
+    <p *ngIf="selectedSubsource && getDisplayedQuestions().length === 0" class="no-topic-questions">No questions for this subsource.</p>
   </div>
   <p *ngIf="selectedTopicIds.size > 0 && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for selected topic(s).</p>
 

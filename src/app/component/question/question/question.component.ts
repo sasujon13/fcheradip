@@ -62,6 +62,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Questions for selected topic (from HSC subject table); user can select which to use. */
   topicQuestions: any[] = [];
   topicQuestionsLoaded = false;
+  /** More Filters: unique subsource values from loaded questions; filter by selected one. */
+  subsourceOptions: string[] = [];
+  selectedSubsource: string | null = null;
+  moreFiltersOpen = false;
   /** Topics for the current chapter when in form mode (new question); used by question form dropdown. */
   formTopics: Array<{ id: string; name: string; topic_no?: string }> = [];
   /** Set of question id (from topicQuestions) that user has selected. */
@@ -153,6 +157,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       case 'subject': this.subjectDropdownOpen = false; break;
       case 'chapter': this.chapterDropdownOpen = false; break;
       case 'topic': this.topicDropdownOpen = false; break;
+      case 'moreFilters': this.moreFiltersOpen = false; break;
     }
   }
 
@@ -168,6 +173,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.classDropdownOpen = false;
     this.groupDropdownOpen = false;
     this.subjectDropdownOpen = false;
+    this.moreFiltersOpen = false;
   }
 
   ngOnInit(): void {
@@ -414,6 +420,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.chapterDropdownOpen = false;
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
+    this.subsourceOptions = [];
+    this.selectedSubsource = null;
     this.selectedQuestionIds = new Set();
     const sub = this.primarySubject;
     this.currentSubject = sub ? sub.subject_tr : '';
@@ -474,6 +482,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedTopicIds = new Set();
     this.topicDropdownOpen = false;
     this.topicQuestions = [];
+    this.subsourceOptions = [];
+    this.selectedSubsource = null;
     this.selectedQuestionIds = new Set();
     const firstCh = this.chapters.find(c => this.selectedChapterIds.has(c.id));
     this.currentChapter = firstCh ? firstCh.name : '';
@@ -545,12 +555,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private onTopicSelectionChange(): void {
     this.topicQuestions = [];
+    this.subsourceOptions = [];
+    this.selectedSubsource = null;
     this.selectedQuestionIds = new Set();
     this.topicQuestionsLoaded = false;
     if (this.selectedTopicIds.size && this.primarySubject) {
       this.loadQuestionsByTopics();
     } else {
       this.topicQuestions = [];
+      this.subsourceOptions = [];
+      this.selectedSubsource = null;
       this.topicQuestionsLoaded = true;
     }
   }
@@ -624,6 +638,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           pending--;
           if (pending === 0) {
             this.topicQuestions = all.slice(0, 999);
+            this.updateSubsourceOptions();
             this.topicQuestionsLoaded = true;
             setTimeout(() => this.measureOptionsLayouts(), 80);
           }
@@ -632,12 +647,44 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           pending--;
           if (pending === 0) {
             this.topicQuestions = all.slice(0, 999);
+            this.updateSubsourceOptions();
             this.topicQuestionsLoaded = true;
             setTimeout(() => this.measureOptionsLayouts(), 80);
           }
         }
       });
     });
+  }
+
+  private updateSubsourceOptions(): void {
+    const set = new Set<string>();
+    (this.topicQuestions || []).forEach((q: any) => {
+      const s = (q.subsource != null ? String(q.subsource).trim() : '');
+      if (s) set.add(s);
+    });
+    this.subsourceOptions = Array.from(set).sort();
+    if (this.selectedSubsource != null && !this.subsourceOptions.includes(this.selectedSubsource)) {
+      this.selectedSubsource = null;
+    }
+  }
+
+  /** Displayed list: filtered by selected subsource when set. */
+  getDisplayedQuestions(): { q: any; fullIndex: number }[] {
+    const list = this.selectedSubsource
+      ? this.topicQuestions.filter((q: any) => (q.subsource != null ? String(q.subsource).trim() : '') === this.selectedSubsource)
+      : this.topicQuestions;
+    return list.map((q: any) => ({ q, fullIndex: this.topicQuestions.indexOf(q) }));
+  }
+
+  toggleMoreFiltersDropdown(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.moreFiltersOpen = !this.moreFiltersOpen;
+  }
+
+  onSubsourceSelect(value: string | null): void {
+    this.selectedSubsource = value;
+    this.moreFiltersOpen = false;
   }
 
   /** Returns true if any option in the container has content wrapped to multiple lines. */
@@ -779,19 +826,22 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.selectedQuestionIds.has(qid);
   }
 
-  /** True when all topic questions are selected. */
+  /** True when all displayed (possibly subsource-filtered) questions are selected. */
   get allTopicQuestionsSelected(): boolean {
-    return this.topicQuestions.length > 0 && this.selectedQuestionIds.size === this.topicQuestions.length;
+    const displayed = this.getDisplayedQuestions();
+    return displayed.length > 0 && displayed.every(item => this.selectedQuestionIds.has(item.q.qid));
   }
 
-  /** Toggle between select all and unselect all. */
+  /** Toggle between select all and unselect all for displayed questions. */
   toggleSelectAllTopicQuestions(): void {
+    const displayed = this.getDisplayedQuestions();
     if (this.allTopicQuestionsSelected) {
-      this.selectedQuestionIds = new Set();
+      const toRemove = new Set(displayed.map(item => item.q.qid));
+      this.selectedQuestionIds = new Set([...this.selectedQuestionIds].filter(id => !toRemove.has(id)));
     } else {
-      this.selectedQuestionIds = new Set(this.topicQuestions.map((q: any) => q.qid));
+      displayed.forEach(item => this.selectedQuestionIds.add(item.q.qid));
+      this.selectedQuestionIds = new Set(this.selectedQuestionIds);
     }
-    this.selectedQuestionIds = new Set(this.selectedQuestionIds);
   }
 
   selectAllTopicQuestions(): void {
