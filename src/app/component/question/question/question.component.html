@@ -125,15 +125,11 @@
           <label class="topic-question-label" (click)="$event.preventDefault()">
             <span class="topic-question-text">{{ q.question }}</span>
           </label>
-          <div class="topic-question-options" *ngIf="q.option_1 || q.option_2">
-            <div class="topic-question-options-col">
-              <span *ngIf="q.option_1" class="topic-question-opt">(ক) {{ q.option_1 }}</span>
-              <span *ngIf="q.option_3" class="topic-question-opt">(গ) {{ q.option_3 }}</span>
-            </div>
-            <div class="topic-question-options-col">
-              <span *ngIf="q.option_2" class="topic-question-opt">(খ) {{ q.option_2 }}</span>
-              <span *ngIf="q.option_4" class="topic-question-opt">(ঘ) {{ q.option_4 }}</span>
-            </div>
+          <div class="topic-question-options" [class.topic-question-options-1row]="optionsLayouts[i] === '1row'" [class.topic-question-options-2row]="optionsLayouts[i] === '2row' || !optionsLayouts[i]" [class.topic-question-options-4row]="optionsLayouts[i] === '4row'" *ngIf="q.option_1 || q.option_2">
+            <span *ngIf="q.option_1" class="topic-question-opt">(ক) {{ getOptionDisplayText(q.option_1) }}</span>
+            <span *ngIf="q.option_2" class="topic-question-opt">(খ) {{ getOptionDisplayText(q.option_2) }}</span>
+            <span *ngIf="q.option_3" class="topic-question-opt">(গ) {{ getOptionDisplayText(q.option_3) }}</span>
+            <span *ngIf="q.option_4" class="topic-question-opt">(ঘ) {{ getOptionDisplayText(q.option_4) }}</span>
           </div>
         </div>
       </li>

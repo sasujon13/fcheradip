@@ -453,7 +453,7 @@
 .topic-question-sl {
   font-size: 13px;
   font-weight: 600;
-  color: #555;
+  color: #333;
   line-height: 1;
   flex-shrink: 0;
 }
@@ -485,33 +485,39 @@
   margin-left: 0;
   font-size: 13px;
   color: #555;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 1.5em;
   align-items: start;
-  container-type: inline-size;
-  container-name: options;
-}
-
-.topic-question-options-col {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  justify-content: start;
 }
 
 .topic-question-options .topic-question-opt {
   white-space: normal;
+  min-width: 0;
 }
 
-@container options (max-width: 320px) {
-  .topic-question-options {
-    flex-direction: column;
-    gap: 4px;
-  }
-  .topic-question-options-col {
-    flex-direction: column;
-  }
+/* Measure mode: force one row to read content widths */
+.topic-question-options.options-measure {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 24px;
+}
+
+/* Content-based layout: 4 columns, 1 row when all options fit in width */
+.topic-question-options.topic-question-options-1row {
+  grid-template-columns: repeat(4, auto);
+}
+
+/* 2 columns, 2 rows – (ক)(গ) and (খ)(ঘ) align */
+.topic-question-options.topic-question-options-2row {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* 1 column, 4 rows when even 2 options don't fit */
+.topic-question-options.topic-question-options-4row {
+  grid-template-columns: 1fr;
+  gap: 4px;
 }
 
 .no-topic-questions {

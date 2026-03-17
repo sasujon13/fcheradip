@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ElementRef, ViewChildren, QueryList } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ElementRef, ViewChildren, QueryList, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../service/api.service';
 
@@ -76,11 +76,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @ViewChildren('filterItem') filterItems!: QueryList<ElementRef<HTMLElement>>;
 
+  /** Layout per question index: '1row' | '2row' | '4row' based on content width. */
+  optionsLayouts: ('1row' | '2row' | '4row')[] = [];
+  private readonly OPTIONS_GAP_PX = 24;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private apiService: ApiService,
-    private elRef: ElementRef<HTMLElement>
+    private elRef: ElementRef<HTMLElement>,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngAfterViewInit(): void {
@@ -92,6 +97,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   @HostListener('window:resize')
   onWindowResize(): void {
     this.updateFilterLineStartMargins();
+    this.measureOptionsLayouts();
   }
 
   /** Mark the first element of each wrapped line so only they get margin-left: 16px */
@@ -619,13 +625,99 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           if (pending === 0) {
             this.topicQuestions = all.slice(0, 999);
             this.topicQuestionsLoaded = true;
+            setTimeout(() => this.measureOptionsLayouts(), 80);
           }
         },
         error: () => {
           pending--;
-          if (pending === 0) { this.topicQuestions = all.slice(0, 999); this.topicQuestionsLoaded = true; }
+          if (pending === 0) {
+            this.topicQuestions = all.slice(0, 999);
+            this.topicQuestionsLoaded = true;
+            setTimeout(() => this.measureOptionsLayouts(), 80);
+          }
         }
       });
+    });
+  }
+
+  /** Measure each question's options content width and set 1row / 2row / 4row. */
+  measureOptionsLayouts(): void {
+    if (!this.topicQuestions?.length) {
+      this.optionsLayouts = [];
+      this.cdr.markForCheck();
+      return;
+    }
+    const host = this.elRef.nativeElement;
+    const items = host.querySelectorAll<HTMLElement>('.topic-question-item');
+    const layouts: ('1row' | '2row' | '4row')[] = new Array(this.topicQuestions.length);
+    const gap = this.OPTIONS_GAP_PX;
+    const containers: HTMLElement[] = [];
+
+    const availableByIndex = new Map<number, number>();
+
+    items.forEach((item, index) => {
+      const container = item.querySelector<HTMLElement>('.topic-question-options');
+      if (!container) return;
+      const contentParent = container.closest<HTMLElement>('.topic-question-content');
+      availableByIndex.set(index, contentParent ? contentParent.offsetWidth : container.offsetWidth);
+      containers.push(container);
+      const opts = container.querySelectorAll<HTMLElement>('.topic-question-opt');
+      const n = opts.length;
+      if (n <= 1) {
+        layouts[index] = '1row';
+        return;
+      }
+      container.classList.add('options-measure');
+    });
+
+    requestAnimationFrame(() => {
+      const dataByIndex: Map<number, { available: number; widths: number[]; n: number }> = new Map();
+      items.forEach((item, index) => {
+        const container = item.querySelector<HTMLElement>('.topic-question-options');
+        if (!container) return;
+        const opts = container.querySelectorAll<HTMLElement>('.topic-question-opt');
+        const n = opts.length;
+        const widths: number[] = [];
+        for (let i = 0; i < n; i++) widths.push((opts[i] as HTMLElement).offsetWidth);
+        const available = availableByIndex.get(index) ?? container.offsetWidth;
+        dataByIndex.set(index, { available, widths, n });
+      });
+      containers.forEach((c) => c.classList.remove('options-measure'));
+      for (let index = 0; index < this.topicQuestions.length; index++) {
+        const d = dataByIndex.get(index);
+        if (!d) {
+          layouts[index] = '2row';
+          continue;
+        }
+        const { available, widths, n } = d;
+        if (n <= 1) {
+          layouts[index] = '1row';
+          continue;
+        }
+        const totalOneRow = widths.reduce((a, b) => a + b, 0) + (n - 1) * gap;
+        if (totalOneRow <= available) {
+          layouts[index] = '1row';
+          continue;
+        }
+        if (n >= 4) {
+          const row1 = widths[0] + widths[1] + gap;
+          const row2 = widths[2] + widths[3] + gap;
+          if (Math.max(row1, row2) <= available) {
+            layouts[index] = '2row';
+            continue;
+          }
+        } else if (n === 2 || n === 3) {
+          const row1 = widths[0] + (n >= 2 ? widths[1] + gap : 0);
+          const row2 = n === 3 ? widths[2] : 0;
+          if (Math.max(row1, row2) <= available) {
+            layouts[index] = '2row';
+            continue;
+          }
+        }
+        layouts[index] = '4row';
+      }
+      this.optionsLayouts = layouts;
+      this.cdr.markForCheck();
     });
   }
 
@@ -635,6 +727,33 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Serial number for loaded questions list: 001, 002, ... 999. */
   formatSl(index: number): string {
     return (index + 1).toString().padStart(3, '0');
+  }
+
+  /** Extract display text from option value (plain string or Draft.js JSON). */
+  getOptionDisplayText(opt: unknown): string {
+    if (opt == null) return '';
+    if (typeof opt === 'string') {
+      const trimmed = opt.trim();
+      if (trimmed.startsWith('{') && trimmed.includes('blocks')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          const blocks = parsed?.blocks;
+          if (Array.isArray(blocks) && blocks.length > 0 && blocks[0]?.text != null) {
+            return blocks[0].text;
+          }
+        } catch {
+          return opt;
+        }
+      }
+      return opt;
+    }
+    if (typeof opt === 'object' && opt !== null && 'blocks' in opt) {
+      const blocks = (opt as { blocks?: Array<{ text?: string }> }).blocks;
+      if (Array.isArray(blocks) && blocks.length > 0 && blocks[0]?.text != null) {
+        return blocks[0].text;
+      }
+    }
+    return String(opt);
   }
 
   toggleQuestionSelection(qid: number | string): void {
