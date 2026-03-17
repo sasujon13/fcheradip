@@ -640,7 +640,27 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /** Measure each question's options content width and set 1row / 2row / 4row. */
+  /** Returns true if any option in the container has content wrapped to multiple lines. */
+  private optionContentWrapped(container: HTMLElement): boolean {
+    return this.optionContentWrappedCount(container) > 0;
+  }
+
+  /** Returns how many options in the container have content wrapped to multiple lines. */
+  private optionContentWrappedCount(container: HTMLElement): number {
+    const opts = container.querySelectorAll<HTMLElement>('.topic-question-opt');
+    let count = 0;
+    for (let i = 0; i < opts.length; i++) {
+      const el = opts[i];
+      const style = getComputedStyle(el);
+      const lh = parseFloat(style.lineHeight);
+      const fs = parseFloat(style.fontSize);
+      const singleLineH = (isNaN(lh) || lh <= 0 ? fs * 1.2 : lh);
+      if (el.offsetHeight > singleLineH * 1.25) count++;
+    }
+    return count;
+  }
+
+  /** For each question try 4 cols → if options wrap try 2 cols → if still wrap use 1 col. */
   measureOptionsLayouts(): void {
     if (!this.topicQuestions?.length) {
       this.optionsLayouts = [];
@@ -648,76 +668,48 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
     const host = this.elRef.nativeElement;
+    const listEl = host.querySelector<HTMLElement>('.topic-questions-list');
     const items = host.querySelectorAll<HTMLElement>('.topic-question-item');
     const layouts: ('1row' | '2row' | '4row')[] = new Array(this.topicQuestions.length);
-    const gap = this.OPTIONS_GAP_PX;
-    const containers: HTMLElement[] = [];
 
-    const availableByIndex = new Map<number, number>();
-
-    items.forEach((item, index) => {
-      const container = item.querySelector<HTMLElement>('.topic-question-options');
-      if (!container) return;
-      const contentParent = container.closest<HTMLElement>('.topic-question-content');
-      availableByIndex.set(index, contentParent ? contentParent.offsetWidth : container.offsetWidth);
-      containers.push(container);
-      const opts = container.querySelectorAll<HTMLElement>('.topic-question-opt');
-      const n = opts.length;
-      if (n <= 1) {
-        layouts[index] = '1row';
-        return;
-      }
-      container.classList.add('options-measure');
-    });
-
-    requestAnimationFrame(() => {
-      const dataByIndex: Map<number, { available: number; widths: number[]; n: number }> = new Map();
-      items.forEach((item, index) => {
-        const container = item.querySelector<HTMLElement>('.topic-question-options');
-        if (!container) return;
-        const opts = container.querySelectorAll<HTMLElement>('.topic-question-opt');
-        const n = opts.length;
-        const widths: number[] = [];
-        for (let i = 0; i < n; i++) widths.push((opts[i] as HTMLElement).offsetWidth);
-        const available = availableByIndex.get(index) ?? container.offsetWidth;
-        dataByIndex.set(index, { available, widths, n });
-      });
-      containers.forEach((c) => c.classList.remove('options-measure'));
-      for (let index = 0; index < this.topicQuestions.length; index++) {
-        const d = dataByIndex.get(index);
-        if (!d) {
-          layouts[index] = '2row';
-          continue;
-        }
-        const { available, widths, n } = d;
-        if (n <= 1) {
-          layouts[index] = '1row';
-          continue;
-        }
-        const totalOneRow = widths.reduce((a, b) => a + b, 0) + (n - 1) * gap;
-        if (totalOneRow <= available) {
-          layouts[index] = '1row';
-          continue;
-        }
-        if (n >= 4) {
-          const row1 = widths[0] + widths[1] + gap;
-          const row2 = widths[2] + widths[3] + gap;
-          if (Math.max(row1, row2) <= available) {
-            layouts[index] = '2row';
-            continue;
-          }
-        } else if (n === 2 || n === 3) {
-          const row1 = widths[0] + (n >= 2 ? widths[1] + gap : 0);
-          const row2 = n === 3 ? widths[2] : 0;
-          if (Math.max(row1, row2) <= available) {
-            layouts[index] = '2row';
-            continue;
-          }
-        }
-        layouts[index] = '4row';
-      }
+    for (let i = 0; i < this.topicQuestions.length; i++) layouts[i] = '2row';
+    const container = items[0]?.querySelector<HTMLElement>('.topic-question-options');
+    if (!container) {
       this.optionsLayouts = layouts;
       this.cdr.markForCheck();
+      return;
+    }
+
+    if (listEl) listEl.classList.add('topic-questions-list-measure');
+    this.optionsLayouts = this.topicQuestions.map(() => '1row');
+    this.cdr.markForCheck();
+
+    requestAnimationFrame(() => {
+      const step1: ('1row' | '2row')[] = new Array(this.topicQuestions.length);
+      for (let index = 0; index < this.topicQuestions.length; index++) step1[index] = '1row';
+      items.forEach((item, index) => {
+        const cont = item.querySelector<HTMLElement>('.topic-question-options');
+        if (!cont) return;
+        const opts = cont.querySelectorAll<HTMLElement>('.topic-question-opt');
+        if (opts.length <= 1) return;
+        step1[index] = this.optionContentWrapped(cont) ? '2row' : '1row';
+      });
+      for (let i = 0; i < this.topicQuestions.length; i++) layouts[i] = step1[i];
+      this.optionsLayouts = layouts.slice();
+      this.cdr.markForCheck();
+
+      requestAnimationFrame(() => {
+        for (let index = 0; index < this.topicQuestions.length; index++) {
+          if (step1[index] !== '2row') continue;
+          const cont = items[index]?.querySelector<HTMLElement>('.topic-question-options');
+          if (!cont) continue;
+          /* Only switch to 1 column when 3 or more options wrap in 2-column layout */
+          if (this.optionContentWrappedCount(cont) >= 3) layouts[index] = '4row';
+        }
+        if (listEl) listEl.classList.remove('topic-questions-list-measure');
+        this.optionsLayouts = layouts.slice();
+        this.cdr.markForCheck();
+      });
     });
   }
 
