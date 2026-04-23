@@ -160,6 +160,7 @@ function preBreakCommonGluedTypos(line: string): string {
   s = s.replace(/"\)\s*Print\s+f/gi, '");\nPrint f');
   s = s.replace(/"\)\s*printf\s*\(/gi, '");\nprintf(');
   s = s.replace(/="\s*(?=scanf)/gi, '=";\n');
+  s = s.replace(/\(\\n\s+/g, '(');
   return s;
 }
 
@@ -1003,7 +1004,7 @@ function formatCProgram(code: string): string {
     indent = lineIndent;
   }
 
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return out.join('\n').replace(/\n{2,}/g, '\n').trim();
 }
 
 /** One `<br />` per logical line; spaces kept as returned (no `&nbsp;` — allows wrap at spaces). */
