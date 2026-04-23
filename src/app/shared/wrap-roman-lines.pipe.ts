@@ -1,5 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { formatMaybeCProgramQuestionText } from './c-program-question-format';
 
 /** Roman numeral line pattern: i., ii., iii. or I., II., III. at start of line */
 const ROMAN_LINE = /^\s*(i|ii|iii|I|II|III)\./;
@@ -9,7 +10,7 @@ const BN_PAREN_KHOGH_LINE = /^\s*\([কখগঘ]\)/;
 
 /** Match code block, img stack+caption, bare <img>, or <br> on a single line (stack pattern first). */
 const CODE_BLOCK_RE =
-  /<span class="q-code-block"[^>]*><code>.*?<\/code><\/span>/gi;
+  /<span class="q-code-block"[^>]*><code>[\s\S]*?<\/code><\/span>/gi;
 const IMG_STACK_CAPTION =
   /<span class="q-rich-img-stack[^"]*"[^>]*>\s*<img\b[^>]*>\s*<span class="q-rich-img-caption">[^<]*<\/span>\s*<\/span>/gi;
 const IMG_STACK_BARE =
@@ -138,7 +139,7 @@ function escapeHtmlPreserveImages(line: string): string {
     const token = m[0];
     if (/^<br\s*\/?>/i.test(token)) {
       parts.push('<br />');
-    } else if (/^<span class="q-code-block"[^>]*><code>.*<\/code><\/span>$/i.test(token)) {
+    } else if (/^<span class="q-code-block"[^>]*><code>[\s\S]*<\/code><\/span>$/i.test(token)) {
       parts.push(token);
     } else if (/^<span class="q-rich-img-stack[^"]*"[^>]*>/i.test(token)) {
       parts.push(token);
@@ -158,9 +159,10 @@ export class WrapRomanLinesPipe implements PipeTransform {
 
   transform(text: string | null | undefined): SafeHtml {
     if (text == null || text === '') return this.sanitizer.bypassSecurityTrustHtml('');
-    const lines = String(text).split(/\r?\n/);
+    const prepared = formatMaybeCProgramQuestionText(String(text));
+    const lines = prepared.split(/\r?\n/);
     const parts = lines.map((line) => {
-      if (/^\s*<span class="q-code-block"[^>]*><code>.*<\/code><\/span>\s*$/i.test(line)) {
+      if (/^\s*<span class="q-code-block"[^>]*><code>[\s\S]*<\/code><\/span>\s*$/i.test(line)) {
         return line.trim();
       }
       const decodedLine = decodeHtmlEntities(line);

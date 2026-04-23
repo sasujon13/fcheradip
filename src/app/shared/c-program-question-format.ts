@@ -148,11 +148,29 @@ function insertNewlinesBeforeGluedIoCalls(line: string): string {
 }
 
 /**
+ * Break common student typos / glued fragments before the main lexer (string-aware passes still follow).
+ */
+function preBreakCommonGluedTypos(line: string): string {
+  const t = line.trim();
+  if (t.length < 24) return line;
+  let s = line;
+  s = s.replace(/;(?=\s*(?:Scan\s+f|Print\s+f|Printf|scanf|printf|for\s*\(\)))/gi, ';\n');
+  s = s.replace(/"\)\s*Scan\s+f/gi, '");\nScan f');
+  s = s.replace(/"\)\s*scanf\s*\(/gi, '");\nscanf(');
+  s = s.replace(/"\)\s*Print\s+f/gi, '");\nPrint f');
+  s = s.replace(/"\)\s*printf\s*\(/gi, '");\nprintf(');
+  s = s.replace(/="\s*(?=scanf)/gi, '=";\n');
+  return s;
+}
+
+/**
  * When the API returns the whole program on one ASCII line, insert newlines at safe points
  * (outside strings/comments, after `;` only when `()` depth is 0, and after `{` / `}` where useful).
  */
 function densifyMinifiedAsciiCLine(line: string): string {
-  const glued = insertNewlinesBeforeGluedIoCalls(breakGluedIncludeAndFollowingWord(line));
+  const glued = insertNewlinesBeforeGluedIoCalls(
+    preBreakCommonGluedTypos(breakGluedIncludeAndFollowingWord(line))
+  );
   let out = '';
   let i = 0;
   let paren = 0;
@@ -237,8 +255,9 @@ function densifyMinifiedAsciiCLine(line: string): string {
           if (next !== '(' && next !== ';' && next !== ',' && next !== ')' && next !== ']' && next !== '.') {
             const rest = glued.slice(j);
             const stmtHead =
-              /^(continue|break|return|if|for|while|switch|do|printf|scanf|sizeof)\b/i.test(rest) ||
-              /^(int|char|void|float|double|unsigned|short|long|static|const|struct)\b/.test(rest);
+              /^(continue|break|return|if|for|while|switch|do|printf|scanf|print\s*f|scan\s*f|sizeof)\b/i.test(
+                rest
+              ) || /^(int|char|void|float|double|unsigned|short|long|static|const|struct)\b/.test(rest);
             /** `for (...)S=S+K;` / `for (...)s = s+a;` / `if (a)x++;` — body glued to `)` without `{`. */
             const gluedStmtAfterParen =
               /^[A-Za-z_]\w*\s*=/.test(rest) ||
@@ -261,14 +280,9 @@ function densifyMinifiedAsciiCLine(line: string): string {
       out += ';';
       i++;
       while (i < glued.length && (glued[i] === ' ' || glued[i] === '\t')) {
-        out += glued[i]!;
         i++;
       }
-      if (i < glued.length && glued[i] === '}') {
-        out += '\n';
-        continue;
-      }
-      if (i < glued.length && !/^[)\]}]/.test(glued[i]!)) {
+      if (i < glued.length) {
         out += '\n';
       }
       continue;
@@ -299,13 +313,126 @@ function densifyMinifiedAsciiCLine(line: string): string {
   return out.trimEnd();
 }
 
+/**
+ * Second pass: split `;stmt` / `; Scan` when densify missed (broken strings, odd spacing, `Print f` / typos).
+ * Respects strings, line/block comments, and `()` depth so `for (a;b;c)` is not cut inside the header.
+ */
+function heuristicSplitLineRespectingStringsAndParens(line: string): string {
+  let out = '';
+  let i = 0;
+  const n = line.length;
+  let paren = 0;
+  let inStr: '"' | "'" | null = null;
+  let lineComment = false;
+  let blockComment = false;
+
+  while (i < n) {
+    const c = line[i]!;
+    const nxt = line[i + 1];
+    if (lineComment) {
+      out += c;
+      if (c === '\n' || c === '\r') lineComment = false;
+      i++;
+      continue;
+    }
+    if (blockComment) {
+      if (c === '*' && nxt === '/') {
+        out += '*/';
+        i += 2;
+        blockComment = false;
+        continue;
+      }
+      out += c;
+      i++;
+      continue;
+    }
+    if (inStr) {
+      if (c === '\\' && i + 1 < n) {
+        out += c + line[i + 1]!;
+        i += 2;
+        continue;
+      }
+      if (c === inStr) inStr = null;
+      out += c;
+      i++;
+      continue;
+    }
+    if (c === '/' && nxt === '/') {
+      out += '//';
+      i += 2;
+      lineComment = true;
+      continue;
+    }
+    if (c === '/' && nxt === '*') {
+      out += '/*';
+      i += 2;
+      blockComment = true;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      inStr = c as '"' | "'";
+      out += c;
+      i++;
+      continue;
+    }
+    if (c === '(') {
+      paren++;
+      out += c;
+      i++;
+      continue;
+    }
+    if (c === ')') {
+      const parenBefore = paren;
+      paren = Math.max(0, paren - 1);
+      out += c;
+      i++;
+      if (parenBefore > 0 && paren === 0) {
+        let j = i;
+        while (j < n && (line[j] === ' ' || line[j] === '\t')) {
+          j++;
+        }
+        if (j < n) {
+          const rest = line.slice(j);
+          if (/^[A-Za-z_]\w*\s*=/.test(rest)) {
+            out += '\n';
+            i = j;
+            continue;
+          }
+        }
+      }
+      continue;
+    }
+    if (c === ';' && paren === 0) {
+      out += ';';
+      i++;
+      let j = i;
+      while (j < n && (line[j] === ' ' || line[j] === '\t')) j++;
+      if (j < n) {
+        out += '\n';
+        i = j;
+        continue;
+      }
+      i = j;
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+function heuristicSplitGluedCStatements(text: string): string {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  return lines.map((ln) => heuristicSplitLineRespectingStringsAndParens(ln)).join('\n');
+}
+
 /** Min length for “packed one line” densify (fragments without #include / printf still count if they look like C). */
 const DENSE_MIN_LEN = 12;
 
 /** True when this line is clearly glued C (not only full programs with #include / I/O). */
 function lineHasReflowableCAnchors(ct: string): boolean {
   if (hasIoAnchor(ct) || /#\s*include\b/i.test(ct)) return true;
-  if (/\b(main|printf|scanf|clrscr|getch)\s*\(/i.test(ct)) return true;
+  if (/\b(main|printf|scanf|print\s*f|scan\s*f|clrscr|getch)\s*\(/i.test(ct)) return true;
   if (/;\s*(?:for|while|if|switch|int|char|void|float|double|return|continue|break|struct|static|unsigned|long)\b/i.test(ct)) {
     return true;
   }
@@ -346,7 +473,8 @@ function expandDenseCCodeForDisplay(code: string): string {
       out.push(raw);
       continue;
     }
-    const hasIncludeOrMain = /#\s*include\b|\b(main|printf|scanf)\s*\(/i.test(raw);
+    const hasIncludeOrMain =
+      /#\s*include\b|\b(main|printf|scanf|print\s*f|scan\s*f)\s*\(/i.test(raw);
     if (isBengaliText(raw) && !hasIncludeOrMain) {
       out.push(raw);
       continue;
@@ -361,7 +489,9 @@ function expandDenseCCodeForDisplay(code: string): string {
         continue;
       }
       if (shouldReflowCLayout(ct, chunk)) {
-        out.push(densifyMinifiedAsciiCLine(ct));
+        out.push(heuristicSplitGluedCStatements(densifyMinifiedAsciiCLine(ct)));
+      } else if (ct.length >= 50 && (chunk.match(/;/g) || []).length >= 2) {
+        out.push(heuristicSplitGluedCStatements(preBreakCommonGluedTypos(chunk)));
       } else {
         out.push(chunk);
       }
@@ -431,8 +561,64 @@ function detachCreativeTailFromCode(code: string, after: string): { code: string
 const C_LINE_START_RE =
   /(#\s*include\b|\b(?:void|int|char|float|double|long|short|signed|unsigned)\s+main\s*\(|\bmain\s*\(|\b(?:printf|scanf|print\s*f|scan\s*f|print|scan)\s*\()/i;
 
+/** First Bengali codepoint index outside strings and slash comments (same-line C + BN). */
+function indexOfFirstBengaliOutsideStrings(s: string): number {
+  let i = 0;
+  const n = s.length;
+  let inStr: '"' | "'" | null = null;
+  let lineComment = false;
+  let blockComment = false;
+  while (i < n) {
+    const c = s[i]!;
+    const nxt = s[i + 1];
+    if (lineComment) {
+      if (c === '\n' || c === '\r') lineComment = false;
+      i++;
+      continue;
+    }
+    if (blockComment) {
+      if (c === '*' && nxt === '/') {
+        i += 2;
+        blockComment = false;
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (inStr) {
+      if (c === '\\' && i + 1 < n) {
+        i += 2;
+        continue;
+      }
+      if (c === inStr) inStr = null;
+      i++;
+      continue;
+    }
+    if (c === '/' && nxt === '/') {
+      i += 2;
+      lineComment = true;
+      continue;
+    }
+    if (c === '/' && nxt === '*') {
+      i += 2;
+      blockComment = true;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      inStr = c as '"' | "'";
+      i++;
+      continue;
+    }
+    if (/[\u0980-\u09FF]/.test(c)) {
+      return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
 /**
- * Peel Bengali (and mixed narrative) from the ends of one physical line so `<code>` never holds BN script.
+ * Peel Bengali (and mixed narrative) from the ends of one physical line so monospace code spans never hold BN script.
  */
 function peelBengaliAroundCOnLine(line: string): { before: string; code: string; after: string } {
   const raw = line;
@@ -472,13 +658,23 @@ function peelBengaliAroundCOnLine(line: string): { before: string; code: string;
       s = s.slice(0, lastBrace + 1);
     }
   }
+  if (isBengaliText(s) && C_LINE_START_RE.test(s)) {
+    const bnIdx = indexOfFirstBengaliOutsideStrings(s);
+    if (bnIdx >= 0) {
+      const tail2 = s.slice(bnIdx).trim();
+      const head2 = s.slice(0, bnIdx).trimEnd();
+      if (tail2 && isBengaliText(tail2) && head2 && /[;{})]\s*$/.test(head2)) {
+        return { before, code: head2, after: [after, tail2].filter((x) => x.trim()).join('\n') };
+      }
+    }
+  }
   return { before, code: s, after };
 }
 
 type CodeOrBnSeg = { t: 'code'; s: string } | { t: 'bn'; s: string };
 
 /**
- * `<code>` must contain only C / Latin; Bengali narrative is emitted as plain lines between blocks when needed.
+ * Code segments must contain only C / Latin; Bengali narrative is emitted as plain lines between blocks when needed.
  */
 function splitExtractedCodeIntoCAndBnSegments(code: string): { leadingBn: string[]; segments: CodeOrBnSeg[] } {
   const lines = code.replace(/\r\n?/g, '\n').split('\n');
@@ -532,6 +728,87 @@ function isProgramAdjacentLine(line: string): boolean {
   return /[#<>{}();=,+\-*/%&[\]"]/.test(t) || /\b(main|printf|scanf|clrscr|getch|for|while|if|switch|return|int|char|float|double|void)\b/i.test(t);
 }
 
+/** `{` / `}` delta on one physical line, ignoring strings, block comments, and `//` line comments. */
+function netBraceDeltaIgnoringStringsAndLineComments(line: string): number {
+  let delta = 0;
+  let i = 0;
+  const n = line.length;
+  let inStr: '"' | "'" | null = null;
+  let lineComment = false;
+  let blockComment = false;
+  while (i < n) {
+    const c = line[i]!;
+    const nxt = line[i + 1];
+    if (lineComment) {
+      if (c === '\n' || c === '\r') lineComment = false;
+      i++;
+      continue;
+    }
+    if (blockComment) {
+      if (c === '*' && nxt === '/') {
+        i += 2;
+        blockComment = false;
+      } else {
+        i++;
+      }
+      continue;
+    }
+    if (inStr) {
+      if (c === '\\' && i + 1 < n) {
+        i += 2;
+        continue;
+      }
+      if (c === inStr) inStr = null;
+      i++;
+      continue;
+    }
+    if (c === '/' && nxt === '/') {
+      i += 2;
+      lineComment = true;
+      continue;
+    }
+    if (c === '/' && nxt === '*') {
+      i += 2;
+      blockComment = true;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      inStr = c as '"' | "'";
+      i++;
+      continue;
+    }
+    if (c === '{') delta++;
+    else if (c === '}') delta--;
+    i++;
+  }
+  return delta;
+}
+
+function cumulativeBraceDepth(lines: string[], fromIdx: number, toIdxInclusive: number): number {
+  let d = 0;
+  const hi = Math.min(toIdxInclusive, lines.length - 1);
+  for (let k = fromIdx; k <= hi; k++) {
+    d += netBraceDeltaIgnoringStringsAndLineComments(lines[k] ?? '');
+  }
+  return d;
+}
+
+/** Bengali narrative (not C); used to extend block past BN lines inside unclosed `{` … `}`. */
+function isBnLineExcludedFromCode(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (isBengaliNarrativeOnlyLine(t)) return true;
+  if (
+    isBengaliText(t) &&
+    !isCodeAnchorLine(line) &&
+    !/#\s*include\b/i.test(line) &&
+    !/\b(?:int|void|char|float|double|short|long|unsigned|static|struct|return|for|while|if|else|switch|case)\b/i.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function extractProgramBlock(input: string): { before: string; code: string; after: string } | null {
   const lines = String(input ?? '').replace(/\r\n?/g, '\n').split('\n');
   const anchorIndexes = lines
@@ -549,6 +826,30 @@ function extractProgramBlock(input: string): { before: string; code: string; aft
   }
   while (end < lines.length - 1 && isProgramAdjacentLine(lines[end + 1])) {
     end += 1;
+  }
+  while (end < lines.length - 1) {
+    const nextLine = lines[end + 1] ?? '';
+    if (isCreativeBnSubpartLine(nextLine)) {
+      break;
+    }
+    const t = nextLine.trim();
+    if (isProgramAdjacentLine(nextLine)) {
+      end += 1;
+      continue;
+    }
+    const depth = cumulativeBraceDepth(lines, start, end);
+    if (!t) {
+      if (depth > 0) {
+        end += 1;
+        continue;
+      }
+      break;
+    }
+    if (depth > 0 && isBnLineExcludedFromCode(nextLine)) {
+      end += 1;
+      continue;
+    }
+    break;
   }
 
   const codeLines = lines.slice(start, end + 1);
@@ -713,6 +1014,22 @@ function encodeCodeHtml(code: string): string {
     .join('<br />');
 }
 
+/** Cursor-style label; uses first `*.c` token in the raw question if present, else `program`. */
+function guessCSourceFileRef(raw: string, formattedLineCount: number): string {
+  const m = /\b([A-Za-z_][\w.-]*\.c)\b/i.exec(String(raw ?? ''));
+  const base = m ? m[1]! : 'program';
+  const n = Math.max(1, formattedLineCount);
+  return `@${base} (1-${n})`;
+}
+
+function ensureNewlineBeforeCreativeParenMarkers(code: string): string {
+  return String(code ?? '')
+    .replace(/\}\s*(\(ক\))/g, '}\n$1')
+    .replace(/\}\s*(\(খ\))/g, '}\n$1')
+    .replace(/\}\s*(\(গ\))/g, '}\n$1')
+    .replace(/\}\s*(\(ঘ\))/g, '}\n$1');
+}
+
 export function formatMaybeCProgramQuestionText(raw: string): string {
   const input = String(raw ?? '').trim();
   if (!input || input.includes('class="q-code-block"') || !looksLikeCProgramQuestion(input)) {
@@ -724,7 +1041,8 @@ export function formatMaybeCProgramQuestionText(raw: string): string {
     return input;
   }
 
-  const detached = detachCreativeTailFromCode(block.code, block.after);
+  const codeForDetach = ensureNewlineBeforeCreativeParenMarkers(block.code.trim());
+  const detached = detachCreativeTailFromCode(codeForDetach, block.after);
   const after = detached.after;
   const { leadingBn, segments } = splitExtractedCodeIntoCAndBnSegments(detached.code);
   const expandedSegments: CodeOrBnSeg[] = segments.map((seg) =>
@@ -743,7 +1061,15 @@ export function formatMaybeCProgramQuestionText(raw: string): string {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean).length;
-  if (!hasIncludeAnchor(codeOnlyJoined) && hasIoAnchor(codeOnlyJoined) && codeLineCount <= 4) {
+  /** Short printf/scanf-only fragments (no #include) stay plain; full `main` programs always get the code block. */
+  const looksLikeFullMainProgram =
+    /\b(?:void|int|char|float|double|long|short|unsigned|static)\s+main\s*\(|\bmain\s*\(/i.test(codeOnlyJoined);
+  if (
+    !hasIncludeAnchor(codeOnlyJoined) &&
+    hasIoAnchor(codeOnlyJoined) &&
+    codeLineCount <= 4 &&
+    !looksLikeFullMainProgram
+  ) {
     return input;
   }
 
@@ -758,7 +1084,13 @@ export function formatMaybeCProgramQuestionText(raw: string): string {
       if (!formatted.trim()) {
         continue;
       }
-      parts.push(`<span class="q-code-block"><code>${encodeCodeHtml(formatted)}</code></span>`);
+      const lineCount = formatted
+        .split('\n')
+        .map((ln) => ln.trim())
+        .filter(Boolean).length;
+      const refLine = guessCSourceFileRef(input, lineCount);
+      const withRef = `${refLine}\n${formatted}`;
+      parts.push(`<span class="q-code-block"><code>${encodeCodeHtml(withRef)}</code></span>`);
     } else if (seg.s.trim()) {
       parts.push(seg.s.trim());
     }
