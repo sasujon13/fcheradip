@@ -1,0 +1,112 @@
+<div class="session-container" *ngIf="!loading && !error">
+  <!-- Exam in progress: all questions on one page, same design as /question topic-questions-section -->
+  <div class="topic-questions-section" *ngIf="!isSubmitted && questions.length > 0">
+    <div class="topic-questions-header">
+      <div class="topic-questions-actions">
+        <span class="session-title-inline">{{ set?.name_label || 'Exam' }}</span>
+        <span class="timer-wrap-inline" [class.timer-warning]="timeRemaining <= 300">
+          <span class="timer-label">Time left</span>
+          <span class="timer-value">{{ getTimerDisplay() }}</span>
+        </span>
+        <span class="selected-count">{{ answeredCount }} Answered of {{ questions.length }} Questions</span>
+        <button type="button" class="btn-student-primary btn-submit-exam" (click)="submitExam()">Submit Exam</button>
+      </div>
+    </div>
+    <!-- Sticky bar so Submit is always visible -->
+    <div class="exam-submit-bar">
+      <span class="exam-submit-timer" [class.timer-warning]="timeRemaining <= 300">{{ getTimerDisplay() }}</span>
+      <span class="exam-submit-count">{{ answeredCount }} / {{ questions.length }} answered</span>
+      <button type="button" class="btn-student-primary btn-submit-exam-fixed" (click)="submitExam()">Submit Exam — End & see results</button>
+    </div>
+    <ul class="topic-questions-list">
+      <li *ngFor="let q of questions; let i = index" class="topic-question-item" [attr.data-full-index]="i">
+        <div class="topic-question-sl-col">
+          <span class="topic-question-sl">{{ formatSl(i + 1) }}</span>
+        </div>
+        <div class="topic-question-content">
+          <div class="topic-question-top-badges">
+            <span class="topic-question-qid topic-question-qid-visible">{{ q.qid }}</span>
+          </div>
+          <label class="topic-question-label">
+            <span class="topic-question-text" [innerHTML]="q.question | wrapRomanLines"></span>
+          </label>
+          <div class="topic-question-options topic-question-options-1row">
+            <button
+              *ngFor="let key of optionKeys"
+              type="button"
+              class="topic-question-opt exam-opt-wrap"
+              [class.selected]="answers[q.qid] === key"
+              [disabled]="isSubmitted"
+              (click)="!isSubmitted && selectAnswer(q.qid, key)"
+            >
+              <span
+                class="exam-opt-circle"
+                [class.filled]="answers[q.qid] === key"
+                [class.correct]="isSubmitted && key === getCorrectAnswer(q)"
+                [class.wrong]="isSubmitted && key === answers[q.qid] && key !== getCorrectAnswer(q)"
+              >
+                <span class="exam-opt-key">{{ key }}</span>
+              </span>
+              <span class="exam-opt-text">{{ getOptionText(q, key) }}</span>
+            </button>
+          </div>
+          <span class="topic-question-subsource" *ngIf="q.subsource">{{ q.subsource }}</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Results preview: same list with correct/wrong styling -->
+  <div class="topic-questions-section exam-results-section" *ngIf="isSubmitted && result && questions.length > 0">
+    <div class="topic-questions-header">
+      <h3 class="result-heading">Exam Results — {{ set?.name_label || 'Exam' }}</h3>
+      <div class="topic-questions-actions">
+        <span class="selected-count">{{ result.correct }} Correct of {{ result.total }} — Score {{ result.score }}%</span>
+        <button type="button" class="btn-student-primary" (click)="backToRegularExam()">Back to Regular Exams</button>
+      </div>
+    </div>
+    <ul class="topic-questions-list">
+      <li *ngFor="let q of questions; let i = index" class="topic-question-item" [class.exam-item-wrong]="!isUserCorrect(q)">
+        <div class="topic-question-sl-col">
+          <span class="topic-question-sl">{{ formatSl(i + 1) }}</span>
+        </div>
+        <div class="topic-question-content">
+          <div class="topic-question-top-badges">
+            <span class="topic-question-qid topic-question-qid-visible">{{ q.qid }}</span>
+          </div>
+          <label class="topic-question-label">
+            <span class="topic-question-text" [innerHTML]="q.question | wrapRomanLines"></span>
+          </label>
+          <div class="topic-question-options topic-question-options-1row">
+            <span
+              *ngFor="let key of optionKeys"
+              class="topic-question-opt exam-opt-wrap exam-opt-result"
+              [class.correct]="key === getCorrectAnswer(q)"
+              [class.wrong]="key === answers[q.qid] && key !== getCorrectAnswer(q)"
+            >
+              <span
+                class="exam-opt-circle"
+                [class.filled]="key === answers[q.qid] || key === getCorrectAnswer(q)"
+                [class.correct]="key === getCorrectAnswer(q)"
+                [class.wrong]="key === answers[q.qid] && key !== getCorrectAnswer(q)"
+              >
+                <span class="exam-opt-key">{{ key }}</span>
+              </span>
+              <span class="exam-opt-text">{{ getOptionText(q, key) }}</span>
+            </span>
+          </div>
+          <span class="topic-question-subsource" *ngIf="q.subsource">{{ q.subsource }}</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="session-error" *ngIf="error">
+  <p>{{ error }}</p>
+  <a routerLink="/student/regularexam" class="btn-student-primary">Back to Regular Exams</a>
+</div>
+
+<div class="session-loading" *ngIf="loading">
+  <p>Loading exam…</p>
+</div>

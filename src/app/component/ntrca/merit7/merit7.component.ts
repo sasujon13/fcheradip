@@ -1,6 +1,7 @@
-import { Component, OnInit, ElementRef, ViewChild, Renderer2 } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, Renderer2 } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-merit7',
@@ -8,7 +9,7 @@ import { environment } from 'src/environments/environment';
   styleUrls: ['./merit7.component.css']
 })
 
-export class Merit7Component implements OnInit {
+export class Merit7Component implements OnInit, AfterViewInit {
   baseUrl: string = `${environment.apiUrl}/merit7/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;
@@ -250,10 +251,14 @@ export class Merit7Component implements OnInit {
     // Add more embed URLs here
   ];
 
-  constructor(private http: HttpClient, private renderer: Renderer2) { }
+  constructor(
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
-
+    this.loadingService.setTotal(1);
     this.getTotalTableCount();
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
@@ -286,6 +291,10 @@ export class Merit7Component implements OnInit {
     document.addEventListener('contextmenu', function (event) {
       event.preventDefault();
     });
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   applyToken(): void {

@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, OnDestr
 import { ApiService } from '../../service/api.service';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { CountryService, Country } from '../../service/country.service';
+import { LoadingService } from '../../service/loading.service';
 import { Subscription } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
@@ -72,6 +73,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private readonly BOTTOM_GAP = 100000;
   /** Search term for header country dropdown (filter countries like login/signup). */
   headerCountrySearch = '';
+  /** Global loading overlay (from LoadingService). */
+  loadingShow = false;
+  loadingProgressPercent = 0;
+  /** Default when {@link LoadingState.message} is null. */
+  readonly loadingOverlayDefaultMessage = 'Loading Data! Please wait.......';
+  loadingOverlayMessage = this.loadingOverlayDefaultMessage;
+  private loadingSub: Subscription | null = null;
   /** Filtered list for header country dropdown; when empty search returns all. */
   get filteredCountriesForHeader(): Country[] {
     const q = (this.headerCountrySearch || '').trim().toLowerCase();
@@ -122,11 +130,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private apiService: ApiService,
     public router: Router,
     private countryService: CountryService,
+    private loadingService: LoadingService,
     private snackBar: MatSnackBar,
     private http: HttpClient,
     private cdr: ChangeDetectorRef) { }
 
   ngOnInit(): void {
+    this.loadingSub = this.loadingService.getState$().subscribe((s) => {
+      this.loadingShow = s.show;
+      this.loadingProgressPercent = s.progressPercent;
+      this.loadingOverlayMessage = s.message ?? this.loadingOverlayDefaultMessage;
+      this.cdr.markForCheck();
+    });
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         setTimeout(() => {
@@ -191,6 +206,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.loadingSub) {
+      this.loadingSub.unsubscribe();
+      this.loadingSub = null;
+    }
     if (this.countrySubscription) {
       this.countrySubscription.unsubscribe();
     }

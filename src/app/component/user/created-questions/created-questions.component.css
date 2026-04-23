@@ -70,6 +70,17 @@
   font-weight: 600;
   color: teal;
 }
+.sets-table .col-check {
+  width: 2.5rem;
+  text-align: center;
+  vertical-align: middle;
+}
+.sets-table .col-check .row-check {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: teal;
+}
 .sets-table .col-sl {
   width: 3rem;
   text-align: center;
@@ -87,8 +98,37 @@
   text-align: right;
 }
 .sets-table thead th.col-meta-actions .th-actions-wrap {
-  display: block;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem 1rem;
   text-align: right;
+}
+.btn-delete-bulk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2px 10px;
+  border: none;
+  background: transparent;
+  color: #7f1d1d;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-delete-bulk:hover:not(:disabled) {
+  background: rgba(127, 29, 29, 0.1);
+  color: #450a0a;
+}
+.btn-delete-bulk:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-delete-bulk .fa-times {
+  font-size: 1rem;
+  font-weight: 700;
 }
 .btn-download-all {
   display: inline-flex;
@@ -117,10 +157,17 @@
 .btn-download-all .fa {
   font-size: 1.1rem;
 }
+.set-row {
+  cursor: pointer;
+}
 .set-row td {
   padding: 0.6rem 0.75rem;
   border-bottom: 1px solid #eee;
   vertical-align: middle;
+}
+.set-row--highlight td {
+  /* box-shadow: inset 0 0 0 2px rgba(0, 128, 128, 0.85);
+  background: rgba(0, 128, 128, 0.12) !important; */
 }
 .set-row:last-child td {
   border-bottom: none;

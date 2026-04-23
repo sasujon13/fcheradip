@@ -1,12 +1,13 @@
-import { Component, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { ApiService, ScraperLibrary } from '../../../service/api.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-scraper',
   templateUrl: './scraper.component.html',
   styleUrls: ['./scraper.component.css'],
 })
-export class ScraperComponent implements AfterViewChecked {
+export class ScraperComponent implements OnInit, AfterViewInit, AfterViewChecked {
   @ViewChild('logBox') logBoxRef?: ElementRef<HTMLTextAreaElement>;
   private scrollLogToBottom = false;
   sitePreset: 'daricomma' | 'chorcha' | 'eprosnobank' | 'livemcq' | 'other' = 'daricomma';
@@ -52,8 +53,20 @@ export class ScraperComponent implements AfterViewChecked {
     return this.groups[this.selectedGroupIndex];
   }
 
-  constructor(private api: ApiService, private cdr: ChangeDetectorRef) {
+  constructor(
+    private api: ApiService,
+    private cdr: ChangeDetectorRef,
+    private loadingService: LoadingService
+  ) {
     this.loadHelper();
+  }
+
+  ngOnInit(): void {
+    this.loadingService.setTotal(1);
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   loadHelper(skipRestoreLastSite = false): void {

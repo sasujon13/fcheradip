@@ -1,45 +1,65 @@
-/* Import shared styles */
 @import '../../../shared/styles/header.shared.css';
 @import '../../../shared/styles/student.shared.css';
 
-/* Liveexam component-specific styles */
 .liveexam-container {
-  padding: 20px;
+  padding: 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.page-title {
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  font-size: 28px;
-  color: teal;
-  margin-bottom: 24px;
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-desc {
+  font-size: 0.9375rem;
+  color: var(--student-text-light);
+  margin: 0.25rem 0 0 0;
 }
 
 .filters-section {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
-}
-
-.filter-select {
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  font-size: 14px;
-  min-width: 150px;
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: teal;
 }
 
 .exams-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1rem;
 }
 
+.exam-card-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  max-width: 200px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: var(--student-surface);
+  border: 1px dashed var(--student-border);
+  border-radius: var(--student-radius);
+}
+
+.empty-icon {
+  display: block;
+  font-size: 3rem;
+  color: var(--student-border);
+  margin-bottom: 1rem;
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--student-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-desc {
+  font-size: 0.9375rem;
+  color: var(--student-text-light);
+  margin: 0 0 1.25rem 0;
+}

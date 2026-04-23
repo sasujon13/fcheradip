@@ -16,9 +16,17 @@ export class AuthInterceptor implements HttpInterceptor {
     next: HttpHandler
   ): Observable<HttpEvent<unknown>> {
     const token = localStorage.getItem('authToken');
-    const apiUrl = (environment.apiUrl || '').replace(/\/$/, '');
-    const path = request.url.startsWith('http') ? new URL(request.url).pathname : request.url;
-    const isApi = path === apiUrl || path.startsWith(apiUrl + '/');
+    const apiUrlNorm = (environment.apiUrl || '').replace(/\/$/, '');
+    let isApi = false;
+    if (request.url.startsWith('http')) {
+      const reqNorm = request.url.replace(/\/$/, '');
+      isApi = reqNorm === apiUrlNorm || reqNorm.startsWith(apiUrlNorm + '/');
+    } else {
+      const apiPath = apiUrlNorm.startsWith('http') ? new URL(apiUrlNorm).pathname : apiUrlNorm;
+      const apiPathNorm = (apiPath || '').replace(/\/$/, '');
+      const pathNorm = (request.url || '').replace(/\/$/, '');
+      isApi = pathNorm === apiPathNorm || pathNorm.startsWith(apiPathNorm + '/');
+    }
     if (token && isApi) {
       request = request.clone({
         setHeaders: { Authorization: `Bearer ${token}` },

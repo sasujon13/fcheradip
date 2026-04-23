@@ -1,0 +1,35 @@
+<div class="login_signup_form disappeared-form">
+  <h2>Disappeared Questions</h2>
+  <p class="disappeared-desc">Questions you chose to disappear are hidden from the question list. Click <strong>Live</strong> to restore a question, or <strong>Live All</strong> to restore all.</p>
+  <div class="disappeared-toolbar" *ngIf="items.length > 0">
+    <button type="button" class="btn-live-all" (click)="liveAll()" title="Restore all disappeared questions">Live All</button>
+  </div>
+  <ul class="topic-questions-list disappeared-list" *ngIf="items.length > 0">
+    <li *ngFor="let item of items; let i = index" class="topic-question-item">
+      <div class="topic-question-sl-col">
+        <span class="topic-question-sl">{{ i + 1 }}</span>
+      </div>
+      <div class="topic-question-content">
+        <span class="topic-question-qid">{{ item.qid }}</span>
+        <label class="topic-question-label">
+          <span class="topic-question-text" *ngIf="item.question" [innerHTML]="item.question | wrapRomanLines"></span>
+        </label>
+        <div class="topic-question-options topic-question-options-2row" *ngIf="item.option_1 || item.option_2 || item.option_3 || item.option_4">
+          <span *ngIf="item.option_1" class="topic-question-opt">(ক) <span class="topic-question-opt-html" [innerHTML]="item.option_1 | wrapRomanLines"></span></span>
+          <span *ngIf="item.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html" [innerHTML]="item.option_2 | wrapRomanLines"></span></span>
+          <span *ngIf="item.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html" [innerHTML]="item.option_3 | wrapRomanLines"></span></span>
+          <span *ngIf="item.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html" [innerHTML]="item.option_4 | wrapRomanLines"></span></span>
+        </div>
+        <div class="topic-question-extra" *ngIf="item.answer || item.explanation">
+          <span class="topic-question-answer" *ngIf="item.answer">Answer: {{ item.answer }}</span>
+          <div class="topic-question-explanation" *ngIf="item.explanation" [innerHTML]="item.explanation | wrapRomanLines"></div>
+        </div>
+        <div class="topic-question-item-actions">
+          <button type="button" class="topic-question-action-btn btn-live" (click)="live(item.qid)" title="Show this question again">Live</button>
+        </div>
+      </div>
+    </li>
+  </ul>
+  <p *ngIf="items.length === 0" class="disappeared-empty">No disappeared questions. Use the <strong>Disappear</strong> button (eye-slash icon) on any question to hide it from the list.</p>
+  <p *ngIf="message" class="disappeared-message">{{ message }}</p>
+</div>

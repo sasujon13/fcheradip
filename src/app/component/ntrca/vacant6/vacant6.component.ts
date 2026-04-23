@@ -1,6 +1,7 @@
-import { Component, OnInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
+import { LoadingService } from 'src/app/service/loading.service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -9,7 +10,7 @@ import html2canvas from 'html2canvas';
   templateUrl: './vacant6.component.html',
   styleUrls: ['./vacant6.component.css']
 })
-export class Vacant6Component implements OnInit {
+export class Vacant6Component implements OnInit, AfterViewInit {
   baseUrl: string = `${environment.apiUrl}/vacancy6/`
   baseUrl2: string = `${environment.apiUrl}/banbeis/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
@@ -264,10 +265,14 @@ export class Vacant6Component implements OnInit {
   get yearMinus3(): number { return this.currentYear - 3; }
   get yearMinus4(): number { return this.currentYear - 4; }
 
-  constructor(private http: HttpClient, private renderer: Renderer2) { }
+  constructor(
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
-
+    this.loadingService.setTotal(1);
     this.getTotalTableCount();
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
@@ -300,7 +305,10 @@ export class Vacant6Component implements OnInit {
     document.addEventListener('contextmenu', function (event) {
       event.preventDefault();
     });
+  }
 
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   createTableRows(districts: string[], columns: number): string[][] {

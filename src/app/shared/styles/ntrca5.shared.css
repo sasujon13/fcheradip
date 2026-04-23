@@ -983,7 +983,7 @@ main {
 }
 
 .btn {
-  background-color: #00b4db;
+  background-color: teal;
   color: white;
   padding: 0.8rem 1.5rem;
   text-decoration: none;
@@ -993,7 +993,7 @@ main {
 }
 
 .btn:hover {
-  background-color: #50dffe;
+  background-color: rgb(0, 93, 93);
 }
 
 footer {
@@ -1132,7 +1132,7 @@ button.newButton2 {
 }
 
 button.newButton3 {
-  margin-left: 195px;
+  margin-left: 146px;
   z-index: 2;
 }
 

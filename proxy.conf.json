@@ -1,6 +1,17 @@
 {
   "/api": {
-    "target": "http://127.0.0.1:8000",
-    "secure": false
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/manage": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/media": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": true
   }
 }

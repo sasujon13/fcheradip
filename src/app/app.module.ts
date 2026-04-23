@@ -16,6 +16,9 @@ import { LanguageInterceptor } from './service/language.interceptor';
 import { AuthInterceptor } from './service/auth.interceptor';
 import { FilterPipe } from './shared/filter.pipe';
 import { SafeUrlPipe } from './shared/safe-url.pipe';
+import { WrapRomanLinesPipe } from './shared/wrap-roman-lines.pipe';
+import { FormatQuestionMediaPipe } from './shared/format-question-media.pipe';
+import { QuestionRichImgObserveDirective } from './shared/question-rich-img-observe.directive';
 import { OrderByPipe } from './shared/orderBy.pipe';
 import { hDirective } from './shared/hfilter.directive';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -31,6 +34,7 @@ import { PasswordComponent } from './component/user/password/password.component'
 import { IndexComponent } from './component/index/index.component';
 import { MobileComponent } from './component/user/mobile/mobile.component';
 import { SettingsComponent } from './component/user/settings/settings.component';
+import { DisappearedQuestionsComponent } from './component/user/disappeared-questions/disappeared-questions.component';
 import { CreatedQuestionsComponent } from './component/user/created-questions/created-questions.component';
 import { SignupComponent } from './component/user/signup/signup.component';
 import { CountrySelectorComponent } from './shared/country-selector/country-selector.component';
@@ -61,8 +65,10 @@ import { QuestionCreatorComponent } from './component/question/question-creator/
 import { StudentComponent } from './component/student/student/student.component';
 import { DashboardComponent } from './component/student/dashboard/dashboard.component';
 import { LiveexamComponent } from './component/student/liveexam/liveexam.component';
+import { RegularexamComponent } from './component/student/regularexam/regularexam.component';
 import { ArchiveComponent } from './component/student/archive/archive.component';
 import { ExamComponent } from './component/student/exam/exam.component';
+import { ExamSetSessionComponent } from './component/student/exam-set-session/exam-set-session.component';
 import { ReportComponent } from './component/student/report/report.component';
 import { StatsComponent } from './component/student/stats/stats.component';
 import { LeaderboardComponent } from './component/student/leaderboard/leaderboard.component';
@@ -93,6 +99,9 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     ChoiceComponent,
     FilterPipe,
     SafeUrlPipe,
+    WrapRomanLinesPipe,
+    FormatQuestionMediaPipe,
+    QuestionRichImgObserveDirective,
     OrderByPipe,
     hDirective,
     LoginComponent,
@@ -101,6 +110,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     AdminComponent,
     ProfileComponent,
     SettingsComponent,
+    DisappearedQuestionsComponent,
     CreatedQuestionsComponent,
     MyorderComponent,
     PasswordComponent,
@@ -137,8 +147,10 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     StudentComponent,
     DashboardComponent,
     LiveexamComponent,
+    RegularexamComponent,
     ArchiveComponent,
     ExamComponent,
+    ExamSetSessionComponent,
     ReportComponent,
     StatsComponent,
     LeaderboardComponent,

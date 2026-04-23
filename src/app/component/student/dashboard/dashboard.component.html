@@ -1,50 +1,70 @@
 <div class="dashboard-container">
-  <h1 class="dashboard-title">Student Dashboard</h1>
-  
-  <div class="stats-grid">
-    <div class="stat-box">
+  <header class="dashboard-header">
+    <h1 class="dashboard-title">Student Dashboard</h1>
+    <p class="dashboard-subtitle">Track your progress and access exams, reports, and more.</p>
+  </header>
+
+  <section class="stats-grid" aria-label="Your statistics">
+    <div class="stat-box stat-box--primary">
+      <span class="stat-icon" aria-hidden="true"><i class="fa fa-check-circle"></i></span>
       <div class="stat-value">{{ stats.examsCompleted }}</div>
       <div class="stat-label">Exams Completed</div>
     </div>
-    
-    <div class="stat-box">
+    <div class="stat-box stat-box--score">
+      <span class="stat-icon" aria-hidden="true"><i class="fa fa-percent"></i></span>
       <div class="stat-value">{{ stats.averageScore }}%</div>
       <div class="stat-label">Average Score</div>
     </div>
-    
-    <div class="stat-box">
+    <div class="stat-box stat-box--rank">
+      <span class="stat-icon" aria-hidden="true"><i class="fa fa-trophy"></i></span>
       <div class="stat-value">#{{ stats.currentRank }}</div>
       <div class="stat-label">Current Rank</div>
     </div>
-    
-    <div class="stat-box">
+    <div class="stat-box stat-box--streak">
+      <span class="stat-icon" aria-hidden="true"><i class="fa fa-fire"></i></span>
       <div class="stat-value">{{ stats.loginStreak }}</div>
       <div class="stat-label">Login Streak (Days)</div>
     </div>
-  </div>
+  </section>
 
-  <div class="quick-actions">
-    <h2>Quick Actions</h2>
-    <div class="action-buttons">
-      <button class="btn-student-primary" [routerLink]="['/student/liveexam']">
-        <i class="fa fa-play-circle"></i> Live Exams
-      </button>
-      <button class="btn-student-primary" [routerLink]="['/student/archive']">
-        <i class="fa fa-archive"></i> Practice Exams
-      </button>
-      <button class="btn-student-secondary" [routerLink]="['/student/report']">
-        <i class="fa fa-chart-line"></i> Reports
-      </button>
-      <button class="btn-student-secondary" [routerLink]="['/student/stats']">
-        <i class="fa fa-trophy"></i> Stats & Achievements
-      </button>
-      <button class="btn-student-secondary" [routerLink]="['/student/leaderboard']">
-        <i class="fa fa-users"></i> Leaderboard
-      </button>
-      <button class="btn-student-secondary" [routerLink]="['/student/tutor']">
-        <i class="fa fa-graduation-cap"></i> AI Tutor
-      </button>
+  <section class="quick-actions">
+    <h2 class="section-title">Quick Actions</h2>
+    <div class="action-cards">
+      <a [routerLink]="['/student/liveexam']" class="action-card action-card--primary">
+        <span class="action-icon"><i class="fa fa-play-circle"></i></span>
+        <span class="action-label">Live Exams</span>
+        <span class="action-desc">Join scheduled exams</span>
+      </a>
+      <a [routerLink]="['/student/regularexam']" class="action-card action-card--primary">
+        <span class="action-icon"><i class="fa fa-list-alt"></i></span>
+        <span class="action-label">Regular Exam</span>
+        <span class="action-desc">Filter & practice by topic</span>
+      </a>
+      <a [routerLink]="['/student/archive']" class="action-card action-card--primary">
+        <span class="action-icon"><i class="fa fa-archive"></i></span>
+        <span class="action-label">Practice Exams</span>
+        <span class="action-desc">Practice anytime</span>
+      </a>
+      <a [routerLink]="['/student/report']" class="action-card">
+        <span class="action-icon"><i class="fa fa-chart-line"></i></span>
+        <span class="action-label">Reports</span>
+        <span class="action-desc">View performance</span>
+      </a>
+      <a [routerLink]="['/student/stats']" class="action-card">
+        <span class="action-icon"><i class="fa fa-trophy"></i></span>
+        <span class="action-label">Stats & Achievements</span>
+        <span class="action-desc">Track progress</span>
+      </a>
+      <a [routerLink]="['/student/leaderboard']" class="action-card">
+        <span class="action-icon"><i class="fa fa-users"></i></span>
+        <span class="action-label">Leaderboard</span>
+        <span class="action-desc">See rankings</span>
+      </a>
+      <a [routerLink]="['/student/tutor']" class="action-card">
+        <span class="action-icon"><i class="fa fa-graduation-cap"></i></span>
+        <span class="action-label">AI Tutor</span>
+        <span class="action-desc">Learn with AI</span>
+      </a>
     </div>
-  </div>
+  </section>
 </div>
-

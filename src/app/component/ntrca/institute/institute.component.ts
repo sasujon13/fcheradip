@@ -1,9 +1,10 @@
-import { Component, OnInit, OnDestroy, Renderer2, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, Renderer2, HostListener } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { debounceTime, Subject } from 'rxjs';
 import { environment } from 'src/environments/environment';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-institute',
@@ -57,10 +58,12 @@ export class InstituteComponent implements OnInit, OnDestroy {
     private apiService: ApiService,
     private http: HttpClient,
     private renderer: Renderer2,
-    private lastInstitutes: LastInstitutesService
+    private lastInstitutes: LastInstitutesService,
+    private loadingService: LoadingService
   ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const storedLimit = localStorage.getItem('freeUnlockLimit');
     this.freeUnlockLimit = Number(storedLimit) || 10;
     const stored = localStorage.getItem('unlockedEIINs');
@@ -82,7 +85,10 @@ export class InstituteComponent implements OnInit, OnDestroy {
     document.addEventListener('contextmenu', function (event) {
       event.preventDefault();
     });
+  }
 
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   buildFilterParams(): HttpParams {

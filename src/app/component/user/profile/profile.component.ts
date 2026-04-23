@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
@@ -6,6 +6,7 @@ import { CountryService, Country } from 'src/app/service/country.service';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { LoadingService } from 'src/app/service/loading.service';
 
 
 @Component({
@@ -14,7 +15,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
   styleUrls: ['./profile.component.css']
 })
 
-export class ProfileComponent implements OnInit {
+export class ProfileComponent implements OnInit, AfterViewInit {
   @ViewChild('consoleOutput') consoleOutput: ElementRef | undefined;
   authForm: FormGroup;
   isPasswordMismatch = false;
@@ -60,6 +61,7 @@ export class ProfileComponent implements OnInit {
     private apiService: ApiService,
     private countryService: CountryService,
     private snackBar: MatSnackBar,
+    private loadingService: LoadingService
   ) {
     this.authForm = this.fb.group({
       countryCode: ['BD', [Validators.required]],
@@ -79,6 +81,7 @@ export class ProfileComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
@@ -132,6 +135,10 @@ export class ProfileComponent implements OnInit {
 
     this.setupFormValidatorsAndLocalStorageRefs();
     this.setupValueChangeSubscriptions();
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   private applyLocalStoragePatch(): void {

@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, Renderer2 } from '@angular/core';
+import { Component, Inject, OnInit, AfterViewInit, Renderer2 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { Location } from '@angular/common';
@@ -7,6 +7,7 @@ import { forkJoin, of } from 'rxjs';
 import { map, catchError, filter } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
+import { LoadingService } from 'src/app/service/loading.service';
 import { slugForUrlDisplay } from 'src/app/url-serializer';
 
 /** Token / unlock state for institute view (persisted in localStorage). */
@@ -18,7 +19,7 @@ const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
   templateUrl: './college-theme.component.html',
   styleUrls: ['./college-theme.component.css']
 })
-export class CollegeThemeComponent implements OnInit {
+export class CollegeThemeComponent implements OnInit, AfterViewInit {
   private banbeisUrl = `${environment.apiUrl}/banbeis/`;
   private institutesUrl = `${environment.apiUrl}/institutes/`;
   /** Direct fetch by EIIN (no search). Used when opening from sitemap / eiin or eiin-name URL. */
@@ -41,9 +42,11 @@ export class CollegeThemeComponent implements OnInit {
     private location: Location,
     private http: HttpClient,
     private lastInstitutes: LastInstitutesService,
+    private loadingService: LoadingService
   ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const storedLimit = localStorage.getItem(STORAGE_FREE_UNLOCK_LIMIT);
     this.freeUnlockLimit = Number(storedLimit) || 10;
     const stored = localStorage.getItem(STORAGE_UNLOCKED_EIINS);
@@ -58,6 +61,10 @@ export class CollegeThemeComponent implements OnInit {
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd)
     ).subscribe(() => this.scheduleUrlNormalize());
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   private normalizeScheduled = false;

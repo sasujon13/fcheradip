@@ -17,7 +17,6 @@
   gap: 12px 16px;
   padding: 12px;
   text-align: center;
-  margin-left: 180px;
   margin-top: 3px;
 }
 
@@ -98,6 +97,7 @@
 .filter-dropdown-wrap {
   flex-direction: row;
   align-items: center;
+  z-index: 1001;
 }
 
 .filter-dropdown-wrap .question-filter-label {
@@ -416,6 +416,8 @@
   background: rgba(0, 128, 128, 0.1);
   border-radius: 8px;
   border: teal;
+  width: 100%;
+  max-width: 1920px;
 }
 
 /* Smart Question Creator + Create Question buttons (navigate to question-creator) */
@@ -520,15 +522,125 @@
   color: red;
 }
 
+/* Wrapper so More Filters and X clear button sit side by side */
+.filter-dropdown-with-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+
+/* Keep dropdown only as wide as its button so X stays right after More Filters */
+.filter-dropdown-with-clear > .filter-dropdown {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* X and searchbar wrap: show when subject selected; keep side by side */
+.question-filter-actions-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.question-filter-actions-wrap .action-bar {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Clear all filters (X) button next to More Filters */
+.btn-clear-all-filters {
+  font-size: 15px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 4px 7px;
+  margin-left: 18px;
+  line-height: 1;
+  background: darkred;
+  border-radius: 45%;
+}
+.btn-clear-all-filters:hover {
+  background: red;
+  color: white;
+}
+
 .topic-questions-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-/* Hide list during wrap-based layout measurement to avoid flicker */
+
+.btn {
+  background-color: teal;
+  color: white;
+  padding: 0.8rem 1.5rem;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 30px;
+  transition: background 0.3s ease;
+}
+
+.btn:hover {
+  background-color: rgb(0, 93, 93);
+}
+
+
+button.newButton {
+  min-width: 200px;
+  background: teal;
+  font-size: 1.5em;
+  padding: 7px;
+  margin: 15px;
+}
+
+button.newButton2 {
+  min-width: 120px;
+  font-size: 1.2em;
+  padding: 3px;
+  z-index: 2;
+}
+
+button.newButton3 {
+  margin-left: 146px;
+  z-index: 2;
+}
+
+span.mx-3 {
+  margin-top: 0px;
+  background: rgba(0, 128, 128, 0.25);
+  width: 400px;
+  position: absolute;
+  text-align: center;
+  padding: 5px;
+  border-radius: 25px;
+  border: 1px dotted teal;
+  z-index: 1;
+  color: darkred;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.apply-filter-message {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 128, 128, 0.08);
+  color: #333;
+  font-size: 14px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* Hide list during wrap-based layout measurement to avoid flicker (disabled to avoid flash) */
 .topic-questions-list.topic-questions-list-measure {
-  visibility: hidden;
+  /* visibility: hidden; */
 }
 
 .topic-question-item {
@@ -541,6 +653,12 @@
   border: 1px solid #e8e8e8;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.topic-question-item.topic-question-item-selected {
+  border-color: rgba(0, 128, 128, 0.5);
+  background: rgba(0, 128, 128, 0.04);
+  box-shadow: 0 1px 4px rgba(0, 128, 128, 0.12);
 }
 
 .topic-question-sl-col {
@@ -569,6 +687,184 @@
 .topic-question-content {
   flex: 1;
   min-width: 0;
+  text-align: justify;
+  position: relative;
+  padding-right: 8px;
+}
+
+/* Wrapper for qid at top-right */
+.topic-question-top-badges {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 4px;
+}
+
+/* QID badge at top-right of each question block (hidden on /question page) */
+.topic-question-qid {
+  font-size: 12px;
+  color: white;
+  background: teal;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-family: monospace;
+  display: none;
+}
+
+/* Subsource: bottom-right of question block */
+.topic-question-subsource {
+  position: absolute;
+  right: 0;
+  bottom: -12px;
+  font-size: 12px;
+  color: teal;
+  background: transparent;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+/* Like, Disappear, Edit buttons - top-right below badges */
+.topic-question-item-actions {
+  position: absolute;
+  bottom: 3px;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+.topic-question-action-btn {
+  position: relative;
+  z-index: 1;
+}
+
+.topic-question-action-btn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: teal;
+  cursor: pointer;
+}
+.topic-question-action-btn:hover {
+  background: transparent;
+  color: green;
+}
+.topic-question-action-btn.loved {
+  color: #c00;
+}
+.topic-question-action-btn.loved i.fa-heart {
+  color: #c00;
+}
+.topic-question-action-label {
+  margin-left: 4px;
+}
+.topic-question-action-disappear {
+  color: teal;
+}
+.topic-question-action-disappear:hover {
+  color: green;
+}
+
+/* Inline edit: same look as question text/options; only as tall as content; Update/Cancel bottom-right */
+.topic-question-edit {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  position: relative;
+  display: inline-block;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.topic-question-edit-fields {
+  margin-bottom: 8px;
+}
+
+.topic-question-edit-textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.8em;
+  padding: 4px 6px;
+  margin-bottom: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.topic-question-edit-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 1.5em;
+  align-items: start;
+  font-size: 13px;
+  color: #555;
+}
+
+.topic-question-edit-opt {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+.topic-question-edit-opt-label {
+  flex-shrink: 0;
+}
+.topic-question-edit-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #555;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.topic-question-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+.btn-update-pending,
+.btn-cancel-edit {
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.btn-update-pending {
+  background: teal;
+  color: #fff;
+  border: none;
+}
+.btn-update-pending:hover {
+  background: #006666;
+}
+.btn-cancel-edit {
+  background: darkred;
+  color: white;
+  border: teal;
+}
+.btn-cancel-edit:hover {
+  background: red;
 }
 
 .topic-question-label {
@@ -584,9 +880,51 @@
   color: #333;
 }
 
+.topic-question-text img,
+.topic-question-subpart img,
+.topic-question-opt-html img {
+  max-width: 100%;
+  vertical-align: middle;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+/* Lines from wrapRomanLines pipe: block so each line stacks (question text and subparts only). Use ::ng-deep so styles apply to innerHTML-inserted spans. */
+.topic-question-text ::ng-deep .topic-question-line,
+.topic-question-subpart ::ng-deep .topic-question-line {
+  display: block;
+}
+/* i., ii., iii. or I., II., III. lines: padding-left 10px (question text and subparts only, not options) */
+.topic-question-text ::ng-deep .topic-question-roman-line,
+.topic-question-subpart ::ng-deep .topic-question-roman-line {
+  padding-left: 10px;
+}
+
+/* Whitelisted <img>: sizing from QuestionRichImgObserveDirective (innerHTML) */
+.topic-question-text ::ng-deep img,
+.topic-question-subpart ::ng-deep img {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
 .topic-question-intro {
   display: block;
   margin-bottom: 4px;
+}
+
+.topic-question-subpart-wrap {
+  position: relative;
+  margin-top: 2px;
+  box-sizing: border-box;
+}
+
+/* List view only: do not show CQ subpart marks (e.g. 2, 2, 4 or 1,2,3,4). Creator uses preview-q-* classes. */
+.topic-question-subpart-wrap--has-marks {
+  padding-right: 0;
+}
+
+.topic-question-subpart-marks {
+  display: none !important;
 }
 
 /* সৃজনশীল প্রশ্ন sub-parts (ক)(খ)(গ)(ঘ): 22px left indent when line wraps (match MCQ options) */
@@ -596,7 +934,7 @@
   color: #333;
   padding-left: 22px;
   text-indent: -22px;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .topic-question-options {
@@ -737,9 +1075,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 12px;
-  background-color: white;
-  border: 1px solid #e0e0e0;
+  background-color: transparent;
   border-radius: 4px;
 }
 

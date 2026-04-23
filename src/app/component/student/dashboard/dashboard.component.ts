@@ -1,12 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { StudentService } from '../../../service/student.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, AfterViewInit {
   stats: any = {
     examsCompleted: 0,
     averageScore: 0,
@@ -16,10 +17,18 @@ export class DashboardComponent implements OnInit {
     currentLevel: 1
   };
 
-  constructor(private studentService: StudentService) { }
+  constructor(
+    private studentService: StudentService,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     this.loadDashboardData();
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   loadDashboardData(): void {

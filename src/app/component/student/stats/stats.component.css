@@ -7,17 +7,33 @@
   margin: 0 auto;
 }
 
-.student-stats-page h2 {
-  color: var(--student-primary);
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  margin-bottom: 20px;
+.page-header {
+  margin-bottom: 1.5rem;
 }
 
-.student-stats-page h3 {
+.page-desc {
+  font-size: 0.9375rem;
+  color: var(--student-text-light);
+  margin: 0.25rem 0 0 0;
+}
+
+.stat-hint {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-top: 0.35rem;
+}
+
+.achievements-section {
+  margin-top: 2.5rem;
+}
+
+.section-title {
+  font-family: 'Roboto', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
   color: var(--student-primary);
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  margin-top: 40px;
-  margin-bottom: 20px;
+  margin: 0 0 1rem 0;
 }
 
 .achievements-grid {
@@ -29,7 +45,8 @@
 
 .student-achievement.unlocked {
   border-color: var(--student-accent);
-  background: #f0fff0;
+  background: linear-gradient(135deg, rgba(154, 205, 50, 0.08) 0%, #fff 100%);
+  box-shadow: var(--student-shadow);
 }
 
 .achievement-info {

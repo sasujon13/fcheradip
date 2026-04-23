@@ -1,6 +1,9 @@
 <div class="leaderboard-container">
-  <h1 class="page-title">Leaderboard</h1>
-  
+  <header class="page-header">
+    <h1 class="page-title">Leaderboard</h1>
+    <p class="page-desc">See how you rank. Filter by group and period.</p>
+  </header>
+
   <div class="filters-section">
     <select [(ngModel)]="selectedGroup" (change)="onFilterChange()" class="filter-select">
       <option value="">All Groups</option>
@@ -11,7 +14,6 @@
       <option value="H">Home Economics</option>
       <option value="M">Music</option>
     </select>
-    
     <select [(ngModel)]="selectedPeriod" (change)="onFilterChange()" class="filter-select">
       <option value="weekly">Weekly</option>
       <option value="monthly">Monthly</option>
@@ -20,25 +22,36 @@
     </select>
   </div>
 
-  <div class="leaderboard-list">
+  <div class="leaderboard-list" *ngIf="leaderboard.length > 0">
     <div class="leaderboard-header">
       <div class="rank-col">Rank</div>
       <div class="name-col">Student Name</div>
       <div class="score-col">Score</div>
     </div>
-    
-    <div 
-      *ngFor="let student of leaderboard; let i = index" 
+    <div
+      *ngFor="let student of leaderboard; let i = index"
       class="leaderboard-item"
       [class.current-user]="student.is_current_user"
+      [class.top-1]="i === 0"
+      [class.top-2]="i === 1"
+      [class.top-3]="i === 2"
     >
-      <div class="rank-number" [class.top-three]="i < 3">{{ i + 1 }}</div>
+      <div class="rank-number">
+        <span *ngIf="i < 3" class="rank-medal">{{ i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉' }}</span>
+        <span *ngIf="i >= 3">{{ i + 1 }}</span>
+      </div>
       <div class="name-col">{{ student.name }}</div>
       <div class="score-col">{{ student.score }}%</div>
     </div>
   </div>
 
-  <div class="user-rank-info" *ngIf="currentUserRank > 0">
+  <div *ngIf="leaderboard.length === 0" class="empty-state">
+    <span class="empty-icon"><i class="fa fa-trophy"></i></span>
+    <h3 class="empty-title">No rankings yet</h3>
+    <p class="empty-desc">Complete exams to appear on the leaderboard.</p>
+  </div>
+
+  <div class="user-rank-info" *ngIf="currentUserRank > 0 && leaderboard.length > 0">
     <p>Your Rank: <strong>#{{ currentUserRank }}</strong></p>
   </div>
 </div>

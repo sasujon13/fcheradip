@@ -1,0 +1,237 @@
+================================================================================
+  Line guide: question-creator.component.ts
+================================================================================
+  File: src/app/component/question/question-creator/question-creator.component.ts
+  Approximate size: ~6691 lines (verify in editor; line numbers drift if you edit)
+  Purpose: Angular component for the Question Creator — sheet preview, header
+           composition, pagination, export, persistence.
+
+  How to use this document
+  ------------------------
+  • All “line N” references point into question-creator.component.ts unless noted.
+  • Indices in code are usually 0-based (line 1 of the textarea = index 0).
+  • The sidebar header editor does NOT show every physical newline row: see
+    getHeaderEditorLinesRaw / getHeaderEditorSidebarRows (lines ~3764–3808).
+
+
+================================================================================
+  PART A — THE STRUCTURED HEADER TEXTAREA (questionHeader)
+================================================================================
+
+  Storage
+  -------
+  • Raw string: property questionHeader (line ~131). Newlines separate rows.
+  • Parsed rows for preview logic: getter headerPreviewLines (lines ~1675–1677).
+    Splits on \n, trims ends only; includes blank lines if present.
+
+  Legacy vs structured
+  --------------------
+  • headerUseLegacyQuestionHeader (line ~138): true = free-form textarea only;
+    false = EIIN + exam type drive first two lines via rebuildQuestionHeader.
+  • paperSubjectMetaLinesEligible (lines ~1682–1687): structured “subject meta”
+    features (MCQ title rows, unified mixed layout, etc.) need subject + questions.
+
+  Default HR token
+  ----------------
+  • DEFAULT_STRUCTURED_HEADER_HR = '<hr>' (lines ~208–212). Inserted in several
+    sync paths for MCQ-only / creative-only layouts (see comments there).
+
+
+--------------------------------------------------------------------------------
+  A.1  Mixed CQ + MCQ (two sheet kinds, separate preview pages)
+--------------------------------------------------------------------------------
+  Flag: mixedHeaderUsesExpandedEditorLines (lines ~1720–1726).
+
+  Constants (lines ~375–388):
+  • MIXED_HEADER_UNIFIED_MIN_LINES = 7  — minimum unified textarea rows.
+  • MIXED_HEADER_UNIFIED_SQ_NOTICE_LINES = 9 — when subject sq is 25 or 30.
+
+  Intended mapping (0-based indices in questionHeader / headerPreviewLines):
+  • [0] Institute line (name, district).
+  • [1] Exam line (label − year/serial); subject code often in brackets here.
+  • [2] Plain subject name (mixed: no “(সৃজনশীল)” suffix in textarea; preview adds).
+  • [3] MCQ combined সময় + পূর্ণমান (one textarea row; preview may split visually).
+  • [4] সৃজনশীল combined সময় + পূর্ণমান.
+  • [5] Horizontal rule row (<hr>) in storage (may be filtered from sidebar list).
+  • [6] Plain “বিষয় কোড” line for both grids — mixedUnifiedCodeGridPlainLine (1735).
+  • [7] CQ দ্রষ্টব্য (sq 25/30 only, when nine lines).
+  • [8] MCQ দ্রষ্টব্য (sq 25/30 only).
+
+  Canonical notice strings: MIXED_SQ_NOTICE_* (lines ~390–397).
+
+  Key functions:
+  • ensureMixedExpandedHeaderEditorLines — lines ~1983–2064 (pad, migrate legacy).
+  • normalizeMixedExpandedSevenLineHeader — lines ~1924–1936.
+  • migrateMixedHeaderNineLinesToSix / UnifiedSixToSeven — ~1821–1907.
+  • syncMcqSqMetaMixedTextarea — lines ~2152–2185 (seed MCQ/CQ meta lines).
+  • syncMixedSq25Sq30NoticeLines — lines ~2377+ (sq notices).
+  • mixedHeaderShiftCodeBeforeSqNoticesIfNeeded — lines ~2350+ (repair code index).
+
+
+--------------------------------------------------------------------------------
+  A.2  MCQ-only (বহুনির্বাচনি only, no CQ in selection)
+--------------------------------------------------------------------------------
+  Flag: mcqOnlyUsesSixLineTextareaBlock (lines ~2067–2073).
+
+  • ensureMcqTextareaSixUpperLines — lines ~2078–2113: pads to six upper rows;
+    title + subject + meta pattern (see comments; code row policy evolved).
+  • syncMcqSqMetaLineInTextarea — lines ~2124–2149: combined MCQ সময়/পূর্ণমান at [4].
+  • mcqHeaderUpperLineSlots — lines ~2968+: builds virtual “slots” for MCQ band.
+  • mcqHeaderLowerLines — lines ~3046+: text below band + HR wrapper logic.
+  • MCQ sq দ্রষ্টব্য placement: see syncSingleTypeSqDurstobyoLines (~2415+).
+
+
+--------------------------------------------------------------------------------
+  A.3  Creative-only (সৃজনশীল only)
+--------------------------------------------------------------------------------
+  • syncCreativeSubjectLabelLineInTextarea — lines ~2191–2241 (subject row [2]).
+  • syncCreativeSqMetaLineInTextarea — lines ~2268–2314 (combined CQ meta; index
+    depends on mixed vs single-type).
+  • compactCreativeOnlyTrailingEmptyLines — lines ~2471+ (trim trailing blanks).
+  • applyDefaultStructuredHeaderHrLines — lines ~2499+ (default <hr> when allowed).
+
+
+--------------------------------------------------------------------------------
+  A.4  Central sync pipeline
+--------------------------------------------------------------------------------
+  • rebuildQuestionHeader — lines ~1618–1661: rebuilds institute + exam; keeps
+    tail from index 2; then ensureMcqTextareaSixUpperLines + runHeaderTextareaSyncs.
+  • runHeaderTextareaSyncs — lines ~2316–2330: orders mixed padding, MCQ/CQ meta
+    syncs, default HR, sq notices, single-type notices, compaction.
+
+
+================================================================================
+  PART B — SIDEBAR HEADER EDITOR vs questionHeader LINE INDICES
+================================================================================
+
+  getHeaderEditorLinesRaw (lines ~3764–3771)
+  • Drops lines that are only <hr> (case-insensitive substring) OR blank.
+  • So physical line index in questionHeader ≠ “model index” in the sidebar.
+
+  headerEditorModelIndexToQuestionHeaderLineIndex (~3778–3788)
+  • Maps visible sidebar row order back to the real split index.
+
+  headerEditorLineHiddenFromSidebar / getHeaderEditorSidebarRows (~3795–3808)
+  • Mixed + sq: duplicate CQ notice row can be hidden from sidebar while kept
+    in questionHeader for PDF/sync.
+
+  Per-line fonts: headerLineFontSizes (line ~152); length tracks questionHeader
+  lines after syncHeaderFontSizesToLineCount (~3709+).
+
+  User edits: onHeaderEditorLineChange, onHeaderEditorLineKeydown (~3835–3873).
+  Font ±: onHeaderLineFontAdjustInEditor, dec/incHeaderLineFontAt (~3884–3922).
+
+
+================================================================================
+  PART C — PREVIEW HEADER RENDERING (matches template HTML)
+================================================================================
+
+  Which block (MCQ table vs creative): headerUsesMcqCodeTable (~2964).
+
+  MCQ band
+  --------
+  • mcqHeaderUpperLineSlots — builds left column + grid alignment.
+  • mcqUpperSlotFontIndex — font index per slot.
+  • mcqCodeGridAlignLastSlotIndex — grid bottom alignment.
+  • mcqShowSqSplitMcqBandRow / mcqSqSplitLine* — split combined meta line.
+  • mcqHeaderLowerLines / mcqHeaderLowerLinesFontBase — below-grid rows.
+
+  Creative block
+  --------------
+  • creativeHeaderTopLinesPadded (~3305) — top four logical lines.
+  • creativeHeaderBandLeftLines (~3322) — lines beside/below code grid.
+  • creativeBandFirstLineFontIndex / creativeBandTailFontBase / creativeCodeGridFontIndex.
+  • creativeShowSqSplitTopRow / creativeSqSplitLine* — split CQ combined row.
+
+  Safe HTML: headerLinePreviewInnerHtml (~3299); normalizeHeaderLineRawForPreview (~251).
+
+
+================================================================================
+  PART D — PERSISTENCE, RESTORE, LAYOUT SETTINGS
+================================================================================
+
+  Exported keys / version
+  -----------------------
+  • QUESTION_CREATOR_STATE_KEY, LOCAL_STORAGE_KEY, etc. — lines 29–47.
+  • QUESTION_CREATOR_PAYLOAD_VERSION — line 44 (v2 = qids + API hydrate).
+
+  Apply parsed payload
+  --------------------
+  • applyLayoutAndHeaderFromParsed — lines ~841+.
+  • applyFullCreatorPayloadFromParsed — lines ~1170+.
+  • hydrateQuestionsFromQids / afterQuestionsHydratedFromQids — ~1250+, ~1452+.
+
+  Persist
+  -------
+  • buildPersistPayload — lines ~3925+.
+  • buildLayoutSettingsForPersist — used in doSave / layout_settings (~6320–6440).
+  • persistCreatorStateToLocalStorage / schedule* — ~3964+.
+
+
+================================================================================
+  PART E — PAGINATION, AUTO-FIT, MEASUREMENT
+================================================================================
+
+  • scheduleLayout — line ~5465; runLayout — ~5470.
+  • splitIntoPages — starts ~5650; packQuestionsColumnMajor — ~5676.
+  • effectiveInnerDimensionsForLayout — ~5581 (min inner box across CQ/MCQ).
+  • maybeAutoFit* family — ~4385–4571 (spacing, fonts, two-page targets).
+  • measuredHeaderHeightPx — line ~520; filled in runLayout from measureHeader.
+
+
+================================================================================
+  PART F — EXPORT / SAVE
+================================================================================
+
+  • save — lines ~6442+ (login gate, session snapshot).
+  • confirmExportFormat — ~6469.
+  • doSave — ~6480–6681: exportQuestions, optional split headers
+    questionHeaderCreative / questionHeaderMcq via buildHeaderForPdfKind (~6563+).
+  • buildQuestionHeaderForPersist — ~3543.
+  • shouldExportFourMcqSetFiles / buildQuestionsOrderedForMcqSet — ~3522, ~2862.
+
+
+================================================================================
+  PART G — QUESTION DISPLAY, SIDEBAR, MCQ SET
+================================================================================
+
+  • getQuestionDisplayText / getQuestionDisplayStructure — ~2686, ~2702.
+  • previewQuestionDisplaySerialOneBased / previewQuestionSerialBn — ~2727, ~2718.
+  • onMcqSetLetterChange — ~2795; persistedMcqOrderBySet / questionHeaderByMcqSet.
+  • headerVariantForPage — ~2896 (which header variant for a page index).
+
+
+================================================================================
+  PART H — PAGE / MARGIN / TYPO STEPERS (representative)
+================================================================================
+
+  State fields for layout: lines ~264–356 (page size, margins, columns, gaps, fonts).
+  Stepper handlers: onPreviewLayoutChange hub — ~4130+.
+  Paper mm presets: PAPER_MM — lines ~428+.
+  Board-specific: boardContentInnerDimensions — ~6000; boardPageKindForPageIndex — ~6036.
+
+
+================================================================================
+  PART I — STATIC HELPERS (class utilities)
+================================================================================
+
+  • toBengaliDigits — ~214; escapeHtmlText — ~218.
+  • normalizeHeaderLineRawForPreview — ~251 (DevTools paste recovery).
+  • clampPreviewLineHeight — ~405; MM_TO_PX — line 495.
+
+
+================================================================================
+  PART J — LIFECYCLE
+================================================================================
+
+  • constructor — ~573; ngOnInit — ~580; ngAfterViewInit — ~770; ngOnDestroy — ~803.
+  • finishCreatorInitAfterRestore / first-visit reset / EIIN flush — ~679–763.
+
+
+================================================================================
+  Disclaimer
+================================================================================
+  This guide was generated as a reading map. When you refactor, search the file
+  for symbol names; do not rely on line numbers alone after edits.
+
+================================================================================

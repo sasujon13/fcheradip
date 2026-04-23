@@ -1,0 +1,163 @@
+/**
+ * Teal halo behind the circular SVG progress loader (100×100 ring).
+ * Wrap glow + spinner in .app-loader-spinner-column only — not the message —
+ * so the glow is centered on the ring. Gradient focal point sits slightly above
+ * center so the halo reads “down” toward the caption.
+ */
+.app-loader-spinner-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 100px;
+  min-height: 100px;
+  overflow: visible;
+}
+
+.app-loader-spinner-column .app-loader-glow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 0;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse closest-side at 50% 50%,
+      rgba(0, 128, 128, 0.60) 0%,
+      rgba(0, 192, 192, 0.40) 42%,
+      rgba(0, 255, 255, 0.20) 58%,
+      transparent 80%
+    );
+}
+
+.app-loader-spinner-column .loading-progress-wrap,
+.app-loader-spinner-column .creator-settings-loader-progress-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100px;
+  height: 100px;
+}
+
+/* Ring: bright white arc on softer white track; centre % in white */
+.app-loader-spinner-column .loading-progress-bg,
+.app-loader-spinner-column .creator-settings-loader-bg {
+  stroke: white
+}
+
+.app-loader-spinner-column .loading-progress-fill,
+.app-loader-spinner-column .creator-settings-loader-fill {
+  stroke: #ffffff;
+}
+
+.app-loader-spinner-column .loading-progress-text{
+  color: #ffffff !important;
+}
+
+.app-loader-spinner-column .creator-settings-loader-percent {
+  color: white !important;
+}
+/* Message sits inside the track: bar height follows text (content-sized strip) */
+.app-loader-message-block {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 280px;
+  box-sizing: border-box;
+}
+
+.app-loader-linear-track {
+  position: relative;
+  width: 100%;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: rgba(0, 128, 128, 0.18);
+}
+
+.app-loader-linear-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  width: 0;
+  background: teal;
+  transition: width 0.2s ease;
+}
+
+/* Two stacked copies: white only where fill runs (left 0..--p); normal color on the rest */
+.app-loader-message-dual {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template: 1fr / 1fr;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.app-loader-clip-layer {
+  grid-area: 1 / 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-loader-clip-layer--track {
+  z-index: 1;
+  clip-path: polygon(var(--p, 0%) 0, 100% 0, 100% 100%, var(--p, 0%) 100%);
+}
+
+.app-loader-clip-layer--fill {
+  z-index: 2;
+  clip-path: polygon(0 0, var(--p, 0%) 0, var(--p, 0%) 100%, 0 100%);
+  pointer-events: none;
+}
+
+.app-loader-clip-layer .app-loader-msg {
+  margin: 0;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Over teal fill (left 0..--p%): caption must stay white vs .loading-overlay-message in components */
+.app-loader-clip-layer--fill .app-loader-msg,
+.app-loader-clip-layer--fill .loading-overlay-message,
+.app-loader-clip-layer--fill .creator-settings-loader-message {
+  color: #ffffff !important;
+}
+
+.app-loader-clip-layer--track .loading-overlay-message {
+  color: black;
+}
+
+.app-loader-clip-layer--track .creator-settings-loader-message {
+  color: teal;
+}
+
+.app-loader-message-block.app-loader-message-done .app-loader-linear-track {
+  background: rgba(0, 128, 128, 0.25);
+}
+
+.app-loader-message-block.app-loader-message-done .app-loader-clip-layer--track {
+  visibility: hidden;
+}
+
+.app-loader-message-block.app-loader-message-done .app-loader-clip-layer--fill {
+  clip-path: none;
+  pointer-events: auto;
+}
+
+.app-loader-message-block.app-loader-message-done .app-loader-clip-layer--fill .app-loader-msg {
+  color: #fff !important;
+}
+
+.app-loader-message-block.app-loader-message-done .app-loader-linear-fill {
+  background: teal;
+}

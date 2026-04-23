@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -13,6 +13,8 @@ export class AlertComponent implements OnChanges, OnDestroy {
   @Input() showAlert: boolean = false;
   /** 'success' = teal text, 'error' (default) = darkred text */
   @Input() alertType: 'success' | 'error' = 'error';
+  /** Emitted when user closes the alert (Close button or overlay click). Parent can set showAlert = false. */
+  @Output() alertClosed = new EventEmitter<void>();
 
   private autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -23,6 +25,7 @@ export class AlertComponent implements OnChanges, OnDestroy {
       this.autoCloseTimer = setTimeout(() => {
         this.showAlert = false;
         this.autoCloseTimer = null;
+        this.alertClosed.emit();
       }, delayMs);
     }
   }
@@ -42,11 +45,13 @@ export class AlertComponent implements OnChanges, OnDestroy {
     if ((event.target as HTMLElement).classList.contains('custom-alert-overlay')) {
       this.clearAutoClose();
       this.showAlert = false;
+      this.alertClosed.emit();
     }
   }
 
   onClose(): void {
     this.clearAutoClose();
     this.showAlert = false;
+    this.alertClosed.emit();
   }
 }

@@ -40,16 +40,20 @@
         </div>
       </div>
     </div>
-    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass) && subjects.length > 0">
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass)">
       <label class="question-filter-label">--></label>
       <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('subject')">
-        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedSubjectTr" (click)="toggleSubjectDropdown($event)" [title]="selectedSubjectLabel">
-          <span class="filter-dropdown-btn-label">{{ selectedSubjectLabel }}</span>
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedSubjectTr" (click)="toggleSubjectDropdown($event)" [title]="subjectListLoading ? 'Loading subjects…' : selectedSubjectLabel">
+          <span class="filter-dropdown-btn-label">{{ subjectListLoading ? 'Loading subjects…' : selectedSubjectLabel }}</span>
           <span class="filter-dropdown-arrow">▼</span>
         </button>
         <div class="filter-dropdown-panel" [class.open]="subjectDropdownOpen">
-          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedSubjectTr" (click)="onSubjectSelect('')">Select Subject</button>
-          <button type="button" *ngFor="let sub of subjects" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedSubjectTr === sub.subject_tr" (click)="onSubjectSelect(sub.subject_tr)">{{ sub.name || sub.subject_tr }}</button>
+          <div *ngIf="subjectListLoading" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder">Loading subjects…</div>
+          <ng-container *ngIf="!subjectListLoading">
+            <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedSubjectTr" (click)="onSubjectSelect('')">Select Subject</button>
+            <button type="button" *ngFor="let sub of subjects" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedSubjectTr === sub.subject_tr" (click)="onSubjectSelect(sub.subject_tr)">{{ sub.name || sub.subject_tr }}</button>
+            <div *ngIf="subjects.length === 0" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder">No subjects for this level/class.</div>
+          </ng-container>
         </div>
       </div>
     </div>
@@ -70,7 +74,7 @@
             <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearChapterSelection(); $event.stopPropagation()">Clear</button>
           </div>
           <label *ngFor="let ch of chapters" class="filter-dropdown-item" (click)="onChapterSelect(ch.id); $event.preventDefault()">
-            <input type="checkbox" [checked]="selectedChapterIds.has(ch.id)" (click)="$event.preventDefault()" />
+            <input type="checkbox" [checked]="isChapterSelected(ch)" (click)="$event.preventDefault()" />
             <span>{{ ch.name }}</span>
           </label>
         </div>
@@ -93,21 +97,45 @@
             <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearTopicSelection(); $event.stopPropagation()">Clear</button>
           </div>
           <label *ngFor="let t of topics" class="filter-dropdown-item" (click)="onTopicSelect(t.id); $event.preventDefault()">
-            <input type="checkbox" [checked]="selectedTopicIds.has(t.id)" (click)="$event.preventDefault()" />
+            <input type="checkbox" [checked]="isTopicSelected(t)" (click)="$event.preventDefault()" />
             <span>{{ t.name }}</span>
           </label>
         </div>
       </div>
     </div>
-    <!-- More Filters: filter by subsource (multi-select checkboxes) -->
-    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && selectedTopicIds.size > 0 && topicQuestionsLoaded">
+    <!-- Type: first option Select All; checkboxes on left; multi-select (same design as Topic). -->
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && topicQuestionsLoaded && availableQuestionTypes.length > 0">
       <label class="question-filter-label">--></label>
-      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('moreFilters')">
-        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="selectedSources.size === 0 && selectedYears.size === 0" (click)="toggleMoreFiltersDropdown($event)" [title]="moreFiltersLabel">
-          <span class="filter-dropdown-btn-label">{{ moreFiltersLabel }}</span>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('type')">
+        <button type="button" class="filter-dropdown-btn" (click)="toggleTypeDropdown($event)" [title]="selectedQuestionTypeName">
+          <span class="filter-dropdown-btn-label">{{ selectedQuestionTypeName }}</span>
           <span class="filter-dropdown-arrow">▼</span>
         </button>
-        <div class="filter-dropdown-panel" [class.open]="moreFiltersOpen">
+        <div class="filter-dropdown-panel" [class.open]="typeDropdownOpen">
+          <div class="filter-dropdown-item-selectall-row">
+            <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onQuestionTypeSelectAllToggle(); $event.preventDefault()">
+              <input type="checkbox" [checked]="allQuestionTypesSelected" (click)="$event.preventDefault()" />
+              <span>Select All</span>
+            </label>
+            <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearQuestionTypeSelection(); $event.stopPropagation()">Clear</button>
+          </div>
+          <label *ngFor="let t of availableQuestionTypes" class="filter-dropdown-item" (click)="onQuestionTypeToggle(t); $event.preventDefault()">
+            <input type="checkbox" [checked]="selectedQuestionTypes.has(t)" (click)="$event.preventDefault()" />
+            <span>{{ t }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <!-- More Filters: show only after at least one chapter is selected (chapter-only selection still works) -->
+    <div #filterItem class="question-filter-item filter-dropdown-wrap" *ngIf="primarySubject && selectedChapterIds.size > 0 && topicQuestionsLoaded">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown-with-clear">
+        <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('moreFilters')">
+          <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="selectedSources.size === 0 && selectedYears.size === 0" (click)="toggleMoreFiltersDropdown($event)" [title]="moreFiltersLabel">
+            <span class="filter-dropdown-btn-label">{{ moreFiltersLabel }}</span>
+            <span class="filter-dropdown-arrow">▼</span>
+          </button>
+          <div class="filter-dropdown-panel" [class.open]="moreFiltersOpen">
           <div class="filter-dropdown-item-selectall-row">
             <label class="filter-dropdown-item filter-dropdown-item-selectall" (click)="onSubsourceSelectAllToggle(); $event.preventDefault()">
               <input type="checkbox" [checked]="allSubsourceColumnsSelected" (click)="$event.preventDefault()" />
@@ -116,7 +144,7 @@
             <button type="button" class="btn-clear-selection btn-clear-dropdown" (click)="clearSubsourceSelection(); $event.stopPropagation()">Clear</button>
           </div>
           <div class="filter-dropdown-institute-type-row" (click)="$event.stopPropagation()" *ngIf="instituteTypes.length > 0">
-            <label class="filter-dropdown-institute-type-label">Institute type</label>
+            <label class="filter-dropdown-institute-type-label">Type</label>
             <div class="filter-dropdown filter-dropdown-inline">
               <button type="button" class="filter-dropdown-btn filter-dropdown-btn-sm" (click)="toggleInstituteTypeDropdown($event)" [title]="selectedInstituteTypeLabel">
                 <span class="filter-dropdown-btn-label">{{ selectedInstituteTypeLabel }}</span>
@@ -131,10 +159,9 @@
           <div class="filter-dropdown-source-year-row">
             <div class="filter-dropdown-source-col">
               <div class="filter-dropdown-col-header">
-                <span>Source</span>
                 <label class="filter-dropdown-col-selectall" (click)="onSourceSelectAllToggle(); $event.preventDefault()">
                   <input type="checkbox" [checked]="allSourcesSelected" (click)="$event.preventDefault()" />
-                  <span>All</span>
+                  <span>All Src</span>
                 </label>
               </div>
               <div class="filter-dropdown-col-list">
@@ -146,10 +173,9 @@
             </div>
             <div class="filter-dropdown-year-col">
               <div class="filter-dropdown-col-header">
-                <span>Year</span>
                 <label class="filter-dropdown-col-selectall" (click)="onYearSelectAllToggle(); $event.preventDefault()">
                   <input type="checkbox" [checked]="allYearsSelected" (click)="$event.preventDefault()" />
-                  <span>All</span>
+                  <span>All Years</span>
                 </label>
               </div>
               <div class="filter-dropdown-col-list">
@@ -163,22 +189,33 @@
         </div>
       </div>
     </div>
+    <!-- X and searchbar: show as soon as subject is selected -->
+    <div class="question-filter-item question-filter-actions-wrap" *ngIf="primarySubject">
+      <button type="button" class="btn-clear-all-filters" *ngIf="hasAnyFilterSelection" (click)="clearAllFilterSelections()" title="Clear all filter selections">✕</button>
+      <div class="action-bar">
+        <app-searchbar (searchChange)="onSearch($any($event))"></app-searchbar>
+      </div>
+    </div>
   </div>
 
-  <!-- Questions for selected topic(s): user selects which questions to use -->
-  <div class="topic-questions-section" *ngIf="selectedTopicIds.size > 0 && topicQuestions.length > 0">
+  <!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
+  <div
+    class="topic-questions-section"
+    *ngIf="primarySubject && topicQuestions.length > 0"
+    appQuestionRichImgHost
+  >
     <div class="topic-questions-header">
       <div class="topic-questions-actions">
         <label class="select-all-label">
           <input type="checkbox" [checked]="allTopicQuestionsSelected" (change)="toggleSelectAllTopicQuestions()" />
           <span>{{ allTopicQuestionsSelected ? 'Unselect All' : 'Select All' }}</span>
         </label>
-        <span class="selected-count">{{ selectedQuestionIds?.size ?? 0 }} selected</span>
-        <button type="button" class="btn-clear-selection" *ngIf="(selectedQuestionIds?.size ?? 0) > 0" (click)="clearTopicQuestionSelection()">Clear All</button>
+        <span class="selected-count">{{ selectedCountOnCurrentPage }} Selected of {{ totalQuestionsInCurrentSelection }} of Total {{ totalQuestionsInDbForSubject != null ? totalQuestionsInDbForSubject : '?' }} Questions</span>
+        <button type="button" class="btn-clear-selection" *ngIf="selectedCount > 0" (click)="clearTopicQuestionSelection()">Clear All</button>
       </div>
 
-      <!-- Buttons to open question creator: visible when topic(s) selected -->
-      <div class="creator-buttons-row" *ngIf="selectedTopicIds.size > 0">
+      <!-- Buttons to open question creator: visible when questions are shown (subject or topic selection) -->
+      <div class="creator-buttons-row" *ngIf="primarySubject && topicQuestions.length > 0">
         <button type="button" class="btn-creator btn-smart-creator" (click)="goToSmartQuestionCreator()">Smart Question Creator</button>
         <button type="button" class="btn-creator btn-create-question" (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
           {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
@@ -186,31 +223,76 @@
       </div>
     </div>
     <ul class="topic-questions-list">
-      <li *ngFor="let item of getDisplayedQuestions(); let i = index" class="topic-question-item" (click)="onQuestionRowClick($event, item.q.qid)">
+      <li *ngFor="let item of getDisplayedQuestions(); let i = index; trackBy: trackByQuestionQid" class="topic-question-item" [attr.data-full-index]="item.fullIndex" [class.topic-question-item-selected]="isQuestionSelected(item.q.qid)" [class.topic-question-item-editing]="isEditingItem(item.q.qid)" (click)="onQuestionRowClick($event, item.q.qid)">
         <div class="topic-question-sl-col">
-          <span class="topic-question-sl">{{ formatSl(i) }}</span>
+          <span class="topic-question-sl">{{ formatSl(item.fullIndex) }}</span>
           <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)" (click)="$event.stopPropagation(); toggleQuestionSelection(item.q.qid)" />
         </div>
         <div class="topic-question-content">
-          <label class="topic-question-label" (click)="onQuestionRowClick($event, item.q.qid); $event.preventDefault(); $event.stopPropagation()">
-            <ng-container *ngIf="getQuestionDisplayStructure(item.q) as struct">
-              <span class="topic-question-text" *ngIf="struct.parts.length === 0">{{ struct.intro }}</span>
-              <ng-container *ngIf="struct.parts.length > 0">
-                <span class="topic-question-text topic-question-intro">{{ struct.intro }}</span>
-                <div *ngFor="let part of struct.parts" class="topic-question-subpart">{{ part }}</div>
+          <div class="topic-question-top-badges">
+            <span class="topic-question-qid">{{ item.q.qid }}</span>
+          </div>
+          <ng-container *ngIf="!isEditingItem(item.q.qid)">
+            <label class="topic-question-label" (click)="onQuestionRowClick($event, item.q.qid); $event.preventDefault(); $event.stopPropagation()">
+              <ng-container *ngIf="getQuestionDisplayStructure(item.q) as struct">
+                <span class="topic-question-text" *ngIf="struct.parts.length === 0" [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"></span>
+                <ng-container *ngIf="struct.parts.length > 0">
+                  <span class="topic-question-text topic-question-intro" [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"></span>
+                  <div
+                    *ngFor="let part of struct.parts; let pi = index"
+                    class="topic-question-subpart-wrap"
+                    [class.topic-question-subpart-wrap--has-marks]="creativeSubpartMarkBn(struct.parts.length, pi)"
+                  >
+                    <div class="topic-question-subpart" [innerHTML]="part | formatQuestionMedia | wrapRomanLines"></div>
+                    <span
+                      class="topic-question-subpart-marks"
+                      *ngIf="creativeSubpartMarkBn(struct.parts.length, pi) as mk"
+                      >{{ mk }}</span
+                    >
+                  </div>
+                </ng-container>
               </ng-container>
-            </ng-container>
-          </label>
-          <div class="topic-question-options" [class.topic-question-options-1row]="optionsLayouts[item.fullIndex] === '1row'" [class.topic-question-options-2row]="optionsLayouts[item.fullIndex] === '2row' || !optionsLayouts[item.fullIndex]" [class.topic-question-options-4row]="optionsLayouts[item.fullIndex] === '4row'" *ngIf="item.q.option_1 || item.q.option_2">
-            <span *ngIf="item.q.option_1" class="topic-question-opt">(ক) {{ getOptionDisplayText(item.q.option_1) }}</span>
-            <span *ngIf="item.q.option_2" class="topic-question-opt">(খ) {{ getOptionDisplayText(item.q.option_2) }}</span>
-            <span *ngIf="item.q.option_3" class="topic-question-opt">(গ) {{ getOptionDisplayText(item.q.option_3) }}</span>
-            <span *ngIf="item.q.option_4" class="topic-question-opt">(ঘ) {{ getOptionDisplayText(item.q.option_4) }}</span>
+            </label>
+            <div class="topic-question-options" [class.topic-question-options-1row]="optionsLayouts[item.fullIndex] === '1row'" [class.topic-question-options-2row]="optionsLayouts[item.fullIndex] === '2row' || !optionsLayouts[item.fullIndex]" [class.topic-question-options-4row]="optionsLayouts[item.fullIndex] === '4row'" *ngIf="item.q.option_1 || item.q.option_2">
+              <span *ngIf="item.q.option_1" class="topic-question-opt">(ক) <span class="topic-question-opt-html" [innerHTML]="getOptionDisplayText(item.q.option_1) | formatQuestionMedia | wrapRomanLines"></span></span>
+              <span *ngIf="item.q.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html" [innerHTML]="getOptionDisplayText(item.q.option_2) | formatQuestionMedia | wrapRomanLines"></span></span>
+              <span *ngIf="item.q.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html" [innerHTML]="getOptionDisplayText(item.q.option_3) | formatQuestionMedia | wrapRomanLines"></span></span>
+              <span *ngIf="item.q.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html" [innerHTML]="getOptionDisplayText(item.q.option_4) | formatQuestionMedia | wrapRomanLines"></span></span>
+            </div>
+          </ng-container>
+          <div class="topic-question-edit" *ngIf="isEditingItem(item.q.qid)" (click)="$event.stopPropagation()">
+            <div class="topic-question-edit-fields">
+              <textarea [(ngModel)]="editForm.question" class="topic-question-edit-textarea" rows="2" placeholder="Question text"></textarea>
+              <div class="topic-question-edit-options" *ngIf="showEditOptions(item.q)">
+                <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(ক)</span> <input type="text" [(ngModel)]="editForm.option_1" class="topic-question-edit-input" /></span>
+                <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(খ)</span> <input type="text" [(ngModel)]="editForm.option_2" class="topic-question-edit-input" /></span>
+                <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(গ)</span> <input type="text" [(ngModel)]="editForm.option_3" class="topic-question-edit-input" /></span>
+                <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(ঘ)</span> <input type="text" [(ngModel)]="editForm.option_4" class="topic-question-edit-input" /></span>
+              </div>
+            </div>
+            <div class="topic-question-edit-actions">
+              <button type="button" class="btn-update-pending" (click)="submitPendingEdit($event)">Update</button>
+              <button type="button" class="btn-cancel-edit" (click)="cancelEdit($event)">Cancel</button>
+            </div>
+          </div>
+          <span class="topic-question-subsource" *ngIf="getSubsourceDisplay(item.q)">{{ getSubsourceDisplay(item.q) }}</span>
+          <div class="topic-question-item-actions" *ngIf="!isEditingItem(item.q.qid)" (click)="$event.stopPropagation()">
+            <button type="button" class="topic-question-action-btn" [class.loved]="isLoved(item.q.qid)" (click)="toggleLove(item.q.qid, $event)" title="Like"> <i class="fa fa-heart" aria-hidden="true"></i> </button>
+            <button type="button" class="topic-question-action-btn topic-question-action-disappear" (click)="onDisappearTopicQuestion(item, $event)" title="Disappear this question (hide until you restore from Disappeared Questions)"><i class="fa fa-eye-slash" aria-hidden="true"></i><span class="topic-question-action-label"></span></button>
+            <button type="button" class="topic-question-action-btn" (click)="startEdit(item, $event); $event.stopPropagation()" title="Edit / Change"> <i class="fa fa-edit" aria-hidden="true"></i> </button>
           </div>
         </div>
       </li>
     </ul>
     <p *ngIf="(selectedSources.size > 0 || selectedYears.size > 0) && getDisplayedQuestions().length === 0" class="no-topic-questions">No questions for selected source/year.</p>
+    <!-- Pagination: same markup and classes as merit5 -->
+    <div class="pagination mt-4" *ngIf="topicQuestionsTotalPages > 1">
+      <button class="newButton2 btn btn-secondary" (click)="onTopicQuestionsPageChange(effectiveTopicQuestionsPage - 1)" [disabled]="effectiveTopicQuestionsPage <= 1">Previous</button>
+      <span class="mx-3">Page {{ effectiveTopicQuestionsPage }} of {{ topicQuestionsTotalPages }}</span>
+      <button class="newButton2 newButton3 btn btn-secondary" (click)="onTopicQuestionsPageChange(effectiveTopicQuestionsPage + 1)" [disabled]="effectiveTopicQuestionsPage >= topicQuestionsTotalPages">Next</button>
+    </div>
+
+    <p *ngIf="showApplyFilterMessage" class="apply-filter-message">You have reached the end of the first 999 questions. Apply filters to retrieve more questions.</p>
   </div>
   <p *ngIf="selectedTopicIds.size > 0 && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode" class="no-topic-questions">No questions found for selected topic(s).</p>
 
@@ -232,10 +314,6 @@
       ></app-questionform>
 
       <ng-container *ngIf="!isFormMode">
-        <div class="action-bar">
-          <app-searchbar (searchChange)="onSearch($any($event))"></app-searchbar>
-        </div>
-
         <app-questionlist
           [questions]="questions"
           [currentPage]="currentPage"
@@ -272,4 +350,6 @@
       <i class="fa fa-comments" aria-hidden="true"></i>
     </button>
   </div>
+  <app-alert [message]="successAlertMessage" [showAlert]="showSuccessAlert" alertType="success" (alertClosed)="showSuccessAlert = false"></app-alert>
+  <app-alert [message]="disappearAlertMessage" [showAlert]="showDisappearAlert" alertType="success" (alertClosed)="showDisappearAlert = false"></app-alert>
 </div>

@@ -3,11 +3,11 @@
   <p *ngIf="loading" class="loading">Loading…</p>
   <div *ngIf="!loading && sets.length" class="filter-row">
     <label for="filterSubject">Subject</label>
-    <select id="filterSubject" [(ngModel)]="selectedSubject" (ngModelChange)="selectedChapter = ''" class="filter-select">
+    <select id="filterSubject" [(ngModel)]="selectedSubject" (ngModelChange)="onSubjectFilterChange()" class="filter-select">
       <option *ngFor="let o of subjectOptions" [value]="o.value">{{ o.label }}</option>
     </select>
     <label for="filterChapter">Chapter</label>
-    <select id="filterChapter" [(ngModel)]="selectedChapter" class="filter-select">
+    <select id="filterChapter" [(ngModel)]="selectedChapter" (ngModelChange)="pruneSelectionToFiltered()" class="filter-select">
       <option *ngFor="let o of chapterOptions" [value]="o.value">{{ o.label }}</option>
     </select>
     <span class="filter-count">{{ filteredSets.length }} of {{ sets.length }}</span>
@@ -16,10 +16,32 @@
     <table class="sets-table">
       <thead class="thead_question">
         <tr>
+          <th class="col-check" scope="col">
+            <input
+              type="checkbox"
+              class="row-check"
+              [checked]="allFilteredSelected"
+              [disabled]="!filteredSets.length"
+              (change)="toggleSelectAllFiltered($any($event.target).checked)"
+              [attr.aria-label]="'Select all ' + filteredSets.length + ' question sets'"
+            />
+          </th>
           <th class="col-sl">SL</th>
           <th class="col-title">List of Questions Created by You</th>
           <th class="col-meta-actions">
             <span class="th-actions-wrap">
+              <button
+                type="button"
+                class="btn-delete-bulk"
+                *ngIf="selectedIds.length"
+                (click)="deleteSelectedSets()"
+                [disabled]="deletingBulk"
+                [title]="isBulkDeleteAllLabel ? 'Delete all listed sets' : 'Delete selected sets'"
+              >
+                <i class="fa fa-times" aria-hidden="true"></i>
+                <ng-container *ngIf="isBulkDeleteAllLabel; else deleteCount">Delete All</ng-container>
+                <ng-template #deleteCount>Delete ({{ selectedIds.length }})</ng-template>
+              </button>
               <button type="button" class="btn-download-all" (click)="downloadAllPdf()" [disabled]="downloadingAllPdf || !filteredSets.length" title="Download all as PDF">
                 <i class="fa fa-file-pdf-o"></i> Download All
               </button>
@@ -28,7 +50,22 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let set of filteredSets; let i = index" class="set-row">
+        <tr
+          *ngFor="let set of filteredSets; let i = index"
+          class="set-row"
+          [class.set-row--highlight]="highlightSetId === set.id"
+          [attr.data-created-set-id]="set.id"
+          (click)="onRowClick($event, set.id)"
+        >
+          <td class="col-check">
+            <input
+              type="checkbox"
+              class="row-check"
+              [checked]="isRowSelected(set.id)"
+              (change)="toggleRowSelection(set.id)"
+              [attr.aria-label]="'Select question set ' + (i + 1)"
+            />
+          </td>
           <td class="col-sl">{{ i + 1 }}</td>
           <td class="col-title">
             <ng-container *ngIf="renamingId === set.id; else showName">
@@ -42,7 +79,7 @@
             </ng-template>
           </td>
           <td class="col-meta-actions">
-            <span class="meta-inline">{{ set.questions?.length || 0 }} questions</span>
+            <span class="meta-inline">{{ set.questions.length || 0 }} questions</span>
             <span class="meta-inline" *ngIf="set.created_at">{{ set.created_at | date:'short' }}</span>
             <span class="actions-inline">
               <ng-container *ngIf="renamingId !== set.id">

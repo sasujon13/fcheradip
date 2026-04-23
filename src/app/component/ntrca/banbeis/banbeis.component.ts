@@ -1,8 +1,9 @@
-import { Component, OnInit, OnChanges, SimpleChanges, ElementRef, ViewChild, Renderer2 } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnChanges, SimpleChanges, ElementRef, ViewChild, Renderer2 } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
 import { CartService } from 'src/app/service/cart.service';
 import { ChoiceService } from 'src/app/service/choice.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { LoadingService } from 'src/app/service/loading.service';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
@@ -13,7 +14,7 @@ import { environment } from 'src/environments/environment';
   styleUrls: ['./banbeis.component.css']
 })
 
-export class BanbeisComponent implements OnInit {
+export class BanbeisComponent implements OnInit, AfterViewInit {
   baseUrl: string = `${environment.apiUrl}/institute/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
   private isDown = false;
@@ -238,9 +239,13 @@ export class BanbeisComponent implements OnInit {
     // Add more embed URLs here
   ];
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const deviceWidth = window.innerWidth;
     let columns = 12; // default
 
@@ -265,6 +270,10 @@ export class BanbeisComponent implements OnInit {
     document.addEventListener('contextmenu', function (event) {
       event.preventDefault();
     });
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   createTableRows(districts: string[], columns: number): string[][] {

@@ -1,20 +1,25 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { CartService } from 'src/app/service/cart.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-cart',
   templateUrl: './cart.component.html',
   styleUrls: ['./cart.component.css']
 })
-export class CartComponent implements OnInit {
+export class CartComponent implements OnInit, AfterViewInit {
 
   public products : any = [];
   public grandTotal !: number;
   public grandDiscount !: number;
-  constructor(private cartService : CartService) { }
+  constructor(
+    private cartService: CartService,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
-  const searchBarElement = document.getElementById('searchBar');
+    this.loadingService.setTotal(1);
+    const searchBarElement = document.getElementById('searchBar');
 
   if (searchBarElement) {
     searchBarElement.style.display = 'none';
@@ -28,8 +33,13 @@ export class CartComponent implements OnInit {
       this.products = res;
       this.grandTotal = this.cartService.grandTotal();
       this.grandDiscount = this.cartService.grandDiscount();
-    })
+    });
   }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
+  }
+
   removeCartItem(item: any){
     this.cartService.removeCartItem(item);
   }

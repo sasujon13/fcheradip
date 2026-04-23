@@ -3,6 +3,7 @@ import { Component, OnInit, Renderer2 } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
 import { CartService } from 'src/app/service/cart.service';
 import { ChoiceService } from 'src/app/service/choice.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-index',
@@ -11,6 +12,7 @@ import { ChoiceService } from 'src/app/service/choice.service';
 })
 export class IndexComponent implements OnInit {
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'block';
@@ -20,12 +22,17 @@ export class IndexComponent implements OnInit {
     // });
   }
 
-    constructor(private http: HttpClient, private renderer: Renderer2) { }
-    ngAfterViewInit(): void {
-      const signMenu = document.getElementById('sign_menu');
-      if (signMenu) {
-        this.renderer.setStyle(signMenu, 'display', 'flex');
-      }
+    constructor(
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
+  ) {}
+  ngAfterViewInit(): void {
+    const signMenu = document.getElementById('sign_menu');
+    if (signMenu) {
+      this.renderer.setStyle(signMenu, 'display', 'flex');
     }
+    setTimeout(() => this.loadingService.completeOne(), 0);
+  }
   
 }

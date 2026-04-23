@@ -23,7 +23,15 @@ export interface CreatedQuestionSet {
   counter: number;
   file_name_base: string;
   created_at?: string;
+  /** Saved layout from question creator (page size, margins, columns, gap, divider, etc.). */
+  layout_settings?: Record<string, unknown>;
 }
+
+/**
+ * `customer_settings` merge key: JSON string of question-creator **layout/settings** (no `questionQids`;
+ * local `questionCreatorLocalState` holds full draft including qid refs). v2+ may include empty `questionQids`.
+ */
+export const CUSTOMER_SETTINGS_QUESTION_CREATOR_KEY = 'question_creator_local_state';
 
 @Injectable({
   providedIn: 'root'
@@ -265,6 +273,26 @@ export class ApiService {
     return this.http.get(url ?? `${this.baseUrl}/institutes/?page=1`);
   }
 
+  /** Paginated institute search (e.g. by EIIN). GET /institutes/?q=&page= */
+  searchInstitutesByQuery(
+    q: string,
+    page = 1
+  ): Observable<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Record<string, unknown>[];
+  }> {
+    return this.http.get<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Record<string, unknown>[];
+    }>(`${this.baseUrl}/institutes/`, {
+      params: { q: q.trim(), page: String(page) },
+    });
+  }
+
   private setToken(token: string): void {
     localStorage.setItem('authToken', token);
   }
@@ -302,6 +330,36 @@ export class ApiService {
     marginLeft: number;
     format: 'pdf' | 'docx';
     filename: string;
+    /** 1 = single column; 2+ = vertical columns (optional, default 1). */
+    layoutColumns?: number;
+    layoutColumnGapPx?: number;
+    showColumnDivider?: boolean;
+    pageOrientation?: string;
+    customPageWidthIn?: number;
+    customPageHeightIn?: number;
+    pageSections?: number;
+    sectionGapPx?: number;
+    /** Same blob as Save / question-creator — serials, page plan, MCQ order, fonts, etc. */
+    layout_settings?: Record<string, unknown>;
+    cqPageOrientation?: string;
+    mcqPageOrientation?: string;
+    questionsPadding?: number;
+    questionsGap?: number;
+    questionsGapCreative?: number;
+    previewQuestionsFontPx?: number;
+    previewQuestionsFontPxCreative?: number;
+    previewQuestionsFontPxMcq?: number;
+    previewHeaderLineHeight?: number;
+    previewQuestionsLineHeight?: number;
+    previewQuestionsLineHeightCreative?: number;
+    previewQuestionsLineHeightMcq?: number;
+    layoutColumnsCreative?: number;
+    optionsColumns?: number;
+    headerLineFontSizes?: number[];
+    headerEiin?: string;
+    headerInstitute?: string;
+    questionHeaderCreative?: string;
+    questionHeaderMcq?: string;
   }): Observable<Blob> {
     return this.http.post(`${this.baseUrl}/export_questions/`, payload, { responseType: 'blob' });
   }
@@ -319,6 +377,34 @@ export class ApiService {
     marginRight?: number;
     marginBottom?: number;
     marginLeft?: number;
+    layoutColumns?: number;
+    layoutColumnGapPx?: number;
+    showColumnDivider?: boolean;
+    pageOrientation?: string;
+    customPageWidthIn?: number;
+    customPageHeightIn?: number;
+    pageSections?: number;
+    sectionGapPx?: number;
+    layout_settings?: Record<string, unknown>;
+    cqPageOrientation?: string;
+    mcqPageOrientation?: string;
+    questionsPadding?: number;
+    questionsGap?: number;
+    questionsGapCreative?: number;
+    previewQuestionsFontPx?: number;
+    previewQuestionsFontPxCreative?: number;
+    previewQuestionsFontPxMcq?: number;
+    previewHeaderLineHeight?: number;
+    previewQuestionsLineHeight?: number;
+    previewQuestionsLineHeightCreative?: number;
+    previewQuestionsLineHeightMcq?: number;
+    layoutColumnsCreative?: number;
+    optionsColumns?: number;
+    headerLineFontSizes?: number[];
+    headerEiin?: string;
+    headerInstitute?: string;
+    questionHeaderCreative?: string;
+    questionHeaderMcq?: string;
   }>): Observable<Blob> {
     return this.http.post(`${this.baseUrl}/export_questions_bulk/`, { items }, { responseType: 'blob' });
   }
@@ -329,7 +415,12 @@ export class ApiService {
   }
 
   /** Created question sets: create (name, question_header, questions) */
-  createQuestionSet(payload: { name: string; question_header: string; questions: any[] }): Observable<CreatedQuestionSet> {
+  createQuestionSet(payload: {
+    name: string;
+    question_header: string;
+    questions: any[];
+    layout_settings?: Record<string, unknown>;
+  }): Observable<CreatedQuestionSet> {
     return this.http.post<CreatedQuestionSet>(`${this.baseUrl}/created_question_sets/`, payload);
   }
 
@@ -674,14 +765,35 @@ export class ApiService {
     return this.http.get<{ groups: string[]; error?: string }>(`${this.baseUrl}/question_groups/`, { params });
   }
   /** Subjects for level (optional class_level and group filter). */
-  getQuestionSubjects(params: { level_tr: string; class_level?: string; group?: string }): Observable<{ subjects: Array<{ level_tr: string; class_level: string; subject_tr: string; id: string; name: string }>; error?: string }> {
+  getQuestionSubjects(params: { level_tr: string; class_level?: string; group?: string }): Observable<{
+    subjects: Array<{
+      level_tr: string;
+      class_level: string;
+      subject_tr: string;
+      id: string;
+      name: string;
+      subject_name?: string;
+      subject_code?: string;
+      sq?: number;
+    }>;
+    error?: string;
+  }> {
     const p: any = { level_tr: params.level_tr || '' };
     if (params.class_level) p.class_level = params.class_level;
     if (params.group) p.group = params.group;
-    return this.http.get<{ subjects: Array<{ level_tr: string; class_level: string; subject_tr: string; id: string; name: string }>; error?: string }>(
-      `${this.baseUrl}/question_subjects/`,
-      { params: p }
-    );
+    return this.http.get<{
+      subjects: Array<{
+        level_tr: string;
+        class_level: string;
+        subject_tr: string;
+        id: string;
+        name: string;
+        subject_name?: string;
+        subject_code?: string;
+        sq?: number;
+      }>;
+      error?: string;
+    }>(`${this.baseUrl}/question_subjects/`, { params: p });
   }
   /** Unique chapters from subject question table; ordered by chapter_no ascending. */
   getQuestionChapters(params: { level_tr: string; class_level: string; subject_tr: string }): Observable<{ chapters: Array<{ id: string; name: string }>; error?: string }> {
@@ -699,10 +811,33 @@ export class ApiService {
       { params: p }
     );
   }
+  /** List all exam sets from cheradip_exam_set (level_tr, class_level, subject_tr for client-side filtering). */
+  getExamSets(): Observable<{ exam_sets: Array<{ id: number; exam_type: string; set_key: string; name_label: string; level_tr?: string; class_level?: string; subject_tr?: string }>; error?: string }> {
+    return this.http.get<{ exam_sets: Array<{ id: number; exam_type: string; set_key: string; name_label: string; level_tr?: string; class_level?: string; subject_tr?: string }>; error?: string }>(
+      `${this.baseUrl}/exam_sets/`
+    );
+  }
+
+  /** Single exam set by id (for session header). */
+  getExamSetById(id: number): Observable<{ id: number; name_label: string; set_key: string; exam_type: string; error?: string }> {
+    return this.http.get<any>(`${this.baseUrl}/exam_sets/${id}/`);
+  }
+
+  /** Questions for an exam set (up to 30) for taking the exam. */
+  getExamSetQuestions(id: number): Observable<{ questions: any[]; error?: string }> {
+    return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/exam_sets/${id}/questions/`);
+  }
+
   /** List questions from HSC subject table by topic (and optional chapter) for user to select. */
   getQuestionListByTopic(params: { level_tr: string; class_level: string; subject_tr: string; topic: string; chapter?: string }): Observable<{ questions: any[]; error?: string }> {
     const p: any = { level_tr: params.level_tr || '', class_level: params.class_level || '', subject_tr: params.subject_tr || '', topic: params.topic || '' };
     if (params.chapter) p.chapter = params.chapter;
+    return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/question_list/`, { params: p });
+  }
+
+  /** List all questions for a subject (no chapter/topic filter). For caching in localStorage. */
+  getQuestionListBySubject(params: { level_tr: string; class_level: string; subject_tr: string }): Observable<{ questions: any[]; error?: string }> {
+    const p = { level_tr: params.level_tr || '', class_level: params.class_level || '', subject_tr: params.subject_tr || '' };
     return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/question_list/`, { params: p });
   }
 
@@ -737,6 +872,20 @@ export class ApiService {
   }): Observable<{ id: number; status: string; message?: string }> {
     return this.http.post<{ id: number; status: string; message?: string }>(
       `${this.baseUrl}/pending_questions/submit/`,
+      payload
+    );
+  }
+
+  /** Submit an edit request for an existing question. Saved to cheradip_pending_question_request in the target DB. */
+  submitPendingQuestionRequest(payload: {
+    qid: number | string;
+    question?: string; option_1?: string; option_2?: string; option_3?: string; option_4?: string;
+    type?: string; answer?: string; explanation?: string;
+    level_tr?: string; class_level?: string; subject_tr?: string; chapter?: string; topic?: string;
+    [key: string]: any;
+  }): Observable<{ id?: number; status?: string; message?: string }> {
+    return this.http.post<{ id?: number; status?: string; message?: string }>(
+      `${this.baseUrl}/pending_question_request/`,
       payload
     );
   }

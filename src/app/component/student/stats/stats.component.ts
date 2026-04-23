@@ -1,12 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { StudentService } from '../../../service/student.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-stats',
   templateUrl: './stats.component.html',
   styleUrls: ['./stats.component.css']
 })
-export class StatsComponent implements OnInit {
+export class StatsComponent implements OnInit, AfterViewInit {
   stats: any = {
     totalPoints: 0,
     currentLevel: 1,
@@ -24,11 +25,19 @@ export class StatsComponent implements OnInit {
 
   achievements: any[] = [];
 
-  constructor(private studentService: StudentService) { }
+  constructor(
+    private studentService: StudentService,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     this.loadStats();
     this.loadAchievements();
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   loadStats(): void {
@@ -36,6 +45,7 @@ export class StatsComponent implements OnInit {
       (data: any) => {
         this.stats = { ...this.stats, ...data };
         this.calculateAccuracy();
+        this.loadAchievements();
       }
     );
   }

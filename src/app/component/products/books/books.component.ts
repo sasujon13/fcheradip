@@ -3,13 +3,14 @@ import { Component, OnInit, Renderer2 } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
 import { CartService } from 'src/app/service/cart.service';
 import { ChoiceService } from 'src/app/service/choice.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-books',
   templateUrl: './books.component.html',
   styleUrls: ['./books.component.css']
 })
-export class BooksComponent implements OnInit{
+export class BooksComponent implements OnInit {
   closeTimer: any;
   selectedType: string = '';
   selectedSize: string = '';
@@ -39,9 +40,17 @@ export class BooksComponent implements OnInit{
     { label: 'Soft', value: 'Soft' }
   ];
 
-  constructor(private api: ApiService, private cartService: CartService, private choiceService: ChoiceService, private http: HttpClient, private renderer: Renderer2) { }
+  constructor(
+    private api: ApiService,
+    private cartService: CartService,
+    private choiceService: ChoiceService,
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'block';
@@ -92,6 +101,7 @@ export class BooksComponent implements OnInit{
       if (signMenu) {
         this.renderer.setStyle(signMenu, 'display', 'flex');
       }
+      setTimeout(() => this.loadingService.completeOne(), 0);
     }
 
   addtocart(item: any) {

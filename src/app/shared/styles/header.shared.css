@@ -397,6 +397,9 @@ ul.dropdown.open {
   transform: translateY(0);
   transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s;
 }
+ul.dropdown li{
+  padding: 5px;
+}
 ul.dropdown li a {
   text-decoration: none;
   color: teal;

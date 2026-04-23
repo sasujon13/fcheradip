@@ -1,74 +1,143 @@
-/* Import shared styles */
 @import '../../../shared/styles/header.shared.css';
 @import '../../../shared/styles/student.shared.css';
 
-/* Leaderboard component-specific styles */
 .leaderboard-container {
-  padding: 20px;
+  padding: 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.page-title {
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  font-size: 28px;
-  color: teal;
-  margin-bottom: 24px;
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-desc {
+  font-size: 0.9375rem;
+  color: var(--student-text-light);
+  margin: 0.25rem 0 0 0;
 }
 
 .filters-section {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
 }
 
-.filter-select {
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  font-size: 14px;
-  min-width: 150px;
-}
-
 .leaderboard-list {
-  background-color: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--student-border);
+  border-radius: var(--student-radius);
   overflow: hidden;
+  box-shadow: var(--student-shadow);
 }
 
 .leaderboard-header {
   display: flex;
-  padding: 12px;
-  background-color: teal;
-  color: white;
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  font-size: 14px;
-  font-weight: bold;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--student-primary);
+  color: #fff;
+  font-family: 'Roboto', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .rank-col {
   width: 80px;
+  flex-shrink: 0;
 }
 
 .name-col {
   flex: 1;
+  min-width: 0;
 }
 
 .score-col {
   width: 100px;
   text-align: right;
+  flex-shrink: 0;
 }
 
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--student-border);
+  transition: background 0.2s ease;
+}
+
+.leaderboard-item:last-child {
+  border-bottom: none;
+}
+
+.leaderboard-item:nth-child(even) {
+  background: var(--student-surface);
+}
+
+.leaderboard-item:hover {
+  background: var(--student-primary-light);
+}
+
+.leaderboard-item.current-user {
+  background: rgba(var(--student-primary-rgb), 0.12);
+  border-left: 4px solid var(--student-primary);
+}
+
+.rank-number {
+  width: 80px;
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--student-text);
+}
+
+.rank-medal {
+  font-size: 1.25rem;
+}
+
+.leaderboard-item.top-1 .rank-number { color: #b45309; }
+.leaderboard-item.top-2 .rank-number { color: #64748b; }
+.leaderboard-item.top-3 .rank-number { color: #92400e; }
+
 .user-rank-info {
-  margin-top: 24px;
-  padding: 16px;
-  background-color: rgba(0, 128, 128, 0.1);
-  border-radius: 4px;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--student-primary-light);
+  border-radius: var(--student-radius-sm);
   text-align: center;
-  font-family: 'Roboto Regular', 'Roboto', sans-serif;
-  font-size: 16px;
-  color: teal;
+  font-size: 1rem;
+  color: var(--student-primary);
+  font-weight: 500;
+}
+
+.user-rank-info strong {
+  font-weight: 700;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: var(--student-surface);
+  border: 1px dashed var(--student-border);
+  border-radius: var(--student-radius);
+}
+
+.empty-icon {
+  display: block;
+  font-size: 3rem;
+  color: var(--student-border);
+  margin-bottom: 1rem;
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--student-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-desc {
+  font-size: 0.9375rem;
+  color: var(--student-text-light);
+  margin: 0;
 }

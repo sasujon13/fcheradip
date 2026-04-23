@@ -1,12 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { ReportService } from '../../../service/report.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-report',
   templateUrl: './report.component.html',
   styleUrls: ['./report.component.css']
 })
-export class ReportComponent implements OnInit {
+export class ReportComponent implements OnInit, AfterViewInit {
   selectedPeriod: string = 'weekly';
   reportData: any = null;
   periods = [
@@ -18,10 +19,18 @@ export class ReportComponent implements OnInit {
     { value: 'all-time', label: 'All-Time' }
   ];
 
-  constructor(private reportService: ReportService) { }
+  constructor(
+    private reportService: ReportService,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     this.loadReport();
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   selectedLevel: string = '';

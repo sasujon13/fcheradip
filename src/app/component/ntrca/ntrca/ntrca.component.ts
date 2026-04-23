@@ -1,6 +1,7 @@
-import { Component, OnInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
+import { LoadingService } from 'src/app/service/loading.service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -11,7 +12,7 @@ import html2canvas from 'html2canvas';
   styleUrls: ['./ntrca.component.css']
 })
 
-export class NtrcaComponent implements OnInit {
+export class NtrcaComponent implements OnInit, AfterViewInit {
   baseUrl: string = `${environment.apiUrl}/vacancy6/`
   baseUrl2: string = `${environment.apiUrl}/banbeis/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
@@ -267,10 +268,14 @@ export class NtrcaComponent implements OnInit {
   get yearMinus3(): number { return this.currentYear - 3; }
   get yearMinus4(): number { return this.currentYear - 4; }
 
-  constructor(private http: HttpClient, private renderer: Renderer2) { }
+  constructor(
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
-
+    this.loadingService.setTotal(1);
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
     const unlockedEIINs = localStorage.getItem('unlockedEIINs');
@@ -317,6 +322,10 @@ export class NtrcaComponent implements OnInit {
     this.currentPage = 1;
     this.loading = true;
     this.getVacancies(this.currentPage);
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   getVacancies(page: number): void {

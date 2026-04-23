@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, Renderer2, ElementRef, HostListener } from '@angular/core';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-faqs',
@@ -7,9 +8,15 @@ import { Component, OnInit, Renderer2, ElementRef, HostListener } from '@angular
   styleUrls: ['./faqs.component.css']
 })
 export class FaqsComponent implements OnInit {
-  constructor(private renderer: Renderer2, private el: ElementRef, private http: HttpClient,) { }
-  
+  constructor(
+    private renderer: Renderer2,
+    private el: ElementRef,
+    private http: HttpClient,
+    private loadingService: LoadingService
+  ) {}
+
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
 
   if (searchBarElement) {
@@ -26,6 +33,7 @@ export class FaqsComponent implements OnInit {
       if (signMenu) {
         this.renderer.setStyle(signMenu, 'display', 'flex');
       }
+      setTimeout(() => this.loadingService.completeOne(), 0);
     }
 
   @HostListener('window:resize')

@@ -1,25 +1,26 @@
 <div class="tutor-page">
-  <h2>AI Tutor</h2>
+  <header class="page-header">
+    <h2 class="page-title">AI Tutor</h2>
+    <p class="page-desc">Select level, group, and subject to start learning. Ask questions in Bengali or English.</p>
+  </header>
 
   <div class="tutor-selectors">
     <div class="selector-group">
-      <label>Education Level:</label>
+      <label>Education Level</label>
       <select [(ngModel)]="selectedLevel" (change)="onLevelChange()" class="student-select">
         <option value="">Select Level</option>
         <option *ngFor="let level of levels" [value]="level">{{ level }}</option>
       </select>
     </div>
-
     <div class="selector-group" *ngIf="selectedLevel">
-      <label>Group:</label>
+      <label>Group</label>
       <select [(ngModel)]="selectedGroup" (change)="onGroupChange()" class="student-select">
         <option value="">All Groups</option>
         <option *ngFor="let group of groups" [value]="group.value">{{ group.label }}</option>
       </select>
     </div>
-
     <div class="selector-group" *ngIf="selectedLevel && selectedGroup">
-      <label>Subject:</label>
+      <label>Subject</label>
       <select [(ngModel)]="selectedSubject" (change)="onSubjectChange()" class="student-select">
         <option value="">Select Subject</option>
         <option *ngFor="let subject of subjects" [value]="subject.code">{{ subject.name }}</option>
@@ -28,25 +29,30 @@
   </div>
 
   <div *ngIf="selectedLevel && selectedSubject" class="tutor-content">
-    <div class="tutor-sidebar">
+    <aside class="tutor-sidebar">
       <h3>Topics</h3>
       <div *ngIf="topics.length > 0" class="topic-list">
-        <div *ngFor="let topic of topics" 
-             class="topic-item" 
-             [class.active]="selectedTopic === topic.id"
-             (click)="selectedTopic = topic.id">
+        <button
+          *ngFor="let topic of topics"
+          type="button"
+          class="topic-item"
+          [class.active]="selectedTopic === topic.id"
+          (click)="selectedTopic = topic.id"
+        >
           {{ topic.name }}
-        </div>
+        </button>
       </div>
       <div *ngIf="topics.length === 0" class="no-data">No topics available</div>
-    </div>
+    </aside>
 
     <div class="tutor-chat">
       <div class="chat-messages" #chatContainer>
-        <div *ngFor="let message of messages" 
-             class="message" 
-             [class.user-message]="message.type === 'user'"
-             [class.tutor-message]="message.type === 'tutor'">
+        <div
+          *ngFor="let message of messages"
+          class="message"
+          [class.user-message]="message.type === 'user'"
+          [class.tutor-message]="message.type === 'tutor'"
+        >
           <div class="message-content">
             <p class="bengali-text">{{ message.text }}</p>
             <small>{{ message.timestamp | date:'short' }}</small>
@@ -54,26 +60,32 @@
         </div>
         <div *ngIf="loading" class="loading-message">
           <div class="student-spinner"></div>
-          <span>AI Tutor is thinking...</span>
+          <span>AI Tutor is thinking…</span>
         </div>
       </div>
 
       <div class="chat-input">
-        <input type="text" 
-               [(ngModel)]="currentMessage" 
-               (keyup.enter)="sendMessage()"
-               placeholder="Ask a question in Bengali or English..."
-               class="message-input">
-        <button (click)="sendMessage()" 
-                class="student-btn" 
-                [disabled]="!currentMessage.trim() || loading">
-          Send
+        <input
+          type="text"
+          [(ngModel)]="currentMessage"
+          (keyup.enter)="sendMessage()"
+          placeholder="Ask a question in Bengali or English…"
+          class="message-input"
+        >
+        <button
+          type="button"
+          (click)="sendMessage()"
+          class="btn-student-primary send-btn"
+          [disabled]="!currentMessage.trim() || loading"
+        >
+          <i class="fa fa-paper-plane"></i> Send
         </button>
       </div>
     </div>
   </div>
 
   <div *ngIf="!selectedLevel || !selectedSubject" class="tutor-placeholder">
+    <span class="placeholder-icon"><i class="fa fa-graduation-cap"></i></span>
     <p>Please select education level, group, and subject to start learning with AI Tutor.</p>
   </div>
 </div>

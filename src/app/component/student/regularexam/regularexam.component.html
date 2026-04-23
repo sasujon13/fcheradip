@@ -1,0 +1,127 @@
+<div class="regularexam-container">
+  <header class="page-header">
+    <h1 class="page-title">Regular Exams</h1>
+    <p class="page-desc">Practice exam sets by level, class, group, and subject. Select filters to see available sets.</p>
+  </header>
+
+  <!-- Filter row: exactly same design as /question (Level → Class → Group → Subject). No questions displayed. -->
+  <div class="question-filter-row">
+    <div class="question-filter-item filter-dropdown-wrap">
+      <label class="question-filter-label"><b>Filter</b></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('level')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedLevel" (click)="toggleLevelDropdown($event)" [title]="selectedLevelLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedLevelLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="levelDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedLevel" (click)="onLevelSelect('')">Select Level</button>
+          <button type="button" *ngFor="let lvl of levels" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedLevel === lvl.level_tr" (click)="onLevelSelect(lvl.level_tr)">{{ lvl.label }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="classes.length > 1">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('class')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedClass" (click)="toggleClassDropdown($event)" [title]="selectedClassLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedClassLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="classDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedClass" (click)="onClassSelect('')">Select Class</button>
+          <button type="button" *ngFor="let c of classes" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedClass === c.value" (click)="onClassSelect(c.value)">{{ c.label }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="groups.length > 0">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('group')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedGroup" (click)="toggleGroupDropdown($event)" [title]="selectedGroupLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedGroupLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="groupDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedGroup" (click)="onGroupSelect('')">Select Group</button>
+          <button type="button" *ngFor="let g of groups" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedGroup === g" (click)="onGroupSelect(g)">{{ g }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="selectedLevel && (classes.length <= 1 || selectedClass) && subjects.length > 0">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('subject')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedSubjectTr" (click)="toggleSubjectDropdown($event)" [title]="selectedSubjectLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedSubjectLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="subjectDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedSubjectTr" (click)="onSubjectSelect('')">Select Subject</button>
+          <button type="button" *ngFor="let sub of subjects" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedSubjectTr === sub.subject_tr" (click)="onSubjectSelect(sub.subject_tr)">{{ sub.name || sub.subject_tr }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="selectedSubjectTr && chapters.length > 0">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('chapter')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedChapters.length" (click)="toggleChapterDropdown($event)" [title]="selectedChapterLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedChapterLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel filter-dropdown-panel-checkbox" [class.open]="chapterDropdownOpen" (click)="$event.stopPropagation()">
+          <div class="filter-selectall-row">
+            <label class="filter-selectall-label"><input type="checkbox" [checked]="allChaptersSelected" (change)="onChapterSelectAll($any($event.target).checked)"> Select all</label>
+            <button type="button" class="filter-clear-btn" (click)="clearChapterFilter()">Clear</button>
+          </div>
+          <div class="filter-options-list">
+            <label *ngFor="let ch of chapters" class="filter-option-item">
+              <input type="checkbox" [checked]="isChapterSelected(ch)" (change)="onChapterCheckboxChange(ch, $any($event.target).checked)">
+              <span>{{ ch.name }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="question-filter-item filter-dropdown-wrap" *ngIf="selectedSubjectTr && topics.length > 0">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('topic')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedTopics.length" (click)="toggleTopicDropdown($event)" [title]="selectedTopicLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedTopicLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel filter-dropdown-panel-checkbox" [class.open]="topicDropdownOpen" (click)="$event.stopPropagation()">
+          <div class="filter-selectall-row">
+            <label class="filter-selectall-label"><input type="checkbox" [checked]="allTopicsSelected" (change)="onTopicSelectAll($any($event.target).checked)"> Select all</label>
+            <button type="button" class="filter-clear-btn" (click)="clearTopicFilter()">Clear</button>
+          </div>
+          <div class="filter-options-list">
+            <label *ngFor="let t of topics" class="filter-option-item">
+              <input type="checkbox" [checked]="isTopicSelected(t)" (change)="onTopicCheckboxChange(t, $any($event.target).checked)">
+              <span>{{ t.name }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p *ngIf="errorMessage" class="error-msg">{{ errorMessage }}</p>
+  <div *ngIf="loading" class="loading-msg">Loading exam sets…</div>
+
+  <div class="exam-sets-grid" *ngIf="!loading && examSets.length > 0">
+    <a *ngFor="let set of filteredExamSets" [routerLink]="['/student/exam-set', set.id]" class="exam-set-card">
+      <div class="exam-set-icon">
+        <i class="fa fa-file-text-o" aria-hidden="true"></i>
+      </div>
+      <div class="exam-set-label">{{ set.name_label || set.set_key }}</div>
+    </a>
+  </div>
+
+  <div *ngIf="!loading && examSets.length > 0 && filteredExamSets.length === 0" class="empty-state">
+    <span class="empty-icon"><i class="fa fa-filter"></i></span>
+    <h3 class="empty-title">No exam sets match the selected chapter/topic</h3>
+    <p class="empty-desc">Clear the chapter or topic filter to see all sets.</p>
+  </div>
+  <div *ngIf="!loading && examSets.length === 0 && !errorMessage" class="empty-state">
+    <span class="empty-icon"><i class="fa fa-folder-open-o"></i></span>
+    <h3 class="empty-title">No exam sets found</h3>
+    <p class="empty-desc">Try changing filters or ask an admin to create exams from Settings.</p>
+  </div>
+</div>

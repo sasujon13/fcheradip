@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy, Renderer2, ElementRef, ViewChild, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, Renderer2, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-recommend6',
@@ -8,7 +9,7 @@ import { environment } from 'src/environments/environment';
   styleUrls: ['./recommend6.component.css']
 })
 
-export class Recommend6Component implements OnInit, OnDestroy {
+export class Recommend6Component implements OnInit, AfterViewInit, OnDestroy {
   baseUrl: string = `${environment.apiUrl}/recommend6/`
   baseUrl2: string = `${environment.apiUrl}/banbeis/`
   @ViewChild('scrollContainer', { static: true }) scrollContainer!: ElementRef;
@@ -272,17 +273,21 @@ export class Recommend6Component implements OnInit, OnDestroy {
   get yearMinus3(): number { return this.currentYear - 3; }
   get yearMinus4(): number { return this.currentYear - 4; }
 
-  constructor(private http: HttpClient, private renderer: Renderer2) { }
+  constructor(
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
+  ) {}
   ngAfterViewInit(): void {
-    
     const profileMenu = document.getElementById('profileMenu');
     if (profileMenu) {
       this.renderer.setStyle(profileMenu, 'display', 'none');
     }
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   ngOnInit(): void {
-
+    this.loadingService.setTotal(1);
     this.getDistricts();
     this.getTotalTableCount();
 

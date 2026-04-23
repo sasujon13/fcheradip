@@ -1,46 +1,71 @@
 <div class="archive-container">
-  <h1 class="page-title">Practice Exams (Archive)</h1>
-  
-  <div class="filters-section">
-    <select [(ngModel)]="selectedLevel" (change)="onFilterChange()" class="filter-select">
-      <option value="">All Levels</option>
-      <option *ngFor="let level of levels" [value]="level">{{ level }}</option>
-    </select>
-    
-    <select [(ngModel)]="selectedGroup" (change)="onFilterChange()" class="filter-select">
-      <option value="">All Groups</option>
-      <option value="S">Science</option>
-      <option value="A">Humanities</option>
-      <option value="B">Business</option>
-      <option value="I">Islamic Studies</option>
-      <option value="H">Home Economics</option>
-      <option value="M">Music</option>
-    </select>
-    
-    <select [(ngModel)]="selectedType" (change)="onFilterChange()" class="filter-select">
-      <option value="">All Types</option>
-      <option *ngFor="let type of examTypes" [value]="type.value">{{ type.label }}</option>
-    </select>
+  <header class="page-header">
+    <h1 class="page-title">Practice Exams (Archive)</h1>
+    <p class="page-desc">Take practice exams anytime. Filter by level, group, and type.</p>
+  </header>
+
+  <!-- Filter row: same structure as /question -->
+  <div class="question-filter-row">
+    <div class="question-filter-item filter-dropdown-wrap">
+      <label class="question-filter-label"><b>Filter</b></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('level')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedLevel" (click)="toggleLevelDropdown($event)" [title]="selectedLevelLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedLevelLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="levelDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedLevel" (click)="onLevelSelect('')">Select Level</button>
+          <button type="button" *ngFor="let lvl of levels" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedLevel === lvl" (click)="onLevelSelect(lvl)">{{ lvl }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="question-filter-item filter-dropdown-wrap">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('group')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedGroup" (click)="toggleGroupDropdown($event)" [title]="selectedGroupLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedGroupLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="groupDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedGroup" (click)="onGroupSelect('')">Select Group</button>
+          <button type="button" *ngFor="let g of groups" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedGroup === g.value" (click)="onGroupSelect(g.value)">{{ g.label }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="question-filter-item filter-dropdown-wrap">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('type')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedType" (click)="toggleTypeDropdown($event)" [title]="selectedTypeLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedTypeLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="typeDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedType" (click)="onTypeSelect('')">Select Type</button>
+          <button type="button" *ngFor="let t of examTypes" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedType === t.value" (click)="onTypeSelect(t.value)">{{ t.label }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="exams-list">
+  <div class="exams-list" *ngIf="exams.length > 0">
     <div *ngFor="let exam of exams" class="exam-card">
       <div class="exam-header">
         <h3 class="exam-title">{{ exam.subject_name }} ({{ exam.subject_code }})</h3>
         <span class="badge badge-primary">{{ exam.type }} Questions</span>
       </div>
-      
       <div class="exam-meta">
-        <span><i class="fa fa-clock-o"></i> Duration: {{ exam.duration }} minutes</span>
-        <span *ngIf="exam.previous_score">
-          <i class="fa fa-star"></i> Previous Score: {{ exam.previous_score }}%
-        </span>
+        <span><i class="fa fa-clock-o"></i> Duration: {{ exam.duration }} min</span>
+        <span *ngIf="exam.previous_score"><i class="fa fa-star"></i> Previous: {{ exam.previous_score }}%</span>
       </div>
-      
-      <button class="btn-student-primary" [routerLink]="['/student/exam', exam.id]">
-        Take Exam
-      </button>
+      <a [routerLink]="['/student/exam', exam.id]" class="btn-student-primary exam-card-btn">
+        <i class="fa fa-pencil-square-o"></i> Take Exam
+      </a>
     </div>
   </div>
-</div>
 
+  <div *ngIf="!exams.length" class="empty-state">
+    <span class="empty-icon"><i class="fa fa-archive"></i></span>
+    <h3 class="empty-title">No practice exams match your filters</h3>
+    <p class="empty-desc">Try changing level, group, or type above.</p>
+  </div>
+</div>

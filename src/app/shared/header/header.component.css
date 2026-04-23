@@ -1,5 +1,54 @@
 /* Import shared header styles */
 @import '../styles/header.shared.css';
 
-/* Header component-specific styles (if any) */
-/* All header styles are now in header.shared.css */
+/* Global loading: centered circle only, no overlay background */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.loading-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Spinner size + glow: app/shared/styles/loader-glow.shared.css */
+
+.loading-progress-circle {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.loading-progress-bg {
+  stroke: #e0e0e0;
+}
+
+.loading-progress-fill {
+  stroke: teal;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s ease;
+}
+
+.loading-progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.loading-overlay-message {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}

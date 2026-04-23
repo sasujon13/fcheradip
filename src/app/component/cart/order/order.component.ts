@@ -1,17 +1,18 @@
-import { Component, ElementRef, OnInit, Renderer2, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, Renderer2, ViewChild } from '@angular/core';
 import { CartService } from 'src/app/service/cart.service';
 import { Router } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-order',
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.css']
 })
-export class OrderComponent implements OnInit {
+export class OrderComponent implements OnInit, AfterViewInit {
   authForm: FormGroup;
   @ViewChild('consoleOutput') consoleOutput: ElementRef | undefined;
   orderDetails: any[] = [];
@@ -48,13 +49,15 @@ export class OrderComponent implements OnInit {
     private cartService: CartService,
     private router: Router,
     private snackBar: MatSnackBar,
-    private http: HttpClient, 
-    private renderer: Renderer2
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
   ) {
     this.authForm = this.fb.group({
     });
   }
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
@@ -120,6 +123,7 @@ export class OrderComponent implements OnInit {
       if (signMenu) {
         this.renderer.setStyle(signMenu, 'display', 'flex');
       }
+      setTimeout(() => this.loadingService.completeOne(), 0);
     }
   removeCartItem(item: any) {
     this.cartService.removeCartItem(item);

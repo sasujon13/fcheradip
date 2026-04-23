@@ -1,9 +1,9 @@
 <div class="exam-container" *ngIf="!isSubmitted">
   <div class="exam-header-bar">
     <div class="progress-info">
-      Question {{ currentQuestionIndex + 1 }} of {{ questions.length }}
+      Question <strong>{{ currentQuestionIndex + 1 }}</strong> of <strong>{{ questions.length }}</strong>
     </div>
-    <div class="timer">{{ getTimerDisplay() }}</div>
+    <div class="timer" [class.timer-warning]="timeRemaining <= 300">{{ getTimerDisplay() }}</div>
   </div>
 
   <div class="progress-bar">
@@ -65,19 +65,17 @@
 </div>
 
 <div class="result-container" *ngIf="isSubmitted && result">
-  <h2>Exam Results</h2>
+  <h2 class="result-title">Exam Results</h2>
   <div class="result-stats">
     <div class="stat-box">
       <div class="stat-value">{{ result.score }}%</div>
       <div class="stat-label">Your Score</div>
     </div>
     <div class="stat-box">
-      <div class="stat-value">{{ result.correct }}/{{ result.total }}</div>
+      <div class="stat-value">{{ result.correct }} / {{ result.total }}</div>
       <div class="stat-label">Correct Answers</div>
     </div>
   </div>
-  <button class="btn-student-primary" [routerLink]="['/student/dashboard']">
-    Back to Dashboard
-  </button>
+  <a [routerLink]="['/student/dashboard']" class="btn-student-primary">Back to Dashboard</a>
 </div>
 

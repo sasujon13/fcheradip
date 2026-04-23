@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, Renderer2, HostListener, ViewChild, ElementRef } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, AfterViewInit, OnDestroy, Renderer2, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, Validators, ValidatorFn } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
@@ -7,6 +7,7 @@ import { CountrySelectorComponent } from '../../../shared/country-selector/count
 import { AlertComponent } from '../../faqs/alert/alert.component';
 import { ApiService } from '../../../service/api.service';
 import { CountryService, Country } from '../../../service/country.service';
+import { LoadingService } from 'src/app/service/loading.service';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { of, Subject } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -69,7 +70,7 @@ function dobDDMMYYYYValidator(maxDateIso: string): ValidatorFn {
   templateUrl: './signup.component.html',
   styleUrls: ['./signup.component.css']
 })
-export class SignupComponent implements OnInit, OnDestroy {
+export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
   authForm: FormGroup;
   isMobileNumberRegistered = false;
   showPassword = false;
@@ -197,7 +198,8 @@ export class SignupComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private renderer: Renderer2,
     private countryService: CountryService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private loadingService: LoadingService
   ) {
     const today = new Date();
     today.setFullYear(today.getFullYear() - 5);
@@ -236,6 +238,7 @@ export class SignupComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     // Hide search bar if exists
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
@@ -397,6 +400,7 @@ export class SignupComponent implements OnInit, OnDestroy {
     if (signMenu) {
       this.renderer.setStyle(signMenu, 'display', 'flex');
     }
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   onAccountTypeChange(): void {

@@ -1,9 +1,262 @@
-<div class="question-creator-container">
+<div
+  class="question-creator-container"
+  appQuestionRichImgHost
+  [appQuestionRichImgFontTrigger]="previewRichImgFontTriggerKey"
+>
+  <!-- Match /question: justified stem, (ক)–(ঘ) options, 1/2/4-row grid from measured wraps -->
+  <ng-template #previewQuestionBlock let-q="q" let-sl="sl" let-idx="idx">
+    <ng-container *ngIf="getQuestionDisplayStructure(q) as struct">
+      <div class="preview-q-content">
+        <label class="preview-q-label">
+          <ng-container *ngIf="struct.parts.length === 0">
+            <strong class="preview-q-index">{{ previewQuestionSerialBn(sl) }}।</strong><span
+              class="preview-q-text"
+              [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"
+            ></span>
+          </ng-container>
+          <ng-container *ngIf="struct.parts.length > 0">
+            <span class="preview-q-stem-with-parts">
+              <strong class="preview-q-index">{{ previewQuestionSerialBn(sl) }}।</strong><span
+                class="preview-q-text preview-q-intro"
+                [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"
+              ></span>
+            </span>
+            <div
+              *ngFor="let part of struct.parts; let pi = index"
+              class="preview-q-subpart-wrap"
+              [class.preview-q-subpart-wrap--has-marks]="creativeSubpartMarkBn(struct.parts.length, pi)"
+            >
+              <div class="preview-q-subpart" [innerHTML]="part | formatQuestionMedia | wrapRomanLines"></div>
+              <span
+                class="preview-q-subpart-marks"
+                *ngIf="creativeSubpartMarkBn(struct.parts.length, pi) as mk"
+                >{{ mk }}</span
+              >
+            </div>
+          </ng-container>
+        </label>
+        <div
+          class="preview-q-options"
+          *ngIf="q.option_1 || q.option_2"
+          [ngStyle]="previewOptionsGridStyle"
+        >
+          <span *ngIf="q.option_1" class="preview-q-opt">(ক) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines"></span></span>
+          <span *ngIf="q.option_2" class="preview-q-opt">(খ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines"></span></span>
+          <span *ngIf="q.option_3" class="preview-q-opt">(গ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines"></span></span>
+          <span *ngIf="q.option_4" class="preview-q-opt">(ঘ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines"></span></span>
+        </div>
+      </div>
+    </ng-container>
+  </ng-template>
+
+  <ng-template #paperQuestionHeader let-pi="pi">
+    <!-- MCQ: 1 row if no set; 2 rows + row gap if set. Creative: বিষয় কোড row only (no সেট). -->
+    <ng-template #previewSubjectCodeSetGrid let-fontIndex="fontIndex" let-showSetRow="showSetRow" let-isCreative="isCreative">
+      <div
+        class="preview-mcq-code-grid"
+        [class.preview-mcq-code-grid--subject-row-only]="!showSetRow"
+        [class.preview-mcq-code-grid--creative]="!!isCreative"
+        [ngStyle]="headerPreviewLineTypoStyle(fontIndex)"
+      >
+        <span class="preview-mcq-code-cell preview-mcq-code-cell--plain">বিষয় কোড</span>
+        <span class="preview-mcq-code-cell preview-mcq-code-cell--plain">:</span>
+        <span
+          class="preview-mcq-code-cell preview-mcq-code-cell--digit"
+          [class.preview-mcq-code-cell--digit-pull]="di < 2"
+          *ngFor="let d of headerCodeGridDigitsBn(); let di = index"
+          >{{ d }}</span
+        >
+        <ng-container *ngIf="showSetRow">
+          <span class="preview-mcq-code-cell preview-mcq-code-cell--plain">সেট</span>
+          <span class="preview-mcq-code-cell preview-mcq-code-cell--plain">:</span>
+          <span class="preview-mcq-code-cell preview-mcq-code-cell--plain preview-mcq-code-cell--empty"></span>
+          <span class="preview-mcq-code-cell preview-mcq-code-cell--set">{{ selectedMcqSetLetter }}</span>
+          <span class="preview-mcq-code-cell preview-mcq-code-cell--plain preview-mcq-code-cell--empty"></span>
+        </ng-container>
+      </div>
+    </ng-template>
+    <div class="preview-header-lines">
+      <ng-container *ngIf="headerUsesMcqCodeTable(pi); else headerCreativeBlock">
+        <div class="preview-header-mcq-band">
+          <!-- Grid bottom aligns with MCQ band rows (mixed: 6 slots incl. MCQ meta + HR; slot 4 may split সময়/পূর্ণমান). -->
+          <div class="preview-header-mcq-band-with-grid">
+            <div class="preview-header-mcq-band-left">
+              <ng-container *ngFor="let slot of mcqHeaderUpperLineSlots(pi); let li = index; trackBy: trackMcqUpperSlot">
+                <ng-container *ngIf="li <= mcqCodeGridAlignLastSlotIndex(pi)">
+                  <ng-container *ngIf="mcqShowSqSplitMcqBandRow(pi, li, slot)">
+                    <div
+                      class="preview-header-line preview-header-line--2"
+                      [ngStyle]="headerPreviewLineTypoStyle(mcqUpperSlotFontIndex(li, pi))"
+                    >
+                      {{ mcqSqSplitLineFirst(slot.kind === 'text' ? slot.text : '') }}
+                    </div>
+                    <div
+                      class="preview-header-line preview-header-line--2"
+                      [ngStyle]="headerPreviewLineTypoStyle(mcqUpperSlotFontIndex(li, pi))"
+                    >
+                      {{ mcqSqSplitLineSecond(slot.kind === 'text' ? slot.text : '') }}
+                    </div>
+                  </ng-container>
+                  <div
+                    *ngIf="!mcqShowSqSplitMcqBandRow(pi, li, slot)"
+                    class="preview-header-line"
+                    [class.preview-header-line--1]="li === 0"
+                    [class.preview-header-line--2]="li > 0"
+                    [ngStyle]="headerPreviewLineTypoStyle(mcqUpperSlotFontIndex(li, pi))"
+                  >
+                    <ng-container *ngIf="slot.kind === 'text'">
+                      <span
+                        class="preview-header-line-html"
+                        [innerHTML]="headerLinePreviewInnerHtml(mcqUpperSlotDisplayText(li, slot))"
+                      ></span>
+                    </ng-container>
+                    <ng-container *ngIf="slot.kind === 'mcqTitle'">বহুনির্বাচনি অভীক্ষা</ng-container>
+                    <ng-container *ngIf="slot.kind === 'mcqSubject'">
+                      <ng-container *ngIf="creatorSubjectLabel.length > 0">{{ creatorSubjectLabel }}</ng-container>
+                      <ng-container *ngIf="creatorSubjectLabel.length === 0">&nbsp;</ng-container>
+                    </ng-container>
+                  </div>
+                </ng-container>
+              </ng-container>
+            </div>
+            <div class="preview-header-mcq-code-grid-wrap" aria-hidden="true">
+              <ng-container
+                *ngTemplateOutlet="
+                  previewSubjectCodeSetGrid;
+                  context: {
+                    fontIndex: mcqCodeGridHeaderFontIndex(),
+                    showSetRow: selectedMcqSetLetter != null,
+                    isCreative: false
+                  }
+                "
+              ></ng-container>
+            </div>
+          </div>
+          <ng-container *ngFor="let slot of mcqHeaderUpperLineSlots(pi); let li = index; trackBy: trackMcqUpperSlot">
+            <div
+              *ngIf="li > mcqCodeGridAlignLastSlotIndex(pi)"
+              class="preview-header-line preview-header-line--2 preview-header-mcq-line-after-grid"
+              [ngStyle]="
+                slot.kind === 'mcqTitle'
+                  ? headerPreviewMcqTitleTypoStyle()
+                  : headerPreviewLineTypoStyle(mcqUpperSlotFontIndex(li, pi))
+              "
+            >
+              <ng-container *ngIf="slot.kind === 'text'">
+                <span
+                  class="preview-header-line-html"
+                  [innerHTML]="headerLinePreviewInnerHtml(mcqUpperSlotDisplayText(li, slot))"
+                ></span>
+              </ng-container>
+              <ng-container *ngIf="slot.kind === 'mcqTitle'">বহুনির্বাচনি অভীক্ষা</ng-container>
+              <ng-container *ngIf="slot.kind === 'mcqSubject'">
+                <ng-container *ngIf="creatorSubjectLabel.length > 0">{{ creatorSubjectLabel }}</ng-container>
+                <ng-container *ngIf="creatorSubjectLabel.length === 0">&nbsp;</ng-container>
+              </ng-container>
+            </div>
+          </ng-container>
+        </div>
+        <div
+          *ngFor="let line of mcqHeaderLowerLines(); let j = index; trackBy: trackMcqHeaderLowerLine"
+          class="preview-header-line preview-header-line--after-mcq-grid"
+          [class.preview-header-line--sq-notice]="mcqHeaderLowerLineIsSqNoticeRow(j)"
+          [ngStyle]="headerPreviewLineTypoStyle(mcqHeaderLowerLineFontIndex(j))"
+        >
+          <span class="preview-header-line-html" [innerHTML]="headerLinePreviewInnerHtml(line)"></span>
+        </div>
+      </ng-container>
+      <ng-template #headerCreativeBlock>
+        <ng-container *ngIf="paperSubjectMetaLinesEligible(); else creativeHeaderNoMeta">
+          <ng-container *ngFor="let line of creativeHeaderTopLinesPadded(); let ti = index; trackBy: trackCreativeTopLine">
+            <ng-container *ngIf="creativeShowSqSplitTopRow(ti, line)">
+              <div
+                class="preview-header-line"
+                [class.preview-header-line--1]="ti === 0"
+                [class.preview-header-line--2]="ti > 0"
+                [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti))"
+              >
+                {{ creativeSqSplitLineFirst(line) }}
+              </div>
+              <div
+                class="preview-header-line preview-header-line--2"
+                [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti))"
+              >
+                {{ creativeSqSplitLineSecond(line) }}
+              </div>
+            </ng-container>
+            <div
+              *ngIf="!creativeShowSqSplitTopRow(ti, line)"
+              class="preview-header-line"
+              [class.preview-header-line--1]="ti === 0"
+              [class.preview-header-line--2]="ti > 0"
+              [class.preview-header-line--meta]="ti === 2"
+              [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti))"
+            >
+              <span
+                *ngIf="(line || '').trim().length > 0"
+                class="preview-header-line-html"
+                [innerHTML]="headerLinePreviewInnerHtml(line)"
+              ></span>
+              <ng-container *ngIf="!(line || '').trim().length">&nbsp;</ng-container>
+            </div>
+          </ng-container>
+          <div class="preview-header-mcq-band preview-header-creative-band">
+            <!-- Grid bottom aligns with band (mixed: HR = textarea index 5); tail lines from index 7. -->
+            <div class="preview-header-creative-band-with-grid">
+              <div class="preview-header-mcq-band-left">
+                <div
+                  *ngIf="creativeHeaderBandLeftLines().length > 0"
+                  class="preview-header-line preview-header-line--2"
+                  [ngStyle]="headerPreviewLineTypoStyle(creativeBandFirstLineFontIndex())"
+                >
+                  <span
+                    class="preview-header-line-html"
+                    [innerHTML]="headerLinePreviewInnerHtml(creativeHeaderBandLeftLines()[0])"
+                  ></span>
+                </div>
+              </div>
+              <div class="preview-header-mcq-code-grid-wrap" aria-hidden="true">
+                <ng-container
+                  *ngTemplateOutlet="
+                    previewSubjectCodeSetGrid;
+                    context: { fontIndex: creativeCodeGridFontIndex(), showSetRow: false, isCreative: true }
+                  "
+                ></ng-container>
+              </div>
+            </div>
+            <div
+              *ngFor="
+                let bandLine of creativeHeaderBandLeftLines().slice(1);
+                let bj = index;
+                trackBy: trackCreativeBandLine
+              "
+              class="preview-header-line preview-header-line--2 preview-header-creative-band-tail-line"
+              [class.preview-header-line--sq-notice]="mixedSqNoticeLinesEligible() && bj === 0"
+              [ngStyle]="headerPreviewLineTypoStyle(creativeBandTailFontBase() + bj)"
+            >
+              <span class="preview-header-line-html" [innerHTML]="headerLinePreviewInnerHtml(bandLine)"></span>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #creativeHeaderNoMeta>
+          <div
+            *ngFor="let line of headerPreviewLines; let i = index; trackBy: trackHeaderPreviewLine"
+            class="preview-header-line"
+            [class.preview-header-line--1]="i === 0"
+            [class.preview-header-line--2]="i > 0"
+            [ngStyle]="headerPreviewLineTypoStyle(i)"
+          >
+            <span class="preview-header-line-html" [innerHTML]="headerLinePreviewInnerHtml(line)"></span>
+          </div>
+        </ng-template>
+      </ng-template>
+    </div>
+  </ng-template>
+
   <div class="creator-header">
     <button type="button" class="btn-back" (click)="goBack()">&larr; Back to Questions</button>
-    <h1>Create Question Set</h1>
     <p class="creator-context" *ngIf="context.subject_tr">
-      {{ context.level_tr }} &ndash; {{ context.subject_tr }}
+      {{ context.level_tr }} &ndash; {{ creatorSubjectLabel }}
       <span *ngIf="context.chapter"> &ndash; {{ context.chapter }}</span>
       <span *ngIf="context.topic"> &ndash; {{ context.topic }}</span>
     </p>
@@ -11,94 +264,1369 @@
 
   <div class="creator-main">
     <aside class="creator-settings-col">
-      <h2>Layout settings</h2>
-      <div class="setting-item">
-        <label for="questionHeader">Question header</label>
-        <input id="questionHeader" type="text" [(ngModel)]="questionHeader" placeholder="e.g. Section A" />
+      <h2 class="btn-smart-text">
+        Click on<button
+          type="button"
+          class="btn-smart btn-smart2"
+          (click)="onSmartQuestionCreator()"
+          [disabled]="autoFitBlockingOverlayVisible"
+          aria-label="Smart Question Creator"
+          data-tooltip="Smart Question Creator"
+        >SQC</button>to Create Instantly
+      </h2>
+      <div class="settings-row settings-row--full" *ngIf="headerUseLegacyQuestionHeader">
+        <div class="setting-field setting-field--grow">
+          <label for="questionHeader">Question header</label>
+          <textarea
+            id="questionHeader"
+            class="header-textarea"
+            rows="3"
+            [(ngModel)]="questionHeader"
+            placeholder="Custom header (multiple lines allowed)"
+            (ngModelChange)="onPreviewLayoutChange()"
+          ></textarea>
+          <button type="button" class="btn-header-mode" (click)="headerUseLegacyQuestionHeader = false; rebuildQuestionHeader(); onPreviewLayoutChange()">
+            Use structured header (EIIN / exam)
+          </button>
+        </div>
       </div>
-      <div class="setting-item">
-        <label for="pageSize">Page size</label>
-        <select id="pageSize" [(ngModel)]="pageSize">
-          <option *ngFor="let p of pageSizes" [value]="p.value">{{ p.label }}</option>
-        </select>
+      <ng-container *ngIf="!headerUseLegacyQuestionHeader">
+        <div class="settings-row settings-row--header-meta">
+          <div class="setting-field setting-field-header-eiin">
+            <label for="headerEiin">EIIN</label>
+            <input
+              id="headerEiin"
+              type="text"
+              [(ngModel)]="headerEiin"
+              placeholder="000000"
+              autocomplete="off"
+              (ngModelChange)="onHeaderEiinInput($event)"
+            />
+            <p class="field-hint" *ngIf="instituteLookupLoading">Searching…</p>
+            <p class="field-hint field-hint--error" *ngIf="instituteLookupError">{{ instituteLookupError }}</p>
+          </div>
+          <div class="setting-field setting-field-header-exam">
+            <label for="headerExamType">Exam name</label>
+            <select id="headerExamType" [(ngModel)]="headerExamTypeKey" (ngModelChange)="onHeaderMetaChange()">
+              <option *ngFor="let o of examTypeOptions" [value]="o.key">{{ o.label }}</option>
+            </select>
+          </div>
+          <div
+            class="setting-field setting-field-header-set"
+            *ngIf="paperSubjectMetaLinesEligible() && selectionHasMcqType()"
+          >
+            <label for="mcqSetLetter">Set</label>
+            <select id="mcqSetLetter" class="setk" [(ngModel)]="selectedMcqSetLetter" (ngModelChange)="onMcqSetLetterChange()">
+              <option [ngValue]="null">Select</option>
+              <option *ngFor="let s of mcqSetLetterOptions" [ngValue]="s">{{ s }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-row settings-row--full">
+          <div class="setting-field setting-field2 setting-field--grow">
+            <div class="header-preview-sample" role="group" aria-label="Question header">
+              <div
+                class="header-line-editor"
+                aria-label="Question header lines. Enter moves to the next line, Shift+Enter to the previous. Font size buttons appear when a line has text."
+              >
+                <div
+                  class="header-line-editor-row"
+                  *ngFor="let row of getHeaderEditorSidebarRows(); let li = index; trackBy: trackHeaderEditorSidebarRow"
+                >
+                  <span class="header-line-font-slot" *ngIf="!headerEditorLineShowsFontControls(row.text)"></span>
+                  <button
+                    *ngIf="headerEditorLineShowsFontControls(row.text)"
+                    type="button"
+                    class="header-line-font-btn"
+                    (click)="onHeaderLineFontAdjustInEditor(row.modelIndex, -1, $event)"
+                    [disabled]="headerLineFontPxForEditorLine(row.modelIndex) <= headerLineFontMin"
+                    [attr.aria-label]="'Decrease font size for line ' + (li + 1)"
+                  >
+                    −
+                  </button>
+                  <input
+                    #headerLineEditorInput
+                    type="text"
+                    class="header-line-editor-input"
+                    [ngModel]="row.text"
+                    (focus)="onHeaderEditorLineFocus()"
+                    (ngModelChange)="onHeaderEditorLineChange(row.modelIndex, $event)"
+                    (keydown)="onHeaderEditorLineKeydown(row.modelIndex, $event)"
+                    [attr.id]="row.modelIndex === 0 ? 'headerSidebarEdit' : null"
+                    [attr.aria-label]="'Header line ' + (li + 1)"
+                    spellcheck="true"
+                    autocomplete="off"
+                  />
+                  <span class="header-line-font-slot" *ngIf="!headerEditorLineShowsFontControls(row.text)"></span>
+                  <button
+                    *ngIf="headerEditorLineShowsFontControls(row.text)"
+                    type="button"
+                    class="header-line-font-btn"
+                    (click)="onHeaderLineFontAdjustInEditor(row.modelIndex, 1, $event)"
+                    [disabled]="headerLineFontPxForEditorLine(row.modelIndex) >= headerLineFontMax"
+                    [attr.aria-label]="'Increase font size for line ' + (li + 1)"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+      <div
+        class="header-line-font-toast"
+        *ngIf="headerLineFontToastVisible"
+        [style.left.px]="headerLineFontToastLeft"
+        [style.top.px]="headerLineFontToastTop"
+        role="status"
+        aria-live="polite"
+      >
+        {{ headerLineFontToastText }}
       </div>
-      <div class="setting-item">
-        <label>Margins</label>
-        <select [(ngModel)]="marginPreset" (ngModelChange)="onMarginPresetChange()">
-          <option value="narrow">Narrow (0.5")</option>
-          <option value="standard">Standard (1")</option>
-          <option value="wide">Wide (1.5", 1", 1", 1.5")</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
-        <label>Top (mm)</label>
-        <input type="number" min="0" [(ngModel)]="marginTop" />
-      </div>
-      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
-        <label>Right (mm)</label>
-        <input type="number" min="0" [(ngModel)]="marginRight" />
-      </div>
-      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
-        <label>Bottom (mm)</label>
-        <input type="number" min="0" [(ngModel)]="marginBottom" />
-      </div>
-      <div class="setting-item margin-custom" *ngIf="marginPreset === 'custom'">
-        <label>Left (mm)</label>
-        <input type="number" min="0" [(ngModel)]="marginLeft" />
-      </div>
-      <div class="setting-item">
-        <label for="questionsPadding">Questions padding (px)</label>
-        <input id="questionsPadding" type="number" min="0" [(ngModel)]="questionsPadding" />
-      </div>
-      <div class="setting-item">
-        <label for="questionsGap">Questions gap (px)</label>
-        <input id="questionsGap" type="number" min="0" [(ngModel)]="questionsGap" />
+      <div class="settings-row settings-row--layout-flow">
+        <div class="setting-field setting-field--columns">
+          <label for="pageSize">Page size</label>
+          <select id="pageSize" [(ngModel)]="pageSize" (ngModelChange)="onPreviewLayoutChange()">
+            <option *ngFor="let p of pageSizes" [value]="p.value">{{ p.label }}</option>
+          </select>
+        </div>
+        <ng-container *ngIf="pageSize === 'Custom'">
+          <div class="setting-field setting-field--column-gap">
+            <span class="setting-label-text">Width (in)</span>
+            <div class="setting-stepper" role="group" aria-label="Custom page width in inches">
+              <button type="button" class="stepper-btn" (click)="decCustomPageWidthIn()" [disabled]="customPageWidthIn <= customPageInMin" aria-label="Decrease width">−</button>
+              <input
+                id="customPageWidthIn"
+                class="stepper-input stepper-input2"
+                type="number"
+                [ngModel]="customPageWidthIn"
+                (ngModelChange)="onCustomPageWidthInInput($event)"
+                (blur)="onCustomPageWidthInBlur()"
+                [min]="customPageInMin"
+                [max]="customPageInMax"
+                step="0.01"
+                inputmode="decimal"
+                aria-label="Custom page width in inches"
+              />
+              <button type="button" class="stepper-btn" (click)="incCustomPageWidthIn()" [disabled]="customPageWidthIn >= customPageInMax" aria-label="Increase width">+</button>
+            </div>
+          </div>
+          <div class="setting-field setting-field--column-gap">
+            <span class="setting-label-text">Height (in)</span>
+            <div class="setting-stepper" role="group" aria-label="Custom page height in inches">
+              <button type="button" class="stepper-btn" (click)="decCustomPageHeightIn()" [disabled]="customPageHeightIn <= customPageInMin" aria-label="Decrease height">−</button>
+              <input
+                id="customPageHeightIn"
+                class="stepper-input stepper-input2"
+                type="number"
+                [ngModel]="customPageHeightIn"
+                (ngModelChange)="onCustomPageHeightInInput($event)"
+                (blur)="onCustomPageHeightInBlur()"
+                [min]="customPageInMin"
+                [max]="customPageInMax"
+                step="0.01"
+                inputmode="decimal"
+                aria-label="Custom page height in inches"
+              />
+              <button type="button" class="stepper-btn" (click)="incCustomPageHeightIn()" [disabled]="customPageHeightIn >= customPageInMax" aria-label="Increase height">+</button>
+            </div>
+          </div>
+        </ng-container>
+        <div class="setting-field setting-field--columns">
+          <label>Margins</label>
+          <select [(ngModel)]="marginPreset" (ngModelChange)="onMarginPresetChange()">
+            <option value="narrow">Narrow (0.5")</option>
+            <option value="standard">Standard (1")</option>
+            <option value="wide">Wide (1.5")</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="settings-row settings-row--custom-margins" *ngIf="marginPreset === 'custom'">
+          <div class="setting-field setting-field--mm">
+            <label>Top (in)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              [ngModel]="marginIn('top')"
+              (ngModelChange)="onCustomMarginInInput('top', $event)"
+              (blur)="onCustomMarginInBlur('top')"
+            />
+          </div>
+          <div class="setting-field setting-field--mm">
+            <label>Right (in)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              [ngModel]="marginIn('right')"
+              (ngModelChange)="onCustomMarginInInput('right', $event)"
+              (blur)="onCustomMarginInBlur('right')"
+            />
+          </div>
+          <div class="setting-field setting-field--mm">
+            <label>Bottom (in)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              [ngModel]="marginIn('bottom')"
+              (ngModelChange)="onCustomMarginInInput('bottom', $event)"
+              (blur)="onCustomMarginInBlur('bottom')"
+            />
+          </div>
+          <div class="setting-field setting-field--mm">
+            <label>Left (in)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              [ngModel]="marginIn('left')"
+              (ngModelChange)="onCustomMarginInInput('left', $event)"
+              (blur)="onCustomMarginInBlur('left')"
+            />
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">Header line height</span>
+          <div class="setting-stepper" role="group" aria-label="Sheet header line height in preview">
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="decPreviewHeaderLineHeight()"
+              [disabled]="previewHeaderLineHeight <= previewLineHeightMin"
+              aria-label="Decrease header line height"
+            >
+              −
+            </button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="previewHeaderLineHeight"
+              (ngModelChange)="onPreviewHeaderLineHeightInput($event)"
+              (blur)="onPreviewHeaderLineHeightBlur()"
+              [min]="previewLineHeightMin"
+              [max]="previewLineHeightMax"
+              step="0.1"
+              inputmode="decimal"
+              aria-label="Header line height"
+            />
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="incPreviewHeaderLineHeight()"
+              [disabled]="previewHeaderLineHeight >= previewLineHeightMax"
+              aria-label="Increase header line height"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">Questions padding</span>
+          <div class="setting-stepper" role="group" aria-label="Vertical padding in pixels for each question block">
+            <button type="button" class="stepper-btn" (click)="decQuestionsPadding()" [disabled]="questionsPadding <= questionsPaddingMin" aria-label="Decrease questions padding">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="questionsPadding"
+              (ngModelChange)="onQuestionsPaddingInput($event)"
+              (blur)="onQuestionsPaddingBlur()"
+              [min]="questionsPaddingMin"
+              [max]="questionsPaddingMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="Questions padding in pixels"
+            />
+            <button type="button" class="stepper-btn" (click)="incQuestionsPadding()" [disabled]="questionsPadding >= questionsPaddingMax" aria-label="Increase questions padding">+</button>
+          </div>
+        </div>
+        <div *ngIf="multiColumnPreviewActive" class="setting-field setting-field--columns">
+          <span class="setting-label-text">Column gap</span>
+          <div class="setting-stepper" role="group" aria-label="Horizontal gap in pixels between preview columns">
+            <button type="button" class="stepper-btn" (click)="decLayoutColumnGap()" [disabled]="layoutColumnGapPx <= layoutColumnGapMin" aria-label="Decrease column gap">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="layoutColumnGapPx"
+              (ngModelChange)="onLayoutColumnGapInput($event)"
+              (blur)="onLayoutColumnGapBlur()"
+              [min]="layoutColumnGapMin"
+              [max]="layoutColumnGapMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="Column gap in pixels"
+            />
+            <button type="button" class="stepper-btn" (click)="incLayoutColumnGap()" [disabled]="layoutColumnGapPx >= layoutColumnGapMax" aria-label="Increase column gap">+</button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">Page Divider</span>
+          <div class="setting-stepper" role="group" aria-label="Number of horizontal page bands">
+            <button type="button" class="stepper-btn" (click)="decPageSections()" [disabled]="pageSections <= pageSectionsMin" aria-label="Decrease page divider count">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="pageSections"
+              (ngModelChange)="onPageSectionsInput($event)"
+              (blur)="onPageSectionsBlur()"
+              [min]="pageSectionsMin"
+              [max]="pageSectionsMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="Page divider count"
+            />
+            <button type="button" class="stepper-btn" (click)="incPageSections()" [disabled]="pageSections >= pageSectionsMax" aria-label="Increase page divider count">+</button>
+          </div>
+        </div>
+        <div *ngIf="pageSections > 1" class="setting-field setting-field--columns">
+          <span class="setting-label-text">Section gap</span>
+          <div class="setting-stepper" role="group" aria-label="Gap in pixels between page sections">
+            <button type="button" class="stepper-btn" (click)="decSectionGap()" [disabled]="sectionGapPx <= sectionGapMin" aria-label="Decrease section gap">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="sectionGapPx"
+              (ngModelChange)="onSectionGapInput($event)"
+              (blur)="onSectionGapBlur()"
+              [min]="sectionGapMin"
+              [max]="sectionGapMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="Section gap in pixels"
+            />
+            <button type="button" class="stepper-btn" (click)="incSectionGap()" [disabled]="sectionGapPx >= sectionGapMax" aria-label="Increase section gap">+</button>
+          </div>
+        </div>
+        <!-- MCQ Options Grid -->
+        <div class="setting-field setting-field--columns">
+          <label for="mcqPageOrientation">MCQ Orientation</label>
+          <select id="mcqPageOrientation" [(ngModel)]="mcqPageOrientation" (ngModelChange)="onPreviewLayoutChange()">
+            <option value="portrait">Portrait</option>
+            <option value="landscape">Landscape</option>
+          </select>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">MCQ Font Size</span>
+          <div class="setting-stepper" role="group" aria-label="Font size in pixels for MCQ questions in the preview">
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="decPreviewQuestionsFontPxMcq()"
+              [disabled]="previewQuestionsFontPxMcq <= previewQuestionsFontMin"
+              aria-label="Decrease MCQ font size"
+            >
+              −
+            </button>
+            <input
+              id="previewQuestionsFontPxMcq"
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="previewQuestionsFontPxMcq"
+              (ngModelChange)="onPreviewQuestionsFontPxMcqInput($event)"
+              (blur)="onPreviewQuestionsFontPxMcqBlur()"
+              [min]="previewQuestionsFontMin"
+              [max]="previewQuestionsFontMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="MCQ font size in pixels"
+            />
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="incPreviewQuestionsFontPxMcq()"
+              [disabled]="previewQuestionsFontPxMcq >= previewQuestionsFontMax"
+              aria-label="Increase MCQ font size"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">MCQ questions gap</span>
+          <div class="setting-stepper" role="group" aria-label="Vertical gap in pixels below MCQ and non-creative question blocks">
+            <button type="button" class="stepper-btn" (click)="decQuestionsGap()" [disabled]="questionsGap <= questionsGapMin" aria-label="Decrease MCQ questions gap">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="questionsGap"
+              (ngModelChange)="onQuestionsGapInput($event)"
+              (blur)="onQuestionsGapBlur()"
+              [min]="questionsGapMin"
+              [max]="questionsGapMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="MCQ questions gap in pixels"
+            />
+            <button type="button" class="stepper-btn" (click)="incQuestionsGap()" [disabled]="questionsGap >= questionsGapMax" aria-label="Increase MCQ questions gap">+</button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">MCQ Columns</span>
+          <div class="setting-stepper" role="group" aria-label="Number of columns">
+            <button type="button" class="stepper-btn" (click)="decLayoutColumns()" [disabled]="layoutColumns <= layoutColumnsMin" aria-label="Decrease columns">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="layoutColumns"
+              (ngModelChange)="onLayoutColumnsInput($event)"
+              (blur)="onLayoutColumnsBlur()"
+              [min]="layoutColumnsMin"
+              [max]="layoutColumnsMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="Column count"
+            />
+            <button type="button" class="stepper-btn" (click)="incLayoutColumns()" [disabled]="layoutColumns >= layoutColumnsMax" aria-label="Increase columns">+</button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">Options Column</span>
+          <div class="setting-stepper" role="group" aria-label="MCQ options grid columns">
+            <button type="button" class="stepper-btn" (click)="decOptionsColumns()" [disabled]="optionsColumns <= optionsColumnsMin" aria-label="Decrease options columns">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="optionsColumns"
+              (ngModelChange)="onOptionsColumnsInput($event)"
+              (blur)="onOptionsColumnsBlur()"
+              [min]="optionsColumnsMin"
+              [max]="optionsColumnsMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="Options column count"
+            />
+            <button type="button" class="stepper-btn" (click)="incOptionsColumns()" [disabled]="optionsColumns >= optionsColumnsMax" aria-label="Increase options columns">+</button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">MCQ Line Height</span>
+          <div class="setting-stepper" role="group" aria-label="MCQ question line height in preview">
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="decPreviewQuestionsLineHeightMcq()"
+              [disabled]="previewQuestionsLineHeightMcq <= previewLineHeightMin"
+              aria-label="Decrease MCQ line height"
+            >
+              −
+            </button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="previewQuestionsLineHeightMcq"
+              (ngModelChange)="onPreviewQuestionsLineHeightMcqInput($event)"
+              (blur)="onPreviewQuestionsLineHeightMcqBlur()"
+              [min]="previewLineHeightMin"
+              [max]="previewLineHeightMax"
+              step="0.1"
+              inputmode="decimal"
+              aria-label="MCQ line height"
+            />
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="incPreviewQuestionsLineHeightMcq()"
+              [disabled]="previewQuestionsLineHeightMcq >= previewLineHeightMax"
+              aria-label="Increase MCQ line height"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <!-- CQ Options Grid -->
+        <div class="setting-field setting-field--columns">
+          <label for="cqPageOrientation">CQ Orientation</label>
+          <select id="cqPageOrientation" [(ngModel)]="cqPageOrientation" (ngModelChange)="onPreviewLayoutChange()">
+            <option value="portrait">Portrait</option>
+            <option value="landscape">Landscape</option>
+          </select>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">CQ Font Size</span>
+          <div class="setting-stepper" role="group" aria-label="Font size in pixels for creative questions in the preview">
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="decPreviewQuestionsFontPxCreative()"
+              [disabled]="previewQuestionsFontPxCreative <= previewQuestionsFontMin"
+              aria-label="Decrease CQ font size"
+            >
+              −
+            </button>
+            <input
+              id="previewQuestionsFontPxCreative"
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="previewQuestionsFontPxCreative"
+              (ngModelChange)="onPreviewQuestionsFontPxCreativeInput($event)"
+              (blur)="onPreviewQuestionsFontPxCreativeBlur()"
+              [min]="previewQuestionsFontMin"
+              [max]="previewQuestionsFontMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="CQ font size in pixels"
+            />
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="incPreviewQuestionsFontPxCreative()"
+              [disabled]="previewQuestionsFontPxCreative >= previewQuestionsFontMax"
+              aria-label="Increase CQ font size"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">CQ questions gap</span>
+          <div class="setting-stepper" role="group" aria-label="Vertical gap in pixels below creative (CQ) question blocks">
+            <button type="button" class="stepper-btn" (click)="decQuestionsGapCreative()" [disabled]="questionsGapCreative <= questionsGapMin" aria-label="Decrease CQ questions gap">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="questionsGapCreative"
+              (ngModelChange)="onQuestionsGapCreativeInput($event)"
+              (blur)="onQuestionsGapCreativeBlur()"
+              [min]="questionsGapMin"
+              [max]="questionsGapMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="CQ questions gap in pixels"
+            />
+            <button type="button" class="stepper-btn" (click)="incQuestionsGapCreative()" [disabled]="questionsGapCreative >= questionsGapMax" aria-label="Increase CQ questions gap">+</button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">CQ Columns</span>
+          <div class="setting-stepper" role="group" aria-label="CQ sheet column count (সৃজনশীল header pages)">
+            <button type="button" class="stepper-btn" (click)="decLayoutColumnsCreative()" [disabled]="layoutColumnsCreative <= layoutColumnsMin" aria-label="Decrease CQ columns">−</button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="layoutColumnsCreative"
+              (ngModelChange)="onLayoutColumnsCreativeInput($event)"
+              (blur)="onLayoutColumnsCreativeBlur()"
+              [min]="layoutColumnsMin"
+              [max]="layoutColumnsMax"
+              step="1"
+              inputmode="numeric"
+              aria-label="CQ column count"
+            />
+            <button type="button" class="stepper-btn" (click)="incLayoutColumnsCreative()" [disabled]="layoutColumnsCreative >= layoutColumnsMax" aria-label="Increase CQ columns">+</button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--columns">
+          <span class="setting-label-text">CQ Line Height</span>
+          <div class="setting-stepper" role="group" aria-label="Creative question line height in preview">
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="decPreviewQuestionsLineHeightCreative()"
+              [disabled]="previewQuestionsLineHeightCreative <= previewLineHeightMin"
+              aria-label="Decrease CQ line height"
+            >
+              −
+            </button>
+            <input
+              class="stepper-input stepper-input2"
+              type="number"
+              [ngModel]="previewQuestionsLineHeightCreative"
+              (ngModelChange)="onPreviewQuestionsLineHeightCreativeInput($event)"
+              (blur)="onPreviewQuestionsLineHeightCreativeBlur()"
+              [min]="previewLineHeightMin"
+              [max]="previewLineHeightMax"
+              step="0.1"
+              inputmode="decimal"
+              aria-label="CQ line height"
+            />
+            <button
+              type="button"
+              class="stepper-btn"
+              (click)="incPreviewQuestionsLineHeightCreative()"
+              [disabled]="previewQuestionsLineHeightCreative >= previewLineHeightMax"
+              aria-label="Increase CQ line height"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div class="setting-field setting-field--divider-check">
+          <label class="checkbox-label checkbox-label--column-divider">
+            <input
+              type="checkbox"
+              [(ngModel)]="showColumnDivider"
+              (ngModelChange)="onPreviewLayoutChange()"
+            />
+            <span class="column-divider">Column Divider</span>
+          </label>
+        </div>
       </div>
       <div class="creator-actions">
-        <button type="button" class="btn-smart" (click)="onSmartQuestionCreator()">Smart Question Creator</button>
-        <button type="button" class="btn-save" (click)="save()" [disabled]="saving || questions.length === 0">Save</button>
+        <button type="button" class="btn-smart" (click)="onSmartQuestionCreator()" [disabled]="autoFitBlockingOverlayVisible">
+          Smart Question Creator
+        </button>
+        <button
+          type="button"
+          class="btn-save"
+          (click)="save()"
+          [disabled]="saving || questions.length === 0 || autoFitBlockingOverlayVisible"
+        >
+          Save
+        </button>
+      </div>
+      <div class="creator-actions creator-actions--reset-row">
+        <button
+          type="button"
+          class="btn-reset-settings"
+          (click)="onResetCreatorSettingsClick()"
+          [disabled]="autoFitBlockingOverlayVisible"
+        >
+          Reset Setting / Auto Fit
+        </button>
+      </div>
+      <!-- Centered in settings aside only; blocks interaction within aside (no viewport shadow) -->
+      <div
+        class="creator-autofit-block-overlay"
+        *ngIf="autoFitBlockingOverlayVisible"
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <div class="creator-settings-loader-content">
+          <div class="app-loader-spinner-column">
+            <div class="app-loader-glow" aria-hidden="true"></div>
+            <div class="creator-settings-loader-progress-wrap">
+              <svg class="creator-settings-loader-circle" viewBox="0 0 100 100" aria-hidden="true">
+                <circle class="creator-settings-loader-bg" cx="50" cy="50" r="45" fill="none" stroke-width="7" />
+                <circle
+                  class="creator-settings-loader-fill"
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke-width="7"
+                  stroke-dasharray="282.7"
+                  [attr.stroke-dashoffset]="282.7 - (resetAutoFitOverlayPercent / 100) * 282.7"
+                />
+              </svg>
+              <span class="creator-settings-loader-percent">{{ resetAutoFitOverlayPercent }}%</span>
+            </div>
+          </div>
+          <div
+            class="app-loader-message-block"
+            [class.app-loader-message-done]="resetAutoFitOverlayPercent >= 100"
+          >
+            <div
+              class="app-loader-linear-track"
+              role="progressbar"
+              [style.--p.%]="resetAutoFitOverlayPercent"
+              [attr.aria-valuenow]="resetAutoFitOverlayPercent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <div class="app-loader-linear-fill" [style.width.%]="resetAutoFitOverlayPercent"></div>
+              <div class="app-loader-message-dual">
+                <div class="app-loader-clip-layer app-loader-clip-layer--track">
+                  <p class="creator-settings-loader-message app-loader-msg">{{ resetAutoFitOverlayMessage }}</p>
+                </div>
+                <div class="app-loader-clip-layer app-loader-clip-layer--fill" aria-hidden="true">
+                  <p class="creator-settings-loader-message app-loader-msg">{{ resetAutoFitOverlayMessage }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </aside>
-    <div class="creator-preview-col">
-      <h2>Preview</h2>
-      <div class="preview-paper" [style.width.px]="previewWidth">
-        <div class="preview-header" *ngIf="questionHeader">{{ questionHeader }}</div>
-        <div class="preview-questions">
-          <div *ngFor="let q of questions; let i = index" class="preview-q" [style.padding.px]="questionsPadding" [style.marginBottom.px]="questionsGap">
-            <strong>{{ i + 1 }}.</strong> {{ q.question }}
-            <div class="preview-options" *ngIf="q.option_1 || q.option_2">
-              <span *ngIf="q.option_1">A. {{ q.option_1 }}</span>
-              <span *ngIf="q.option_2"> B. {{ q.option_2 }}</span>
-              <span *ngIf="q.option_3"> C. {{ q.option_3 }}</span>
-              <span *ngIf="q.option_4"> D. {{ q.option_4 }}</span>
+    <div class="creator-preview-col" #previewCol>
+      <h2>Live preview</h2>
+      <div
+        class="preview-live-stage"
+        #previewStage
+        [style.minHeight.px]="previewStackHeightPx * previewFitScale + 32"
+        (mouseleave)="onMagnifierLeave()"
+        (mousemove)="onPreviewStageMouseMove($event)"
+      >
+        <div
+          class="preview-scale-clip"
+          [style.width.px]="previewPaperWidthPxMax * previewFitScale"
+          [style.height.px]="previewStackHeightPx * previewFitScale"
+        >
+          <div
+            #scaleWrap
+            class="preview-scale-wrap"
+            [style.width.px]="previewPaperWidthPxMax"
+            [style.transform]="'translateX(-50%) scale(' + previewFitScale + ')'"
+          >
+          <div class="preview-pages-stack">
+            <ng-container *ngIf="paginatedPages.length > 0; else emptySheets">
+              <div *ngFor="let page of paginatedPages; let pi = index; trackBy: trackPage" class="preview-page-block">
+                <div *ngIf="paginatedPages.length > 1" class="preview-sheet-toolbar">
+                  <span
+                    class="preview-page-label"
+                    [style.fontSize.px]="previewPageLabelFontPx"
+                    [style.lineHeight.px]="previewPageLabelFontPx * 1.35"
+                  >Page {{ pi + 1 }} of {{ paginatedPages.length }}</span>
+                </div>
+                <div
+                  class="preview-sheet preview-sheet-paginated"
+                  [style.width.px]="paperWidthPxForPage(pi)"
+                  [style.height.px]="paperHeightPxForPage(pi)"
+                  [style.paddingTop.px]="marginTopPxForPage(pi)"
+                  [style.paddingRight.px]="marginRightPxForPage(pi)"
+                  [style.paddingBottom.px]="marginBottomPxForPage(pi)"
+                  [style.paddingLeft.px]="marginLeftPxForPage(pi)"
+                >
+                  <div
+                    class="preview-sheet-inner"
+                    [style.width.px]="contentInnerWidthPxForPage(pi)"
+                    [style.fontSize.px]="previewQuestionsFontPx"
+                    [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
+                    [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
+                    [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+                  >
+                    <div
+                      class="preview-sheet-body"
+                      [class.preview-sheet-body--sectioned]="pageSections > 1"
+                      [class.preview-sheet-body--overflow-visible]="true"
+                      [style.height.px]="contentInnerHeightPxForPage(pi)"
+                    >
+                      <div
+                        *ngIf="pageSections > 1"
+                        class="preview-page-section-rules"
+                        [style.height.px]="contentInnerHeightPxForPage(pi)"
+                      >
+                        <div
+                          *ngFor="let top of page.sectionLineTopsPx || []; trackBy: trackSectionLineTop"
+                          class="preview-page-section-line"
+                          [style.top.px]="top"
+                        ></div>
+                      </div>
+                      <div
+                        class="preview-header"
+                        *ngIf="
+                          pageSections <= 1 &&
+                          paperHeaderVisibleForSheetPage(pi) &&
+                          questionHeader &&
+                          !headerInFirstColumnLandscape(pi) &&
+                          !landscapeLeadEmptyFirstColumnForSheetPage(pi)
+                        "
+                        [class.preview-header-span]="layoutColumnsForSheetPage(pi) > 1"
+                      >
+                        <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                      </div>
+                      <div
+                        *ngIf="pageSections <= 1 && landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                        class="preview-questions preview-questions--lead-empty-pair"
+                        [style.height.px]="singleSectionQuestionsHeightPx(pi)"
+                        [style.gap.px]="layoutColumnGapPx"
+                        [style.gridTemplateColumns]="leadEmptyGridTemplateColumnsStyle(pi)"
+                      >
+                        <div class="preview-questions-col preview-questions-col--lead-binding" aria-hidden="false">
+                          <div
+                            *ngFor="let row of page.leadBindingItems || []; trackBy: trackItem"
+                            class="preview-q"
+                            [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                          >
+                            <ng-container
+                              *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                            ></ng-container>
+                          </div>
+                        </div>
+                        <div
+                          *ngFor="let col of page.questionColumns || [page.items]; let cI = index; trackBy: trackColumn"
+                          class="preview-questions-col"
+                          [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                        >
+                          <div
+                            class="preview-header preview-header--landscape-first-col"
+                            *ngIf="
+                              cI === 0 &&
+                              paperHeaderVisibleForSheetPage(pi) &&
+                              questionHeader
+                            "
+                          >
+                            <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                          </div>
+                          <div
+                            *ngFor="let row of col; trackBy: trackItem"
+                            class="preview-q"
+                            [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                          >
+                            <ng-container
+                              *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                            ></ng-container>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        *ngIf="pageSections <= 1 && !landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                        class="preview-questions"
+                        [class.preview-questions--flex-cols]="layoutColumnsForSheetPage(pi) > 1"
+                        [class.preview-questions--flex-cols-ruled]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider"
+                        [style.height.px]="singleSectionQuestionsHeightPx(pi)"
+                        [style.gap.px]="layoutColumnGapPx"
+                      >
+                        <div
+                          *ngFor="let col of page.questionColumns || [page.items]; let cI = index; trackBy: trackColumn"
+                          class="preview-questions-col"
+                          [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                        >
+                          <div
+                            class="preview-header preview-header--landscape-first-col"
+                            *ngIf="
+                              cI === 0 &&
+                              headerInFirstColumnLandscape(pi) &&
+                              paperHeaderVisibleForSheetPage(pi) &&
+                              questionHeader
+                            "
+                          >
+                            <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                          </div>
+                          <div
+                            *ngFor="let row of col; trackBy: trackItem"
+                            class="preview-q"
+                            [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                          >
+                            <ng-container
+                              *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                            ></ng-container>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        *ngIf="pageSections > 1 && landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                        class="preview-questions preview-questions--lead-empty-pair preview-questions--lead-empty-pair--sectioned"
+                        [style.minHeight.px]="contentInnerHeightPxForPage(pi)"
+                        [style.gap.px]="layoutColumnGapPx"
+                        [style.gridTemplateColumns]="leadEmptyGridTemplateColumnsStyle(pi)"
+                      >
+                        <div class="preview-questions-col preview-questions-col--lead-binding" aria-hidden="false">
+                          <div
+                            *ngFor="let row of page.leadBindingItems || []; trackBy: trackItem"
+                            class="preview-q"
+                            [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                          >
+                            <ng-container
+                              *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                            ></ng-container>
+                          </div>
+                        </div>
+                        <div
+                          class="preview-questions-lead-empty-section-main"
+                          [style.gridColumn]="leadEmptySectionMainGridColumnStyle()"
+                        >
+                          <div class="preview-page-sections-stack" [style.gap.px]="sectionGapPx">
+                            <div
+                              *ngFor="let sec of page.sections || []; let sI = index; trackBy: trackSection"
+                              class="preview-page-section-block"
+                            >
+                              <div
+                                class="preview-questions"
+                                [class.preview-questions--flex-cols]="layoutColumnsForSheetPage(pi) > 1"
+                                [class.preview-questions--flex-cols-ruled]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider"
+                                [style.gap.px]="layoutColumnGapPx"
+                              >
+                                <div
+                                  *ngFor="let col of page.sectionQuestionColumns?.[sI] || [sec]; let cI = index; trackBy: trackColumn"
+                                  class="preview-questions-col"
+                                  [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                                >
+                                  <div
+                                    class="preview-header preview-header--landscape-first-col"
+                                    *ngIf="
+                                      cI === 0 &&
+                                      paperHeaderVisibleForSheetPage(pi) &&
+                                      questionHeader
+                                    "
+                                  >
+                                    <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                                  </div>
+                                  <div
+                                    *ngFor="let row of col; trackBy: trackItem"
+                                    class="preview-q"
+                                    [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                                  >
+                                    <ng-container
+                                      *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                                    ></ng-container>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        *ngIf="pageSections > 1 && !landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                        class="preview-page-sections-stack"
+                        [style.gap.px]="sectionGapPx"
+                      >
+                        <div
+                          *ngFor="let sec of page.sections || []; let sI = index; trackBy: trackSection"
+                          class="preview-page-section-block"
+                        >
+                          <div
+                            class="preview-header"
+                            *ngIf="
+                              paperHeaderVisibleForSheetPage(pi) &&
+                              questionHeader &&
+                              !headerInFirstColumnLandscape(pi)
+                            "
+                          >
+                            <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                          </div>
+                          <div
+                            class="preview-questions"
+                            [class.preview-questions--flex-cols]="layoutColumnsForSheetPage(pi) > 1"
+                            [class.preview-questions--flex-cols-ruled]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider"
+                            [style.gap.px]="layoutColumnGapPx"
+                          >
+                            <div
+                              *ngFor="let col of page.sectionQuestionColumns?.[sI] || [sec]; let cI = index; trackBy: trackColumn"
+                              class="preview-questions-col"
+                              [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                            >
+                              <div
+                                class="preview-header preview-header--landscape-first-col"
+                                *ngIf="
+                                  cI === 0 &&
+                                  headerInFirstColumnLandscape(pi) &&
+                                  paperHeaderVisibleForSheetPage(pi) &&
+                                  questionHeader
+                                "
+                              >
+                                <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                              </div>
+                              <div
+                                *ngFor="let row of col; trackBy: trackItem"
+                                class="preview-q"
+                                [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                              >
+                                <ng-container
+                                  *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                                ></ng-container>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #emptySheets>
+              <div
+                class="preview-sheet preview-sheet-empty"
+                [style.width.px]="paperWidthPx"
+                [style.minHeight.px]="paperHeightPx"
+                [style.paddingTop.px]="marginTopPx"
+                [style.paddingRight.px]="marginRightPx"
+                [style.paddingBottom.px]="marginBottomPx"
+                [style.paddingLeft.px]="marginLeftPx"
+              >
+                <div
+                  class="preview-sheet-inner"
+                  [style.width.px]="contentInnerWidthPx"
+                  [style.fontSize.px]="previewQuestionsFontPx"
+                  [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
+                  [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
+                  [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+                >
+                  <p class="preview-empty-msg">No questions yet — pagination will appear here when you add questions.</p>
+                </div>
+              </div>
+            </ng-template>
+          </div>
+          </div>
+        </div>
+      </div>
+      <div class="creator-preview-save-row">
+        <button
+          type="button"
+          class="btn-save"
+          (click)="save()"
+          [disabled]="saving || questions.length === 0"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Off-screen measurement rail (same typography / width as printable area) -->
+  <div
+    class="preview-measure-rail"
+    #measureRail
+    [style.width.px]="measureRailInnerWidthPx"
+    [style.fontSize.px]="previewQuestionsFontPx"
+    [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
+    [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
+    [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+    aria-hidden="true"
+  >
+    <div #measureHeader class="preview-header preview-measure-header" *ngIf="questionHeader?.trim() && paperHeaderVisibleForSheetPage(0)">
+      <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: 0 }"></ng-container>
+    </div>
+    <div
+      *ngFor="let q of previewQuestions; let i = index; trackBy: trackPreviewQuestion"
+      class="preview-measure-slot"
+      [style.maxWidth.px]="columnMeasureWidthPxForQuestionIndex(i)"
+    >
+      <div
+        #measureBlock
+        class="preview-q preview-measure-q"
+        [ngStyle]="previewQuestionBlockStyleForQ(q)"
+      >
+        <ng-container *ngTemplateOutlet="previewQuestionBlock; context: { q: q, sl: previewQuestionDisplaySerialOneBased(i, q), idx: i }"></ng-container>
+      </div>
+    </div>
+  </div>
+
+  <div class="creator-questions-section">
+    <h2>All questions ({{ questions.length }}) – Remove any which you don't want...</h2>
+
+    <ng-container *ngIf="creatorSidebarCreativeQuestions.length">
+      <h3 class="creator-questions-type-heading">
+        {{ isEnglishSubject() ? 'Creative (CQ)' : 'সৃজনশীল' }} ({{ creatorSidebarCreativeQuestions.length }})
+      </h3>
+      <ul class="creator-questions-list">
+        <li *ngFor="let q of creatorSidebarCreativeQuestions; trackBy: trackCreatorQuestionQid" class="creator-question-item">
+          <div class="creator-question-body">
+            <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
+            <span class="creator-question-text">{{ q.question }}</span>
+          </div>
+          <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">X</button>
+        </li>
+      </ul>
+    </ng-container>
+
+    <ng-container *ngIf="creatorSidebarMcqQuestions.length">
+      <h3 class="creator-questions-type-heading">
+        {{ isEnglishSubject() ? 'Multiple choice (MCQ)' : 'বহুনির্বাচনি' }} ({{ creatorSidebarMcqQuestions.length }})
+      </h3>
+      <ul class="creator-questions-list">
+        <li *ngFor="let q of creatorSidebarMcqQuestions; trackBy: trackCreatorQuestionQid" class="creator-question-item">
+          <div class="creator-question-body">
+            <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
+            <span class="creator-question-text">{{ q.question }}</span>
+            <div class="creator-question-options" *ngIf="q.option_1 || q.option_2">
+              <span *ngIf="q.option_1">A: {{ q.option_1 }}</span>
+              <span *ngIf="q.option_2"> B: {{ q.option_2 }}</span>
+              <span *ngIf="q.option_3"> C: {{ q.option_3 }}</span>
+              <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
+            </div>
+          </div>
+          <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">X</button>
+        </li>
+      </ul>
+    </ng-container>
+
+    <ng-container *ngIf="creatorSidebarOtherQuestions.length">
+      <h3 *ngIf="creatorSidebarCreativeQuestions.length || creatorSidebarMcqQuestions.length" class="creator-questions-type-heading">
+        {{ isEnglishSubject() ? 'Other' : 'অন্যান্য' }} ({{ creatorSidebarOtherQuestions.length }})
+      </h3>
+      <ul class="creator-questions-list">
+        <li *ngFor="let q of creatorSidebarOtherQuestions; trackBy: trackCreatorQuestionQid" class="creator-question-item">
+          <div class="creator-question-body">
+            <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
+            <span class="creator-question-text">{{ q.question }}</span>
+            <div class="creator-question-options" *ngIf="q.option_1 || q.option_2">
+              <span *ngIf="q.option_1">A: {{ q.option_1 }}</span>
+              <span *ngIf="q.option_2"> B: {{ q.option_2 }}</span>
+              <span *ngIf="q.option_3"> C: {{ q.option_3 }}</span>
+              <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
+            </div>
+          </div>
+          <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">X</button>
+        </li>
+      </ul>
+    </ng-container>
+
+    <p *ngIf="questions.length === 0" class="no-questions">No questions left. Go back to add more.</p>
+  </div>
+
+  <p *ngIf="saveSuccessMessage" class="save-success">{{ saveSuccessMessage }}</p>
+</div>
+
+<!-- Fixed magnifier: above page chrome; pointer-events none so hover tracking stays on preview -->
+<div
+  class="preview-magnifier-lens preview-magnifier-lens--fixed"
+  *ngIf="magnifierActive && paginatedPages.length > 0"
+  [style.width.px]="lensW"
+  [style.height.px]="lensH"
+  [style.left.px]="lensFixedLeft"
+  [style.top.px]="lensFixedTop"
+>
+  <div
+    class="preview-magnifier-inner"
+    appQuestionRichImgHost
+    [appQuestionRichImgFontTrigger]="previewRichImgFontTriggerKey"
+    [style.width.px]="previewPaperWidthPxMax"
+    [style.height.px]="previewStackHeightPx"
+    [style.transform]="magnifierTransform"
+  >
+    <div class="preview-pages-stack">
+      <div *ngFor="let page of paginatedPages; let pi = index; trackBy: trackPage" class="preview-page-block preview-page-block-mirror">
+        <div *ngIf="paginatedPages.length > 1" class="preview-sheet-toolbar preview-sheet-toolbar-mirror" aria-hidden="true">
+          <span
+            class="preview-page-label"
+            [style.fontSize.px]="previewPageLabelFontPx"
+            [style.lineHeight.px]="previewPageLabelFontPx * 1.35"
+          >Page {{ pi + 1 }} of {{ paginatedPages.length }}</span>
+        </div>
+        <div
+          class="preview-sheet preview-sheet-paginated preview-sheet-mirror"
+          [style.width.px]="paperWidthPxForPage(pi)"
+          [style.height.px]="paperHeightPxForPage(pi)"
+          [style.paddingTop.px]="marginTopPxForPage(pi)"
+          [style.paddingRight.px]="marginRightPxForPage(pi)"
+          [style.paddingBottom.px]="marginBottomPxForPage(pi)"
+          [style.paddingLeft.px]="marginLeftPxForPage(pi)"
+        >
+          <div
+            class="preview-sheet-inner"
+            [style.width.px]="contentInnerWidthPxForPage(pi)"
+            [style.fontSize.px]="previewQuestionsFontPx"
+            [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
+            [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
+            [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+          >
+            <div
+              class="preview-sheet-body"
+              [class.preview-sheet-body--sectioned]="pageSections > 1"
+              [class.preview-sheet-body--overflow-visible]="true"
+              [style.height.px]="contentInnerHeightPxForPage(pi)"
+            >
+              <div
+                *ngIf="pageSections > 1"
+                class="preview-page-section-rules"
+                [style.height.px]="contentInnerHeightPxForPage(pi)"
+              >
+                <div
+                  *ngFor="let top of page.sectionLineTopsPx || []; trackBy: trackSectionLineTop"
+                  class="preview-page-section-line"
+                  [style.top.px]="top"
+                ></div>
+              </div>
+              <div
+                class="preview-header"
+                *ngIf="
+                  pageSections <= 1 &&
+                  paperHeaderVisibleForSheetPage(pi) &&
+                  questionHeader &&
+                  !headerInFirstColumnLandscape(pi) &&
+                  !landscapeLeadEmptyFirstColumnForSheetPage(pi)
+                "
+                [class.preview-header-span]="layoutColumnsForSheetPage(pi) > 1"
+              >
+                <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+              </div>
+              <div
+                *ngIf="pageSections <= 1 && landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                class="preview-questions preview-questions--lead-empty-pair"
+                [style.height.px]="singleSectionQuestionsHeightPx(pi)"
+                [style.gap.px]="layoutColumnGapPx"
+                [style.gridTemplateColumns]="leadEmptyGridTemplateColumnsStyle(pi)"
+              >
+                <div class="preview-questions-col preview-questions-col--lead-binding" aria-hidden="false">
+                  <div
+                    *ngFor="let row of page.leadBindingItems || []; trackBy: trackItem"
+                    class="preview-q"
+                    [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                  >
+                    <ng-container
+                      *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                    ></ng-container>
+                  </div>
+                </div>
+                <div
+                  *ngFor="let col of page.questionColumns || [page.items]; let cI = index; trackBy: trackColumn"
+                  class="preview-questions-col"
+                  [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                >
+                  <div
+                    class="preview-header preview-header--landscape-first-col"
+                    *ngIf="
+                      cI === 0 &&
+                      paperHeaderVisibleForSheetPage(pi) &&
+                      questionHeader
+                    "
+                  >
+                    <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                  </div>
+                  <div
+                    *ngFor="let row of col; trackBy: trackItem"
+                    class="preview-q"
+                    [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                  >
+                    <ng-container
+                      *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                    ></ng-container>
+                  </div>
+                </div>
+              </div>
+              <div
+                *ngIf="pageSections <= 1 && !landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                class="preview-questions"
+                [class.preview-questions--flex-cols]="layoutColumnsForSheetPage(pi) > 1"
+                [class.preview-questions--flex-cols-ruled]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider"
+                [style.height.px]="singleSectionQuestionsHeightPx(pi)"
+                [style.gap.px]="layoutColumnGapPx"
+              >
+                <div
+                  *ngFor="let col of page.questionColumns || [page.items]; let cI = index; trackBy: trackColumn"
+                  class="preview-questions-col"
+                  [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                >
+                  <div
+                    class="preview-header preview-header--landscape-first-col"
+                    *ngIf="
+                      cI === 0 &&
+                      headerInFirstColumnLandscape(pi) &&
+                      paperHeaderVisibleForSheetPage(pi) &&
+                      questionHeader
+                    "
+                  >
+                    <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                  </div>
+                  <div
+                    *ngFor="let row of col; trackBy: trackItem"
+                    class="preview-q"
+                    [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                  >
+                    <ng-container
+                      *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                    ></ng-container>
+                  </div>
+                </div>
+              </div>
+              <div
+                *ngIf="pageSections > 1 && landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                class="preview-questions preview-questions--lead-empty-pair preview-questions--lead-empty-pair--sectioned"
+                [style.minHeight.px]="contentInnerHeightPxForPage(pi)"
+                [style.gap.px]="layoutColumnGapPx"
+                [style.gridTemplateColumns]="leadEmptyGridTemplateColumnsStyle(pi)"
+              >
+                <div class="preview-questions-col preview-questions-col--lead-binding" aria-hidden="false">
+                  <div
+                    *ngFor="let row of page.leadBindingItems || []; trackBy: trackItem"
+                    class="preview-q"
+                    [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                  >
+                    <ng-container
+                      *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                    ></ng-container>
+                  </div>
+                </div>
+                <div
+                  class="preview-questions-lead-empty-section-main"
+                  [style.gridColumn]="leadEmptySectionMainGridColumnStyle()"
+                >
+                  <div class="preview-page-sections-stack" [style.gap.px]="sectionGapPx">
+                    <div
+                      *ngFor="let sec of page.sections || []; let sI = index; trackBy: trackSection"
+                      class="preview-page-section-block"
+                    >
+                      <div
+                        class="preview-questions"
+                        [class.preview-questions--flex-cols]="layoutColumnsForSheetPage(pi) > 1"
+                        [class.preview-questions--flex-cols-ruled]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider"
+                        [style.gap.px]="layoutColumnGapPx"
+                      >
+                        <div
+                          *ngFor="let col of page.sectionQuestionColumns?.[sI] || [sec]; let cI = index; trackBy: trackColumn"
+                          class="preview-questions-col"
+                          [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                        >
+                          <div
+                            class="preview-header preview-header--landscape-first-col"
+                            *ngIf="
+                              cI === 0 &&
+                              paperHeaderVisibleForSheetPage(pi) &&
+                              questionHeader
+                            "
+                          >
+                            <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                          </div>
+                          <div
+                            *ngFor="let row of col; trackBy: trackItem"
+                            class="preview-q"
+                            [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                          >
+                            <ng-container
+                              *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                            ></ng-container>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div
+                *ngIf="pageSections > 1 && !landscapeLeadEmptyFirstColumnForSheetPage(pi)"
+                class="preview-page-sections-stack"
+                [style.gap.px]="sectionGapPx"
+              >
+                <div
+                  *ngFor="let sec of page.sections || []; let sI = index; trackBy: trackSection"
+                  class="preview-page-section-block"
+                >
+                  <div
+                    class="preview-header"
+                    *ngIf="
+                      paperHeaderVisibleForSheetPage(pi) &&
+                      questionHeader &&
+                      !headerInFirstColumnLandscape(pi)
+                    "
+                  >
+                    <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                  </div>
+                  <div
+                    class="preview-questions"
+                    [class.preview-questions--flex-cols]="layoutColumnsForSheetPage(pi) > 1"
+                    [class.preview-questions--flex-cols-ruled]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider"
+                    [style.gap.px]="layoutColumnGapPx"
+                  >
+                    <div
+                      *ngFor="let col of page.sectionQuestionColumns?.[sI] || [sec]; let cI = index; trackBy: trackColumn"
+                      class="preview-questions-col"
+                      [class.preview-questions-col--rule]="layoutColumnsForSheetPage(pi) > 1 && showColumnDivider && cI < layoutColumnsForSheetPage(pi) - 1"
+                    >
+                      <div
+                        class="preview-header preview-header--landscape-first-col"
+                        *ngIf="
+                          cI === 0 &&
+                          headerInFirstColumnLandscape(pi) &&
+                          paperHeaderVisibleForSheetPage(pi) &&
+                          questionHeader
+                        "
+                      >
+                        <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: pi }"></ng-container>
+                      </div>
+                      <div
+                        *ngFor="let row of col; trackBy: trackItem"
+                        class="preview-q"
+                        [ngStyle]="previewQuestionBlockStyleForQ(row.q)"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="previewQuestionBlock; context: { q: row.q, sl: previewQuestionDisplaySerialOneBased(row.index, row.q), idx: row.index }"
+                        ></ng-container>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-
-  <div class="creator-questions-section">
-    <h2>All questions ({{ questions.length }}) – remove any you don't want</h2>
-    <ul class="creator-questions-list">
-      <li *ngFor="let q of questions" class="creator-question-item">
-        <div class="creator-question-body">
-          <span class="creator-question-text">{{ q.question }}</span>
-          <div class="creator-question-options" *ngIf="q.option_1 || q.option_2">
-            <span *ngIf="q.option_1">A: {{ q.option_1 }}</span>
-            <span *ngIf="q.option_2"> B: {{ q.option_2 }}</span>
-            <span *ngIf="q.option_3"> C: {{ q.option_3 }}</span>
-            <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
-          </div>
-        </div>
-        <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">Remove</button>
-      </li>
-    </ul>
-    <p *ngIf="questions.length === 0" class="no-questions">No questions left. Go back to add more.</p>
-  </div>
-
-  <p *ngIf="saveSuccessMessage" class="save-success">{{ saveSuccessMessage }}</p>
 </div>
 
 <!-- Export format dialog (first time save) -->

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Renderer2 } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, Renderer2 } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
@@ -7,6 +7,7 @@ import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/o
 import { of, Subject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef } from '@angular/core';
+import { LoadingService } from 'src/app/service/loading.service';
 
 
 @Component({
@@ -14,7 +15,7 @@ import { ChangeDetectorRef } from '@angular/core';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
-export class LoginComponent implements OnInit, OnDestroy {
+export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   authForm: FormGroup;
   isMobileNumberRegistered = false;
   isPasswordMismatch = false;
@@ -61,7 +62,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private renderer: Renderer2,
     private countryService: CountryService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private loadingService: LoadingService
   ) {
     this.authForm = this.fb.group({
       countryCode: ['BD', [Validators.required]],
@@ -71,6 +73,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
@@ -215,6 +218,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       if (signMenu) {
         this.renderer.setStyle(signMenu, 'display', 'flex');
       }
+      setTimeout(() => this.loadingService.completeOne(), 0);
     }
 
   onAuth() {

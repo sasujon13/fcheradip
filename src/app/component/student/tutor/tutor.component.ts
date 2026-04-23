@@ -1,12 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { TutorService } from '../../../service/tutor.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-tutor',
   templateUrl: './tutor.component.html',
   styleUrls: ['./tutor.component.css']
 })
-export class TutorComponent implements OnInit {
+export class TutorComponent implements OnInit, AfterViewInit {
   selectedLevel: string = 'HSC';
   selectedGroup: string = '';
   selectedSubject: string = '';
@@ -27,10 +28,18 @@ export class TutorComponent implements OnInit {
     { value: 'M', label: 'Music' }
   ];
 
-  constructor(private tutorService: TutorService) { }
+  constructor(
+    private tutorService: TutorService,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     this.loadSubjects();
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   loadSubjects(): void {

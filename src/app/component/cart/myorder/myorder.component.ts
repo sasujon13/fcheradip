@@ -1,5 +1,6 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, ViewChild } from '@angular/core';
 import { ApiService } from 'src/app/service/api.service';
+import { LoadingService } from 'src/app/service/loading.service';
 import * as jspdf from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -9,15 +10,19 @@ import html2canvas from 'html2canvas';
   templateUrl: './myorder.component.html',
   styleUrls: ['./myorder.component.css']
 })
-export class MyorderComponent implements OnInit {
+export class MyorderComponent implements OnInit, AfterViewInit {
   orders: any[] = [];
   displayedOrders: any[] = [];
   displayOrderCount = 10;
   showMoreButton = false;
-  username: any
-  fullName: any
-  constructor(private apiService: ApiService,) { }
+  username: any;
+  fullName: any;
+  constructor(
+    private apiService: ApiService,
+    private loadingService: LoadingService
+  ) {}
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     this.username = localStorage.getItem('username');
     this.fullName = localStorage.getItem('fullName');
     this.loadData();
@@ -29,6 +34,9 @@ export class MyorderComponent implements OnInit {
     document.addEventListener('contextmenu', function (event) {
       event.preventDefault();
     });
+  }
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
   loadData() {
     this.apiService.myorder(this.username).subscribe(

@@ -1,14 +1,15 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, Renderer2 } from '@angular/core';
+import { Component, OnInit, AfterViewInit, Renderer2 } from '@angular/core';
 import { CartService } from 'src/app/service/cart.service';
 import { ChoiceService } from 'src/app/service/choice.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-choice',
   templateUrl: './choice.component.html',
   styleUrls: ['./choice.component.css']
 })
-export class ChoiceComponent implements OnInit {
+export class ChoiceComponent implements OnInit, AfterViewInit {
   showCard: boolean = false;
   showChoice: boolean = true;
   public productList: any;
@@ -33,8 +34,15 @@ export class ChoiceComponent implements OnInit {
       { label: 'S', value: 'S' },
       { label: 'XS', value: 'XS' }
     ];
-    constructor(private cartService: CartService, private choiceService: ChoiceService, private http: HttpClient, private renderer: Renderer2) { }
-    ngOnInit(): void {
+    constructor(
+    private cartService: CartService,
+    private choiceService: ChoiceService,
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
+  ) {}
+  ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'block';
@@ -123,8 +131,9 @@ export class ChoiceComponent implements OnInit {
       if (signMenu) {
         this.renderer.setStyle(signMenu, 'display', 'flex');
       }
+      setTimeout(() => this.loadingService.completeOne(), 0);
     }
-    addtocart(item: any) {
+  addtocart(item: any) {
       if (item.in_stock < 1) {
       return;
     }

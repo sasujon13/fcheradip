@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, Renderer2, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, Renderer2, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
@@ -7,13 +7,14 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-mobile',
   templateUrl: './mobile.component.html',
   styleUrls: ['./mobile.component.css']
 })
-export class MobileComponent implements OnInit {
+export class MobileComponent implements OnInit, AfterViewInit {
   @ViewChild('consoleOutput') consoleOutput: ElementRef | undefined;
   authForm: FormGroup;
   isPasswordMismatch = false;
@@ -47,8 +48,9 @@ export class MobileComponent implements OnInit {
     private apiService: ApiService,
     private countryService: CountryService,
     private snackBar: MatSnackBar,
-    private http: HttpClient, 
-    private renderer: Renderer2
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
   ) {
     this.authForm = this.fb.group({
       // ... form controls ...
@@ -58,6 +60,7 @@ export class MobileComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
 
     if (searchBarElement) {
@@ -154,6 +157,7 @@ export class MobileComponent implements OnInit {
       if (signMenu) {
         this.renderer.setStyle(signMenu, 'display', 'flex');
       }
+      setTimeout(() => this.loadingService.completeOne(), 0);
     }
 
   hasEmptyFields() {

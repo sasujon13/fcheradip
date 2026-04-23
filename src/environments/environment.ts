@@ -6,7 +6,12 @@ export const environment = {
     production: false,
     // Relative URL: browser requests same origin (e.g. localhost:4200/api/countries/). Dev server proxies to Django. No CORS.
     // You must run the app with: ng serve (from fcheradip folder). Then open http://localhost:4200
-    apiUrl: '/api'
+    apiUrl: '/api',
+    /**
+     * Django dev server (media, /manage). Use this so <img> loads from :8000, not :4200 — ng serve often fails to
+     * proxy /manage/media/* correctly (SPA fallback / proxy quirks). Production uses empty + same origin.
+     */
+    backendUrl: 'http://localhost:8000'
   };
   
   /*

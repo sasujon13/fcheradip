@@ -1,5 +1,7 @@
 
 @import url('src/assets/font-awesome-4.7.0/css/font-awesome.min.css');
+@import url('../../app/shared/styles/loader-glow.shared.css');
+@import url('../../app/shared/styles/question-rich-img.shared.css');
 
 @font-face {
     font-family: 'Roboto Regular';

@@ -95,6 +95,7 @@
             <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
             <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update Profile</a></li>
             <li><a [routerLink]="['/settings']" routerLinkActive="settings"><i class="fa fa-cog"></i>&nbsp; Settings</a></li>
+            <li><a [routerLink]="['/disappeared-questions']" routerLinkActive="disappeared-questions"><i class="fa fa-eye-slash"></i>&nbsp; Disappeared Questions</a></li>
             <li><a [routerLink]="['/created-questions']" routerLinkActive="created-questions"><i class="fa fa-file-text-o"></i>&nbsp; Created Questions</a></li>
             <li><a [routerLink]="['/mobile']" routerLinkActive="mobile"><i class="fa  fa-lock"></i>&nbsp; Update Mobile Number</a></li>
             <li><a [routerLink]="['/password']" routerLinkActive="password"><i class="fa  fa-key"></i>&nbsp; Update Password</a></li>
@@ -140,5 +141,45 @@
 </div>
 <div class="notification" id="notification"></div>
 <div class="profile_back"></div>
+
+<!-- Global loading overlay: centered teal circular progress, shown while page APIs are loading -->
+<div class="loading-overlay" *ngIf="loadingShow">
+  <div class="loading-overlay-content">
+    <div class="app-loader-spinner-column">
+      <div class="app-loader-glow" aria-hidden="true"></div>
+      <div class="loading-progress-wrap">
+        <svg class="loading-progress-circle" viewBox="0 0 100 100">
+          <circle class="loading-progress-bg" cx="50" cy="50" r="45" fill="none" stroke-width="7" />
+          <circle class="loading-progress-fill" cx="50" cy="50" r="45" fill="none" stroke-width="7"
+            stroke-dasharray="282.7" [attr.stroke-dashoffset]="282.7 - (loadingProgressPercent / 100) * 282.7" />
+        </svg>
+        <span class="loading-progress-text">{{ loadingProgressPercent }}%</span>
+      </div>
+    </div>
+    <div
+      class="app-loader-message-block"
+      [class.app-loader-message-done]="loadingProgressPercent >= 100"
+    >
+      <div
+        class="app-loader-linear-track"
+        role="progressbar"
+        [style.--p.%]="loadingProgressPercent"
+        [attr.aria-valuenow]="loadingProgressPercent"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <div class="app-loader-linear-fill" [style.width.%]="loadingProgressPercent"></div>
+        <div class="app-loader-message-dual">
+          <div class="app-loader-clip-layer app-loader-clip-layer--track">
+            <p class="loading-overlay-message app-loader-msg">{{ loadingOverlayMessage }}</p>
+          </div>
+          <div class="app-loader-clip-layer app-loader-clip-layer--fill" aria-hidden="true">
+            <p class="loading-overlay-message app-loader-msg">{{ loadingOverlayMessage }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </header>
 <app-alert [message]="tokenAlertMessage" [showAlert]="showTokenAlert"></app-alert>

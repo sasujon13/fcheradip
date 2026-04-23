@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, Renderer2, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, Renderer2, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from 'src/app/service/api.service';
@@ -7,6 +7,7 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
+import { LoadingService } from 'src/app/service/loading.service';
 
 
 @Component({
@@ -48,8 +49,9 @@ export class PasswordComponent implements OnInit {
     private apiService: ApiService,
     private countryService: CountryService,
     private snackBar: MatSnackBar,
-    private http: HttpClient, 
-    private renderer: Renderer2
+    private http: HttpClient,
+    private renderer: Renderer2,
+    private loadingService: LoadingService
   ) {
     this.authForm = this.fb.group({
       // ... form controls ...
@@ -179,6 +181,7 @@ export class PasswordComponent implements OnInit {
       if (signMenu) {
         this.renderer.setStyle(signMenu, 'display', 'flex');
       }
+      setTimeout(() => this.loadingService.completeOne(), 0);
     }
   hasEmptyFields() {
     const formControls = this.authForm.controls;

@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ExamService } from '../../../service/exam.service';
+import { LoadingService } from 'src/app/service/loading.service';
 import { interval, Subscription } from 'rxjs';
 
 @Component({
@@ -8,7 +9,7 @@ import { interval, Subscription } from 'rxjs';
   templateUrl: './exam.component.html',
   styleUrls: ['./exam.component.css']
 })
-export class ExamComponent implements OnInit, OnDestroy {
+export class ExamComponent implements OnInit, AfterViewInit, OnDestroy {
   examId: number = 0;
   exam: any = null;
   questions: any[] = [];
@@ -24,14 +25,19 @@ export class ExamComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private examService: ExamService
-  ) { }
+    private examService: ExamService,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
       this.examId = +params['id'];
       this.loadExam();
     });
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   ngOnDestroy(): void {

@@ -1,12 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { ExamService } from '../../../service/exam.service';
+import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
   selector: 'app-liveexam',
   templateUrl: './liveexam.component.html',
   styleUrls: ['./liveexam.component.css']
 })
-export class LiveexamComponent implements OnInit {
+export class LiveexamComponent implements OnInit, AfterViewInit {
   selectedLevel: string = '';
   selectedGroup: string = '';
   selectedSubject: string = '';
@@ -14,10 +15,18 @@ export class LiveexamComponent implements OnInit {
   levels = ['PSC', 'JSC', 'SSC', 'HSC'];
   groups = ['S', 'A', 'B', 'I', 'H', 'M'];
 
-  constructor(private examService: ExamService) { }
+  constructor(
+    private examService: ExamService,
+    private loadingService: LoadingService
+  ) {}
 
   ngOnInit(): void {
+    this.loadingService.setTotal(1);
     this.loadExams();
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.loadingService.completeOne(), 0);
   }
 
   loadExams(): void {
