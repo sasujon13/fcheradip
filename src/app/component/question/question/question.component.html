@@ -216,7 +216,7 @@
 
       <!-- Buttons to open question creator: visible when questions are shown (subject or topic selection) -->
       <div class="creator-buttons-row" *ngIf="primarySubject && topicQuestions.length > 0">
-        <button type="button" class="btn-creator btn-smart-creator" (click)="goToSmartQuestionCreator()">Smart Question Creator</button>
+        <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart Question Creator</button>
         <button type="button" class="btn-creator btn-create-question" (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
           {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
         </button>
@@ -352,4 +352,41 @@
   </div>
   <app-alert [message]="successAlertMessage" [showAlert]="showSuccessAlert" alertType="success" (alertClosed)="showSuccessAlert = false"></app-alert>
   <app-alert [message]="disappearAlertMessage" [showAlert]="showDisappearAlert" alertType="success" (alertClosed)="showDisappearAlert = false"></app-alert>
+
+  <!-- Smart Question Creator: EIIN / exam / set → /question/create + auto-save -->
+  <div
+    class="smart-creator-modal-backdrop"
+    *ngIf="smartCreatorModalOpen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="smart-creator-modal-title"
+    (click)="closeSmartQuestionCreatorModal()"
+  >
+    <div class="smart-creator-modal" (click)="$event.stopPropagation()">
+      <h2 id="smart-creator-modal-title" class="smart-creator-modal-title">Smart Question Creator</h2>
+      <p class="smart-creator-modal-hint">Choose header options, then continue. The creator opens and runs Save automatically for your selected questions.</p>
+      <div class="smart-creator-modal-field">
+        <label for="smart-creator-eiin">EIIN</label>
+        <input id="smart-creator-eiin" type="text" class="smart-creator-modal-input" [(ngModel)]="smartCreatorModalEiin" maxlength="16" autocomplete="off" />
+      </div>
+      <div class="smart-creator-modal-field">
+        <label for="smart-creator-exam">Exam name</label>
+        <select id="smart-creator-exam" class="smart-creator-modal-select" [(ngModel)]="smartCreatorModalExamKey">
+          <option *ngFor="let o of smartCreatorExamOptions" [ngValue]="o.key">{{ o.label }}</option>
+        </select>
+      </div>
+      <div class="smart-creator-modal-field" *ngIf="smartCreatorModalSelectionHasMcq()">
+        <label for="smart-creator-set">Set</label>
+        <select id="smart-creator-set" class="smart-creator-modal-select" [(ngModel)]="smartCreatorModalSetLetter">
+          <option [ngValue]="null">Select</option>
+          <option *ngFor="let s of smartCreatorSetLetters" [ngValue]="s">{{ s }}</option>
+        </select>
+      </div>
+      <p class="smart-creator-modal-error" *ngIf="smartCreatorModalError">{{ smartCreatorModalError }}</p>
+      <div class="smart-creator-modal-actions">
+        <button type="button" class="smart-creator-modal-btn smart-creator-modal-btn--secondary" (click)="closeSmartQuestionCreatorModal()">Cancel</button>
+        <button type="button" class="smart-creator-modal-btn smart-creator-modal-btn--primary" (click)="confirmSmartQuestionCreatorModal()">Continue</button>
+      </div>
+    </div>
+  </div>
 </div>

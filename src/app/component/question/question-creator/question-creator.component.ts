@@ -612,6 +612,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private questionQidsHydrationInFlight = false;
   /** Set when navigating from /question with `smartCreator`; cleared after optional post-init {@link save}. */
   private smartCreatorSavePending = false;
+  /**
+   * Header fields chosen in /question Smart Question Creator modal (EIIN, exam, set).
+   * Kept through first-visit {@link resetCreatorSettings} so MCQ set is not cleared before auto-save.
+   */
+  private smartCreatorNavHeader: {
+    eiin?: string;
+    examTypeKey?: string;
+    mcqSetLetter?: (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number] | null;
+  } | null = null;
 
   /** True when this init restored an existing draft (session/history/local). */
   private creatorRestoredDraftOnce = false;
@@ -641,6 +650,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       questionTypes?: string[];
       /** From `/question` smart creator navigation: force Regular + run Save after init. */
       smartCreator?: boolean;
+      /** From `/question` Smart Question Creator modal: EIIN, exam name key, MCQ set letter. */
+      smartCreatorHeader?: {
+        eiin?: string;
+        examTypeKey?: string;
+        mcqSetLetter?: string | null;
+      };
     } | null;
     let restored = false;
 
@@ -746,13 +761,52 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * then (after first-visit reset) run preview auto-fit, then the same Save flow when the draft has questions.
    */
   private applySmartCreatorFromNavigationIfNeeded(): void {
-    const st = history.state as { smartCreator?: boolean; context?: Record<string, unknown> } | null;
+    const st = history.state as {
+      smartCreator?: boolean;
+      context?: Record<string, unknown>;
+      smartCreatorHeader?: {
+        eiin?: string;
+        examTypeKey?: string;
+        mcqSetLetter?: string | null;
+      };
+    } | null;
     if (!st?.smartCreator) {
       return;
+    }
+    const rawHdr = st.smartCreatorHeader;
+    if (rawHdr && typeof rawHdr === 'object') {
+      const nav: {
+        eiin?: string;
+        examTypeKey?: string;
+        mcqSetLetter?: (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number] | null;
+      } = {};
+      if (typeof rawHdr.eiin === 'string') {
+        nav.eiin = rawHdr.eiin;
+      }
+      if (typeof rawHdr.examTypeKey === 'string') {
+        nav.examTypeKey = rawHdr.examTypeKey;
+      }
+      if ('mcqSetLetter' in rawHdr) {
+        const L = rawHdr.mcqSetLetter;
+        if (L === null) {
+          nav.mcqSetLetter = null;
+        } else if (
+          typeof L === 'string' &&
+          (QuestionCreatorComponent.MCQ_SET_LETTERS as readonly string[]).includes(L)
+        ) {
+          nav.mcqSetLetter = L as (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number];
+        } else {
+          nav.mcqSetLetter = null;
+        }
+      }
+      this.smartCreatorNavHeader = Object.keys(nav).length > 0 ? nav : null;
+    } else {
+      this.smartCreatorNavHeader = null;
     }
     if (st.context && typeof st.context === 'object') {
       this.context = { ...this.context, ...(st.context as QuestionCreatorContext) };
     }
+    this.applySmartCreatorNavHeaderFields();
     this.mcqPageOrientation = 'portrait';
     this.syncPageOrientationForQTypeFilter();
     this.smartCreatorSavePending = true;
@@ -770,6 +824,34 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.cdr.markForCheck();
   }
 
+  /** Apply {@link smartCreatorNavHeader} to EIIN / exam / MCQ set and rebuild header lines. */
+  private applySmartCreatorNavHeaderFields(): void {
+    const hdr = this.smartCreatorNavHeader;
+    if (!hdr) {
+      return;
+    }
+    const ei = typeof hdr.eiin === 'string' ? hdr.eiin.trim() : '';
+    if (ei) {
+      this.headerEiin = ei;
+    }
+    const ek = typeof hdr.examTypeKey === 'string' ? hdr.examTypeKey.trim() : '';
+    if (ek && this.examTypeOptions.some((o) => o.key === ek)) {
+      this.headerExamTypeKey = ek;
+    }
+    if ('mcqSetLetter' in hdr) {
+      const L = hdr.mcqSetLetter;
+      if (L === null || L === undefined) {
+        this.selectedMcqSetLetter = null;
+      } else if ((QuestionCreatorComponent.MCQ_SET_LETTERS as readonly string[]).includes(String(L))) {
+        this.selectedMcqSetLetter = L as (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number];
+      }
+    }
+    this.onHeaderMetaChange();
+    if (this.selectionHasMcqType()) {
+      this.onMcqSetLetterChange();
+    }
+  }
+
   private maybeCompleteSmartCreatorSaveAfterInit(): void {
     if (!this.smartCreatorSavePending) {
       return;
@@ -778,6 +860,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.questions.length === 0) {
       return;
     }
+    this.applySmartCreatorNavHeaderFields();
     void this.runAutoFitThenSave();
   }
 
@@ -4463,7 +4546,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.instituteLookupError = '';
     this.instituteLookupLoading = false;
     this.headerLineFontSizes = [];
-    this.selectedMcqSetLetter = null;
+    const preserveMcqSetLetter =
+      this.smartCreatorNavHeader != null &&
+      this.smartCreatorNavHeader.mcqSetLetter != null &&
+      (QuestionCreatorComponent.MCQ_SET_LETTERS as readonly string[]).includes(
+        this.smartCreatorNavHeader.mcqSetLetter as string
+      );
+    if (!preserveMcqSetLetter) {
+      this.selectedMcqSetLetter = null;
+    }
     this.mcqPreviewShuffleNonce = 0;
     this.mcqOrdersFrozen = false;
     this.persistedMcqOrderBySet = {};

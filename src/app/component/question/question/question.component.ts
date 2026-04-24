@@ -7,6 +7,22 @@ import { LoadingService } from '../../../service/loading.service';
 import { DisappearedQuestionsService } from '../../../service/disappeared-questions.service';
 import { diffChars } from 'diff';
 
+/** Exam keys aligned with question-creator structured header (BN labels on /question modal). */
+const SMART_CREATOR_EXAM_OPTIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: 'election', label: 'নির্বাচনী পরীক্ষা' },
+  { key: 'pre_election', label: 'প্রাক-নির্বাচনী পরীক্ষা' },
+  { key: 'yearly', label: 'বার্ষিক পরীক্ষা' },
+  { key: 'half_yearly', label: 'অর্ধবার্ষিক পরীক্ষা' },
+  { key: 'term1', label: '১ম সাময়িক পরীক্ষা' },
+  { key: 'term2', label: '২য় সাময়িক পরীক্ষা' },
+  { key: 'special', label: 'বিশেষ পরীক্ষা' },
+  { key: 'model', label: 'মডেল টেস্ট' },
+  { key: 'class_test', label: 'ক্লাস টেস্ট' },
+];
+
+const SMART_CREATOR_SET_LETTERS = ['ক', 'খ', 'গ', 'ঘ'] as const;
+type SmartCreatorSetLetter = (typeof SMART_CREATOR_SET_LETTERS)[number];
+
 /** Prefix + base64(UTF-8 plain); approve path reads this in database_admin_views._strip_red_markup. */
 const CERADIP_PLAIN_PREFIX = '<!--CERADIP_PLAIN:';
 
@@ -77,6 +93,14 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Multi-select question type filter (e.g. সৃজনশীল প্রশ্ন, বহুনির্বাচনি প্রশ্ন). */
   selectedQuestionTypes: Set<string> = new Set();
   typeDropdownOpen = false;
+  /** Smart Question Creator: modal for EIIN / exam / set before navigating to `/question/create`. */
+  smartCreatorModalOpen = false;
+  smartCreatorModalEiin = '000000';
+  smartCreatorModalExamKey = 'election';
+  smartCreatorModalSetLetter: SmartCreatorSetLetter | null = null;
+  smartCreatorModalError = '';
+  readonly smartCreatorExamOptions = SMART_CREATOR_EXAM_OPTIONS;
+  readonly smartCreatorSetLetters = SMART_CREATOR_SET_LETTERS;
   get primarySubject(): QuestionSubject | null {
     if (!this.subjects.length || !this.selectedSubjectTr) return null;
     return this.subjects.find(s => s.subject_tr === this.selectedSubjectTr) || null;
@@ -3069,20 +3093,67 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  /** Navigate to question-creator page for Smart Question Creator flow. */
-  goToSmartQuestionCreator(): void {
+  /** Open modal to choose EIIN, exam name, and set; then navigate to creator with auto-save. */
+  openSmartQuestionCreatorModal(): void {
+    this.smartCreatorModalError = '';
+    this.smartCreatorModalEiin = '000000';
+    this.smartCreatorModalExamKey = 'election';
+    this.smartCreatorModalSetLetter = null;
+    this.smartCreatorModalOpen = true;
+  }
+
+  closeSmartQuestionCreatorModal(): void {
+    this.smartCreatorModalOpen = false;
+    this.smartCreatorModalError = '';
+  }
+
+  /** True if any checkbox-selected question is MCQ (বহুনির্বাচনি). */
+  smartCreatorModalSelectionHasMcq(): boolean {
+    return this.selectedQuestionsForCreate.some((q) => this.showEditOptions(q));
+  }
+
+  confirmSmartQuestionCreatorModal(): void {
+    const questions = this.selectedQuestionsForCreate;
+    if (!questions.length) {
+      this.smartCreatorModalError = 'Select one or more questions in the list, then try again.';
+      return;
+    }
+    if (this.smartCreatorModalSelectionHasMcq() && this.smartCreatorModalSetLetter == null) {
+      this.smartCreatorModalError = 'Choose a Set (ক–ঘ) for the selected MCQ questions.';
+      return;
+    }
+    this.smartCreatorModalOpen = false;
+    this.smartCreatorModalError = '';
+    this.saveFilterState();
+    const sub = this.primarySubject;
+    const firstTopic = this.selectedTopicIds.size ? (this.topics.find(t => this.selectedTopicIds.has(t.id))?.name ?? '') : '';
+    const questionTypes =
+      this.selectedQuestionTypes.size > 0 ? Array.from(this.selectedQuestionTypes) : undefined;
+    const eiin = (this.smartCreatorModalEiin ?? '').trim() || '000000';
     this.router.navigate(['/question/create'], {
-      state: { smartCreator: true, questions: [], context: this.primarySubject ? {
-        level_tr: this.selectedLevel,
-        class_level: this.selectedClass,
-        group: this.selectedGroup || undefined,
-        subject_tr: this.primarySubject.subject_tr,
-        subject_code: this.primarySubject.subject_code,
-        ...(this.primarySubject.sq === 25 || this.primarySubject.sq === 30 ? { sq: this.primarySubject.sq } : {}),
-        ...this.subjectMetaForCreateContext(this.primarySubject),
-        chapter: this.currentChapter,
-        topic: this.selectedTopicIds.size ? (this.topics.find(t => this.selectedTopicIds.has(t.id))?.name ?? '') : ''
-      } : undefined }
+      state: {
+        smartCreator: true,
+        questions,
+        questionTypes,
+        smartCreatorHeader: {
+          eiin,
+          examTypeKey: this.smartCreatorModalExamKey,
+          mcqSetLetter: this.smartCreatorModalSelectionHasMcq() ? this.smartCreatorModalSetLetter : null,
+        },
+        context: sub
+          ? {
+              level_tr: this.selectedLevel,
+              class_level: this.selectedClass,
+              group: this.selectedGroup || undefined,
+              subject_tr: sub.subject_tr,
+              subject_code: sub.subject_code,
+              ...(sub.sq === 25 || sub.sq === 30 ? { sq: sub.sq } : {}),
+              ...this.subjectMetaForCreateContext(sub),
+              chapter: this.currentChapter,
+              topic: firstTopic,
+            }
+          : undefined,
+      },
     });
   }
 
