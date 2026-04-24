@@ -1728,33 +1728,44 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Short name for Created Questions API (`name` field): subject_Chapter_…_topic + exam slug + BN serial
-   * for counter exams (special / model / class_test), e.g. `…_ক্লাস_টেস্ট_০১`; others use {@link defaultFileNameBase} only.
+   * Short `name` for Created Questions API: `base_examLabel_suffix`.
+   * Counter exams (last three): suffix = BN serial (`…_ক্লাস_টেস্ট_০১`).
+   * Other exams: same layout with calendar year (ASCII or BN digits), no serial.
    */
-  private buildCreatedQuestionSetNameFromSerial(serialOneBased: number): string {
+  private buildCreatedQuestionSetName(): string {
     const base = this.defaultFileNameBase;
     const opt = this.examTypeOptions.find((o) => o.key === this.headerExamTypeKey);
     if (!opt) {
       return base.slice(0, 200);
     }
-    const examPart = opt.label.replace(/\s+/g, '_');
-    let out: string;
     if (opt.counter) {
-      const pad = String(Math.max(1, Math.min(999, Math.floor(serialOneBased)))).padStart(2, '0');
-      const bn = QuestionCreatorComponent.toBengaliDigits(pad);
-      out = `${base}_${examPart}_${bn}`;
-    } else {
-      out = base;
+      return this.buildCreatedQuestionSetNameFromSerial(this.getNextExamSerialDisplay());
     }
+    const examPart = opt.label.replace(/\s+/g, '_');
+    const cy = new Date().getFullYear();
+    const y = String(Math.max(1900, Math.min(2100, cy)));
+    const yearSuffix = this.isEnglishSubject() ? y : QuestionCreatorComponent.toBengaliDigits(y);
+    const out = `${base}_${examPart}_${yearSuffix}`;
     return out.length > 200 ? out.slice(0, 200) : out;
   }
 
-  /** Value sent as `name` on create; matches counter shown in header for counter exam types. */
-  get createdQuestionSetName(): string {
-    if (!this.currentExamTypeUsesCounter()) {
-      return this.defaultFileNameBase.slice(0, 200);
+  /** Counter exams only: `base_examLabel_BNSerial` for a given 1-based serial (collision probing). */
+  private buildCreatedQuestionSetNameFromSerial(serialOneBased: number): string {
+    const base = this.defaultFileNameBase;
+    const opt = this.examTypeOptions.find((o) => o.key === this.headerExamTypeKey);
+    if (!opt || !opt.counter) {
+      return this.buildCreatedQuestionSetName();
     }
-    return this.buildCreatedQuestionSetNameFromSerial(this.getNextExamSerialDisplay());
+    const examPart = opt.label.replace(/\s+/g, '_');
+    const pad = String(Math.max(1, Math.min(999, Math.floor(serialOneBased)))).padStart(2, '0');
+    const bn = QuestionCreatorComponent.toBengaliDigits(pad);
+    const out = `${base}_${examPart}_${bn}`;
+    return out.length > 200 ? out.slice(0, 200) : out;
+  }
+
+  /** Value sent as `name` on create; aligns with header exam line (year vs counter). */
+  get createdQuestionSetName(): string {
+    return this.buildCreatedQuestionSetName();
   }
 
   /**
