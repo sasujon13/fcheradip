@@ -74,8 +74,7 @@
               <button type="button" class="btn-icon btn-cancel" (click)="cancelRename()" title="Cancel"><i class="fa fa-times"></i></button>
             </ng-container>
             <ng-template #showName>
-              <span class="set-name-counter">{{ set.name }}_{{ set.counter }}</span>
-              <span class="set-header" *ngIf="set.question_header"> — {{ set.question_header }}</span>
+              <span class="set-name-counter" [attr.title]="set.question_header || null">{{ set.name }}</span>
             </ng-template>
           </td>
           <td class="col-meta-actions">

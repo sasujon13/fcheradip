@@ -1728,6 +1728,75 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
+   * Short name for Created Questions API (`name` field): subject_Chapter_…_topic + exam slug + BN serial
+   * for counter exams (special / model / class_test), e.g. `…_ক্লাস_টেস্ট_০১`; others use {@link defaultFileNameBase} only.
+   */
+  private buildCreatedQuestionSetNameFromSerial(serialOneBased: number): string {
+    const base = this.defaultFileNameBase;
+    const opt = this.examTypeOptions.find((o) => o.key === this.headerExamTypeKey);
+    if (!opt) {
+      return base.slice(0, 200);
+    }
+    const examPart = opt.label.replace(/\s+/g, '_');
+    let out: string;
+    if (opt.counter) {
+      const pad = String(Math.max(1, Math.min(999, Math.floor(serialOneBased)))).padStart(2, '0');
+      const bn = QuestionCreatorComponent.toBengaliDigits(pad);
+      out = `${base}_${examPart}_${bn}`;
+    } else {
+      out = base;
+    }
+    return out.length > 200 ? out.slice(0, 200) : out;
+  }
+
+  /** Value sent as `name` on create; matches counter shown in header for counter exam types. */
+  get createdQuestionSetName(): string {
+    if (!this.currentExamTypeUsesCounter()) {
+      return this.defaultFileNameBase.slice(0, 200);
+    }
+    return this.buildCreatedQuestionSetNameFromSerial(this.getNextExamSerialDisplay());
+  }
+
+  /**
+   * When a counter exam (last three options) is selected, bump stored serial if the short saved name
+   * already exists on the server so header + create payload stay in sync.
+   */
+  private async bumpExamSerialToAvoidDuplicateCreatedSetName(): Promise<void> {
+    if (!this.currentExamTypeUsesCounter() || !this.apiService.isLoggedIn()) {
+      return;
+    }
+    try {
+      const sets = await firstValueFrom(this.apiService.getCreatedQuestionSets().pipe(take(1)));
+      const names = new Set((sets ?? []).map((s) => (s.name ?? '').trim()).filter((n) => n.length > 0));
+      const k = this.examSerialStorageKey();
+      const m = this.getExamSerialMap();
+      const committed = m[k] ?? 0;
+      let next = committed + 1;
+      while (next < 500 && names.has(this.buildCreatedQuestionSetNameFromSerial(next))) {
+        next++;
+      }
+      if (next !== committed + 1) {
+        m[k] = next - 1;
+        try {
+          localStorage.setItem(QUESTION_CREATOR_EXAM_SERIAL_KEY, JSON.stringify(m));
+        } catch (_) {
+          /* private mode */
+        }
+        this.rebuildQuestionHeader();
+        this.cdr.markForCheck();
+      }
+    } catch {
+      /* offline / list failure — keep current serial */
+    }
+  }
+
+  /** Exam dropdown: bump serial on collision, then same header + preview refresh as {@link onHeaderMetaChange}. */
+  async onHeaderExamTypeChange(_newKey: string): Promise<void> {
+    await this.bumpExamSerialToAvoidDuplicateCreatedSetName();
+    this.onHeaderMetaChange();
+  }
+
+  /**
    * MCQ-only or creative-only: clear stale mixed header from localStorage, then same rebuild + sync chain
    * as manual Reset Setting (without wiping layout columns/margins).
    */
@@ -7236,7 +7305,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const parts: string[] = [];
     if (this.context.subject_tr) parts.push(this.context.subject_tr.replace(/\s+/g, '_'));
     if (this.context.chapter) parts.push('Chapter_' + String(this.context.chapter).replace(/\s+/g, '_'));
-    if (this.context.topic) parts.push(String(this.context.topic).replace(/\s+/g, '_'));
+    const tp = (this.context.topic ?? '').trim();
+    if (tp && !/^\d+$/.test(tp)) {
+      parts.push(String(this.context.topic).replace(/\s+/g, '_'));
+    }
     return parts.length ? parts.join('_') : 'questions';
   }
 
@@ -7626,7 +7698,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     try {
       const created = await firstValueFrom(
         this.apiService.createQuestionSet({
-          name: this.defaultFileNameBase,
+          name: this.createdQuestionSetName,
           question_header: multiMcq
             ? (this.questionHeaderByMcqSet['ক'] ?? this.buildQuestionHeaderForPersist('ক'))
             : this.buildQuestionHeaderForPersist(),

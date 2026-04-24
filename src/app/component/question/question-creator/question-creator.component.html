@@ -307,7 +307,7 @@
           </div>
           <div class="setting-field setting-field-header-exam">
             <label for="headerExamType">Exam name</label>
-            <select id="headerExamType" [(ngModel)]="headerExamTypeKey" (ngModelChange)="onHeaderMetaChange()">
+            <select id="headerExamType" [(ngModel)]="headerExamTypeKey" (ngModelChange)="onHeaderExamTypeChange($event)">
               <option *ngFor="let o of examTypeOptions" [value]="o.key">{{ o.label }}</option>
             </select>
           </div>
