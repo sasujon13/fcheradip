@@ -74,7 +74,10 @@ export type QuestionCreatorContext = {
   subject_name?: string;
   /** From question_subjects (cheradip_subject.subject_code). */
   subject_code?: string;
-  /** Exam variant from question_subjects (`sq`): 25 vs 30 sets সৃজনশীল সময়/পূর্ণমান; MCQ সময়/পূর্ণমান are ৩০/৩০ for both. */
+  /**
+   * Exam variant from question_subjects (`sq`): 25 vs 30 drives per-question timing for header সময়/পূর্ণমান
+   * (MCQ 1 min + 1 mark each; CQ 31 min + 10 marks each for sq=25; CQ floor(n×21.43) min + 10 marks each for sq=30).
+   */
   sq?: number;
   chapter?: string;
   topic?: string;
@@ -219,6 +222,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static toBengaliDigits(ascii: string): string {
     return ascii.replace(/\d/g, (d) => QuestionCreatorComponent.BN_DIGITS[parseInt(d, 10)] ?? d);
   }
+
+  /** Convert Bengali digit chars to ASCII digits; other chars unchanged (for parsing header numbers). */
+  private static bnToAsciiDigits(s: string): string {
+    let out = '';
+    for (const ch of s) {
+      const i = QuestionCreatorComponent.BN_DIGITS.indexOf(ch);
+      out += i >= 0 ? String(i) : ch;
+    }
+    return out;
+  }
+
+  private static readonly SQ_CQ_MINUTES_PER_25 = 31;
+  private static readonly SQ_CQ_MINUTES_PER_30 = 21.43;
 
   private static escapeHtmlText(s: string): string {
     return s
@@ -2122,8 +2138,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const creativeAt3 =
       this.parseCreativeSqCombinedDisplayParts(lines[3] ?? '') != null ||
       t3 === creC.trim() ||
-      (/২\s*ঘন্টা|২\s*ঘণ্টা/.test(t3) &&
-        this.parseMcqSqCombinedDisplayParts(lines[3] ?? '') == null);
+      (this.parseMcqSqCombinedDisplayParts(lines[3] ?? '') == null &&
+        this.lineLooksLikeCreativeSqMetaNotMcq(t3));
     if (!creativeAt3) {
       return false;
     }
@@ -2332,11 +2348,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const mcqC = this.examSqMetaCombinedLineMcq();
     const creC = this.examSqMetaCombinedLineCreative();
     let changed = false;
-    if (mcqC && (next[3] ?? '').trim() === '') {
+    const t3 = (next[3] ?? '').trim();
+    if (mcqC && this.shouldReseedSqMcqCombinedLine(t3)) {
       next[3] = mcqC;
       changed = true;
     }
-    if (creC && (next[4] ?? '').trim() === '') {
+    const t4 = (next[4] ?? '').trim();
+    if (creC && this.shouldReseedSqCreativeCombinedLine(t4)) {
       next[4] = creC;
       changed = true;
     }
@@ -2450,11 +2468,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       next.push('');
     }
     const expandedMix = this.mixedHeaderUsesExpandedEditorLines();
-    if (expandedMix && (next[4] ?? '').trim() !== '') {
-      return;
-    }
     const combined = this.examSqMetaCombinedLineCreative();
     if (!combined) {
+      return;
+    }
+    const idx = expandedMix ? 4 : 3;
+    const cur = (next[idx] ?? '').trim();
+    if (cur && !this.shouldReseedSqCreativeCombinedLine(cur)) {
       return;
     }
     if (expandedMix) {
@@ -3411,7 +3431,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return Math.max(0, Math.min(5, n - 1));
   }
 
-  /** `question_subjects.sq`: 25 or 30 (সৃজনশীল timing differs; MCQ combined line is the same for both). */
+  /** `question_subjects.sq`: 25 or 30 (per-question MCQ/CQ সময়+পূর্ণমান in structured header). */
   private subjectSqExamVariant(): 25 | 30 | null {
     const s = this.context.sq;
     if (s === 25 || s === 30) return s;
@@ -3420,34 +3440,183 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return null;
   }
 
-  /** MCQ header: 5th line (1-based). Same ৩০-minute / ৩০-mark line for sq 25 and 30. */
+  /** Counts MCQ (বহুনির্বাচনি) and CQ (সৃজনশীল) in the active creator list for sq header math. */
+  private sqMcqCreativeQuestionCounts(): { mcq: number; cq: number } {
+    let mcq = 0;
+    let cq = 0;
+    for (const q of this.questions ?? []) {
+      if (this.questionIsMcqType(q)) {
+        mcq++;
+      } else if (this.questionIsCreativeType(q)) {
+        cq++;
+      }
+    }
+    return { mcq, cq };
+  }
+
+  private normalizeSqMetaWhitespace(s: string): string {
+    return String(s ?? '')
+      .replace(/\r\n/g, '\n')
+      .replace(/<br\s*\/?>/gi, '<br>')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private lineMatchesLegacySqMcqCombined(text: string): boolean {
+    const n = this.normalizeSqMetaWhitespace(text);
+    const legacy = this.normalizeSqMetaWhitespace('সময় -- ৩০ মিনিট <br> পূর্ণমান -- ৩০');
+    return n === legacy;
+  }
+
+  private lineMatchesLegacySqCreativeCombined(text: string): boolean {
+    const n = this.normalizeSqMetaWhitespace(text);
+    const legacy25 = this.normalizeSqMetaWhitespace('সময় -- ২ ঘন্টা ৩৫ মিনিট <br> পূর্ণমান -- ৫০');
+    const legacy30 = this.normalizeSqMetaWhitespace('সময় -- ২ ঘন্টা ৩০ মিনিট <br> পূর্ণমান -- ৭০');
+    return n === legacy25 || n === legacy30;
+  }
+
+  /**
+   * True when a two-part `<br>` line looks like auto MCQ sq meta (minutes-only সময় line, marks == minutes).
+   * Used to re-seed when question counts change.
+   */
+  private isProbableAutoMcqSqMetaTwoLine(text: string): boolean {
+    const parts = String(text ?? '')
+      .split(/<br\s*\/?>/i)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    if (parts.length !== 2) {
+      return false;
+    }
+    const a = parts[0]!;
+    const b = parts[1]!;
+    if (!/^সময়\s*--/iu.test(a) || !/^পূর্ণমান\s*--/iu.test(b)) {
+      return false;
+    }
+    if (/ঘন্টা|ঘণ্টা/u.test(a)) {
+      return false;
+    }
+    const asciiA = QuestionCreatorComponent.bnToAsciiDigits(a);
+    const asciiB = QuestionCreatorComponent.bnToAsciiDigits(b);
+    const ma = asciiA.match(/সময়\s*--\s*(\d+)\s*মিনিট/i);
+    const mb = asciiB.match(/পূর্ণমান\s*--\s*(\d+)/i);
+    if (!ma || !mb) {
+      return false;
+    }
+    return parseInt(ma[1]!, 10) === parseInt(mb[1]!, 10);
+  }
+
+  /** CQ combined meta (two `<br>` parts) — not the MCQ “minutes == marks” pattern. */
+  private lineLooksLikeCreativeSqMetaNotMcq(text: string): boolean {
+    const parts = String(text ?? '')
+      .split(/<br\s*\/?>/i)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    if (parts.length !== 2) {
+      return false;
+    }
+    if (!/^সময়\s*--/iu.test(parts[0]!) || !/^পূর্ণমান\s*--/iu.test(parts[1]!)) {
+      return false;
+    }
+    return !this.isProbableAutoMcqSqMetaTwoLine(text);
+  }
+
+  private shouldReseedSqMcqCombinedLine(text: string): boolean {
+    const t = String(text ?? '').trim();
+    if (!t) {
+      return true;
+    }
+    if (this.parseMcqSqCombinedDisplayParts(text) != null) {
+      return true;
+    }
+    if (this.lineMatchesLegacySqMcqCombined(text)) {
+      return true;
+    }
+    return this.isProbableAutoMcqSqMetaTwoLine(text);
+  }
+
+  private shouldReseedSqCreativeCombinedLine(text: string): boolean {
+    const t = String(text ?? '').trim();
+    if (!t) {
+      return true;
+    }
+    if (this.parseCreativeSqCombinedDisplayParts(text) != null) {
+      return true;
+    }
+    if (this.lineMatchesLegacySqCreativeCombined(text)) {
+      return true;
+    }
+    return this.lineLooksLikeCreativeSqMetaNotMcq(text);
+  }
+
+  /** BN duration after `সময় -- ` (e.g. `২০ মিনিট`, `১ ঘন্টা ৪৭ মিনিট`). */
+  private formatBnSqDurationAfterDash(totalMinutes: number): string {
+    const m = Math.max(0, Math.floor(totalMinutes));
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    if (h <= 0) {
+      return `${QuestionCreatorComponent.toBengaliDigits(String(m))} মিনিট`;
+    }
+    if (rem === 0) {
+      return `${QuestionCreatorComponent.toBengaliDigits(String(h))} ঘন্টা`;
+    }
+    return `${QuestionCreatorComponent.toBengaliDigits(String(h))} ঘন্টা ${QuestionCreatorComponent.toBengaliDigits(String(rem))} মিনিট`;
+  }
+
+  /** MCQ header: 5th line (1-based). sq 25/30: 1 minute per MCQ question. */
   examDurationLineMcq(): string {
     const v = this.subjectSqExamVariant();
-    if (v === 25 || v === 30) return 'সময় -- ৩০ মিনিট';
-    return '';
+    if (v !== 25 && v !== 30) {
+      return '';
+    }
+    const { mcq } = this.sqMcqCreativeQuestionCounts();
+    if (mcq <= 0) {
+      return '';
+    }
+    const minutes = mcq;
+    return `সময় -- ${this.formatBnSqDurationAfterDash(minutes)}`;
   }
 
-  /** সৃজনশীল header: 4th line (1-based). */
+  /** সৃজনশীল header: 4th line (1-based). sq 25: 31 min per CQ; sq 30: floor(n×21.43) total minutes. */
   examDurationLineCreative(): string {
     const v = this.subjectSqExamVariant();
-    if (v === 25) return 'সময় -- ২ ঘন্টা ৩৫ মিনিট';
-    if (v === 30) return 'সময় -- ২ ঘন্টা ৩০ মিনিট';
-    return '';
+    if (v !== 25 && v !== 30) {
+      return '';
+    }
+    const { cq } = this.sqMcqCreativeQuestionCounts();
+    if (cq <= 0) {
+      return '';
+    }
+    const totalMin =
+      v === 25
+        ? cq * QuestionCreatorComponent.SQ_CQ_MINUTES_PER_25
+        : Math.floor(cq * QuestionCreatorComponent.SQ_CQ_MINUTES_PER_30);
+    return `সময় -- ${this.formatBnSqDurationAfterDash(totalMin)}`;
   }
 
-  /** MCQ header: 6th line (1-based). Same marks line for sq 25 and 30. */
+  /** MCQ header: 6th line (1-based). sq 25/30: 1 mark per MCQ question. */
   examFullMarksLineMcq(): string {
     const v = this.subjectSqExamVariant();
-    if (v === 25 || v === 30) return 'পূর্ণমান -- ৩০';
-    return '';
+    if (v !== 25 && v !== 30) {
+      return '';
+    }
+    const { mcq } = this.sqMcqCreativeQuestionCounts();
+    if (mcq <= 0) {
+      return '';
+    }
+    return `পূর্ণমান -- ${QuestionCreatorComponent.toBengaliDigits(String(mcq))}`;
   }
 
-  /** সৃজনশীল header: 4th line (1-based), with duration. */
+  /** সৃজনশীল header: marks line. sq 25/30: 10 marks per CQ question. */
   examFullMarksLineCreative(): string {
     const v = this.subjectSqExamVariant();
-    if (v === 25) return 'পূর্ণমান -- ৫০';
-    if (v === 30) return 'পূর্ণমান -- ৭০';
-    return '';
+    if (v !== 25 && v !== 30) {
+      return '';
+    }
+    const { cq } = this.sqMcqCreativeQuestionCounts();
+    if (cq <= 0) {
+      return '';
+    }
+    return `পূর্ণমান -- ${QuestionCreatorComponent.toBengaliDigits(String(cq * 10))}`;
   }
 
   /** One textarea segment: সময় then পূর্ণমান (MCQ). */
