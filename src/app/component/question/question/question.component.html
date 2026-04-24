@@ -376,11 +376,12 @@
         </select>
       </div>
       <div class="smart-creator-modal-field" *ngIf="smartCreatorModalSelectionHasMcq()">
-        <label for="smart-creator-set">Set</label>
+        <label for="smart-creator-set">Set <span class="smart-creator-modal-optional">(optional)</span></label>
         <select id="smart-creator-set" class="smart-creator-modal-select" [(ngModel)]="smartCreatorModalSetLetter">
           <option [ngValue]="null">Select</option>
           <option *ngFor="let s of smartCreatorSetLetters" [ngValue]="s">{{ s }}</option>
         </select>
+        <p class="smart-creator-modal-field-hint">Leave on Select to save the same way as on the create page without a set code.</p>
       </div>
       <p class="smart-creator-modal-error" *ngIf="smartCreatorModalError">{{ smartCreatorModalError }}</p>
       <div class="smart-creator-modal-actions">

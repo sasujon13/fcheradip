@@ -509,6 +509,18 @@
   color: #333;
 }
 
+.smart-creator-modal-optional {
+  font-weight: 400;
+  color: #666;
+}
+
+.smart-creator-modal-field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #555;
+}
+
 .smart-creator-modal-input,
 .smart-creator-modal-select {
   width: 100%;

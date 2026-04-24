@@ -3118,10 +3118,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.smartCreatorModalError = 'Select one or more questions in the list, then try again.';
       return;
     }
-    if (this.smartCreatorModalSelectionHasMcq() && this.smartCreatorModalSetLetter == null) {
-      this.smartCreatorModalError = 'Choose a Set (ক–ঘ) for the selected MCQ questions.';
-      return;
-    }
     this.smartCreatorModalOpen = false;
     this.smartCreatorModalError = '';
     this.saveFilterState();
