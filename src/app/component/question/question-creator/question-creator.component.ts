@@ -1763,9 +1763,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return out.length > 200 ? out.slice(0, 200) : out;
   }
 
-  /** Value sent as `name` on create; aligns with header exam line (year vs counter). */
-  get createdQuestionSetName(): string {
+  /**
+   * Stem for PDF/DOCX downloads, `exportQuestions` `filename`, and Created Questions `name`
+   * (subject/chapter/topic + exam label + year or BN serial).
+   */
+  get exportFileNameBase(): string {
     return this.buildCreatedQuestionSetName();
+  }
+
+  /** Same as {@link exportFileNameBase} — persisted set name on create. */
+  get createdQuestionSetName(): string {
+    return this.exportFileNameBase;
   }
 
   /**
@@ -7324,11 +7332,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   get defaultPdfName(): string {
-    return this.defaultFileNameBase + '.pdf';
+    return this.exportFileNameBase + '.pdf';
   }
 
   get defaultDocxName(): string {
-    return this.defaultFileNameBase + '.docx';
+    return this.exportFileNameBase + '.docx';
   }
 
   /** Snapshot of layout options stored with the created set and mirrored on re-export. */
@@ -7569,7 +7577,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         await this.waitForLayoutIdle();
       }
       const fname =
-        setLetter != null ? `${this.defaultFileNameBase}-${setLetter}` : this.defaultFileNameBase;
+        setLetter != null ? `${this.exportFileNameBase}-${setLetter}` : this.exportFileNameBase;
       const header =
         setLetter != null
           ? (this.questionHeaderByMcqSet[setLetter] ?? this.buildQuestionHeaderForPersist(setLetter))

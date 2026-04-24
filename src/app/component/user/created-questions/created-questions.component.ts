@@ -323,6 +323,19 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     return out;
   }
 
+  /**
+   * Export / download filename stem: saved `name` (same convention as question-creator), spaces → underscores.
+   * Falls back to legacy `file_name_base` when `name` is empty.
+   */
+  private exportFilenameStem(set: CreatedQuestionSet): string {
+    const n = (set.name ?? '').trim();
+    if (n) {
+      return n.replace(/\s+/g, '_');
+    }
+    const fb = (set.file_name_base ?? '').trim();
+    return fb || 'questions';
+  }
+
   /** Same top-level export fields + full `layout_settings` as Save in question-creator (serials, fonts, page plan, MCQ order). */
   private exportPayloadFromSavedSet(set: CreatedQuestionSet): Record<string, unknown> {
     const ls = this.layoutRecord(set) ?? {};
@@ -343,7 +356,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     const out: Record<string, unknown> = {
       questions: questionsOrdered,
       questionHeader: set.question_header || '',
-      filename: set.file_name_base,
+      filename: this.exportFilenameStem(set),
       layout_settings: ls,
       pageSize: this.strFromLayout(ls, 'pageSize', 'A4'),
       pageOrientation,
@@ -397,18 +410,19 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
           ...base,
           questions: this.reorderQuestionsByQids(set.questions, orderMap[L] ?? []),
           questionHeader: (headerMap[L] || (base['questionHeader'] as string)) as string,
-          filename: `${set.file_name_base}-${L}`,
+          filename: `${this.exportFilenameStem(set)}-${L}`,
           format,
         } as Parameters<ApiService['exportQuestions']>[0])
       );
       forkJoin(requests).subscribe({
         next: (blobs) => {
           const ext = format === 'pdf' ? '.pdf' : '.docx';
+          const stem = this.exportFilenameStem(set);
           blobs.forEach((blob, i) => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${set.file_name_base}-${letters[i]}${ext}`;
+            a.download = `${stem}-${letters[i]}${ext}`;
             a.click();
             URL.revokeObjectURL(url);
           });
@@ -425,7 +439,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = set.file_name_base + ext;
+        a.download = this.exportFilenameStem(set) + ext;
         a.click();
         URL.revokeObjectURL(url);
       },
@@ -448,7 +462,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
           ...base,
           questions: this.reorderQuestionsByQids(set.questions, orderMap[L] ?? []),
           questionHeader: (headerMap[L] || base['questionHeader']) as string,
-          filename: `${set.file_name_base}-${L}`,
+          filename: `${this.exportFilenameStem(set)}-${L}`,
         }));
       }
       return [this.exportPayloadFromSavedSet(set)];
