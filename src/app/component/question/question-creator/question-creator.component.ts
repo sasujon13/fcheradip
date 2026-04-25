@@ -3170,7 +3170,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen) {
       this.mcqPreviewShuffleNonce++;
     }
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.onPreviewLayoutChange();
   }
 
   private clearMcqPersistedOrders(): void {
@@ -7437,7 +7437,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     } else if (this.marginPreset === 'wide') {
       this.marginTop = this.marginRight = this.marginBottom = this.marginLeft = 38.1;
     }
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    // Do not auto-fit on manual margin tweaks; it can silently shrink fonts that PDF later uses verbatim.
+    this.onPreviewLayoutChange();
   }
 
   /** Display inch value for a given margin side while storing mm internally. */
@@ -7463,7 +7464,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     else if (side === 'right') this.marginRight = mm;
     else if (side === 'bottom') this.marginBottom = mm;
     else this.marginLeft = mm;
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.onPreviewLayoutChange();
   }
 
   onCustomMarginInBlur(side: 'top' | 'right' | 'bottom' | 'left'): void {
@@ -7473,7 +7474,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     else if (side === 'right') this.marginRight = mm;
     else if (side === 'bottom') this.marginBottom = mm;
     else this.marginLeft = mm;
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.onPreviewLayoutChange();
   }
 
   get defaultFileNameBase(): string {
@@ -7662,17 +7663,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const prevLetter = this.selectedMcqSetLetter;
       for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
         this.selectedMcqSetLetter = L;
-        this.onPreviewLayoutChange({ suppressAutoFit: false });
+        this.onPreviewLayoutChange({ suppressAutoFit: true });
         await this.waitForLayoutIdle();
         perSetLayout[L] = this.buildLayoutSettingsForPersist();
       }
       this.selectedMcqSetLetter = prevLetter;
-      this.onPreviewLayoutChange({ suppressAutoFit: false });
+      this.onPreviewLayoutChange({ suppressAutoFit: true });
       await this.waitForLayoutIdle();
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     } else {
       if (this.selectionHasMcqType() && this.selectedMcqSetLetter != null) {
-        this.onPreviewLayoutChange({ suppressAutoFit: false });
+        this.onPreviewLayoutChange({ suppressAutoFit: true });
         await this.waitForLayoutIdle();
       }
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
