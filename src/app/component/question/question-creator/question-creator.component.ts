@@ -5273,14 +5273,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
 
     if (hasM && hasC) {
-      // Alternate which kind gets the first +1 attempt per user layout-change generation (reduces starvation).
+      // Mixed grow path: try CQ and MCQ in the same cycle so both fonts can rise together.
       const cqFirst = this.previewLayoutChangeSeq % 2 === 0;
-      if (cqFirst) {
-        if (this.maybeAutoFitCqQuestionFontPages(candidatePages)) return true;
-        if (this.maybeAutoFitMcqQuestionFontPages(candidatePages)) return true;
-      } else {
-        if (this.maybeAutoFitMcqQuestionFontPages(candidatePages)) return true;
-        if (this.maybeAutoFitCqQuestionFontPages(candidatePages)) return true;
+      const first = cqFirst
+        ? this.maybeAutoFitCqQuestionFontPages(candidatePages, { deferSchedule: true })
+        : this.maybeAutoFitMcqQuestionFontPages(candidatePages, { deferSchedule: true });
+      const second = cqFirst
+        ? this.maybeAutoFitMcqQuestionFontPages(candidatePages, { deferSchedule: true })
+        : this.maybeAutoFitCqQuestionFontPages(candidatePages, { deferSchedule: true });
+      if (first || second) {
+        this.scheduleLayout();
+        return true;
       }
       return false;
     }
@@ -5328,7 +5331,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /** MCQ question font: shrink when total pages > 2; grow +1px while MCQ fits on ≤1 sheet (revert if overflow). */
-  private maybeAutoFitMcqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
+  private maybeAutoFitMcqQuestionFontPages(
+    candidatePages: PreviewPage[],
+    options?: { deferSchedule?: boolean }
+  ): boolean {
     if (!this.selectionHasMcqType()) return false;
     // Monotonic id bumped on each onPreviewLayoutChange — ties “same user edit” to grow/revert bookkeeping.
     const seq = this.previewLayoutChangeSeq;
@@ -5337,6 +5343,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
     const counts = this.countKindsInCandidatePages(candidatePages);
     const cur = this.previewQuestionsFontPxMcq;
+    const defer = options?.deferSchedule === true;
+    const finish = (): boolean => {
+      if (!defer) this.scheduleLayout();
+      return true;
+    };
 
     if (
       pages > 2 &&
@@ -5348,8 +5359,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.syncGlobalPreviewQuestionsFontPxFromPerKind();
       // Block further +1 for this seq so we do not immediately retry the same failed size.
       this.autoFitMcqGrowBlockedSeq = seq;
-      this.scheduleLayout();
-      return true;
+      return finish();
     }
 
     if (pages > 2) {
@@ -5357,8 +5367,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       // Many total pages but not the “revert last +1” case: shrink MCQ font by 1px toward min (legacy path).
       this.previewQuestionsFontPxMcq = Math.max(minQ, cur - 1); //  *
       this.syncGlobalPreviewQuestionsFontPxFromPerKind();
-      this.scheduleLayout();
-      return true;
+      return finish();
     }
 
     if (counts.mcq > 1) return false;
@@ -5371,12 +5380,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     // Tentatively increase MCQ body font by 1px (capped at UI max); next layout validates sheet count.
     this.previewQuestionsFontPxMcq = Math.min(maxQ, cur + 1); //  *
     this.syncGlobalPreviewQuestionsFontPxFromPerKind();
-    this.scheduleLayout();
-    return true;
+    return finish();
   }
 
   /** CQ question font: shrink when total pages > 2; grow +1px while CQ fits on ≤2 sheets (revert if overflow). */
-  private maybeAutoFitCqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
+  private maybeAutoFitCqQuestionFontPages(
+    candidatePages: PreviewPage[],
+    options?: { deferSchedule?: boolean }
+  ): boolean {
     if (!this.selectionHasCreativeType()) return false;
     const seq = this.previewLayoutChangeSeq;
     const pages = candidatePages.length;
@@ -5384,6 +5395,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
     const counts = this.countKindsInCandidatePages(candidatePages);
     const cur = this.previewQuestionsFontPxCreative;
+    const defer = options?.deferSchedule === true;
+    const finish = (): boolean => {
+      if (!defer) this.scheduleLayout();
+      return true;
+    };
 
     if (
       pages > 2 &&
@@ -5394,8 +5410,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.previewQuestionsFontPxCreative = this.autoFitCqLastGrowPrevFontPx; //  *
       this.syncGlobalPreviewQuestionsFontPxFromPerKind();
       this.autoFitCqGrowBlockedSeq = seq;
-      this.scheduleLayout();
-      return true;
+      return finish();
     }
 
     if (pages > 2) {
@@ -5403,8 +5418,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       // Shrink CQ font by 1px when many pages and not in the precise revert branch above.
       this.previewQuestionsFontPxCreative = Math.max(minQ, cur - 1); //  *
       this.syncGlobalPreviewQuestionsFontPxFromPerKind();
-      this.scheduleLayout();
-      return true;
+      return finish();
     }
 
     if (counts.creative > 2) return false;
@@ -5416,8 +5430,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     // Tentative +1px on CQ body font; validated on next layout by creative sheet count (≤2 sheets).
     this.previewQuestionsFontPxCreative = Math.min(maxQ, cur + 1); //  *
     this.syncGlobalPreviewQuestionsFontPxFromPerKind();
-    this.scheduleLayout();
-    return true;
+    return finish();
   }
 
   /**
