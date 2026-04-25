@@ -612,6 +612,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * required for {@link waitForLayoutIdle} to wait until auto-fit chains finish.
    */
   private layoutPassInFlight = false;
+  /**
+   * Prevent duplicate load/error listeners on the same `<img>` inside measure blocks.
+   * Used to re-run pagination once async media dimensions are known.
+   */
+  private pendingMeasureImageListeners = new WeakSet<HTMLImageElement>();
   private magnifierRaf = 0;
   private remotePersistTimer: ReturnType<typeof setTimeout> | number | null = null;
   /** Next macrotick coalesce; avoids spamming while still syncing soon after edits. */
@@ -6664,6 +6669,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       requestAnimationFrame(() => {
         try {
         const blocksNow = this.measureBlocks?.toArray() ?? [];
+        // Register image load/error listeners so late image dimensions trigger a follow-up pagination pass.
+        // Do not block this pass; otherwise preview can stay empty while media is still loading.
+        this.scheduleLayoutForPendingMeasureImages(blocksNow);
         const heights = blocksNow.map((ref, i) => {
           const q = pq[i];
           const gap = this.questionBlockMarginBottomPx(q);
@@ -6793,6 +6801,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const c = dimsForKind('creative');
     const m = dimsForKind('mcq');
     return { w: minW(c.w, m.w), h: minH(c.h, m.h) };
+  }
+
+  /**
+   * Returns true when any measured question block still has images loading.
+   * We attach one-shot listeners and re-run layout as soon as media dimensions settle.
+   */
+  private scheduleLayoutForPendingMeasureImages(blocks: Array<ElementRef<HTMLElement>>): boolean {
+    let pending = false;
+    for (const ref of blocks) {
+      const host = ref?.nativeElement;
+      if (!host) continue;
+      const imgs = host.querySelectorAll('img');
+      for (const node of Array.from(imgs)) {
+        const img = node as HTMLImageElement;
+        if (img.complete) continue;
+        pending = true;
+        if (this.pendingMeasureImageListeners.has(img)) continue;
+        this.pendingMeasureImageListeners.add(img);
+        const rerun = () => this.scheduleLayout();
+        img.addEventListener('load', rerun, { once: true });
+        img.addEventListener('error', rerun, { once: true });
+      }
+    }
+    return pending;
   }
 
   private clampSectionGapPx(): number {
