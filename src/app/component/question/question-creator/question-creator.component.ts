@@ -6818,6 +6818,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const imgs = host.querySelectorAll('img');
       for (const node of Array.from(imgs)) {
         const img = node as HTMLImageElement;
+        // Measurement rail must not rely on viewport-based lazy loading; otherwise page-2+ images may never
+        // contribute to measured heights until scrolled into view.
+        try {
+          img.loading = 'eager';
+        } catch {
+          // Ignore assignment errors on older engines.
+        }
         if (img.complete) continue;
         pending = true;
         if (this.pendingMeasureImageListeners.has(img)) continue;
