@@ -42,6 +42,12 @@ const MEDIA_ANY_RE = new RegExp(
 
 /** Shown as alt (and when the image fails to load in many browsers). */
 export const QUESTION_MEDIA_IMG_ALT = 'Images are loading...';
+const QUESTION_MEDIA_IMG_INLINE_STYLE =
+  'max-width:100%;height:auto;max-height:480px;vertical-align:middle;display:inline-block;box-sizing:border-box;margin:2px 8px 6px 0;object-fit:contain;object-position:left center;';
+const QUESTION_MEDIA_STACK_INLINE_STYLE =
+  'display:inline-block;vertical-align:middle;max-width:100%;box-sizing:border-box;margin:1px 3px;';
+const QUESTION_MEDIA_CAPTION_INLINE_STYLE =
+  'display:block;font-size:1em;line-height:inherit;margin-top:0.35em;color:inherit;font-weight:normal;text-align:left;';
 
 /**
  * Decode `%3A`-style escapes from the caption fragment so Windows-safe filenames can show `:` (and other chars).
@@ -209,17 +215,17 @@ export class FormatQuestionMediaPipe implements PipeTransform {
           ` data-q-img-src="${escapeHtmlAttr(src)}"` +
           (fallbackSrc != null ? ` data-q-media-fallback="${escapeHtmlAttr(fallbackSrc)}"` : '');
         const imgPending =
-          `<img data-q-img-src="${escapeHtmlAttr(src)}"${fallbackAttr} alt="${QUESTION_MEDIA_IMG_ALT}" class="q-rich-img question-inline-img" loading="lazy" decoding="async" />`;
+          `<img data-q-img-src="${escapeHtmlAttr(src)}"${fallbackAttr} alt="${QUESTION_MEDIA_IMG_ALT}" class="q-rich-img question-inline-img" style="${QUESTION_MEDIA_IMG_INLINE_STYLE}" loading="lazy" decoding="async" />`;
         coreInner =
           caption != null
-            ? `<span class="q-rich-img-stack q-rich-media-try-latex"${spanDataAttrs}>${imgPending}<span class="q-rich-img-caption">${escapeCaptionText(caption)}</span></span>`
-            : `<span class="q-rich-img-stack q-rich-media-try-latex"${spanDataAttrs}>${imgPending}</span>`;
+            ? `<span class="q-rich-img-stack q-rich-media-try-latex" style="${QUESTION_MEDIA_STACK_INLINE_STYLE}"${spanDataAttrs}>${imgPending}<span class="q-rich-img-caption" style="${QUESTION_MEDIA_CAPTION_INLINE_STYLE}">${escapeCaptionText(caption)}</span></span>`
+            : `<span class="q-rich-img-stack q-rich-media-try-latex" style="${QUESTION_MEDIA_STACK_INLINE_STYLE}"${spanDataAttrs}>${imgPending}</span>`;
       } else {
         const img =
-          `<img src="${escapeHtmlAttr(src)}"${fallbackAttr} alt="${QUESTION_MEDIA_IMG_ALT}" class="q-rich-img question-inline-img" loading="lazy" decoding="async" />`;
+          `<img src="${escapeHtmlAttr(src)}"${fallbackAttr} alt="${QUESTION_MEDIA_IMG_ALT}" class="q-rich-img question-inline-img" style="${QUESTION_MEDIA_IMG_INLINE_STYLE}" loading="lazy" decoding="async" />`;
         coreInner =
           caption != null
-            ? `<span class="q-rich-img-stack">${img}<span class="q-rich-img-caption">${escapeCaptionText(caption)}</span></span>`
+            ? `<span class="q-rich-img-stack" style="${QUESTION_MEDIA_STACK_INLINE_STYLE}">${img}<span class="q-rich-img-caption" style="${QUESTION_MEDIA_CAPTION_INLINE_STYLE}">${escapeCaptionText(caption)}</span></span>`
             : img;
       }
 

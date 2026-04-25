@@ -6675,7 +6675,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         const heights = blocksNow.map((ref, i) => {
           const q = pq[i];
           const gap = this.questionBlockMarginBottomPx(q);
-          return ref.nativeElement.offsetHeight + gap;
+          const el = ref.nativeElement;
+          // Use the largest box metric so mixed text+image content is fully counted for pagination.
+          const rendered = Math.ceil(el.getBoundingClientRect().height || 0);
+          const content = Math.max(el.offsetHeight || 0, el.scrollHeight || 0, rendered);
+          return content + gap;
         });
         if (
           pq.length > 0 &&
