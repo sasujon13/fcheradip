@@ -1153,7 +1153,7 @@
 
 .preview-q-text {
   display: block;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
@@ -1219,7 +1219,7 @@
 
 .preview-q-intro {
   display: block;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
 }
 

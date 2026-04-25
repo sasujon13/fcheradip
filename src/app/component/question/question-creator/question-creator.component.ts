@@ -6672,14 +6672,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         // Register image load/error listeners so late image dimensions trigger a follow-up pagination pass.
         // Do not block this pass; otherwise preview can stay empty while media is still loading.
         this.scheduleLayoutForPendingMeasureImages(blocksNow);
-        const heights = blocksNow.map((ref, i) => {
-          const q = pq[i];
-          const gap = this.questionBlockMarginBottomPx(q);
+        const heights = blocksNow.map((ref) => {
           const el = ref.nativeElement;
           // Use the largest box metric so mixed text+image content is fully counted for pagination.
           const rendered = Math.ceil(el.getBoundingClientRect().height || 0);
           const content = Math.max(el.offsetHeight || 0, el.scrollHeight || 0, rendered);
-          return content + gap;
+          // Keep `heights[]` as pure content height; packing logic adds per-question gaps between stacked blocks.
+          return content;
         });
         if (
           pq.length > 0 &&
