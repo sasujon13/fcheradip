@@ -605,6 +605,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   static readonly MM_TO_PX = 96 / 25.4;
 
   /**
+   * Bypass: extra blank space at the bottom of MCQ sheets in live preview only (visual margin + taller
+   * paper box). Does not change pagination, measure rail, or export — see {@link previewOnlyMcqExtraHeightPx}.
+   */
+  private static readonly PREVIEW_ONLY_MCQ_EXTRA_HEIGHT_IN = 0.5;
+
+  /**
    * Maximum “zoom out” (overview) vs true print width: 50% when the column is wide enough.
    * When the stage is narrower than paperWidthPx × this value, scale shrinks further to fit.
    */
@@ -7256,6 +7262,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return { w: p.w, h: p.h };
   }
 
+  /** Extra bottom “air” on MCQ preview sheets only (px). Not used for question packing or export. */
+  private previewOnlyMcqExtraHeightPx(): number {
+    return (
+      QuestionCreatorComponent.PREVIEW_ONLY_MCQ_EXTRA_HEIGHT_IN *
+      QuestionCreatorComponent.INCH_TO_MM *
+      QuestionCreatorComponent.MM_TO_PX
+    );
+  }
+
   /**
    * Printable inner width (px) for CQ vs MCQ paper orientation.
    * Must match {@link contentInnerWidthPxForPage} for that kind — not {@link contentInnerWidthPx}, which uses
@@ -7313,7 +7328,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   paperHeightPxForPage(pageIndex: number): number {
     const kind = this.previewKindForSheetPage(pageIndex);
-    return this.paperSizeMmForKind(kind).h * QuestionCreatorComponent.MM_TO_PX;
+    const base = this.paperSizeMmForKind(kind).h * QuestionCreatorComponent.MM_TO_PX;
+    return kind === 'mcq' ? base + this.previewOnlyMcqExtraHeightPx() : base;
   }
 
   marginTopPxForPage(pageIndex: number): number {
@@ -7326,7 +7342,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   marginBottomPxForPage(pageIndex: number): number {
     const kind = this.previewKindForSheetPage(pageIndex);
-    return this.previewBottomMarginMmForKind(kind) * QuestionCreatorComponent.MM_TO_PX;
+    const base = this.previewBottomMarginMmForKind(kind) * QuestionCreatorComponent.MM_TO_PX;
+    return kind === 'mcq' ? base + this.previewOnlyMcqExtraHeightPx() : base;
   }
 
   marginLeftPxForPage(pageIndex: number): number {
