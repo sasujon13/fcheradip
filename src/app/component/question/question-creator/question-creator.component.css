@@ -1131,7 +1131,7 @@
   width: 100%;
   text-align: justify;
   position: relative;
-  padding-right: 2px;
+  padding-right: var(--preview-q-content-pr, 0.1429em);
   box-sizing: border-box;
   break-inside: auto;
   page-break-inside: auto;
@@ -1184,16 +1184,16 @@
  */
 .preview-q-text ::ng-deep .topic-question-line.topic-question-roman-line {
   display: block;
-  padding-left: var(--preview-q-roman-indent, 10px);
-  text-indent: calc(0px - var(--preview-q-roman-indent, 10px));
+  padding-left: var(--preview-q-roman-indent, 0.7143em);
+  text-indent: calc(0px - var(--preview-q-roman-indent, 0.7143em));
   box-sizing: border-box;
 }
 
 /* সৃজনশীল lines starting with (ক)/(খ)/(গ)/(ঘ): inset = 2×preview font − 2px via `--preview-q-bn-paren-inset`. */
 .preview-q-text ::ng-deep .topic-question-line.topic-question-bn-paren-line {
   display: block;
-  padding-left: var(--preview-q-bn-paren-inset, 18px);
-  text-indent: calc(0px - var(--preview-q-bn-paren-inset, 18px));
+  padding-left: var(--preview-q-bn-paren-inset, 1.2857em);
+  text-indent: calc(0px - var(--preview-q-bn-paren-inset, 1.2857em));
   box-sizing: border-box;
 }
 
@@ -1214,7 +1214,7 @@
 
 .preview-q-stem-with-parts {
   display: flow-root;
-  margin-bottom: 4px;
+  margin-bottom: var(--preview-q-stem-mb, 0.2857em);
 }
 
 .preview-q-intro {
@@ -1225,7 +1225,7 @@
 
 .preview-q-subpart-wrap {
   position: relative;
-  margin-top: 2px;
+  margin-top: var(--preview-q-subpart-mt, 0.1429em);
   box-sizing: border-box;
   clear: both;
 }
@@ -1245,7 +1245,7 @@
 
 /* padding-left scales with preview font: 9px→14px, 10→16, … (2×font − 4) via `--preview-q-subpart-pl`. */
 .preview-q-subpart {
-  padding-left: var(--preview-q-subpart-pl, 14px);
+  padding-left: var(--preview-q-subpart-pl, 1.7143em);
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
   color: #333;
@@ -1271,32 +1271,32 @@
 
 .preview-q-subpart ::ng-deep .topic-question-line.topic-question-roman-line {
   display: block;
-  padding-left: var(--preview-q-roman-indent, 10px);
-  text-indent: calc(0px - var(--preview-q-roman-indent, 10px));
+  padding-left: var(--preview-q-roman-indent, 0.7143em);
+  text-indent: calc(0px - var(--preview-q-roman-indent, 0.7143em));
   box-sizing: border-box;
 }
 
 .preview-q-subpart ::ng-deep .topic-question-line.topic-question-bn-paren-line {
   display: block;
-  padding-left: var(--preview-q-bn-paren-inset, 18px);
-  text-indent: calc(0px - var(--preview-q-bn-paren-inset, 18px));
+  padding-left: var(--preview-q-bn-paren-inset, 1.2857em);
+  text-indent: calc(0px - var(--preview-q-bn-paren-inset, 1.2857em));
   box-sizing: border-box;
 }
 
 /* padding-left with preview font: 9px→14px, +2px per +1px font (same as `.preview-q-subpart`) via `--preview-q-subpart-pl`. */
 .preview-q-options {
   clear: both;
-  margin-top: 3px;
-  margin-bottom: 3px;
+  margin-top: var(--preview-q-opt-my, 0.2143em);
+  margin-bottom: var(--preview-q-opt-my, 0.2143em);
   margin-left: 0;
-  padding-left: var(--preview-q-subpart-pl, 14px);
+  padding-left: var(--preview-q-subpart-pl, 1.7143em);
   box-sizing: border-box;
   font-size: calc(13 / 14 * 1em);
   line-height: var(--preview-question-lh, 1.4);
   color: #555;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--preview-q-opt-row-gap, 4px) var(--preview-q-opt-col-gap, 1.5em);
+  gap: var(--preview-q-opt-row-gap, 0.2857em) var(--preview-q-opt-col-gap, 1.5em);
   align-items: start;
   justify-content: start;
   break-inside: avoid;
@@ -1309,8 +1309,8 @@
   display: block;
   white-space: normal;
   min-width: 0;
-  padding-left: var(--preview-q-opt-hang, 16px);
-  text-indent: calc(0px - var(--preview-q-opt-hang, 16px));
+  padding-left: var(--preview-q-opt-hang, 1.1429em);
+  text-indent: calc(0px - var(--preview-q-opt-hang, 1.1429em));
   box-sizing: border-box;
   text-align: left;
 }

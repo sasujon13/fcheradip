@@ -353,8 +353,6 @@ export class ApiService {
     previewQuestionsLineHeight?: number;
     previewQuestionsLineHeightCreative?: number;
     previewQuestionsLineHeightMcq?: number;
-    previewQOptHangPx?: number;
-    previewQRomanIndentPx?: number;
     layoutColumnsCreative?: number;
     optionsColumns?: number;
     headerLineFontSizes?: number[];
@@ -400,8 +398,6 @@ export class ApiService {
     previewQuestionsLineHeight?: number;
     previewQuestionsLineHeightCreative?: number;
     previewQuestionsLineHeightMcq?: number;
-    previewQOptHangPx?: number;
-    previewQRomanIndentPx?: number;
     layoutColumnsCreative?: number;
     optionsColumns?: number;
     headerLineFontSizes?: number[];

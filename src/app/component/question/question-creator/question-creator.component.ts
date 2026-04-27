@@ -6563,19 +6563,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.questionIsCreativeType(q ?? {}) ? this.questionsGapCreative : this.questionsGap;
   }
 
-  /**
-   * MCQ option row hanging indent (matches `.preview-q-opt` until made font-relative in CSS).
-   * Included in export layout_settings so Playwright PDF uses the same value as preview.
-   */
-  private get previewQOptHangPx(): number {
-    return 16;
+  /** Per-question option hanging indent in px (14px font -> 16px baseline). */
+  private previewQOptHangPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(8, Math.round((16 * fz) / 14));
   }
 
-  /**
-   * Roman-numeral sub-line indent (i./ii./iii.) — matches preview until made configurable.
-   */
-  private get previewQRomanIndentPx(): number {
-    return 10;
+  /** Per-question roman-line indent in px (14px font -> 10px baseline). */
+  private previewQRomanIndentPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(6, Math.round((10 * fz) / 14));
   }
 
   /** Per-question option row gap in px (14px font -> 4px baseline). */
@@ -6588,6 +6585,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private previewQOptionColGapPxForQuestion(q: { type?: unknown } | null | undefined): number {
     const fz = this.previewQuestionsFontPxForQuestion(q);
     return Math.max(10, Math.round((21 * fz) / 14));
+  }
+
+  /** Per-question content right padding in px (14px font -> 2px baseline). */
+  private previewQContentPadRightPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(1, Math.round((2 * fz) / 14));
+  }
+
+  /** Per-question stem block margin-bottom in px (14px font -> 4px baseline). */
+  private previewQStemMarginBottomPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(1, Math.round((4 * fz) / 14));
+  }
+
+  /** Per-question subpart wrapper margin-top in px (14px font -> 2px baseline). */
+  private previewQSubpartMarginTopPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(0, Math.round((2 * fz) / 14));
+  }
+
+  /** Per-question options block vertical margin in px (14px font -> 3px baseline). */
+  private previewQOptionsMarginYPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(1, Math.round((3 * fz) / 14));
   }
 
   /**
@@ -6603,10 +6624,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       '--preview-question-lh': `${lh}`,
       '--preview-q-bn-paren-inset': `${2 * fz - 2}px`,
       '--preview-q-subpart-pl': `${2 * fz - 4}px`,
-      '--preview-q-opt-hang': `${this.previewQOptHangPx}px`,
-      '--preview-q-roman-indent': `${this.previewQRomanIndentPx}px`,
+      '--preview-q-opt-hang': `${this.previewQOptHangPxForQuestion(q)}px`,
+      '--preview-q-roman-indent': `${this.previewQRomanIndentPxForQuestion(q)}px`,
       '--preview-q-opt-row-gap': `${this.previewQOptionRowGapPxForQuestion(q)}px`,
       '--preview-q-opt-col-gap': `${this.previewQOptionColGapPxForQuestion(q)}px`,
+      '--preview-q-content-pr': `${this.previewQContentPadRightPxForQuestion(q)}px`,
+      '--preview-q-stem-mb': `${this.previewQStemMarginBottomPxForQuestion(q)}px`,
+      '--preview-q-subpart-mt': `${this.previewQSubpartMarginTopPxForQuestion(q)}px`,
+      '--preview-q-opt-my': `${this.previewQOptionsMarginYPxForQuestion(q)}px`,
       paddingTop: `${p}px`,
       paddingBottom: `${p}px`,
       paddingLeft: '0',
@@ -7583,9 +7608,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       previewQuestionsLineHeight: this.previewQuestionsLineHeight,
       previewQuestionsLineHeightCreative: this.previewQuestionsLineHeightCreative,
       previewQuestionsLineHeightMcq: this.previewQuestionsLineHeightMcq,
-      /** Typography detail: forwarded to PDF export CSS (matches preview variables). */
-      previewQOptHangPx: this.previewQOptHangPx,
-      previewQRomanIndentPx: this.previewQRomanIndentPx,
       pageSections: this.pageSections,
       sectionGapPx: this.sectionGapPx,
       leadEmptyFirstPageActive: this.leadEmptyFirstPageActive,
@@ -7735,8 +7757,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       previewQuestionsLineHeight: this.previewQuestionsLineHeight,
       previewQuestionsLineHeightCreative: this.previewQuestionsLineHeightCreative,
       previewQuestionsLineHeightMcq: this.previewQuestionsLineHeightMcq,
-      previewQOptHangPx: this.previewQOptHangPx,
-      previewQRomanIndentPx: this.previewQRomanIndentPx,
       layoutColumns: this.layoutColumns,
       layoutColumnsCreative: this.layoutColumnsCreative,
       layoutColumnGapPx: this.layoutColumnGapPx,
