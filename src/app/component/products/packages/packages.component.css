@@ -91,7 +91,7 @@ div.comment{
   
   .footer a i {
     margin-right: 2px;
-    color: teal;
+    color: var(--color_primary_teal);
   }
   
   .footer a {
@@ -131,7 +131,7 @@ div.comment{
     cursor: pointer;
   }
   ul.filterItem li:hover{
-    background-color: teal;
+    background-color: var(--color_primary_teal);
   }
   h3.title {
     color: #ffffff;
@@ -150,7 +150,7 @@ div.comment{
   h1.msg{
     text-align: center;
     color: darkred;
-    text-shadow: 0 0 15px teal;
+    text-shadow: 0 0 15px var(--color_primary_teal);
     margin: 108px 0 -15px 0 !important;
     font-family: roboto regular;
     font-size: 24px;
@@ -158,7 +158,7 @@ div.comment{
     background-clip: text;
     background-size: 50vw 100vw;
     -webkit-background-clip: text;
-    background-image: linear-gradient(to right, teal, gold, teal);
+    background-image: linear-gradient(to right, var(--color_primary_teal), gold, var(--color_primary_teal));
     animation: gradientTransition 7s linear infinite;
   }
   
@@ -230,7 +230,7 @@ div.comment{
     color: red;
   }
   a:hover{
-    color: teal;
+    color: var(--color_primary_teal);
   }
   
   .addedtocart {
@@ -260,7 +260,7 @@ div.comment{
     z-index: 50;
   }
   li.item.selected {
-    background-color: teal !important;
+    background-color: var(--color_primary_teal) !important;
     color: #ffffff;
   }
   
@@ -303,3 +303,4 @@ div.comment{
       width: 21%;
     }
   }
+

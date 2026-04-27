@@ -50,7 +50,7 @@ h6 {
   margin-top: 20px !important;
   font-weight: 400;
   padding: 7px 30px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: #fff;
   border-radius: 10px !important;
   border: none;
@@ -65,7 +65,7 @@ th,td{
 .idq{
   cursor: pointer;
   padding: 0 5px;
-  text-shadow: 0 0 10px teal;
+  text-shadow: 0 0 10px var(--color_primary_teal);
 }
 
 .container {
@@ -97,4 +97,6 @@ img.no-select {
 small{
   font-weight: 100;
 }
+
+
 

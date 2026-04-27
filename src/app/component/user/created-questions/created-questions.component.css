@@ -21,7 +21,7 @@
   padding: 0.75rem 1.5rem;
   background: transparent;
   border-radius: 6px;
-  box-shadow: 0 1px teal;
+  box-shadow: 0 1px var(--color_primary_teal);
 }
 .filter-row label {
   font-weight: 500;
@@ -29,7 +29,7 @@
 }
 .filter-select {
   padding: 0.4rem 0.6rem;
-  border: 1px solid teal;
+  border: 1px solid var(--color_primary_teal);
   border-radius: 4px;
   min-width: 140px;
   background: #fff;
@@ -37,7 +37,7 @@
 .filter-select:focus,
 .filter-select:focus-visible {
   outline: none;
-  border: 1px solid teal;
+  border: 1px solid var(--color_primary_teal);
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.25);
 }
 .filter-count {
@@ -68,7 +68,7 @@
   background: rgba(0,128,128,0.2);
   border-bottom: 1px solid #e0e0e0;
   font-weight: 600;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 .sets-table .col-check {
   width: 2.5rem;
@@ -79,7 +79,7 @@
   width: 1rem;
   height: 1rem;
   cursor: pointer;
-  accent-color: teal;
+  accent-color: var(--color_primary_teal);
 }
 .sets-table .col-sl {
   width: 3rem;
@@ -137,7 +137,7 @@
   padding: 2px 12px;
   border: none;
   background: transparent;
-  color: teal;
+  color: var(--color_primary_teal);
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -148,7 +148,7 @@
 }
 .btn-download-all:hover:not(:disabled) {
   background: rgba(0, 128, 128, 0.08);
-  color: teal;
+  color: var(--color_primary_teal);
 }
 .btn-download-all:disabled {
   opacity: 0.6;
@@ -167,7 +167,7 @@
 }
 .set-row--highlight td {
   /* box-shadow: inset 0 0 0 2px rgba(0, 128, 128, 0.85);
-  background: rgba(0, 128, 128, 0.12) !important; */
+  background: var(--color_primary_transparent) !important; */
 }
 .set-row:last-child td {
   border-bottom: none;
@@ -254,3 +254,5 @@
 .col-title .btn-icon {
   vertical-align: middle;
 }
+
+

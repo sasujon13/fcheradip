@@ -15,7 +15,7 @@
   border: none;
   border-bottom: 1px dashed white;
   color: white;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   font-family: 'Roboto Thin', 'Roboto', sans-serif;
   font-size: 16px;
   margin-left: 16px;
@@ -46,4 +46,6 @@
 
 @media screen and (max-width: 839px) {
 }
+
+
 

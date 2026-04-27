@@ -23,7 +23,7 @@ div.profile_back{
   z-index: 3;
 }
 .navbar {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   padding: 7px 10px 5px 10px;
   display: flex;
   justify-content: space-between;
@@ -77,18 +77,18 @@ header .tokenbox.header-tokenbox .token-input-box input {
   padding: 0px 12px;
   font-size: 14px;
   width: 132px;
-  border: 5px solid teal;
-  border-left: 18px solid teal;
+  border: 5px solid var(--color_primary_teal);
+  border-left: 18px solid var(--color_primary_teal);
 }
 header .tokenbox.header-tokenbox .token-input-box input:focus,
 header .tokenbox.header-tokenbox .token-input-box input:focus-visible {
   outline: none;
-  border-color: teal;
+  border-color: var(--color_primary_teal);
 }
 header .tokenbox.header-tokenbox .token-input-box button {
   padding: 5px 14px;
   font-size: 14px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   border-top-right-radius: 20px;
@@ -215,7 +215,7 @@ header .tokenbox.header-tokenbox .hover-message-box a {
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 16px var(--color_primary_shadow);
   z-index: 99999;
   display: flex;
   flex-direction: column;
@@ -242,7 +242,7 @@ header .tokenbox.header-tokenbox .hover-message-box a {
 .header-country-dropdown-drawer.open {
   overflow-y: auto;
   transition: max-height 0.35s ease;
-  /* Same scrollbar as login/signup: teal thumb, light track */
+  /* Same scrollbar as login/signup: var(--color_primary_teal) thumb, light track */
   scrollbar-width: thin;
   scrollbar-color: #008080 #f1f1f1;
 }
@@ -304,7 +304,7 @@ header .tokenbox.header-tokenbox .hover-message-box a {
   position: sticky;
   top: 0;
 }
-/* Popular section: teal background */
+/* Popular section: var(--color_primary_teal) background */
 .header-country-section-popular {
   background: rgba(0, 128, 128, 0.2);
 }
@@ -358,7 +358,7 @@ header .tokenbox.header-tokenbox .hover-message-box a {
 ul.profileMenu {
   margin-top: 118px;
   position: absolute;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   width: 40px;
   height: 40px;
   border: 3px solid yellowgreen;
@@ -402,7 +402,7 @@ ul.dropdown li{
 }
 ul.dropdown li a {
   text-decoration: none;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .caution-box {
@@ -419,7 +419,7 @@ ul.dropdown li a {
 }
 
 .fa-exclamation-circle {
-  color: teal;
+  color: var(--color_primary_teal);
   font-size: 15px;
 }
 
@@ -467,7 +467,7 @@ a:hover{
   margin-top: 40px;
   margin-bottom: -60px;
   margin-right: 0;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   padding: 5px 0 5px 10px;
   border-top-left-radius: 20px;
   border-bottom-left-radius: 20px;
@@ -512,7 +512,7 @@ a:hover{
   font-size: 16px;
   font-family: Roboto Thin;
   margin-top: -3px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   border-bottom-style: dashed;
 }
 
@@ -545,7 +545,7 @@ i.fa-bars{
   }
   
   .search-bar input {
-    background-color: teal;
+    background-color: var(--color_primary_teal);
   }
 }
 
@@ -582,7 +582,7 @@ i.fa-bars{
     left: auto;
     width: auto;
     max-width: 90vw;
-    background-color: teal;
+    background-color: var(--color_primary_teal);
     z-index: 102;
     list-style: none;
     margin: 0;
@@ -617,7 +617,7 @@ i.fa-bars{
     max-height: none;
     overflow: visible;
     align-items: center;
-    background-color: teal;
+    background-color: var(--color_primary_teal);
     padding: 1px 0 1px 20px;
     border-top-left-radius: 20px;
     border-bottom-left-radius: 20px;
@@ -677,7 +677,7 @@ i.fa-bars{
   }
 
   .search-bar input {
-    background-color: teal;
+    background-color: var(--color_primary_teal);
   }
   div.notification{
     height: 92px;
@@ -704,7 +704,7 @@ i.fa-bars{
 
 .scaleBeforeCopyright{
   height: 1px;
-  background-color:teal;
+  background-color:var(--color_primary_teal);
 }
 .beforeCopyright{
   height: 7px;
@@ -732,4 +732,6 @@ i.fa-bars{
   transform: translateY(0);
   transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s !important;
 }
+
+
 

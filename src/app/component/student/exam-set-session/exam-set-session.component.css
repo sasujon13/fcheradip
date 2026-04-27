@@ -127,7 +127,7 @@
   padding: 10px 24px !important;
   font-weight: 600 !important;
   font-size: 1rem !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 2px 8px var(--color_primary_shadow) !important;
 }
 
 .btn-submit-exam-fixed:hover {
@@ -195,7 +195,7 @@
 .topic-question-qid {
   font-size: 12px;
   color: white;
-  background: teal;
+  background: var(--color_primary_teal);
   padding: 2px 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -211,7 +211,7 @@
   right: 0;
   bottom: 40px;
   font-size: 12px;
-  color: teal;
+  color: var(--color_primary_teal);
   background: transparent;
   padding: 2px 8px;
   border-radius: 4px;
@@ -319,7 +319,7 @@
   white-space: normal;
 }
 
-/* Result view: correct = teal/green, wrong = red fill */
+/* Result view: correct = var(--color_primary_teal)/green, wrong = red fill */
 .exam-opt-circle.correct {
   background: var(--student-primary);
   border-color: var(--student-primary);
@@ -357,3 +357,5 @@
 .exam-results-section .topic-questions-actions .btn-student-primary {
   margin-left: 0;
 }
+
+

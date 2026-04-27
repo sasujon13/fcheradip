@@ -102,7 +102,7 @@ form {
   min-width: 0;
 }
 
-/* Date of Birth: text input + visible teal calendar icon (opens native date picker) */
+/* Date of Birth: text input + visible var(--color_primary_teal) calendar icon (opens native date picker) */
 .dob-wrapper {
   display: flex;
   align-items: center;
@@ -130,7 +130,7 @@ form {
   pointer-events: auto;
 }
 .dob-calendar-wrap:hover {
-  background: rgba(0, 128, 128, 0.12);
+  background: var(--color_primary_transparent);
   color: #006666;
 }
 .dob-calendar-wrap {
@@ -156,7 +156,7 @@ form {
   min-width: 280px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 128, 128, 0.15);
+  box-shadow: 0 10px 40px var(--color_primary_shadow), 0 0 0 1px rgba(0, 128, 128, 0.15);
   padding: 14px;
   font-size: 14px;
 }
@@ -261,7 +261,7 @@ form {
   transition: background 0.15s, color 0.15s;
 }
 .dob-calendar-day:hover:not(.dob-calendar-day--disabled):not(.dob-calendar-day--empty) {
-  background: rgba(0, 128, 128, 0.12);
+  background: var(--color_primary_transparent);
   color: #008080;
 }
 .dob-calendar-day--selected {
@@ -471,7 +471,7 @@ select.form-control {
   padding: 8px 0 8px 12px;
   border-radius: 8px;
   font-weight: 400;
-  color: #000;
+  color: var(--color_primary_black);
   white-space: nowrap;
   letter-spacing: 1.5px !important;
 }
@@ -739,3 +739,5 @@ select.form-control option.add-subject-option {
   color: #0066cc;
   font-weight: 600;
 }
+
+

@@ -27,14 +27,14 @@
   padding: 0px 12px;
   font-size: 14px;
   width: 132px;
-  border: 5px solid teal;
-  border-left: 18px solid teal;
+  border: 5px solid var(--color_primary_teal);
+  border-left: 18px solid var(--color_primary_teal);
 }
 
 .token-input-box button {
   padding: 5px 14px;
   font-size: 14px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   border-top-right-radius: 20px;
@@ -77,7 +77,7 @@ div.comment {
 }
 
 .tblhead {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
 }
 
@@ -161,7 +161,7 @@ select.itemSize:hover {
   font-size: 16px;
   font-family: Roboto Thin;
   margin-bottom: -10px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   border-bottom-style: dashed;
   min-width: 260px;
   max-width: 400px;
@@ -203,7 +203,7 @@ select.itemSize:hover {
 
 .footer a i {
   margin-right: 2px;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .footer a {
@@ -269,7 +269,7 @@ ul.filterItem li {
 }
 
 ul.filterItem li:hover {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
 }
 
 h3.title {
@@ -298,7 +298,7 @@ h3.title::first-letter {
 h1.msg {
   text-align: center;
   color: darkred;
-  text-shadow: 0 0 15px teal;
+  text-shadow: 0 0 15px var(--color_primary_teal);
   margin: 108px 0 -15px 0 !important;
   font-family: roboto regular;
   font-size: 24px;
@@ -306,7 +306,7 @@ h1.msg {
   background-clip: text;
   background-size: 50vw 100vw;
   -webkit-background-clip: text;
-  background-image: linear-gradient(to right, teal, gold, teal);
+  background-image: linear-gradient(to right, var(--color_primary_teal), gold, var(--color_primary_teal));
   animation: gradientTransition 7s linear infinite;
 }
 
@@ -387,7 +387,7 @@ img {
 }
 
 a:hover {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .addedtocart {
@@ -422,7 +422,7 @@ img.filter {
 }
 
 li.item.selected {
-  background-color: teal !important;
+  background-color: var(--color_primary_teal) !important;
   color: #ffffff;
 }
 
@@ -491,8 +491,8 @@ li.filter{
 
 button.filter{
     background: white;
-    color: teal;
-    border: 2px dotted teal;
+    color: var(--color_primary_teal);
+    border: 2px dotted var(--color_primary_teal);
     border-radius: 7px;
     padding: 7px 14px;
     border-bottom-left-radius: 14px;
@@ -561,3 +561,4 @@ button.filter{
 ul.filterx{
   width: 188px;
 }
+

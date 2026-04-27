@@ -4,8 +4,9 @@
 /* FAQs component-specific styles */
   .parent{
     width: 100%;
-    background-color: teal;
+    background-color: var(--color_primary_teal);
   }
 
   @media screen and (max-width: 649px) {
   }
+

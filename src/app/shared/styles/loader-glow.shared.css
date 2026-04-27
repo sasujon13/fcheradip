@@ -87,7 +87,7 @@
   bottom: 0;
   z-index: 0;
   width: 0;
-  background: teal;
+  background: var(--color_primary_teal);
   transition: width 0.2s ease;
 }
 
@@ -126,7 +126,7 @@
   text-align: center;
 }
 
-/* Over teal fill (left 0..--p%): caption must stay white vs .loading-overlay-message in components */
+/* Over var(--color_primary_teal) fill (left 0..--p%): caption must stay white vs .loading-overlay-message in components */
 .app-loader-clip-layer--fill .app-loader-msg,
 .app-loader-clip-layer--fill .loading-overlay-message,
 .app-loader-clip-layer--fill .creator-settings-loader-message {
@@ -138,7 +138,7 @@
 }
 
 .app-loader-clip-layer--track .creator-settings-loader-message {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .app-loader-message-block.app-loader-message-done .app-loader-linear-track {
@@ -159,5 +159,7 @@
 }
 
 .app-loader-message-block.app-loader-message-done .app-loader-linear-fill {
-  background: teal;
+  background: var(--color_primary_teal);
 }
+
+

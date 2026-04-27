@@ -13,8 +13,8 @@
 }
 
 .question-card:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  border-color: teal;
+  box-shadow: 0 4px 8px var(--color_primary_shadow);
+  border-color: var(--color_primary_teal);
 }
 
 .question-header {
@@ -28,7 +28,7 @@
   font-family: 'Roboto Regular', 'Roboto', sans-serif;
   font-size: 18px;
   font-weight: bold;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .question-type-badge {
@@ -40,7 +40,7 @@
 }
 
 .mcq-badge {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
 }
 
 .cq-badge {
@@ -54,7 +54,7 @@
 .question-text {
   font-family: 'Roboto Regular', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #000;
+  color: var(--color_primary_black);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -77,7 +77,7 @@
 .metadata-item {
   font-family: 'Roboto Thin', 'Roboto', sans-serif;
   font-size: 12px;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .question-actions {
@@ -97,7 +97,7 @@
 }
 
 .edit-btn {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .edit-btn:hover {
@@ -122,4 +122,6 @@
   background-color: #d32f2f;
   color: white;
 }
+
+
 

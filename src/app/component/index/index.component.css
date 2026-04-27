@@ -88,7 +88,7 @@ select.itemSize:hover{
 
 .footer a i {
   margin-right: 2px;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .footer a {
@@ -128,7 +128,7 @@ ul.filterItem li {
   cursor: pointer;
 }
 ul.filterItem li:hover{
-  background-color: teal;
+  background-color: var(--color_primary_teal);
 }
 h3.title {
   color: #ffffff;
@@ -147,7 +147,7 @@ h3.title {
 h1.msg{
   text-align: center;
   color: darkred;
-  text-shadow: 0 0 15px teal;
+  text-shadow: 0 0 15px var(--color_primary_teal);
   margin: 108px 0 -15px 0 !important;
   font-family: roboto regular;
   font-size: 24px;
@@ -155,7 +155,7 @@ h1.msg{
   background-clip: text;
   background-size: 50vw 100vw;
   -webkit-background-clip: text;
-  background-image: linear-gradient(to right, teal, gold, teal);
+  background-image: linear-gradient(to right, var(--color_primary_teal), gold, var(--color_primary_teal));
   animation: gradientTransition 7s linear infinite;
   padding: 7px;
 }
@@ -228,7 +228,7 @@ img {
   color: red;
 }
 a:hover{
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .addedtocart {
@@ -258,7 +258,7 @@ img.filter{
   z-index: 50;
 }
 li.item.selected {
-  background-color: teal !important;
+  background-color: var(--color_primary_teal) !important;
   color: #ffffff;
 }
 
@@ -358,7 +358,7 @@ img.titleImg {
   font-size: 18px;
   text-decoration: none;
   cursor: pointer;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .important-notice {
@@ -429,7 +429,7 @@ img.titleImg {
 .carousel-control-prev-icon {
   height: 50px;
   width: 40px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   border-radius: 50%;
 }
 
@@ -449,7 +449,7 @@ img.titleImg {
   background-clip: text;
   background-size: 50% 100%;
   -webkit-background-clip: text;
-  background-image: linear-gradient(to right, teal, gold, teal);
+  background-image: linear-gradient(to right, var(--color_primary_teal), gold, var(--color_primary_teal));
   animation: gradientTransition 30s linear infinite;
 }
 
@@ -459,7 +459,7 @@ img.titleImg {
 }
 
 .current-thumbnail {
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
 }
 
 .profile-head {
@@ -484,12 +484,12 @@ img.titleImg {
   height: 100px;
   width: 100px;
   border-radius: 50%;
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
 }
 
 .profile-title {
   text-align: left;
-  text-decoration: underline dotted teal;
+  text-decoration: underline dotted var(--color_primary_teal);
   margin-left: 20px;
   overflow: hidden;
   text-underline-position: under;
@@ -1036,3 +1036,5 @@ footer {
   margin-top: 3rem;
   font-size: 0.9rem;
 }
+
+

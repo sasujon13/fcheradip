@@ -1,4 +1,5 @@
 
+@import url('../../app/shared/styles/question-primary-colors.css');
 @import url('src/assets/font-awesome-4.7.0/css/font-awesome.min.css');
 @import url('../../app/shared/styles/loader-glow.shared.css');
 @import url('../../app/shared/styles/question-rich-img.shared.css');
@@ -138,3 +139,5 @@ input:disabled {
   transform: translateY(0);
   transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s !important;
 }
+
+

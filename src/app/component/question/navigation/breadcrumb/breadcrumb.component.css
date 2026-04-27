@@ -12,7 +12,7 @@
 }
 
 .breadcrumb-item {
-  color: teal;
+  color: var(--color_primary_teal);
   text-decoration: none;
   transition: color 0.3s ease;
 }
@@ -31,4 +31,6 @@
   margin: 0 8px;
   color: #666666;
 }
+
+
 

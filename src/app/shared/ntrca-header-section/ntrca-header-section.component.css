@@ -27,21 +27,21 @@
   padding: 0px 12px;
   font-size: 14px;
   width: 132px;
-  border: 5px solid teal;
-  border-left: 18px solid teal;
+  border: 5px solid var(--color_primary_teal);
+  border-left: 18px solid var(--color_primary_teal);
 }
 
 :host .token-input-box input:focus,
 :host .token-input-box input:focus-visible {
   outline: none;
-  border-color: teal;
-  box-shadow: 0 0 0 2px teal;
+  border-color: var(--color_primary_teal);
+  box-shadow: 0 0 0 2px var(--color_primary_teal);
 }
 
 :host .token-input-box button {
   padding: 5px 14px;
   font-size: 14px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   border-top-right-radius: 20px;
@@ -82,7 +82,7 @@
 :host h1.msg {
   text-align: center;
   color: darkred;
-  text-shadow: 0 0 15px teal;
+  text-shadow: 0 0 15px var(--color_primary_teal);
   margin: 126px 0 -15px 0 !important;
   font-family: roboto regular;
   font-size: 24px;
@@ -90,7 +90,7 @@
   background-clip: text;
   background-size: 50vw 100vw;
   -webkit-background-clip: text;
-  background-image: linear-gradient(to right, teal, gold, teal);
+  background-image: linear-gradient(to right, var(--color_primary_teal), gold, var(--color_primary_teal));
   animation: ntrca-header-msg-gradient 7s linear infinite;
   padding: 7px;
 }
@@ -150,3 +150,5 @@
     display: none;
   }
 }
+
+

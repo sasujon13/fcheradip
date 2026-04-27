@@ -111,12 +111,12 @@
 }
 
 .option-item:hover {
-  border-color: teal;
+  border-color: var(--color_primary_teal);
   background-color: rgba(0, 128, 128, 0.05);
 }
 
 .option-item.selected {
-  border-color: teal;
+  border-color: var(--color_primary_teal);
   background-color: rgba(0, 128, 128, 0.1);
 }
 
@@ -127,7 +127,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   font-family: 'Roboto Regular', 'Roboto', sans-serif;
   font-weight: bold;
@@ -160,7 +160,7 @@
 .question-nav-panel h4 {
   font-family: 'Roboto Regular', 'Roboto', sans-serif;
   font-size: 16px;
-  color: teal;
+  color: var(--color_primary_teal);
   margin-bottom: 12px;
 }
 
@@ -209,4 +209,6 @@
     top: 0;
   }
 }
+
+
 

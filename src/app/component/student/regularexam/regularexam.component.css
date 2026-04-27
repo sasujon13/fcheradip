@@ -38,7 +38,7 @@
 
 .question-filter-label {
   font-size: 14px;
-  color: teal;
+  color: var(--color_primary_teal);
   white-space: nowrap;
 }
 
@@ -63,7 +63,7 @@
   min-width: 120px;
   max-width: 200px;
   padding: 3px 7px;
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
   border-radius: 6px;
   background-color: white;
   color: #333;
@@ -78,7 +78,7 @@
 
 .filter-dropdown-btn:focus {
   outline: none;
-  border-color: teal;
+  border-color: var(--color_primary_teal);
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
@@ -92,11 +92,11 @@
 
 .filter-dropdown-btn:hover {
   border-color: #006666;
-  background-color: rgba(0, 128, 128, 0.12);
+  background-color: var(--color_primary_transparent);
 }
 
 .filter-dropdown-btn.placeholder-selected {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .filter-dropdown-arrow {
@@ -116,10 +116,10 @@
   max-height: 600px;
   overflow-x: hidden;
   overflow-y: auto;
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
   border-radius: 6px;
   background: #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--color_primary_shadow);
   z-index: 100;
   opacity: 0;
   visibility: hidden;
@@ -168,7 +168,7 @@
 }
 
 .filter-dropdown-item-single.filter-dropdown-item-placeholder {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .filter-dropdown-item-single.filter-dropdown-item-placeholder:hover {
@@ -340,3 +340,5 @@
   color: var(--student-text-light);
   margin: 0;
 }
+
+

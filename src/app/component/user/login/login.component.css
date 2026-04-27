@@ -114,7 +114,7 @@ form {
   padding: 8px 0 8px 12px;
   border-radius: 8px;
   font-weight: 400;
-  color: #000;
+  color: var(--color_primary_black);
   white-space: nowrap;
   letter-spacing: 1.5px !important;
 }
@@ -409,3 +409,5 @@ form {
     font-size: 24px;
   }
 }
+
+

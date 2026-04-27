@@ -25,7 +25,7 @@
 }
 
 .pagination-btn {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   border-radius: 4px;
@@ -56,4 +56,6 @@
     grid-template-columns: 1fr;
   }
 }
+
+
 

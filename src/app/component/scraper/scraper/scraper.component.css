@@ -19,7 +19,7 @@
   font-size: 2rem;
   color: white;
   text-align: center;
-  background: teal;
+  background: var(--color_primary_teal);
   padding: 12px;
   min-width: 640px;
   position: fixed;
@@ -281,7 +281,7 @@
   cursor: not-allowed;
 }
 .btn-link {
-  background: teal;
+  background: var(--color_primary_teal);
   border: none;
   color: white;
   cursor: pointer;
@@ -318,7 +318,7 @@
   height: 28px;
   border-radius: 6px;
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
+  box-shadow: inset 0 1px 2px var(--color_primary_shadow);
 }
 .progress-bar-done {
   height: 100%;
@@ -375,3 +375,5 @@
   font-size: 0.9rem;
   color: #c00;
 }
+
+

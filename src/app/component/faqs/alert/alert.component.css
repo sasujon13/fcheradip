@@ -33,13 +33,13 @@
   line-height: normal;
 }
 
-/* Success: teal text (login/signup success) */
+/* Success: var(--color_primary_teal) text (login/signup success) */
 .custom-alert-box p.alert-success-text {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .custom-alert-box.alert-success-box button {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
 }
 
 .custom-alert-box.alert-success-box button:hover {
@@ -58,7 +58,7 @@
 }
 
 .custom-alert-box button:hover {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
 }
 .alert-box {
   position: fixed;
@@ -77,3 +77,5 @@
 .alert-box.hidden {
   display: none;
 }
+
+

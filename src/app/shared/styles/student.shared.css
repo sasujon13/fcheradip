@@ -5,7 +5,7 @@
 :root {
   --student-primary: #008080;
   --student-primary-dark: #006d6d;
-  --student-primary-light: rgba(0, 128, 128, 0.12);
+  --student-primary-light: var(--color_primary_transparent);
   --student-primary-rgb: 0, 128, 128;
   --student-secondary: #69b9b9;
   --student-accent: #9acd32;
@@ -17,7 +17,7 @@
   --student-surface: #f8fafc;
   --student-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   --student-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --student-shadow-lg: 0 10px 40px rgba(0, 128, 128, 0.12);
+  --student-shadow-lg: 0 10px 40px var(--color_primary_transparent);
   --student-radius: 10px;
   --student-radius-sm: 6px;
 }
@@ -513,3 +513,5 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+

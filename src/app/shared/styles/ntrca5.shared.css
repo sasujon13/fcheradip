@@ -32,7 +32,7 @@ div.comment {
 }
 
 td {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 del {
@@ -96,7 +96,7 @@ select.itemSize:hover {
 
 .footer a i {
   margin-right: 2px;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .footer a {
@@ -138,7 +138,7 @@ ul.filterItem li {
 }
 
 ul.filterItem li:hover {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
 }
 
 h3.title {
@@ -159,7 +159,7 @@ h3.title {
 h1.msg {
   text-align: center;
   color: darkred;
-  text-shadow: 0 0 15px teal;
+  text-shadow: 0 0 15px var(--color_primary_teal);
   margin: 126px 0 -15px 0 !important;
   font-family: roboto regular;
   font-size: 24px;
@@ -167,7 +167,7 @@ h1.msg {
   background-clip: text;
   background-size: 50vw 100vw;
   -webkit-background-clip: text;
-  background-image: linear-gradient(to right, teal, gold, teal);
+  background-image: linear-gradient(to right, var(--color_primary_teal), gold, var(--color_primary_teal));
   animation: gradientTransition 7s linear infinite;
   padding: 7px;
 }
@@ -244,7 +244,7 @@ img {
 }
 
 a:hover {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .addedtocart {
@@ -277,7 +277,7 @@ img.filter {
 }
 
 li.item.selected {
-  background-color: teal !important;
+  background-color: var(--color_primary_teal) !important;
   color: #ffffff;
 }
 
@@ -371,7 +371,7 @@ img.titleImg {
   font-size: 18px;
   text-decoration: none;
   cursor: pointer;
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .important-notice {
@@ -442,7 +442,7 @@ img.titleImg {
 .carousel-control-prev-icon {
   height: 50px;
   width: 40px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   border-radius: 50%;
 }
 
@@ -462,7 +462,7 @@ img.titleImg {
   background-clip: text;
   background-size: 50% 100%;
   -webkit-background-clip: text;
-  background-image: linear-gradient(to right, teal, gold, teal);
+  background-image: linear-gradient(to right, var(--color_primary_teal), gold, var(--color_primary_teal));
   animation: gradientTransition 30s linear infinite;
 }
 
@@ -472,7 +472,7 @@ img.titleImg {
 }
 
 .current-thumbnail {
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
 }
 
 .profile-head {
@@ -497,12 +497,12 @@ img.titleImg {
   height: 100px;
   width: 100px;
   border-radius: 50%;
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
 }
 
 .profile-title {
   text-align: left;
-  text-decoration: underline dotted teal;
+  text-decoration: underline dotted var(--color_primary_teal);
   margin-left: 20px;
   overflow: hidden;
   text-underline-position: under;
@@ -983,7 +983,7 @@ main {
 }
 
 .btn {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   padding: 0.8rem 1.5rem;
   text-decoration: none;
@@ -1033,7 +1033,7 @@ li a {
   font-family: 'Segoe UI Black', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   transform: rotate(-45deg);
   color: transparent;
-  -webkit-text-stroke: 1px teal;
+  -webkit-text-stroke: 1px var(--color_primary_teal);
   -webkit-text-fill-color: transparent;
   position: absolute;
   top: 20%;
@@ -1089,7 +1089,7 @@ form.selection {
 
 select#subject,
 select#designation {
-  border: 1px dotted teal;
+  border: 1px dotted var(--color_primary_teal);
   border-bottom-left-radius: 15px;
   border-top-right-radius: 15px;
   margin: -5px;
@@ -1099,17 +1099,17 @@ select#designation {
 
 label.selection {
   font-size: 1.2em;
-  color: teal;
+  color: var(--color_primary_teal);
   background: orange;
   padding: 3px;
 }
 
 label.selection2 {
   font-size: 1.5em;
-  color: teal;
+  color: var(--color_primary_teal);
   background: orange;
   padding: 3px;
-  border: 1px dotted teal;
+  border: 1px dotted var(--color_primary_teal);
   border-bottom-left-radius: 15px;
   border-top-right-radius: 15px;
   box-shadow: 0 0 10px #00808080;
@@ -1118,7 +1118,7 @@ label.selection2 {
 
 button.newButton {
   min-width: 200px;
-  background: teal;
+  background: var(--color_primary_teal);
   font-size: 1.5em;
   padding: 7px;
   margin: 15px;
@@ -1144,7 +1144,7 @@ span.mx-3 {
   text-align: center;
   padding: 5px;
   border-radius: 25px;
-  border: 1px dotted teal;
+  border: 1px dotted var(--color_primary_teal);
   z-index: 1;
   color: darkred;
 }
@@ -1218,7 +1218,7 @@ a.active-link {
 }
 
 button.view {
-  color: teal !important;
+  color: var(--color_primary_teal) !important;
   margin-top: 5px;
   font-size: 12px;
   padding: 2px 8px;
@@ -1251,7 +1251,7 @@ button.view {
   width: 18px;
   height: 18px;
   border: 2px solid #ccc;
-  border-top: 2px solid teal;
+  border-top: 2px solid var(--color_primary_teal);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   display: inline-block;
@@ -1275,7 +1275,7 @@ button.view {
   width: 60px;
   height: 60px;
   border: 6px solid #ccc;
-  border-top-color: teal;
+  border-top-color: var(--color_primary_teal);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1327,14 +1327,14 @@ button.view {
   padding: 0px 12px;
   font-size: 14px;
   width: 132px;
-  border: 5px solid teal;
-  border-left: 18px solid teal;
+  border: 5px solid var(--color_primary_teal);
+  border-left: 18px solid var(--color_primary_teal);
 }
 
 .token-input-box button {
   padding: 5px 14px;
   font-size: 14px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   border-top-right-radius: 20px;
@@ -1377,7 +1377,7 @@ button.view {
 .token-input-box2 button {
   padding: 8px 14px;
   font-size: 16px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   border-radius: 4px;
@@ -1391,7 +1391,7 @@ button.view {
 .loading-indicator2 {
   text-align: center;
   font-weight: bold;
-  color: teal;
+  color: var(--color_primary_teal);
   padding: 0px;
   font-size: 42px;
   animation: pulse 1s infinite;
@@ -1435,8 +1435,8 @@ li.filter {
 
 button.filter {
   background: white;
-  color: teal;
-  border: 2px dotted teal;
+  color: var(--color_primary_teal);
+  border: 2px dotted var(--color_primary_teal);
   border-radius: 7px;
   padding: 7px 14px;
   border-bottom-left-radius: 14px;
@@ -1551,3 +1551,5 @@ ul.filterx {
   margin: 0;
   z-index: 1;
 }
+
+

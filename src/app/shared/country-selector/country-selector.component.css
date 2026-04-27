@@ -151,7 +151,7 @@
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--color_primary_shadow);
   max-height: 320px;
   overflow-y: auto;
   z-index: 1000;
@@ -247,7 +247,7 @@
   background: #fef3c7;
 }
 
-/* When Popular section has custom background (e.g. popularSectionBg), featured items inherit teal tint on hover */
+/* When Popular section has custom background (e.g. popularSectionBg), featured items inherit var(--color_primary_teal) tint on hover */
 .featured-section[style*="background"] .country-item.featured {
   background: transparent;
 }
@@ -380,3 +380,5 @@
     padding: 12px;
   }
 }
+
+

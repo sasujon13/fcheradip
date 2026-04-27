@@ -1,0 +1,14 @@
+/**
+ * Question page palette (/question and related components).
+ * Edit these four custom properties in one place.
+ *
+ * Note: `.question-filter-select` uses an inline SVG data-URL for the chevron;
+ * its fill is URL-encoded (`%23` + hex). If you change --color_primary_black,
+ * update that fill in `question.component.css` to match (data URLs cannot read CSS vars).
+ */
+:root {
+  --color_primary_black: #000;
+  --color_primary_teal: teal;
+  --color_primary_shadow: rgba(0, 0, 0, 0.15);
+  --color_primary_transparent: rgba(0, 128, 128, 0.12);
+}

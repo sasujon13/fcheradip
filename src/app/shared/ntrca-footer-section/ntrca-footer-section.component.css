@@ -26,19 +26,19 @@
   margin-right: 10px;
   width: 160px;
   border-radius: 4px;
-  border: 3px solid teal;
+  border: 3px solid var(--color_primary_teal);
 }
 
 :host .token-input-box2 input:focus,
 :host .token-input-box2 input:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 1px teal;
+  box-shadow: 0 0 0 1px var(--color_primary_teal);
 }
 
 :host .token-input-box2 button {
   padding: 8px 14px;
   font-size: 16px;
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   border-radius: 4px;
@@ -168,7 +168,7 @@
   width: 18px;
   height: 18px;
   border: 2px solid #ccc;
-  border-top: 2px solid teal;
+  border-top: 2px solid var(--color_primary_teal);
   border-radius: 50%;
   animation: ntrca-footer-spin 0.6s linear infinite;
   display: inline-block;
@@ -192,7 +192,7 @@
   width: 60px;
   height: 60px;
   border: 6px solid #ccc;
-  border-top-color: teal;
+  border-top-color: var(--color_primary_teal);
   border-radius: 50%;
   animation: ntrca-footer-spin 0.8s linear infinite;
 }
@@ -206,3 +206,5 @@
   font-size: 18px;
   padding: 0;
 }
+
+

@@ -7,7 +7,7 @@ h3.discount {
     padding: 2px 7px 2px 7px;
     font-size: 18px;
     border-radius: 40px;
-    background-color: teal;
+    background-color: var(--color_primary_teal);
     position: absolute;
     margin-right: 5px;
     right: 0;
@@ -98,7 +98,7 @@ div.comment{
   
   .footer a i {
     margin-right: 2px;
-    color: teal;
+    color: var(--color_primary_teal);
   }
   
   .footer a {
@@ -139,7 +139,7 @@ div.comment{
     cursor: pointer;
   }
   ul.filterItem li:hover{
-    background-color: teal;
+    background-color: var(--color_primary_teal);
   }
   h3.title {
     color: #ffffff;
@@ -214,7 +214,7 @@ div.comment{
     color: red;
   }
   a:hover{
-    color: teal;
+    color: var(--color_primary_teal);
   }
   
   .addedtocart {
@@ -302,6 +302,7 @@ div.comment{
     }
   }
   li.item.selected {
-    background-color: teal !important;
+    background-color: var(--color_primary_teal) !important;
     color: #ffffff;
   }
+

@@ -32,7 +32,7 @@
 
 .question-filter-label {
   font-size: 14px;
-  color: teal;
+  color: var(--color_primary_teal);
   white-space: nowrap;
 }
 
@@ -43,10 +43,10 @@
   width: 100%;
   box-sizing: border-box;
   padding: 6px 26px 6px 10px;
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
   border-radius: 6px;
   background-color: white;
-  color: #000;
+  color: var(--color_primary_black);
   font-size: 14px;
   cursor: pointer;
   overflow: hidden;
@@ -56,41 +56,41 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
-  accent-color: teal;
+  accent-color: var(--color_primary_teal);
 }
 
 .question-filter-select:hover {
   border-color: #006666;
-  background-color: rgba(0, 128, 128, 0.12);
+  background-color: var(--color_primary_transparent);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
 }
 
-/* Same option color as Chapter/Topic panel options; replace default blue (#0d6efd) with teal */
+/* Same option color as Chapter/Topic panel options; replace default blue (#0d6efd) with var(--color_primary_teal) */
 .question-filter-select option {
-  color: #000;
+  color: var(--color_primary_black);
   background: #fff;
 }
 .question-filter-select option:checked,
 .question-filter-select option:hover,
 .question-filter-select option:focus {
   background: rgba(0, 128, 128, 0.2);
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .question-filter-select:focus {
   outline: none;
-  border-color: teal;
+  border-color: var(--color_primary_teal);
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
 /* Teal color for Select Level, Select Group, Select Subject when placeholder is selected */
 .question-filter-select.placeholder-selected {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .question-filter-select option.filter-select-placeholder,
 .question-filter-select option[value=""] {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 /* Chapter / Topic: same CSS design as Level, Group, Subject (label + control); only the opened panel has checkboxes */
@@ -116,10 +116,10 @@
   min-width: 120px;
   max-width: 200px;
   padding: 3px 7px;
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
   border-radius: 6px;
   background-color: white;
-  color: #000;
+  color: var(--color_primary_black);
   font-size: 14px;
   text-align: left;
   cursor: pointer;
@@ -131,7 +131,7 @@
 
 .filter-dropdown-btn:focus {
   outline: none;
-  border-color: teal;
+  border-color: var(--color_primary_teal);
   box-shadow: 0 0 0 2px rgba(0, 128, 128, 0.2);
 }
 
@@ -141,22 +141,22 @@
   white-space: nowrap;
   min-width: 0;
   flex: 1;
-  /* color: teal; */
+  /* inherits .filter-dropdown-btn text color */
 }
 
 .filter-dropdown-btn:hover {
   border-color: #006666;
-  background-color: rgba(0, 128, 128, 0.12);
+  background-color: var(--color_primary_transparent);
 }
 
 .filter-dropdown-btn.placeholder-selected {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 
 .filter-dropdown-arrow {
   margin-left: 8px;
   font-size: 10px;
-  color: #000;
+  color: var(--color_primary_black);
   flex-shrink: 0;
 }
 
@@ -170,10 +170,10 @@
   max-height: 600px;
   overflow-x: hidden;
   overflow-y: auto;
-  border: 2px solid teal;
+  border: 2px solid var(--color_primary_teal);
   border-radius: 6px;
   background: #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--color_primary_shadow);
   z-index: 100;
   opacity: 0;
   visibility: hidden;
@@ -205,7 +205,7 @@
   border: none;
   border-bottom: 1px solid #eee;
   background: #fff;
-  color: #000;
+  color: var(--color_primary_black);
   font-size: 14px;
   text-align: left;
   cursor: pointer;
@@ -219,7 +219,7 @@
 }
 
 .filter-dropdown-item:hover {
-  background: rgba(0, 128, 128, 0.12);
+  background: var(--color_primary_transparent);
 }
 
 .filter-dropdown-item:focus,
@@ -268,13 +268,13 @@
   font-weight: 600;
   background: transparent;
   border: none;
-  color: teal;
+  color: var(--color_primary_teal);
   flex: 1;
   margin: 0;
 }
 
 .filter-dropdown-item-selectall:hover {
-  background: rgba(0, 128, 128, 0.12);
+  background: var(--color_primary_transparent);
 }
 
 .filter-dropdown-item-selectall:focus,
@@ -294,7 +294,7 @@
 .filter-dropdown-institute-type-label {
   font-size: 12px;
   font-weight: 600;
-  color: #000;
+  color: var(--color_primary_black);
   flex-shrink: 0;
 }
 .filter-dropdown-inline .filter-dropdown-panel {
@@ -329,7 +329,7 @@
   padding: 6px 8px;
   font-weight: 600;
   font-size: 13px;
-  color: teal;
+  color: var(--color_primary_teal);
   background: rgba(0, 128, 128, 0.06);
   border-bottom: 1px solid #eee;
 }
@@ -356,7 +356,7 @@
   font-size: 13px;
 }
 
-/* Single-select option (Level, Class, Group, Subject): no checkbox; teal hover/focus; option text #000; no wrap */
+/* Single-select option (Level, Class, Group, Subject): no checkbox; var(--color_primary_teal) hover/focus; option text uses --color_primary_black; no wrap */
 .filter-dropdown-item-single {
   display: block;
   width: 100%;
@@ -365,7 +365,7 @@
   border: none;
   border-bottom: 1px solid #eee;
   background: #fff;
-  color: #000;
+  color: var(--color_primary_black);
   font-size: 14px;
   text-align: left;
   cursor: pointer;
@@ -378,32 +378,32 @@
 }
 .filter-dropdown-item-single:hover {
   background: rgba(0, 128, 128, 0.2);
-  color: #000;
+  color: var(--color_primary_black);
 }
 .filter-dropdown-item-single:focus,
 .filter-dropdown-item-single:focus-visible {
   outline: none;
   background: rgba(0, 128, 128, 0.2);
-  color: #000;
+  color: var(--color_primary_black);
 }
 .filter-dropdown-item-single.selected {
   background: rgba(0, 128, 128, 0.08);
-  color: #000;
+  color: var(--color_primary_black);
 }
 .filter-dropdown-item-single.selected:hover,
 .filter-dropdown-item-single.selected:focus,
 .filter-dropdown-item-single.selected:focus-visible {
   background: rgba(0, 128, 128, 0.2);
-  color: #000;
+  color: var(--color_primary_black);
 }
 .filter-dropdown-item-single.filter-dropdown-item-placeholder {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 .filter-dropdown-item-single.filter-dropdown-item-placeholder:hover,
 .filter-dropdown-item-single.filter-dropdown-item-placeholder:focus,
 .filter-dropdown-item-single.filter-dropdown-item-placeholder:focus-visible {
   background: rgba(0, 128, 128, 0.2);
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .question-layout {
@@ -415,7 +415,7 @@
   padding: 16px;
   background: rgba(0, 128, 128, 0.1);
   border-radius: 8px;
-  border: teal;
+  border: 1px solid var(--color_primary_teal);
   width: 100%;
   max-width: 1920px;
 }
@@ -450,13 +450,13 @@
 }
 
 .creator-buttons-row .btn-create-question {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 128, 128, 0.35);
 }
 
 .creator-buttons-row .btn-create-question:hover {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   box-shadow: 0 4px 12px rgba(0, 128, 128, 0.45);
 }
 
@@ -487,14 +487,14 @@
   margin: 0 0 8px;
   font-size: 1.15rem;
   font-weight: 600;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .smart-creator-modal-hint {
   margin: 0 0 16px;
   font-size: 13px;
   line-height: 1.45;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .smart-creator-modal-field {
@@ -506,19 +506,19 @@
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 6px;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .smart-creator-modal-optional {
   font-weight: 400;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .smart-creator-modal-field-hint {
   margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.4;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .smart-creator-modal-input,
@@ -527,7 +527,7 @@
   box-sizing: border-box;
   padding: 8px 10px;
   font-size: 14px;
-  color: #000;
+  color: var(--color_primary_black);
   border: 1px solid #ccc;
   border-radius: 8px;
 }
@@ -556,7 +556,7 @@
 
 .smart-creator-modal-btn--secondary {
   background: #e8e8e8;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .smart-creator-modal-btn--secondary:hover {
@@ -584,7 +584,7 @@
 .topic-questions-header h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .topic-questions-actions {
@@ -598,7 +598,7 @@
 .topic-questions-actions .btn-link {
   background: none;
   border: none;
-  color: teal;
+  color: var(--color_primary_teal);
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
@@ -618,7 +618,7 @@
 
 .topic-questions-actions .selected-count {
   font-weight: 500;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .topic-questions-actions .btn-clear-selection {
@@ -686,7 +686,7 @@
 
 
 .btn {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   padding: 0.8rem 1.5rem;
   text-decoration: none;
@@ -702,7 +702,7 @@
 
 button.newButton {
   min-width: 200px;
-  background: teal;
+  background: var(--color_primary_teal);
   font-size: 1.5em;
   padding: 7px;
   margin: 15px;
@@ -728,7 +728,7 @@ span.mx-3 {
   text-align: center;
   padding: 5px;
   border-radius: 25px;
-  border: 1px dotted teal;
+  border: 1px dotted var(--color_primary_teal);
   z-index: 1;
   color: darkred;
 }
@@ -744,7 +744,7 @@ span.mx-3 {
   margin-top: 0.75rem;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 128, 128, 0.08);
-  color: #000;
+  color: var(--color_primary_black);
   font-size: 14px;
   border-radius: 4px;
   text-align: center;
@@ -770,7 +770,7 @@ span.mx-3 {
 .topic-question-item.topic-question-item-selected {
   border-color: rgba(0, 128, 128, 0.5);
   background: rgba(0, 128, 128, 0.04);
-  box-shadow: 0 1px 4px rgba(0, 128, 128, 0.12);
+  box-shadow: 0 1px 4px var(--color_primary_transparent);
 }
 
 .topic-question-sl-col {
@@ -786,7 +786,7 @@ span.mx-3 {
 .topic-question-sl {
   font-size: 13px;
   font-weight: 600;
-  color: #000;
+  color: var(--color_primary_black);
   line-height: 1;
   flex-shrink: 0;
 }
@@ -819,7 +819,7 @@ span.mx-3 {
 .topic-question-qid {
   font-size: 12px;
   color: white;
-  background: teal;
+  background: var(--color_primary_teal);
   padding: 2px 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -833,7 +833,7 @@ span.mx-3 {
   right: 0;
   bottom: -12px;
   font-size: 12px;
-  color: teal;
+  color: var(--color_primary_teal);
   background: transparent;
   padding: 2px 8px;
   border-radius: 4px;
@@ -860,7 +860,7 @@ span.mx-3 {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: teal;
+  color: var(--color_primary_teal);
   cursor: pointer;
 }
 .topic-question-action-btn:hover {
@@ -877,7 +877,7 @@ span.mx-3 {
   margin-left: 4px;
 }
 .topic-question-action-disappear {
-  color: teal;
+  color: var(--color_primary_teal);
 }
 .topic-question-action-disappear:hover {
   color: green;
@@ -911,7 +911,7 @@ span.mx-3 {
   border-radius: 4px;
   font-size: 14px;
   line-height: 1.4;
-  color: #000;
+  color: var(--color_primary_black);
   resize: vertical;
   box-sizing: border-box;
   font-family: inherit;
@@ -923,7 +923,7 @@ span.mx-3 {
   gap: 4px 1.5em;
   align-items: start;
   font-size: 13px;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .topic-question-edit-opt {
@@ -943,7 +943,7 @@ span.mx-3 {
   border-radius: 4px;
   font-size: 13px;
   line-height: 1.4;
-  color: #000;
+  color: var(--color_primary_black);
   box-sizing: border-box;
   font-family: inherit;
 }
@@ -963,7 +963,7 @@ span.mx-3 {
   cursor: pointer;
 }
 .btn-update-pending {
-  background: teal;
+  background: var(--color_primary_teal);
   color: #fff;
   border: none;
 }
@@ -973,7 +973,7 @@ span.mx-3 {
 .btn-cancel-edit {
   background: darkred;
   color: white;
-  border: teal;
+  border: 1px solid var(--color_primary_teal);
 }
 .btn-cancel-edit:hover {
   background: red;
@@ -989,7 +989,7 @@ span.mx-3 {
   font-size: 14px;
   line-height: 1.4;
   white-space: pre-line;
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 .topic-question-text img,
@@ -1043,7 +1043,7 @@ span.mx-3 {
 .topic-question-subpart {
   font-size: 14px;
   line-height: 1.4;
-  color: #000;
+  color: var(--color_primary_black);
   padding-left: 22px;
   text-indent: -22px;
   margin-top: 0;
@@ -1053,7 +1053,7 @@ span.mx-3 {
   margin-top: 6px;
   margin-left: 0;
   font-size: 13px;
-  color: #000;
+  color: var(--color_primary_black);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px 1.5em;
@@ -1064,14 +1064,14 @@ span.mx-3 {
 .topic-question-options .topic-question-opt {
   white-space: normal;
   min-width: 0;
-  color: #000;
+  color: var(--color_primary_black);
   /* 22px left indent for wrapped lines (continuation lines) */
   padding-left: 22px;
   text-indent: -22px;
 }
 
 .topic-question-options .topic-question-opt-html {
-  color: #000;
+  color: var(--color_primary_black);
 }
 
 /* Measure mode: force one row to read content widths */
@@ -1099,7 +1099,7 @@ span.mx-3 {
 
 .no-topic-questions {
   margin: 16px 0;
-  color: #000;
+  color: var(--color_primary_black);
   font-style: italic;
 }
 
@@ -1117,7 +1117,7 @@ span.mx-3 {
 }
 
 .fab-btn {
-  background-color: teal;
+  background-color: var(--color_primary_teal);
   color: white;
   border: none;
   cursor: pointer;
@@ -1154,13 +1154,13 @@ span.mx-3 {
   width: 280px;
   padding: 12px 14px;
   background-color: #ffeb3b;
-  color: #000;
-  border: 2px solid teal;
+  color: var(--color_primary_black);
+  border: 2px solid var(--color_primary_teal);
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.4;
   text-align: left;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--color_primary_shadow);
   z-index: 1001;
   visibility: hidden;
   opacity: 0;
@@ -1195,4 +1195,6 @@ span.mx-3 {
   background-color: transparent;
   border-radius: 4px;
 }
+
+
 
