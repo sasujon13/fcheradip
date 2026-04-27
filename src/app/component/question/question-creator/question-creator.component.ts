@@ -3161,8 +3161,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
     return {
       gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
-      rowGap: '4px',
-      columnGap: n > 1 ? '1.5em' : '0',
     };
   }
 
