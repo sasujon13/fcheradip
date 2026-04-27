@@ -475,7 +475,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Same `--preview-q-*` px values as `ExportQuestionsView._build_pdf_playwright` / `render_items_html`.
    * `--preview-q-subpart-pl` is fixed `em` (see {@link PREVIEW_Q_SUBPART_PL_EM}) to match floated `.qn` column.
    */
-  private static readonly PREVIEW_Q_SUBPART_PL_EM = '2.95em';
+  private static readonly PREVIEW_Q_SUBPART_PL_EM = '2em';
 
   private static exportPlaywrightPreviewSpacingFromFontPx(fzInput: number): {
     bnParenInsetPx: number;
@@ -6326,7 +6326,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Sub-part / options column: same `em` inset as PDF (`2.95em` = 2.75em number column + 0.2em gap).
+   * Sub-part / options column: same `em` inset as PDF ({@link PREVIEW_Q_SUBPART_PL_EM} on number column / subpart).
    * Exposed as `--preview-q-subpart-pl` on `.preview-sheet-inner` / measure rail.
    */
   get previewQSubpartPaddingLeftEm(): string {

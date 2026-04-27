@@ -1149,7 +1149,7 @@
   font-weight: 700;
   color: var(--color_primary_black);
   margin-right: 0.2em;
-  min-width: 2.75em;
+  min-width: 2em;
   text-align: end;
   box-sizing: border-box;
   line-height: var(--preview-question-lh, 1.4);
@@ -1261,9 +1261,9 @@
   color: var(--color_primary_black);
 }
 
-/* Align with stem text column: 2.75em number + 0.2em gap = 2.95em (same as PDF `.qn` + `--preview-q-subpart-pl`). */
+/* Align with stem text column: same as PDF `.qn` + `--preview-q-subpart-pl` (see PREVIEW_Q_SUBPART_PL_EM in TS). */
 .preview-q-subpart {
-  padding-left: var(--preview-q-subpart-pl, 2.95em);
+  padding-left: var(--preview-q-subpart-pl, 2em);
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
   color: var(--color_primary_black);
@@ -1295,13 +1295,13 @@
   box-sizing: border-box;
 }
 
-/* Same left inset as subparts: 1em on grid so 2.95em = stem column; 13/14 on .preview-q-opt only. */
+/* Same left inset as subparts (fallback matches `--preview-q-subpart-pl`); 13/14 on .preview-q-opt only. */
 .preview-q-options {
   clear: both;
   margin-top: var(--preview-q-opt-my, 0.2143em);
   margin-bottom: var(--preview-q-opt-my, 0.2143em);
   margin-left: 0;
-  padding-left: var(--preview-q-subpart-pl, 2.95em);
+  padding-left: var(--preview-q-subpart-pl, 2em);
   box-sizing: border-box;
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
