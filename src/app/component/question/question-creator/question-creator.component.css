@@ -1148,6 +1148,9 @@
   float: left;
   font-weight: 700;
   margin-right: 0.2em;
+  min-width: 2.75em;
+  text-align: end;
+  box-sizing: border-box;
   line-height: var(--preview-question-lh, 1.4);
 }
 
@@ -1236,9 +1239,9 @@
   color: #333;
 }
 
-/* padding-left scales with preview font: 9px→14px, 10→16, … (2×font − 4) via `--preview-q-subpart-pl`. */
+/* Align with stem text column: 2.75em number + 0.2em gap = 2.95em (same as PDF `.qn` + `--preview-q-subpart-pl`). */
 .preview-q-subpart {
-  padding-left: var(--preview-q-subpart-pl, 1.7143em);
+  padding-left: var(--preview-q-subpart-pl, 2.95em);
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
   color: #333;
@@ -1270,13 +1273,13 @@
   box-sizing: border-box;
 }
 
-/* padding-left with preview font: 9px→14px, +2px per +1px font (same as `.preview-q-subpart`) via `--preview-q-subpart-pl`. */
+/* Same left inset as subparts (see `--preview-q-subpart-pl`). */
 .preview-q-options {
   clear: both;
   margin-top: var(--preview-q-opt-my, 0.2143em);
   margin-bottom: var(--preview-q-opt-my, 0.2143em);
   margin-left: 0;
-  padding-left: var(--preview-q-subpart-pl, 1.7143em);
+  padding-left: var(--preview-q-subpart-pl, 2.95em);
   box-sizing: border-box;
   font-size: calc(13 / 14 * 1em);
   line-height: var(--preview-question-lh, 1.4);

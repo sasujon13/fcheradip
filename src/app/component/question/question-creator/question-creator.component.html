@@ -987,7 +987,7 @@
                     [style.fontSize.px]="previewQuestionsFontPx"
                     [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
                     [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
-                    [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+                    [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
                   >
                     <div
                       class="preview-sheet-body"
@@ -1236,7 +1236,7 @@
                   [style.fontSize.px]="previewQuestionsFontPx"
                   [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
                   [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
-                  [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+                  [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
                 >
                   <p class="preview-empty-msg">No questions yet — pagination will appear here when you add questions.</p>
                 </div>
@@ -1267,7 +1267,7 @@
     [style.fontSize.px]="previewQuestionsFontPx"
     [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
     [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
-    [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+    [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
     aria-hidden="true"
   >
     <div #measureHeader class="preview-header preview-measure-header" *ngIf="questionHeader?.trim() && paperHeaderVisibleForSheetPage(0)">
@@ -1395,7 +1395,7 @@
             [style.fontSize.px]="previewQuestionsFontPx"
             [style.--preview-question-lh]="'' + previewQuestionsLineHeight"
             [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
-            [style.--preview-q-subpart-pl.px]="previewQSubpartPaddingLeftPx"
+            [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
           >
             <div
               class="preview-sheet-body"

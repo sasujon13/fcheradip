@@ -473,11 +473,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * Same `--preview-q-*` px values as `ExportQuestionsView._build_pdf_playwright` / `render_items_html`.
-   * Preview must not use a second parallel formula.
+   * `--preview-q-subpart-pl` is fixed `em` (see {@link PREVIEW_Q_SUBPART_PL_EM}) to match floated `.qn` column.
    */
+  private static readonly PREVIEW_Q_SUBPART_PL_EM = '2.95em';
+
   private static exportPlaywrightPreviewSpacingFromFontPx(fzInput: number): {
     bnParenInsetPx: number;
-    subpartPlPx: number;
     optHangPx: number;
     romanIndentPx: number;
     optRowGapPx: number;
@@ -490,7 +491,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const fz = Math.max(1, Number(fzInput));
     return {
       bnParenInsetPx: 2 * fz - 2,
-      subpartPlPx: 2 * fz - 4,
       optHangPx: Math.max(8, QuestionCreatorComponent.exportJround((16 * fz) / 14)),
       romanIndentPx: Math.max(6, QuestionCreatorComponent.exportJround((10 * fz) / 14)),
       optRowGapPx: Math.max(2, QuestionCreatorComponent.exportJround((4 * fz) / 14)),
@@ -6242,13 +6242,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Sub-part block left padding: 14px at 9px preview font, +2px per +1px font
-   * (2 × fontPx − 4). Exposed as `--preview-q-subpart-pl` on `.preview-sheet-inner` / measure rail.
-   * Same as PDF export: `2 * fz - 4`.
+   * Sub-part / options column: same `em` inset as PDF (`2.95em` = 2.75em number column + 0.2em gap).
+   * Exposed as `--preview-q-subpart-pl` on `.preview-sheet-inner` / measure rail.
    */
-  get previewQSubpartPaddingLeftPx(): number {
-    const fz = this.clampPreviewQuestionFontPx(Number(this.previewQuestionsFontPx));
-    return 2 * fz - 4;
+  get previewQSubpartPaddingLeftEm(): string {
+    return QuestionCreatorComponent.PREVIEW_Q_SUBPART_PL_EM;
   }
 
   private syncGlobalPreviewQuestionsFontPxFromPerKind(): void {
@@ -6605,7 +6603,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       fontSize: `${fz}px`,
       '--preview-question-lh': `${lh}`,
       '--preview-q-bn-paren-inset': `${s.bnParenInsetPx}px`,
-      '--preview-q-subpart-pl': `${s.subpartPlPx}px`,
+      '--preview-q-subpart-pl': QuestionCreatorComponent.PREVIEW_Q_SUBPART_PL_EM,
       '--preview-q-opt-hang': `${s.optHangPx}px`,
       '--preview-q-roman-indent': `${s.romanIndentPx}px`,
       '--preview-q-opt-row-gap': `${s.optRowGapPx}px`,
