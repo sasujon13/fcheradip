@@ -515,6 +515,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly CUSTOM_PAGE_STEPPER_IN = 0.1;
   private static readonly INCH_TO_MM = 25.4;
 
+  /** Printable bottom margin (mm) for MCQ sheets — CQ sheets keep {@link marginBottom} (default 12.7 mm). */
+  private static readonly MCQ_SHEET_BOTTOM_MARGIN_MM = 19;
+
   /** Paper width × height in mm (portrait). */
   private static readonly PAPER_MM: Record<string, { w: number; h: number }> = {
     A4: { w: 210, h: 297 },
@@ -5165,7 +5168,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /**
    * Paper dimensions for preview follow the first question on the sheet (same basis as {@link paginationInnerHeightPx}).
    * {@link headerVariantForPage} only selects which header block is drawn; do not use it for sheet size.
-   * CQ/MCQ sheets use {@link previewBottomMarginMmForKind} for preview bottom padding (same as {@link marginBottom}).
+   * CQ/MCQ sheets use {@link previewBottomMarginMmForKind} (MCQ uses {@link MCQ_SHEET_BOTTOM_MARGIN_MM}).
    */
   private previewKindForSheetPage(pageIndex: number): 'creative' | 'mcq' {
     const k = this.sheetPreviewKindKey(pageIndex);
@@ -5175,9 +5178,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.headerVariantForPage(pageIndex);
   }
 
-  /** Preview/pagination bottom (mm): persisted margin only (no extra inset for CQ vs MCQ). */
-  private previewBottomMarginMmForKind(_kind: 'creative' | 'mcq'): number {
-    return this.marginBottom;
+  /** Preview/pagination bottom (mm): CQ uses {@link marginBottom}; MCQ uses {@link MCQ_SHEET_BOTTOM_MARGIN_MM}. */
+  private previewBottomMarginMmForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq'
+      ? QuestionCreatorComponent.MCQ_SHEET_BOTTOM_MARGIN_MM
+      : this.marginBottom;
+  }
+
+  /** Bottom margin (mm) sent on save/export: MCQ-only uses {@link MCQ_SHEET_BOTTOM_MARGIN_MM}. */
+  private marginBottomMmForPersistAndExportPayload(): number {
+    return this.selectionHasMcqType() && !this.selectionHasCreativeType()
+      ? QuestionCreatorComponent.MCQ_SHEET_BOTTOM_MARGIN_MM
+      : this.marginBottom;
   }
 
   /** How many sheets share {@link sheetPreviewKindKey} with this page. */
@@ -7397,7 +7409,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.marginRight * QuestionCreatorComponent.MM_TO_PX;
   }
   get marginBottomPx(): number {
-    return this.marginBottom * QuestionCreatorComponent.MM_TO_PX;
+    return this.marginBottomMmForPersistAndExportPayload() * QuestionCreatorComponent.MM_TO_PX;
   }
   get marginLeftPx(): number {
     return this.marginLeft * QuestionCreatorComponent.MM_TO_PX;
@@ -7412,7 +7424,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Printable area height inside margins (px). */
   get contentInnerHeightPx(): number {
     const { h } = this.paperSizeMm;
-    const bottom = this.marginBottom;
+    const bottom = this.marginBottomMmForPersistAndExportPayload();
     return Math.max(0, (h - this.marginTop - bottom) * QuestionCreatorComponent.MM_TO_PX);
   }
 
@@ -7654,7 +7666,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       marginPreset: this.marginPreset,
       marginTop: this.marginTop,
       marginRight: this.marginRight,
-      marginBottom: this.marginBottom,
+      marginBottom: this.marginBottomMmForPersistAndExportPayload(),
       marginLeft: this.marginLeft,
       questionsPadding: this.questionsPadding,
       questionsGap: this.questionsGap,
@@ -7808,7 +7820,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       customPageHeightIn: this.customPageHeightIn,
       marginTop: this.marginTop,
       marginRight: this.marginRight,
-      marginBottom: this.marginBottom,
+      marginBottom: this.marginBottomMmForPersistAndExportPayload(),
       marginLeft: this.marginLeft,
       questionsPadding: this.questionsPadding,
       questionsGap: this.questionsGap,
