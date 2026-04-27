@@ -15,12 +15,14 @@
             ></span>
           </ng-container>
           <ng-container *ngIf="struct.parts.length > 0">
-            <span class="preview-q-stem-with-parts">
-              <strong class="preview-q-index">{{ previewQuestionSerialBn(sl) }}।</strong><span
+            <!-- Same DOM as PDF export: number is sibling before q-stem-with-parts, not inside it. -->
+            <strong class="preview-q-index">{{ previewQuestionSerialBn(sl) }}।</strong>
+            <span class="preview-q-stem-with-parts"
+              ><span
                 class="preview-q-text preview-q-intro"
                 [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"
-              ></span>
-            </span>
+              ></span
+            ></span>
             <div
               *ngFor="let part of struct.parts; let pi = index"
               class="preview-q-subpart-wrap"

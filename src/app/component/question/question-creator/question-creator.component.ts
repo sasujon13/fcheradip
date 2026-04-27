@@ -460,6 +460,48 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
   }
 
+  /**
+   * Rounding parity with `views.jround` in PDF export (Math.floor(x + 0.5), not banker's `Math.round`).
+   */
+  private static exportJround(x: number): number {
+    const v = Number(x);
+    if (!Number.isFinite(v)) {
+      return 0;
+    }
+    return Math.floor(v + 0.5);
+  }
+
+  /**
+   * Same `--preview-q-*` px values as `ExportQuestionsView._build_pdf_playwright` / `render_items_html`.
+   * Preview must not use a second parallel formula.
+   */
+  private static exportPlaywrightPreviewSpacingFromFontPx(fzInput: number): {
+    bnParenInsetPx: number;
+    subpartPlPx: number;
+    optHangPx: number;
+    romanIndentPx: number;
+    optRowGapPx: number;
+    optColGapPx: number;
+    contentPrPx: number;
+    stemMbPx: number;
+    subpartMtPx: number;
+    optMyPx: number;
+  } {
+    const fz = Math.max(1, Number(fzInput));
+    return {
+      bnParenInsetPx: 2 * fz - 2,
+      subpartPlPx: 2 * fz - 4,
+      optHangPx: Math.max(8, QuestionCreatorComponent.exportJround((16 * fz) / 14)),
+      romanIndentPx: Math.max(6, QuestionCreatorComponent.exportJround((10 * fz) / 14)),
+      optRowGapPx: Math.max(2, QuestionCreatorComponent.exportJround((4 * fz) / 14)),
+      optColGapPx: Math.max(10, QuestionCreatorComponent.exportJround((21 * fz) / 14)),
+      contentPrPx: Math.max(1, QuestionCreatorComponent.exportJround((2 * fz) / 14)),
+      stemMbPx: Math.max(1, QuestionCreatorComponent.exportJround((4 * fz) / 14)),
+      subpartMtPx: Math.max(0, QuestionCreatorComponent.exportJround((2 * fz) / 14)),
+      optMyPx: Math.max(1, QuestionCreatorComponent.exportJround((3 * fz) / 14)),
+    };
+  }
+
   private static readonly QUESTIONS_GAP_MIN_PX = 0;
   private static readonly QUESTIONS_GAP_MAX_PX = 100;
   private static readonly QUESTIONS_GAP_MCQ_DEFAULT_PX = 2;
@@ -6192,32 +6234,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /**
    * (ক)/(খ)/(গ)/(ঘ) sub-line hanging inset: 16px at 9px preview font, +2px per +1px font
    * (2 × fontPx − 2). Exposed as `--preview-q-bn-paren-inset` on `.preview-sheet-inner` / measure rail.
+   * Same as PDF export: `2 * fz - 2` with per-sheet legacy font.
    */
   get previewQuestionBnParenInsetPx(): number {
-    const n = Math.round(Number(this.previewQuestionsFontPx));
-    const fz = Math.max(
-      QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MIN_PX,
-      Math.min(
-        QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX,
-        Number.isFinite(n) ? n : QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_DEFAULT_PX
-      )
-    );
+    const fz = this.clampPreviewQuestionFontPx(Number(this.previewQuestionsFontPx));
     return 2 * fz - 2;
   }
 
   /**
    * Sub-part block left padding: 14px at 9px preview font, +2px per +1px font
    * (2 × fontPx − 4). Exposed as `--preview-q-subpart-pl` on `.preview-sheet-inner` / measure rail.
+   * Same as PDF export: `2 * fz - 4`.
    */
   get previewQSubpartPaddingLeftPx(): number {
-    const n = Math.round(Number(this.previewQuestionsFontPx));
-    const fz = Math.max(
-      QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MIN_PX,
-      Math.min(
-        QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX,
-        Number.isFinite(n) ? n : QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_DEFAULT_PX
-      )
-    );
+    const fz = this.clampPreviewQuestionFontPx(Number(this.previewQuestionsFontPx));
     return 2 * fz - 4;
   }
 
@@ -6561,75 +6591,29 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.questionIsCreativeType(q ?? {}) ? this.questionsGapCreative : this.questionsGap;
   }
 
-  /** Per-question option hanging indent in px (14px font -> 16px baseline). */
-  private previewQOptHangPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(8, Math.round((16 * fz) / 14));
-  }
-
-  /** Per-question roman-line indent in px (14px font -> 10px baseline). */
-  private previewQRomanIndentPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(6, Math.round((10 * fz) / 14));
-  }
-
-  /** Per-question option row gap in px (14px font -> 4px baseline). */
-  private previewQOptionRowGapPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(2, Math.round((4 * fz) / 14));
-  }
-
-  /** Per-question option column gap in px (14px font -> 1.5em ~= 21px baseline). */
-  private previewQOptionColGapPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(10, Math.round((21 * fz) / 14));
-  }
-
-  /** Per-question content right padding in px (14px font -> 2px baseline). */
-  private previewQContentPadRightPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(1, Math.round((2 * fz) / 14));
-  }
-
-  /** Per-question stem block margin-bottom in px (14px font -> 4px baseline). */
-  private previewQStemMarginBottomPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(1, Math.round((4 * fz) / 14));
-  }
-
-  /** Per-question subpart wrapper margin-top in px (14px font -> 2px baseline). */
-  private previewQSubpartMarginTopPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(0, Math.round((2 * fz) / 14));
-  }
-
-  /** Per-question options block vertical margin in px (14px font -> 3px baseline). */
-  private previewQOptionsMarginYPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    const fz = this.previewQuestionsFontPxForQuestion(q);
-    return Math.max(1, Math.round((3 * fz) / 14));
-  }
-
   /**
    * Per-question spacing: vertical padding only (horizontal spacing from margins + column gap).
+   * Uses the same px map as Playwright export (`exportPlaywrightPreviewSpacingFromFontPx`).
    */
   previewQuestionBlockStyleForQ(q: { type?: unknown }): Record<string, string> {
     const p = this.questionsPadding;
     const g = this.questionBlockMarginBottomPx(q);
-    const fz = this.previewQuestionsFontPxForQuestion(q);
+    const fz = this.clampPreviewQuestionFontPx(this.previewQuestionsFontPxForQuestion(q));
     const lh = this.previewQuestionsLineHeightForQuestion(q);
+    const s = QuestionCreatorComponent.exportPlaywrightPreviewSpacingFromFontPx(fz);
     return {
       fontSize: `${fz}px`,
       '--preview-question-lh': `${lh}`,
-      '--preview-q-bn-paren-inset': `${2 * fz - 2}px`,
-      '--preview-q-subpart-pl': `${2 * fz - 4}px`,
-      '--preview-q-opt-hang': `${this.previewQOptHangPxForQuestion(q)}px`,
-      '--preview-q-roman-indent': `${this.previewQRomanIndentPxForQuestion(q)}px`,
-      '--preview-q-opt-row-gap': `${this.previewQOptionRowGapPxForQuestion(q)}px`,
-      '--preview-q-opt-col-gap': `${this.previewQOptionColGapPxForQuestion(q)}px`,
-      '--preview-q-content-pr': `${this.previewQContentPadRightPxForQuestion(q)}px`,
-      '--preview-q-stem-mb': `${this.previewQStemMarginBottomPxForQuestion(q)}px`,
-      '--preview-q-subpart-mt': `${this.previewQSubpartMarginTopPxForQuestion(q)}px`,
-      '--preview-q-opt-my': `${this.previewQOptionsMarginYPxForQuestion(q)}px`,
+      '--preview-q-bn-paren-inset': `${s.bnParenInsetPx}px`,
+      '--preview-q-subpart-pl': `${s.subpartPlPx}px`,
+      '--preview-q-opt-hang': `${s.optHangPx}px`,
+      '--preview-q-roman-indent': `${s.romanIndentPx}px`,
+      '--preview-q-opt-row-gap': `${s.optRowGapPx}px`,
+      '--preview-q-opt-col-gap': `${s.optColGapPx}px`,
+      '--preview-q-content-pr': `${s.contentPrPx}px`,
+      '--preview-q-stem-mb': `${s.stemMbPx}px`,
+      '--preview-q-subpart-mt': `${s.subpartMtPx}px`,
+      '--preview-q-opt-my': `${s.optMyPx}px`,
       paddingTop: `${p}px`,
       paddingBottom: `${p}px`,
       paddingLeft: '0',

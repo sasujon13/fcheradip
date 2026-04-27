@@ -1161,20 +1161,13 @@
   color: #333;
 }
 
-/* Plain stem lines: no extra left padding on newlines (only i./ii./iii. and (ক)/(খ)/(গ)/(ঘ) indent). */
-.preview-q-text ::ng-deep .topic-question-line:first-of-type:not(.topic-question-roman-line):not(.topic-question-bn-paren-line) {
+/* Match export line model so CQ left indent/wrap starts exactly like PDF. */
+.preview-q-text ::ng-deep .topic-question-line {
   display: block;
-  padding-left: 0;
-  text-indent: 0;
-  box-sizing: border-box;
-}
-
-.preview-q-text
-  ::ng-deep
-  .topic-question-line:not(:first-of-type):not(.topic-question-roman-line):not(.topic-question-bn-paren-line) {
-  display: block;
-  padding-left: 0;
-  text-indent: 0;
+  margin: 0;
+  line-height: inherit;
+  white-space: pre-wrap;
+  tab-size: 4;
   box-sizing: border-box;
 }
 
@@ -1253,19 +1246,13 @@
   box-sizing: border-box;
 }
 
-.preview-q-subpart ::ng-deep .topic-question-line:first-of-type:not(.topic-question-roman-line):not(.topic-question-bn-paren-line) {
+/* Match export line model for CQ subparts too. */
+.preview-q-subpart ::ng-deep .topic-question-line {
   display: block;
-  padding-left: 0;
-  text-indent: 0;
-  box-sizing: border-box;
-}
-
-.preview-q-subpart
-  ::ng-deep
-  .topic-question-line:not(:first-of-type):not(.topic-question-roman-line):not(.topic-question-bn-paren-line) {
-  display: block;
-  padding-left: 0;
-  text-indent: 0;
+  margin: 0;
+  line-height: inherit;
+  white-space: pre-wrap;
+  tab-size: 4;
   box-sizing: border-box;
 }
 
