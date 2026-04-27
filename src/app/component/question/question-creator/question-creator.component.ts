@@ -3574,6 +3574,72 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return Math.max(0, Math.min(5, n - 1));
   }
 
+  /** First sheet page index whose header variant matches (same rule as export `buildHeaderForPdfKind`). */
+  private exportFirstSheetPageIndexForHeaderVariant(variant: 'creative' | 'mcq'): number {
+    const n = Array.isArray(this.paginatedPages) ? this.paginatedPages.length : 0;
+    for (let i = 0; i < n; i++) {
+      if (this.headerVariantForPage(i) === variant) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  /**
+   * One font size (px) per physical line in split PDF headers — mirrors `buildHeaderForPdfKind` and preview
+   * `headerPreviewLineTypoStyle` / `mcqUpperSlotFontIndex` so Playwright PDF matches the sheet header.
+   */
+  private buildPdfHeaderLineFontPxListForSplitExport(
+    kind: 'creative' | 'mcq',
+    setLetter: (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number] | null,
+  ): number[] {
+    const setL = setLetter !== null ? setLetter : this.selectedMcqSetLetter;
+    const out: number[] = [];
+    const mcqTitlePx = this.clampHeaderLineFontPx(QuestionCreatorComponent.HEADER_LINE3_FONT_DEFAULT_PX);
+    if (kind === 'creative') {
+      this.creativeHeaderTopLinesPadded().forEach((ln, ti) => {
+        const fi = this.creativeTopLineFontIndex(ti);
+        const px = this.headerLineFontPxForEditorLine(fi);
+        if (this.creativeShowSqSplitTopRow(ti, ln)) {
+          out.push(px, px);
+        } else {
+          out.push(px);
+        }
+      });
+      const band = this.creativeHeaderBandLeftLines();
+      if (band.length) {
+        out.push(this.headerLineFontPxForEditorLine(this.creativeBandFirstLineFontIndex()));
+        out.push(this.headerLineFontPxForEditorLine(this.creativeCodeGridFontIndex()));
+        band.slice(1).forEach((_ln, bj) => {
+          out.push(this.headerLineFontPxForEditorLine(this.creativeBandTailFontBase() + bj));
+        });
+      } else {
+        out.push(this.headerLineFontPxForEditorLine(this.creativeCodeGridFontIndex()));
+      }
+      return out;
+    }
+    const piMcq = this.exportFirstSheetPageIndexForHeaderVariant('mcq');
+    const slots = this.mcqHeaderUpperLineSlots(piMcq);
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i]!;
+      const slotFontPx =
+        s.kind === 'mcqTitle'
+          ? mcqTitlePx
+          : this.headerLineFontPxForEditorLine(this.mcqUpperSlotFontIndex(i, piMcq));
+      if (this.mcqShowSqSplitMcqBandRow(piMcq, i, s as { kind: string; text?: string })) {
+        out.push(slotFontPx, slotFontPx);
+      } else {
+        out.push(slotFontPx);
+      }
+    }
+    out.push(this.headerLineFontPxForEditorLine(this.mcqCodeGridHeaderFontIndex()));
+    const lower = this.mcqHeaderLowerLines();
+    for (let j = 0; j < lower.length; j++) {
+      out.push(this.headerLineFontPxForEditorLine(this.mcqHeaderLowerLineFontIndex(j)));
+    }
+    return out;
+  }
+
   /** `question_subjects.sq`: 25 or 30 (per-question MCQ/CQ সময়+পূর্ণমান in structured header). */
   private subjectSqExamVariant(): 25 | 30 | null {
     const s = this.context.sq;
@@ -7760,6 +7826,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     let persistedExportSplitHeaders: {
       exportQuestionHeaderCreative?: string;
       exportQuestionHeaderMcq?: string;
+      headerLineFontSizesPdfCreative?: number[];
+      headerLineFontSizesPdfMcq?: number[];
     } = {};
     for (const setLetter of setVariants) {
       if (multiMcq && setLetter != null) {
@@ -7848,6 +7916,24 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       };
       const headerCreative = canSplitHeaderByKind ? buildHeaderForPdfKind('creative') : undefined;
       const headerMcq = canSplitHeaderByKind ? buildHeaderForPdfKind('mcq') : undefined;
+      let pdfHeaderLineFontPxCreative = canSplitHeaderByKind
+        ? this.buildPdfHeaderLineFontPxListForSplitExport('creative', setLetter)
+        : [];
+      let pdfHeaderLineFontPxMcq = canSplitHeaderByKind
+        ? this.buildPdfHeaderLineFontPxListForSplitExport('mcq', setLetter)
+        : [];
+      const alignPdfHeaderFontsToNewlineCount = (hdr: string | undefined, px: number[]): number[] => {
+        if (!hdr || !px.length) return px;
+        const n = hdr.replace(/\r\n/g, '\n').split('\n').length;
+        if (px.length === n) return px;
+        if (px.length > n) return px.slice(0, n);
+        const last = px[px.length - 1] ?? 14;
+        const out = px.slice();
+        while (out.length < n) out.push(last);
+        return out;
+      };
+      pdfHeaderLineFontPxCreative = alignPdfHeaderFontsToNewlineCount(headerCreative, pdfHeaderLineFontPxCreative);
+      pdfHeaderLineFontPxMcq = alignPdfHeaderFontsToNewlineCount(headerMcq, pdfHeaderLineFontPxMcq);
       if (
         headerCreative &&
         headerMcq &&
@@ -7856,6 +7942,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         persistedExportSplitHeaders = {
           exportQuestionHeaderCreative: headerCreative,
           exportQuestionHeaderMcq: headerMcq,
+          ...(pdfHeaderLineFontPxCreative.length ? { headerLineFontSizesPdfCreative: pdfHeaderLineFontPxCreative } : {}),
+          ...(pdfHeaderLineFontPxMcq.length ? { headerLineFontSizesPdfMcq: pdfHeaderLineFontPxMcq } : {}),
         };
       }
 
@@ -7870,6 +7958,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             questionHeader: header,
             ...(headerCreative ? { questionHeaderCreative: headerCreative } : {}),
             ...(headerMcq ? { questionHeaderMcq: headerMcq } : {}),
+            ...(pdfHeaderLineFontPxCreative.length ? { headerLineFontSizesPdfCreative: pdfHeaderLineFontPxCreative } : {}),
+            ...(pdfHeaderLineFontPxMcq.length ? { headerLineFontSizesPdfMcq: pdfHeaderLineFontPxMcq } : {}),
             filename: fname,
             format: fmt,
           } as any)

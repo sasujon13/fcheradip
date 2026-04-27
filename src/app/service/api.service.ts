@@ -356,6 +356,10 @@ export class ApiService {
     layoutColumnsCreative?: number;
     optionsColumns?: number;
     headerLineFontSizes?: number[];
+    /** Per newline row of `questionHeaderCreative` — Playwright PDF header fonts (split mixed headers). */
+    headerLineFontSizesPdfCreative?: number[];
+    /** Per newline row of `questionHeaderMcq` — Playwright PDF header fonts (split mixed headers). */
+    headerLineFontSizesPdfMcq?: number[];
     headerEiin?: string;
     headerInstitute?: string;
     questionHeaderCreative?: string;
@@ -401,6 +405,8 @@ export class ApiService {
     layoutColumnsCreative?: number;
     optionsColumns?: number;
     headerLineFontSizes?: number[];
+    headerLineFontSizesPdfCreative?: number[];
+    headerLineFontSizesPdfMcq?: number[];
     headerEiin?: string;
     headerInstitute?: string;
     questionHeaderCreative?: string;
