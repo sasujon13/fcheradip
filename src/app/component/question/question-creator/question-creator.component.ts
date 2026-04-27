@@ -6564,6 +6564,33 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
+   * MCQ option row hanging indent (matches `.preview-q-opt` until made font-relative in CSS).
+   * Included in export layout_settings so Playwright PDF uses the same value as preview.
+   */
+  private get previewQOptHangPx(): number {
+    return 16;
+  }
+
+  /**
+   * Roman-numeral sub-line indent (i./ii./iii.) — matches preview until made configurable.
+   */
+  private get previewQRomanIndentPx(): number {
+    return 10;
+  }
+
+  /** Per-question option row gap in px (14px font -> 4px baseline). */
+  private previewQOptionRowGapPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(2, Math.round((4 * fz) / 14));
+  }
+
+  /** Per-question option column gap in px (14px font -> 1.5em ~= 21px baseline). */
+  private previewQOptionColGapPxForQuestion(q: { type?: unknown } | null | undefined): number {
+    const fz = this.previewQuestionsFontPxForQuestion(q);
+    return Math.max(10, Math.round((21 * fz) / 14));
+  }
+
+  /**
    * Per-question spacing: vertical padding only (horizontal spacing from margins + column gap).
    */
   previewQuestionBlockStyleForQ(q: { type?: unknown }): Record<string, string> {
@@ -6576,6 +6603,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       '--preview-question-lh': `${lh}`,
       '--preview-q-bn-paren-inset': `${2 * fz - 2}px`,
       '--preview-q-subpart-pl': `${2 * fz - 4}px`,
+      '--preview-q-opt-hang': `${this.previewQOptHangPx}px`,
+      '--preview-q-roman-indent': `${this.previewQRomanIndentPx}px`,
+      '--preview-q-opt-row-gap': `${this.previewQOptionRowGapPxForQuestion(q)}px`,
+      '--preview-q-opt-col-gap': `${this.previewQOptionColGapPxForQuestion(q)}px`,
       paddingTop: `${p}px`,
       paddingBottom: `${p}px`,
       paddingLeft: '0',
@@ -7552,6 +7583,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       previewQuestionsLineHeight: this.previewQuestionsLineHeight,
       previewQuestionsLineHeightCreative: this.previewQuestionsLineHeightCreative,
       previewQuestionsLineHeightMcq: this.previewQuestionsLineHeightMcq,
+      /** Typography detail: forwarded to PDF export CSS (matches preview variables). */
+      previewQOptHangPx: this.previewQOptHangPx,
+      previewQRomanIndentPx: this.previewQRomanIndentPx,
       pageSections: this.pageSections,
       sectionGapPx: this.sectionGapPx,
       leadEmptyFirstPageActive: this.leadEmptyFirstPageActive,
@@ -7701,6 +7735,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       previewQuestionsLineHeight: this.previewQuestionsLineHeight,
       previewQuestionsLineHeightCreative: this.previewQuestionsLineHeightCreative,
       previewQuestionsLineHeightMcq: this.previewQuestionsLineHeightMcq,
+      previewQOptHangPx: this.previewQOptHangPx,
+      previewQRomanIndentPx: this.previewQRomanIndentPx,
       layoutColumns: this.layoutColumns,
       layoutColumnsCreative: this.layoutColumnsCreative,
       layoutColumnGapPx: this.layoutColumnGapPx,

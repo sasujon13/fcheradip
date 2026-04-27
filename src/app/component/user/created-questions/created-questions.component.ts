@@ -378,6 +378,8 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
       previewQuestionsLineHeight: this.numFromLayout(ls, 'previewQuestionsLineHeight', 1.4),
       previewQuestionsLineHeightCreative: this.numFromLayout(ls, 'previewQuestionsLineHeightCreative', 1.4),
       previewQuestionsLineHeightMcq: this.numFromLayout(ls, 'previewQuestionsLineHeightMcq', 1.4),
+      previewQOptHangPx: this.numFromLayout(ls, 'previewQOptHangPx', 16),
+      previewQRomanIndentPx: this.numFromLayout(ls, 'previewQRomanIndentPx', 10),
       layoutColumns: this.intClampedLayout(ls, 'layoutColumns', 2, 1, 10),
       layoutColumnsCreative: this.intClampedLayout(ls, 'layoutColumnsCreative', 2, 1, 10),
       layoutColumnGapPx: this.intClampedLayout(ls, 'layoutColumnGapPx', 14, 1, 100),

@@ -1148,7 +1148,7 @@
   float: left;
   font-weight: 700;
   margin-right: 0.2em;
-  line-height: 1.4;
+  line-height: var(--preview-question-lh, 1.4);
 }
 
 .preview-q-text {
@@ -1184,8 +1184,8 @@
  */
 .preview-q-text ::ng-deep .topic-question-line.topic-question-roman-line {
   display: block;
-  padding-left: 10px;
-  text-indent: -10px;
+  padding-left: var(--preview-q-roman-indent, 10px);
+  text-indent: calc(0px - var(--preview-q-roman-indent, 10px));
   box-sizing: border-box;
 }
 
@@ -1247,7 +1247,7 @@
 .preview-q-subpart {
   padding-left: var(--preview-q-subpart-pl, 14px);
   font-size: 1em;
-  line-height: 1.4;
+  line-height: var(--preview-question-lh, 1.4);
   color: #333;
   margin-top: 0;
   box-sizing: border-box;
@@ -1271,8 +1271,8 @@
 
 .preview-q-subpart ::ng-deep .topic-question-line.topic-question-roman-line {
   display: block;
-  padding-left: 10px;
-  text-indent: -10px;
+  padding-left: var(--preview-q-roman-indent, 10px);
+  text-indent: calc(0px - var(--preview-q-roman-indent, 10px));
   box-sizing: border-box;
 }
 
@@ -1296,7 +1296,7 @@
   color: #555;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 1.5em;
+  gap: var(--preview-q-opt-row-gap, 4px) var(--preview-q-opt-col-gap, 1.5em);
   align-items: start;
   justify-content: start;
   break-inside: avoid;
@@ -1309,8 +1309,8 @@
   display: block;
   white-space: normal;
   min-width: 0;
-  padding-left: 16px;
-  text-indent: -16px;
+  padding-left: var(--preview-q-opt-hang, 16px);
+  text-indent: calc(0px - var(--preview-q-opt-hang, 16px));
   box-sizing: border-box;
   text-align: left;
 }
