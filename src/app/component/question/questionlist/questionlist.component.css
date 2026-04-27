@@ -48,7 +48,7 @@
 .page-info {
   font-family: 'Roboto Thin', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #666666;
+  color: #000;
 }
 
 @media screen and (max-width: 768px) {
