@@ -1102,7 +1102,7 @@
 .preview-questions {
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
-  color: #333;
+  color: #000;
   cursor: crosshair;
   overflow: hidden;
 }
@@ -1147,6 +1147,7 @@
 .preview-q-index {
   float: left;
   font-weight: 700;
+  color: #000;
   margin-right: 0.2em;
   min-width: 2.75em;
   text-align: end;
@@ -1162,7 +1163,7 @@
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
   white-space: pre-line;
-  color: #333;
+  color: #000;
 }
 
 /* Match export line model so CQ left indent/wrap starts exactly like PDF. */
@@ -1257,7 +1258,7 @@
   bottom: 0;
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
-  color: #333;
+  color: #000;
 }
 
 /* Align with stem text column: 2.75em number + 0.2em gap = 2.95em (same as PDF `.qn` + `--preview-q-subpart-pl`). */
@@ -1265,7 +1266,7 @@
   padding-left: var(--preview-q-subpart-pl, 2.95em);
   font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
-  color: #333;
+  color: #000;
   margin-top: 0;
   box-sizing: border-box;
 }
@@ -1294,7 +1295,7 @@
   box-sizing: border-box;
 }
 
-/* Same left inset as subparts (see `--preview-q-subpart-pl`). */
+/* Same left inset as subparts: 1em on grid so 2.95em = stem column; 13/14 on .preview-q-opt only. */
 .preview-q-options {
   clear: both;
   margin-top: var(--preview-q-opt-my, 0.2143em);
@@ -1302,9 +1303,9 @@
   margin-left: 0;
   padding-left: var(--preview-q-subpart-pl, 2.95em);
   box-sizing: border-box;
-  font-size: calc(13 / 14 * 1em);
+  font-size: 1em;
   line-height: var(--preview-question-lh, 1.4);
-  color: #555;
+  color: #000;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--preview-q-opt-row-gap, 0.2857em) var(--preview-q-opt-col-gap, 1.5em);
@@ -1324,6 +1325,9 @@
   text-indent: calc(0px - var(--preview-q-opt-hang, 1.1429em));
   box-sizing: border-box;
   text-align: left;
+  font-size: calc(13 / 14 * 1em);
+  line-height: var(--preview-question-lh, 1.4);
+  color: #000;
 }
 
 .preview-measure-slot {
@@ -1368,11 +1372,11 @@
 
 .preview-measure-q {
   line-height: var(--preview-question-lh, 1.4);
-  color: #333;
+  color: #000;
 }
 
 .preview-measure-header {
-  color: #333;
+  color: #000;
 }
 
 .creator-questions-section {
