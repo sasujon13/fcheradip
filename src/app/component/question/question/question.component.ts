@@ -12,6 +12,7 @@ const SMART_CREATOR_EXAM_OPTIONS: ReadonlyArray<{ key: string; label: string }> 
   { key: 'election', label: 'নির্বাচনী পরীক্ষা' },
   { key: 'pre_election', label: 'প্রাক-নির্বাচনী পরীক্ষা' },
   { key: 'yearly', label: 'বার্ষিক পরীক্ষা' },
+  
   { key: 'half_yearly', label: 'অর্ধবার্ষিক পরীক্ষা' },
   { key: 'term1', label: '১ম সাময়িক পরীক্ষা' },
   { key: 'term2', label: '২য় সাময়িক পরীক্ষা' },
