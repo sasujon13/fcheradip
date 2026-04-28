@@ -515,8 +515,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly CUSTOM_PAGE_STEPPER_IN = 0.1;
   private static readonly INCH_TO_MM = 25.4;
 
-  /** Printable bottom margin (mm) for MCQ sheets — CQ sheets keep {@link marginBottom} (default 12.7 mm). */
-  private static readonly MCQ_SHEET_BOTTOM_MARGIN_MM = 19;
+  /** MCQ and CQ both use the user-selected bottom margin (`marginBottom`). */
+  private static readonly MCQ_SHEET_BOTTOM_MARGIN_MM = 0;
 
   /** Paper width × height in mm (portrait). */
   private static readonly PAPER_MM: Record<string, { w: number; h: number }> = {
@@ -607,11 +607,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** CSS px per mm at 96dpi. */
   static readonly MM_TO_PX = 96 / 25.4;
 
-  /**
-   * Bypass: extra blank space at the bottom of MCQ sheets in live preview only (visual margin + taller
-   * paper box). Does not change pagination, measure rail, or export — see {@link previewOnlyMcqExtraHeightPx}.
-   */
-  private static readonly PREVIEW_ONLY_MCQ_EXTRA_HEIGHT_IN = 0.5;
+  /** MCQ preview should not add any extra bottom air. */
+  private static readonly PREVIEW_ONLY_MCQ_EXTRA_HEIGHT_IN = 0;
 
   /**
    * Maximum “zoom out” (overview) vs true print width: 50% when the column is wide enough.
@@ -3615,7 +3612,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   ): number[] {
     const setL = setLetter !== null ? setLetter : this.selectedMcqSetLetter;
     const out: number[] = [];
-    const mcqTitlePx = this.clampHeaderLineFontPx(QuestionCreatorComponent.HEADER_LINE3_FONT_DEFAULT_PX);
     if (kind === 'creative') {
       this.creativeHeaderTopLinesPadded().forEach((ln, ti) => {
         const fi = this.creativeTopLineFontIndex(ti);
@@ -3642,10 +3638,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const slots = this.mcqHeaderUpperLineSlots(piMcq);
     for (let i = 0; i < slots.length; i++) {
       const s = slots[i]!;
-      const slotFontPx =
-        s.kind === 'mcqTitle'
-          ? mcqTitlePx
-          : this.headerLineFontPxForEditorLine(this.mcqUpperSlotFontIndex(i, piMcq));
+      const slotFontPx = this.headerLineFontPxForEditorLine(this.mcqUpperSlotFontIndex(i, piMcq));
       if (this.mcqShowSqSplitMcqBandRow(piMcq, i, s as { kind: string; text?: string })) {
         out.push(slotFontPx, slotFontPx);
       } else {
@@ -5189,18 +5182,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.headerVariantForPage(pageIndex);
   }
 
-  /** Preview/pagination bottom (mm): CQ uses {@link marginBottom}; MCQ uses {@link MCQ_SHEET_BOTTOM_MARGIN_MM}. */
+  /** Preview/pagination bottom (mm): use the configured bottom margin for all kinds. */
   private previewBottomMarginMmForKind(kind: 'creative' | 'mcq'): number {
-    return kind === 'mcq'
-      ? QuestionCreatorComponent.MCQ_SHEET_BOTTOM_MARGIN_MM
-      : this.marginBottom;
+    return this.marginBottom;
   }
 
-  /** Bottom margin (mm) sent on save/export: MCQ-only uses {@link MCQ_SHEET_BOTTOM_MARGIN_MM}. */
+  /** Bottom margin (mm) sent on save/export. */
   private marginBottomMmForPersistAndExportPayload(): number {
-    return this.selectionHasMcqType() && !this.selectionHasCreativeType()
-      ? QuestionCreatorComponent.MCQ_SHEET_BOTTOM_MARGIN_MM
-      : this.marginBottom;
+    return this.marginBottom;
   }
 
   /** How many sheets share {@link sheetPreviewKindKey} with this page. */
