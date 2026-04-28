@@ -5643,6 +5643,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return [];
   }
 
+  /** Clear single-seq grow blocks so next pass can retest +1 font after non-font changes. */
+  private resetAutoFitFontGrowBlocks(): void {
+    this.autoFitMcqGrowBlockedSeq = -1;
+    this.autoFitCqGrowBlockedSeq = -1;
+  }
+
   private advanceAutoFitExpandPhaseAfterBump(stepIndex: number): void {
     const L = this.autoFitExpandSteps().length;
     // Move ring index to the step after the one that was committed or reverted so the next bump rotates fairly.
@@ -5667,6 +5673,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.questionsGap = Math.min(H.QUESTIONS_GAP_MAX_PX, prev + 1); //  *
         // Stash previous value so revert can restore if autoFitExpandLayoutOk becomes false after re-pagination.
         this.autoFitExpandPending = { kind: 'mcqGap', prev, stepIndex };
+        this.resetAutoFitFontGrowBlocks();
         return true;
       }
       case 'mcqLh': {
@@ -5678,6 +5685,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         // +0.1 line-height for MCQ question body only (separate from CQ line height).
         this.previewQuestionsLineHeightMcq = next; //  *
         this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
+        this.resetAutoFitFontGrowBlocks();
         return true;
       }
       case 'cqGap': {
@@ -5687,6 +5695,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         // +1px gap after creative (CQ) blocks — validated like mcqGap.
         this.questionsGapCreative = Math.min(H.QUESTIONS_GAP_MAX_PX, prev + 1); //  *
         this.autoFitExpandPending = { kind: 'cqGap', prev, stepIndex };
+        this.resetAutoFitFontGrowBlocks();
         return true;
       }
       case 'cqLh': {
@@ -5697,6 +5706,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.autoFitExpandPending = { kind: 'cqLh', prev: cur, stepIndex };
         this.previewQuestionsLineHeightCreative = next; //  *
         this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
+        this.resetAutoFitFontGrowBlocks();
         return true;
       }
       default:
@@ -5868,6 +5878,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitHeaderLineHeightPending = { prev: cur };
     // Tentative +0.1 on the paper question header block line-height (separate from per-kind question body LH).
     this.previewHeaderLineHeight = next; //  *
+    this.resetAutoFitFontGrowBlocks();
     this.scheduleLayout();
     return true;
   }
