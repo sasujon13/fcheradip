@@ -709,7 +709,7 @@
               type="button"
               class="stepper-btn"
               (click)="decPreviewQuestionsLineHeightMcq()"
-              [disabled]="previewQuestionsLineHeightMcq <= previewLineHeightMin"
+              [disabled]="previewQuestionsLineHeightMcq <= previewQuestionsLineHeightMin"
               aria-label="Decrease MCQ line height"
             >
               −
@@ -720,7 +720,7 @@
               [ngModel]="previewQuestionsLineHeightMcq"
               (ngModelChange)="onPreviewQuestionsLineHeightMcqInput($event)"
               (blur)="onPreviewQuestionsLineHeightMcqBlur()"
-              [min]="previewLineHeightMin"
+              [min]="previewQuestionsLineHeightMin"
               [max]="previewLineHeightMax"
               step="0.1"
               inputmode="decimal"
@@ -826,7 +826,7 @@
               type="button"
               class="stepper-btn"
               (click)="decPreviewQuestionsLineHeightCreative()"
-              [disabled]="previewQuestionsLineHeightCreative <= previewLineHeightMin"
+              [disabled]="previewQuestionsLineHeightCreative <= previewQuestionsLineHeightMin"
               aria-label="Decrease CQ line height"
             >
               −
@@ -837,7 +837,7 @@
               [ngModel]="previewQuestionsLineHeightCreative"
               (ngModelChange)="onPreviewQuestionsLineHeightCreativeInput($event)"
               (blur)="onPreviewQuestionsLineHeightCreativeBlur()"
-              [min]="previewLineHeightMin"
+              [min]="previewQuestionsLineHeightMin"
               [max]="previewLineHeightMax"
               step="0.1"
               inputmode="decimal"
@@ -970,7 +970,7 @@
                     class="preview-page-label"
                     [style.fontSize.px]="previewPageLabelFontPx"
                     [style.lineHeight.px]="previewPageLabelFontPx * 1.35"
-                  >Page {{ pi + 1 }} of {{ paginatedPages.length }}</span>
+                  >{{ sheetKindToolbarLabel(pi) }}</span>
                 </div>
                 <div
                   class="preview-sheet preview-sheet-paginated"

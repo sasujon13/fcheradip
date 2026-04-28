@@ -465,12 +465,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly PREVIEW_LINE_HEIGHT_MAX = 2.2;
   private static readonly PREVIEW_HEADER_LINE_HEIGHT_DEFAULT = 1.3;
   private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT = 1.4;
+  /** Floor for CQ and MCQ **question-body** line height (preview + auto-fit tighten when shrinking font cannot go below). */
+  private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_MIN = 1.3;
 
   private static clampPreviewLineHeight(v: number, fallback: number): number {
     if (!Number.isFinite(v)) return fallback;
     const stepped = Math.round(v * 10) / 10;
     return Math.max(
       QuestionCreatorComponent.PREVIEW_LINE_HEIGHT_MIN,
+      Math.min(QuestionCreatorComponent.PREVIEW_LINE_HEIGHT_MAX, stepped)
+    );
+  }
+
+  private static clampPreviewQuestionsLineHeight(v: number, fallback: number): number {
+    if (!Number.isFinite(v)) return fallback;
+    const stepped = Math.round(v * 10) / 10;
+    return Math.max(
+      QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_MIN,
       Math.min(QuestionCreatorComponent.PREVIEW_LINE_HEIGHT_MAX, stepped)
     );
   }
@@ -567,6 +578,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   readonly optionsColumnsMin = QuestionCreatorComponent.OPTIONS_COLUMNS_MIN;
   readonly optionsColumnsMax = QuestionCreatorComponent.OPTIONS_COLUMNS_MAX;
   readonly previewLineHeightMin = QuestionCreatorComponent.PREVIEW_LINE_HEIGHT_MIN;
+  /** Min for CQ + MCQ question-body line-height steppers (`header` uses {@link previewLineHeightMin}). */
+  readonly previewQuestionsLineHeightMin = QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_MIN;
   readonly previewLineHeightMax = QuestionCreatorComponent.PREVIEW_LINE_HEIGHT_MAX;
   readonly layoutColumnGapMin = QuestionCreatorComponent.LAYOUT_GAP_MIN_PX;
   readonly layoutColumnGapMax = QuestionCreatorComponent.LAYOUT_GAP_MAX_PX;
@@ -1245,7 +1258,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (pqlh != null) {
       const n = typeof pqlh === 'number' ? pqlh : Number(pqlh);
       if (Number.isFinite(n)) {
-        this.previewQuestionsLineHeight = QuestionCreatorComponent.clampPreviewLineHeight(
+        this.previewQuestionsLineHeight = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
           n,
           QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
         );
@@ -1255,7 +1268,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (pqlhC != null) {
       const n = typeof pqlhC === 'number' ? pqlhC : Number(pqlhC);
       if (Number.isFinite(n)) {
-        this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewLineHeight(
+        this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
           n,
           QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
         );
@@ -1267,7 +1280,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (pqlhM != null) {
       const n = typeof pqlhM === 'number' ? pqlhM : Number(pqlhM);
       if (Number.isFinite(n)) {
-        this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewLineHeight(
+        this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
           n,
           QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
         );
@@ -3333,8 +3346,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * When mixed spans multiple sheets, every creative-only sheet uses the creative block; the first
    * sheet that starts with an MCQ question uses the MCQ block (not “sheet index === 1”).
    */
-  headerVariantForPage(pageIndex?: number | null): 'creative' | 'mcq' {
+  /**
+   * @param pages When measuring candidate pagination before `paginatedPages` is assigned, pass the same array so
+   * empty-sheet / mixed-header rules match {@link sheetPreviewKindKey}.
+   */
+  headerVariantForPage(pageIndex?: number | null, pages?: PreviewPage[]): 'creative' | 'mcq' {
     const pi = pageIndex == null || !Number.isFinite(Number(pageIndex)) ? 0 : Number(pageIndex);
+    const pageList = pages ?? this.paginatedPages;
     if (!this.paperSubjectMetaLinesEligible()) return 'mcq';
     if (this.selectionHasBothHeaderTypes() && this.mixedTypesSinglePageMergedHeader) {
       return 'creative';
@@ -3342,7 +3360,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.selectionHasBothHeaderTypes()) {
       return this.selectionHasCreativeType() ? 'creative' : 'mcq';
     }
-    const page = this.paginatedPages[pi];
+    const page = pageList[pi];
     const c = this.previewCreativeBlockQuestionCount();
     if (!page?.items?.length) {
       return pi === 0 ? 'creative' : 'mcq';
@@ -4469,14 +4487,39 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return 12;
   }
 
+  /** Header rows that stay ≥ question body + 1px when bumped (never line 0 or MCQ title band). */
+  private headerEditorLineFontsTrackDominantQuestionBody(i: number): boolean {
+    if (i === 0) return false;
+    const lines = this.getHeaderEditorLinesRaw();
+    const line = (lines[i] ?? '').trim();
+    if (this.isHeaderLineMcqTitleBn(line)) return false;
+    return true;
+  }
+
   /**
-   * When shrinking fonts to fit within 2 pages, do not shrink any header line below 14px
-   * if that line's default is already above 14px (e.g. 24/18/21). Lines whose defaults
-   * are <= 14px may still shrink down to the global minimum.
+   * Tracked notice/meta header rows stay at least preview question body + 1px.
+   * They are never shrunk when question font decreases — only bumped up when currently below that floor (see
+   * {@link syncGlobalPreviewQuestionsFontPxFromPerKind} after creative/MCQ ± or input blur).
    */
-  private minHeaderFontPxWhileFittingTwoPages(i: number): number {
-    const def = this.defaultHeaderFontPxForLineFromContent(i);
-    return def > 12 ? 12 : QuestionCreatorComponent.HEADER_LINE_FONT_MIN_PX;
+  private ensureTrackedHeaderLinesAtLeastQuestionBodyFont(): void {
+    this.syncHeaderFontSizesToLineCount();
+    let targetBody = 0;
+    if (this.selectionHasCreativeType()) {
+      targetBody = Math.max(targetBody, Number(this.previewQuestionsFontPxCreative) || 0);
+    }
+    if (this.selectionHasMcqType()) {
+      targetBody = Math.max(targetBody, Number(this.previewQuestionsFontPxMcq) || 0);
+    }
+    if (!(targetBody > 0)) return;
+    const bodyPx = this.clampPreviewQuestionFontPx(targetBody);
+    const floorTracked = this.clampHeaderLineFontPx(bodyPx + 1);
+    for (let i = 0; i < this.headerLineFontSizes.length; i++) {
+      if (!this.headerEditorLineFontsTrackDominantQuestionBody(i)) continue;
+      const cur = this.headerLineFontSizes[i] ?? floorTracked;
+      if (cur + 1e-6 < floorTracked) {
+        this.headerLineFontSizes[i] = floorTracked;
+      }
+    }
   }
 
   /** Grow/shrink `headerLineFontSizes` to match editable lines + optional auto subject/meta lines (3–4). */
@@ -5164,13 +5207,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Content kind on this sheet page: CQ, MCQ, or other (from first question on the page).
+   * Content kind on this sheet page: CQ, MCQ, or other (matches first question, or mixed empty-sheet/header rules).
+   * @param pages Defaults to {@link paginatedPages}; pass candidate pages during measuring so MCQ/CQ counts match Auto-fit.
    */
-  sheetPreviewKindKey(pageIndex: number): 'creative' | 'mcq' | 'other' {
-    const page = this.paginatedPages[pageIndex];
+  sheetPreviewKindKey(pageIndex: number, pages?: PreviewPage[]): 'creative' | 'mcq' | 'other' {
+    const list = pages ?? this.paginatedPages;
+    const page = list[pageIndex];
     if (!page?.items?.length) {
       if (this.selectionHasBothHeaderTypes() && !this.mixedTypesSinglePageMergedHeader) {
-        return this.headerVariantForPage(pageIndex);
+        return this.headerVariantForPage(pageIndex, list);
       }
       if (this.selectionHasCreativeType() && !this.selectionHasMcqType()) {
         return 'creative';
@@ -5188,6 +5233,35 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return 'mcq';
     }
     return 'other';
+  }
+
+  /**
+   * Toolbar label: under mixed CQ+MCQ, show per-kind numbering (e.g. `CQ 1 of 2`); otherwise `Page X of Y`.
+   */
+  sheetKindToolbarLabel(pageIndex: number): string {
+    const total = this.paginatedPages.length;
+    const n = pageIndex + 1;
+    if (total <= 1 || !this.selectionHasBothHeaderTypes()) {
+      return `Page ${n} of ${total}`;
+    }
+    const k = this.sheetPreviewKindKey(pageIndex);
+    if (k === 'other') {
+      return `Page ${n} of ${total}`;
+    }
+    let ord = 0;
+    let kindTotal = 0;
+    for (let i = 0; i < total; i++) {
+      const ki = this.sheetPreviewKindKey(i);
+      if (ki === k) {
+        kindTotal++;
+        if (i <= pageIndex) ord++;
+      }
+    }
+    if (kindTotal <= 1) {
+      return `Page ${n} of ${total}`;
+    }
+    const tag = k === 'creative' ? 'CQ' : 'MCQ';
+    return `${tag} ${ord} of ${kindTotal}`;
   }
 
   /**
@@ -5229,23 +5303,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return n;
   }
 
-  /** Kind of the first item on a sheet; {@link countKindsInCandidatePages} increments one bucket per page from this key. */
-  private sheetKindKeyFromPreviewPage(page: PreviewPage | undefined): 'creative' | 'mcq' | 'other' {
-    const q0 = page?.items?.[0]?.q;
-    if (!q0) return 'other';
-    if (this.questionIsCreativeType(q0)) return 'creative';
-    if (this.questionIsMcqType(q0)) return 'mcq';
-    return 'other';
-  }
-
   private shouldUseLeadEmptyFirstColumnFromPages(pages: PreviewPage[]): boolean {
     if (pages.length <= 1) return false;
     if (Math.max(1, Math.floor(this.layoutColumnsForSheetPage(0))) <= 1) return false;
     if (!this.landscapeSheetPageForPreview(0)) return false;
-    const k0 = this.sheetKindKeyFromPreviewPage(pages[0]);
+    const k0 = this.sheetPreviewKindKey(0, pages);
     let n = 0;
-    for (const p of pages) {
-      if (this.sheetKindKeyFromPreviewPage(p) === k0) n++;
+    for (let i = 0; i < pages.length; i++) {
+      if (this.sheetPreviewKindKey(i, pages) === k0) n++;
     }
     return n > 1;
   }
@@ -5262,13 +5327,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.pageSections > 1) return;
     if (pages.length <= 1) return;
 
-    const first = pages[0];
-    const k0 = this.sheetKindKeyFromPreviewPage(first);
-    if (!k0) return;
+    const k0 = this.sheetPreviewKindKey(0, pages);
+    if (k0 === 'other') return;
 
     let lastSameKindIndex = -1;
     for (let i = pages.length - 1; i >= 0; i--) {
-      if (this.sheetKindKeyFromPreviewPage(pages[i]) === k0) {
+      if (this.sheetPreviewKindKey(i, pages) === k0) {
         lastSameKindIndex = i;
         break;
       }
@@ -5286,6 +5350,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const moved = (qCols[chosenColIndex] ?? []).slice();
     if (!moved.length) return;
 
+    const first = pages[0]!;
     first.leadBindingItems = moved;
 
     const movedSet = new Set<number>(moved.map((it) => it.index));
@@ -5299,15 +5364,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Sheet counts for auto-fit policy: each page is classified once by {@link sheetKindKeyFromPreviewPage}
-   * (first question on that page only). `creative` ≈ CQ sheets, `mcq` ≈ MCQ sheets; used by autoFitExpandLayoutOk.
+   * Sheet counts for auto-fit policy: same rules as {@link sheetPreviewKindKey} per index (CQ vs MCQ vs other),
+   * including empty pages and mixed-split headers — so growth/revert thresholds apply per kind.
    */
   private countKindsInCandidatePages(pages: PreviewPage[]): { creative: number; mcq: number; other: number } {
     let creative = 0;
     let mcq = 0;
     let other = 0;
-    for (const p of pages) {
-      const k = this.sheetKindKeyFromPreviewPage(p);
+    for (let pi = 0; pi < pages.length; pi++) {
+      const k = this.sheetPreviewKindKey(pi, pages);
       if (k === 'creative') creative++;
       else if (k === 'mcq') mcq++;
       else other++;
@@ -5333,16 +5398,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) return false;
     if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) return false;
     if (this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) return false;
-    const lhMin = H.PREVIEW_LINE_HEIGHT_MIN;
-    if (this.selectionHasMcqType() && this.previewQuestionsLineHeightMcq > lhMin + 1e-6) return false;
-    if (this.selectionHasCreativeType() && this.previewQuestionsLineHeightCreative > lhMin + 1e-6) return false;
+    const bodyLhMin = H.PREVIEW_QUESTIONS_LINE_HEIGHT_MIN;
+    if (this.selectionHasMcqType() && this.previewQuestionsLineHeightMcq > bodyLhMin + 1e-6) return false;
+    if (this.selectionHasCreativeType() && this.previewQuestionsLineHeightCreative > bodyLhMin + 1e-6)
+      return false;
     if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) return false;
     if (this.previewHeaderLineHeight > H.PREVIEW_LINE_HEIGHT_MIN + 1e-6) return false;
-    const n = this.headerLineFontSizes?.length ?? 0;
-    for (let i = 0; i < n; i++) {
-      const v = this.headerLineFontSizes[i] ?? 0;
-      if (v > this.minHeaderFontPxWhileFittingTwoPages(i) + 1e-6) return false;
-    }
+    /* Header row px are not shrunk by auto-fit; baseline “hard minimum” does not depend on them. */
     return true;
   }
 
@@ -5372,7 +5434,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     if (this.selectionHasMcqType()) {
       const cur = this.previewQuestionsLineHeightMcq;
-      const next = H.clampPreviewLineHeight(cur - 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
+      const next = H.clampPreviewQuestionsLineHeight(cur - 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
       if (next < cur - 1e-6) {
         this.previewQuestionsLineHeightMcq = next;
         this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
@@ -5381,7 +5443,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     if (this.selectionHasCreativeType()) {
       const cur = this.previewQuestionsLineHeightCreative;
-      const next = H.clampPreviewLineHeight(cur - 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
+      const next = H.clampPreviewQuestionsLineHeight(cur - 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
       if (next < cur - 1e-6) {
         this.previewQuestionsLineHeightCreative = next;
         this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
@@ -5398,19 +5460,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.previewHeaderLineHeight = hhPrev;
       return true;
     }
-    const hl = this.headerLineFontSizes;
-    if (hl?.length) {
-      for (let i = 0; i < hl.length; i++) {
-        const v = hl[i] ?? 0;
-        const floorPx = this.minHeaderFontPxWhileFittingTwoPages(i);
-        if (v > floorPx + 1e-6) {
-          this.headerLineFontSizes = hl.map((x, j) =>
-            j === i ? Math.max(floorPx, (x ?? 0) - 1) : (x ?? 0)
-          ); //  *
-          return true;
-        }
-      }
-    }
+    /* Structured header line fonts are intentionally not tightened here — only question/gaps/LH/pad/header-LH shrink. */
     return false;
   }
 
@@ -5690,9 +5740,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     // Nothing to tighten if everything already fits on a single sheet.
     if (pages <= 1) return false;
 
-    const maxStep = 2;
+    const maxStep = 1;
     for (let i = 0; i < maxStep; i++) {
-      // Round-robin between padding step (0) and header line font step (1); counter advances each attempt.
       const step = this.autoFitRegularLayoutTightenStep % maxStep;
       this.autoFitRegularLayoutTightenStep++;
       if (this.applyRegularLayoutTightenStep(step)) {
@@ -5712,25 +5761,60 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.questionsPadding = Math.max(H.QUESTIONS_PADDING_MIN_PX, this.questionsPadding - 1); //  *
         return true;
       }
-      case 1: {
-        if (!this.headerLineFontSizes?.length) return false;
-        let changed = false;
-        // Step 1: try −1px on each structured header line, clamped per line so exam header stays readable.
-        this.headerLineFontSizes = this.headerLineFontSizes.map((v, i) => {
-          const dec = this.clampHeaderLineFontPx((v ?? 0) - 1);
-          const next = Math.max(this.minHeaderFontPxWhileFittingTwoPages(i), dec);
-          if (next !== (v ?? 0)) changed = true;
-          return next;
-        }); //  *
-        return changed;
-      }
       default:
         return false;
     }
   }
 
   /**
+   * MCQ sheet count vs captured baseline (uses {@link countKindsInCandidatePages} for mixed; total pages for MCQ-only).
+   */
+  private mcqSheetsAtOrBelowBaseline(
+    counts: { creative: number; mcq: number },
+    totalSheetPages: number
+  ): boolean {
+    if (!this.selectionHasMcqType() || this.autoFitBaselineSheetBudgetMcq == null) {
+      return true;
+    }
+    const used = this.autoFitMcqBudgetUsesTotalPages ? totalSheetPages : counts.mcq;
+    return used <= this.autoFitBaselineSheetBudgetMcq;
+  }
+
+  /**
+   * CQ (creative) sheet count vs captured baseline (uses {@link countKindsInCandidatePages} for mixed; total for CQ-only).
+   */
+  private cqSheetsAtOrBelowBaseline(
+    counts: { creative: number; mcq: number },
+    totalSheetPages: number
+  ): boolean {
+    if (!this.selectionHasCreativeType() || this.autoFitBaselineSheetBudgetCq == null) {
+      return true;
+    }
+    const used = this.autoFitCqBudgetUsesTotalPages ? totalSheetPages : counts.creative;
+    return used <= this.autoFitBaselineSheetBudgetCq;
+  }
+
+  /**
+   * After a tentative MCQ or CQ gap/LH bump: accept or revert using **that kind’s** sheet count only,
+   * so CQ spacing growth is not reverted just because MCQ sheets are over budget (and vice versa).
+   */
+  private autoFitSpacingExpandOkAfterKindBump(
+    counts: { creative: number; mcq: number },
+    totalSheetPages: number,
+    bumpKind: 'mcqGap' | 'mcqLh' | 'cqGap' | 'cqLh'
+  ): boolean {
+    if (!this.autoFitBaselineBudgetsCaptured) {
+      return this.autoFitExpandLayoutOk(counts, totalSheetPages);
+    }
+    if (bumpKind === 'mcqGap' || bumpKind === 'mcqLh') {
+      return this.mcqSheetsAtOrBelowBaseline(counts, totalSheetPages);
+    }
+    return this.cqSheetsAtOrBelowBaseline(counts, totalSheetPages);
+  }
+
+  /**
    * Predicate for gap/LH/header-LH bumps after baseline snapshot: no more MCQ/CQ sheets than were required at minimum layout.
+   * Header line-height is shared — still requires both kinds within budget when both are selected.
    */
   private autoFitExpandLayoutOk(
     counts: { creative: number; mcq: number },
@@ -5747,15 +5831,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       }
       return counts.mcq <= 1 && counts.creative <= 2;
     }
-    if (this.selectionHasMcqType() && this.autoFitBaselineSheetBudgetMcq != null) {
-      const used = this.autoFitMcqBudgetUsesTotalPages ? totalSheetPages : counts.mcq;
-      if (used > this.autoFitBaselineSheetBudgetMcq) return false;
-    }
-    if (this.selectionHasCreativeType() && this.autoFitBaselineSheetBudgetCq != null) {
-      const used = this.autoFitCqBudgetUsesTotalPages ? totalSheetPages : counts.creative;
-      if (used > this.autoFitBaselineSheetBudgetCq) return false;
-    }
-    return true;
+    return this.mcqSheetsAtOrBelowBaseline(counts, totalSheetPages) && this.cqSheetsAtOrBelowBaseline(counts, totalSheetPages);
   }
 
   private autoFitExpandSteps(): Array<'mcqGap' | 'mcqLh' | 'cqGap' | 'cqLh'> {
@@ -5814,7 +5890,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       case 'mcqLh': {
         if (!this.selectionHasMcqType()) return false;
         const cur = this.previewQuestionsLineHeightMcq;
-        const next = H.clampPreviewLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
+        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
         if (next <= cur) return false;
         this.autoFitExpandPending = { kind: 'mcqLh', prev: cur, stepIndex };
         // +0.1 line-height for MCQ question body only (separate from CQ line height).
@@ -5836,7 +5912,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       case 'cqLh': {
         if (!this.selectionHasCreativeType()) return false;
         const cur = this.previewQuestionsLineHeightCreative;
-        const next = H.clampPreviewLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
+        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
         if (next <= cur) return false;
         this.autoFitExpandPending = { kind: 'cqLh', prev: cur, stepIndex };
         this.previewQuestionsLineHeightCreative = next; //  *
@@ -5856,7 +5932,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return false;
     }
     const counts = this.countKindsInCandidatePages(candidatePages);
-    const ok = this.autoFitExpandLayoutOk(counts, candidatePages.length);
+    const ok = this.autoFitSpacingExpandOkAfterKindBump(counts, candidatePages.length, p.kind);
     if (ok) {
       // Bump is compatible with MCQ/CQ sheet policy — commit: clear pending, advance ring, unblock all steps.
       this.autoFitExpandPending = null;
@@ -5902,7 +5978,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       case 'mcqLh': {
         if (!this.selectionHasMcqType()) return true;
         const cur = this.previewQuestionsLineHeightMcq;
-        const next = H.clampPreviewLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
+        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
         // At clamp ceiling: another +0.1 would not change the stored value — treat as exhausted.
         return next <= cur;
       }
@@ -5911,7 +5987,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       case 'cqLh': {
         if (!this.selectionHasCreativeType()) return true;
         const cur = this.previewQuestionsLineHeightCreative;
-        const next = H.clampPreviewLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
+        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
         return next <= cur;
       }
       default:
@@ -5930,8 +6006,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     const H = QuestionCreatorComponent;
     const counts = this.countKindsInCandidatePages(candidatePages);
-    if (!this.autoFitExpandLayoutOk(counts, candidatePages.length)) {
-      // Do not expand spacing while sheet counts violate MCQ/CQ policy — font phase must shrink first.
+    if (!this.autoFitBaselineBudgetsCaptured) {
+      if (!this.autoFitExpandLayoutOk(counts, candidatePages.length)) {
+        return false;
+      }
+    } else if (!this.mcqSheetsAtOrBelowBaseline(counts, candidatePages.length) && !this.cqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
+      // Both kinds over baseline — font/padding shrink must run first; do not try any gap/LH expand.
       return false;
     }
 
@@ -5951,6 +6031,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const idx = (this.autoFitExpandPhase + k) % L;
       const step = steps[idx]!;
       if (this.autoFitExpandStepCannotBumpMore(step, H)) {
+        continue;
+      }
+      if ((step === 'mcqGap' || step === 'mcqLh') && !this.mcqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
+        continue;
+      }
+      if ((step === 'cqGap' || step === 'cqLh') && !this.cqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
         continue;
       }
       if (this.applyAutoFitExpandBump(step, idx, H)) {
@@ -6224,7 +6310,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   decPreviewQuestionsLineHeightCreative(): void {
-    this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewLineHeight(
+    this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       this.previewQuestionsLineHeightCreative - 0.1,
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6233,7 +6319,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   incPreviewQuestionsLineHeightCreative(): void {
-    this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewLineHeight(
+    this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       this.previewQuestionsLineHeightCreative + 0.1,
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6246,7 +6332,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (empty) return;
     const n = Number(raw);
     if (!Number.isFinite(n)) return;
-    const c = QuestionCreatorComponent.clampPreviewLineHeight(
+    const c = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       n,
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6258,7 +6344,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   onPreviewQuestionsLineHeightCreativeBlur(): void {
-    this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewLineHeight(
+    this.previewQuestionsLineHeightCreative = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       Number(this.previewQuestionsLineHeightCreative),
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6267,7 +6353,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   decPreviewQuestionsLineHeightMcq(): void {
-    this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewLineHeight(
+    this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       this.previewQuestionsLineHeightMcq - 0.1,
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6276,7 +6362,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   incPreviewQuestionsLineHeightMcq(): void {
-    this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewLineHeight(
+    this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       this.previewQuestionsLineHeightMcq + 0.1,
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6289,7 +6375,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (empty) return;
     const n = Number(raw);
     if (!Number.isFinite(n)) return;
-    const c = QuestionCreatorComponent.clampPreviewLineHeight(
+    const c = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       n,
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6301,7 +6387,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   onPreviewQuestionsLineHeightMcqBlur(): void {
-    this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewLineHeight(
+    this.previewQuestionsLineHeightMcq = QuestionCreatorComponent.clampPreviewQuestionsLineHeight(
       Number(this.previewQuestionsLineHeightMcq),
       QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
@@ -6491,6 +6577,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private syncGlobalPreviewQuestionsFontPxFromPerKind(): void {
     // Legacy/global field retained for backwards compatibility in persisted payloads.
     this.previewQuestionsFontPx = Math.min(this.previewQuestionsFontPxCreative, this.previewQuestionsFontPxMcq);
+    const H = QuestionCreatorComponent;
+    /* Keep CQ/MCQ body line-heights ≥ {@link PREVIEW_QUESTIONS_LINE_HEIGHT_MIN} whenever fonts change (shrinks incl. auto-fit). */
+    this.previewQuestionsLineHeightCreative = H.clampPreviewQuestionsLineHeight(
+      this.previewQuestionsLineHeightCreative,
+      H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
+    );
+    this.previewQuestionsLineHeightMcq = H.clampPreviewQuestionsLineHeight(
+      this.previewQuestionsLineHeightMcq,
+      H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
+    );
+    this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
+    this.ensureTrackedHeaderLinesAtLeastQuestionBodyFont();
   }
 
   /**
@@ -8103,12 +8201,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             this.paperHeaderLine4Plain(piCq, setL)
           );
           // Backend turns first "বিষয় কোড" line into the code grid; keep exactly one such line here.
+          /* Do not trimEnd — it strips trailing newline runs and collapses \\n-split line count vs the font array
+           * built in {@link buildPdfHeaderLineFontPxListForSplitExport} (দ্রষ্টব্য notices would mismatch → larger PDF fallback fonts). */
           return (band.length
             ? [...topLines, band[0] ?? '', codeLine, ...band.slice(1)]
             : [...topLines, codeLine]
-          )
-            .join('\n')
-            .trimEnd();
+          ).join('\n');
         }
 
         const piMcq = firstPageIndexForVariant('mcq');
@@ -8128,7 +8226,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         }
         const codeLine = this.paperHeaderLine4Plain(piMcq, setL);
         const lower = this.mcqHeaderLowerLines();
-        return [...upper, codeLine, ...lower].join('\n').trimEnd();
+        return [...upper, codeLine, ...lower].join('\n');
       };
       const headerCreative = canSplitCreativeMcqPdfHeaders ? buildHeaderForPdfKind('creative') : undefined;
       const headerMcq = useSplitMcqHeaderForPdf ? buildHeaderForPdfKind('mcq') : undefined;
@@ -8142,6 +8240,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (!hdr || !px.length) return px;
         const n = hdr.replace(/\r\n/g, '\n').split('\n').length;
         if (px.length === n) return px;
+        /* Fonts are built top-to-bottom matching {@link buildHeaderForPdfKind} order; truncate extra tail slots only. */
         if (px.length > n) return px.slice(0, n);
         const last = px[px.length - 1] ?? 14;
         const out = px.slice();
