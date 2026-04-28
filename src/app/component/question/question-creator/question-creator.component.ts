@@ -436,7 +436,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX = 8;
   private static readonly PREVIEW_QUESTIONS_FONT_MAX_PX = 48;
 
-  /** Preview line-height steppers: unitless, one decimal (e.g. 1.4). */
+  /** Preview line-height steppers: unitless, one decimal (e.g. 1.25). */
   /**
    * Mixed MCQ + CQ (two sheet pages): one textarea block drives **both** sheet headers.
    * 0–1 institute/exam, 2 subject (plain), 3 MCQ সময়+পূর্ণমান, 4 সৃজনশীল সময়+পূর্ণমান, 5 &lt;hr&gt;, 6 বিষয় কোড;
@@ -463,10 +463,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private static readonly PREVIEW_LINE_HEIGHT_MIN = 1.0;
   private static readonly PREVIEW_LINE_HEIGHT_MAX = 2.2;
-  private static readonly PREVIEW_HEADER_LINE_HEIGHT_DEFAULT = 1.3;
-  private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT = 1.4;
-  /** Floor for CQ and MCQ **question-body** line height (preview + auto-fit tighten when shrinking font cannot go below). */
-  private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_MIN = 1.3;
+  /** Sheet (paper) header line-height in preview/PDF — default 1.25; clamped to {@link PREVIEW_LINE_HEIGHT_MIN} (1) … {@link PREVIEW_LINE_HEIGHT_MAX}. */
+  private static readonly PREVIEW_HEADER_LINE_HEIGHT_DEFAULT = 1.25;
+  /** CQ and MCQ **question-body** line-height default 1.25; floor {@link PREVIEW_QUESTIONS_LINE_HEIGHT_MIN} (1). Auto-fit does not move these. */
+  private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT = 1.25;
+  /** Floor for CQ/MCQ question-body line height (steppers + clamp); auto-fit never tightens or expands toward this. */
+  private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_MIN = 1.0;
 
   private static clampPreviewLineHeight(v: number, fallback: number): number {
     if (!Number.isFinite(v)) return fallback;
@@ -3558,20 +3560,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * 0-based index in `headerPreviewLines` (newline split) → `getHeaderEditorLinesRaw()` model index
-   * (sidebar / `headerLineFontSizes` index).
+   * (sidebar / `headerLineFontSizes` index). Must match {@link filteredEditorIndexForPreviewLineIndex}
+   * (skip `<hr>` only — **do not** skip blank lines; they occupy slots in `getHeaderEditorLinesRaw`).
    */
   private headerPreviewRawLineIndexToEditorModelIndex(rawLineIndex: number): number {
-    const raw = (this.questionHeader || '').replace(/\r\n/g, '\n').split('\n');
-    if (rawLineIndex < 0 || rawLineIndex >= raw.length) return -1;
-    let fi = 0;
-    for (let ri = 0; ri < raw.length; ri++) {
-      const ln = (raw[ri] ?? '').trim();
-      if (!ln) continue;
-      if (ln.toLowerCase().includes('<hr')) continue;
-      if (ri === rawLineIndex) return fi;
-      fi++;
-    }
-    return -1;
+    return this.filteredEditorIndexForPreviewLineIndex(rawLineIndex);
   }
 
   /**
@@ -5405,7 +5398,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitCqFontLockedThisRun = false;
   }
 
-  /** True when question font, gaps, body LHs, padding, paper header LH, and structured header line fonts are at allowed minimums. */
+  /**
+   * True when question font, gaps, padding are at allowed minimums for baseline capture.
+   * {@link previewHeaderLineHeight}, CQ/MCQ {@link previewQuestionsLineHeightMcq}/{@link previewQuestionsLineHeightCreative},
+   * and per-line {@link headerLineFontSizes} are user-controlled — not tightened toward minimums here.
+   */
   private isAtHardAutoFitBaselineMinimum(): boolean {
     const H = QuestionCreatorComponent;
     const minPx = H.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
@@ -5413,30 +5410,29 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) return false;
     if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) return false;
     if (this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) return false;
-    const bodyLhMin = H.PREVIEW_QUESTIONS_LINE_HEIGHT_MIN;
-    if (this.selectionHasMcqType() && this.previewQuestionsLineHeightMcq > bodyLhMin + 1e-6) return false;
-    if (this.selectionHasCreativeType() && this.previewQuestionsLineHeightCreative > bodyLhMin + 1e-6)
-      return false;
     if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) return false;
-    if (this.previewHeaderLineHeight > H.PREVIEW_LINE_HEIGHT_MIN + 1e-6) return false;
-    /* Header row px are not shrunk by auto-fit; baseline “hard minimum” does not depend on them. */
     return true;
   }
 
   /**
-   * One layout pass: nudge a single property closer to auto-fit minimums (fonts first, then gaps, LHs, padding, header typography).
+   * One layout pass: nudge a single property closer to auto-fit minimums (fonts first, then gaps, padding).
+   * Does not change {@link previewHeaderLineHeight}, CQ/MCQ body line heights, or per-line header fonts.
    */
   private autoFitTakeOneStepTowardsMinimumHard(): boolean {
     const H = QuestionCreatorComponent;
     const minPx = H.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
     if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) {
       this.previewQuestionsFontPxMcq--;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       return true;
     }
     if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) {
       this.previewQuestionsFontPxCreative--;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       return true;
     }
     if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) {
@@ -5447,35 +5443,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.questionsGapCreative = Math.max(H.QUESTIONS_GAP_MIN_PX, this.questionsGapCreative - 1);
       return true;
     }
-    if (this.selectionHasMcqType()) {
-      const cur = this.previewQuestionsLineHeightMcq;
-      const next = H.clampPreviewQuestionsLineHeight(cur - 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
-      if (next < cur - 1e-6) {
-        this.previewQuestionsLineHeightMcq = next;
-        this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
-        return true;
-      }
-    }
-    if (this.selectionHasCreativeType()) {
-      const cur = this.previewQuestionsLineHeightCreative;
-      const next = H.clampPreviewQuestionsLineHeight(cur - 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
-      if (next < cur - 1e-6) {
-        this.previewQuestionsLineHeightCreative = next;
-        this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
-        return true;
-      }
-    }
     if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) {
       this.questionsPadding = Math.max(H.QUESTIONS_PADDING_MIN_PX, this.questionsPadding - 1);
       return true;
     }
-    const hh = this.previewHeaderLineHeight;
-    const hhPrev = H.clampPreviewLineHeight(hh - 0.1, H.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT);
-    if (hhPrev < hh - 1e-6) {
-      this.previewHeaderLineHeight = hhPrev;
-      return true;
-    }
-    /* Structured header line fonts are intentionally not tightened here — only question/gaps/LH/pad/header-LH shrink. */
+    /* Paper header LH and structured header line px are not tightened here. */
     return false;
   }
 
@@ -5588,14 +5560,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (mcqOver && this.previewQuestionsFontPxMcq > minQAuto) {
       this.previewQuestionsFontPxMcq = Math.max(minQAuto, this.previewQuestionsFontPxMcq - 1); //  *
       this.autoFitMcqFontLockedThisRun = true;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       this.scheduleLayout();
       return true;
     }
     if (cqOver && this.previewQuestionsFontPxCreative > minQAuto) {
       this.previewQuestionsFontPxCreative = Math.max(minQAuto, this.previewQuestionsFontPxCreative - 1); //  *
       this.autoFitCqFontLockedThisRun = true;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       this.scheduleLayout();
       return true;
     }
@@ -5668,7 +5644,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     ) {
       this.previewQuestionsFontPxMcq = this.autoFitMcqLastGrowPrevFontPx; //  *
       this.autoFitMcqFontLockedThisRun = true;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       this.autoFitMcqGrowBlockedSeq = seq;
       return finish();
     }
@@ -5677,7 +5655,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (cur <= minQ) return false;
       this.autoFitMcqFontLockedThisRun = true;
       this.previewQuestionsFontPxMcq = Math.max(minQ, cur - 1); //  *
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       return finish();
     }
 
@@ -5688,7 +5668,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitMcqLastGrowSeq = seq;
     this.autoFitMcqLastGrowPrevFontPx = cur;
     this.previewQuestionsFontPxMcq = Math.min(maxQ, cur + 1); //  *
-    this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+    this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+      skipBumpHeaderTrackedLinesToQuestionBody: true,
+    });
     return finish();
   }
 
@@ -5717,7 +5699,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     ) {
       this.previewQuestionsFontPxCreative = this.autoFitCqLastGrowPrevFontPx; //  *
       this.autoFitCqFontLockedThisRun = true;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       this.autoFitCqGrowBlockedSeq = seq;
       return finish();
     }
@@ -5726,7 +5710,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (cur <= minQ) return false;
       this.autoFitCqFontLockedThisRun = true;
       this.previewQuestionsFontPxCreative = Math.max(minQ, cur - 1); //  *
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       return finish();
     }
 
@@ -5737,12 +5723,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitCqLastGrowSeq = seq;
     this.autoFitCqLastGrowPrevFontPx = cur;
     this.previewQuestionsFontPxCreative = Math.min(maxQ, cur + 1); //  *
-    this.syncGlobalPreviewQuestionsFontPxFromPerKind();
+    this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+      skipBumpHeaderTrackedLinesToQuestionBody: true,
+    });
     return finish();
   }
 
   /**
-   * After question font is at auto min (8px), tighten shared padding then structured header line fonts.
+   * After question font is at auto min (8px), tighten shared padding only.
    * MCQ/CQ gaps are increased later by {@link maybeAutoFitExpandSpacingAfterFontFit} when layout allows.
    */
   private maybeAutoFitRegularTightenLayoutAfterMinFont(candidatePages: PreviewPage[]): boolean {
@@ -5853,14 +5841,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const hasM = this.selectionHasMcqType();
     const hasC = this.selectionHasCreativeType();
     if (hasM && hasC) {
-      // Mixed: try MCQ spacing before CQ spacing in this round-robin (order matters for UX progression).
-      return ['mcqGap', 'mcqLh', 'cqGap', 'cqLh'];
+      // Mixed: gaps only — CQ/MCQ body line heights stay user-set (defaults 1.25, min 1).
+      return ['mcqGap', 'cqGap'];
     }
     if (hasM) {
-      return ['mcqGap', 'mcqLh'];
+      return ['mcqGap'];
     }
     if (hasC) {
-      return ['cqGap', 'cqLh'];
+      return ['cqGap'];
     }
     return [];
   }
@@ -5902,18 +5890,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.resetAutoFitFontGrowBlocks();
         return true;
       }
-      case 'mcqLh': {
-        if (!this.selectionHasMcqType()) return false;
-        const cur = this.previewQuestionsLineHeightMcq;
-        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
-        if (next <= cur) return false;
-        this.autoFitExpandPending = { kind: 'mcqLh', prev: cur, stepIndex };
-        // +0.1 line-height for MCQ question body only (separate from CQ line height).
-        this.previewQuestionsLineHeightMcq = next; //  *
-        this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
-        this.resetAutoFitFontGrowBlocks();
-        return true;
-      }
+      case 'mcqLh':
+        /* Reserved: MCQ body line-height is not auto-expanded (user-controlled). */
+        return false;
       case 'cqGap': {
         if (!this.selectionHasCreativeType()) return false;
         if (this.questionsGapCreative >= H.QUESTIONS_GAP_MAX_PX) return false;
@@ -5924,17 +5903,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.resetAutoFitFontGrowBlocks();
         return true;
       }
-      case 'cqLh': {
-        if (!this.selectionHasCreativeType()) return false;
-        const cur = this.previewQuestionsLineHeightCreative;
-        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
-        if (next <= cur) return false;
-        this.autoFitExpandPending = { kind: 'cqLh', prev: cur, stepIndex };
-        this.previewQuestionsLineHeightCreative = next; //  *
-        this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
-        this.resetAutoFitFontGrowBlocks();
-        return true;
-      }
+      case 'cqLh':
+        /* Reserved: CQ body line-height is not auto-expanded (user-controlled). */
+        return false;
       default:
         return false;
     }
@@ -5990,28 +5961,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       case 'mcqGap':
         // Cannot bump MCQ gap if there is no MCQ content or gap is already at configured maximum.
         return !this.selectionHasMcqType() || this.questionsGap >= H.QUESTIONS_GAP_MAX_PX;
-      case 'mcqLh': {
-        if (!this.selectionHasMcqType()) return true;
-        const cur = this.previewQuestionsLineHeightMcq;
-        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
-        // At clamp ceiling: another +0.1 would not change the stored value — treat as exhausted.
-        return next <= cur;
-      }
+      case 'mcqLh':
+        return true;
       case 'cqGap':
         return !this.selectionHasCreativeType() || this.questionsGapCreative >= H.QUESTIONS_GAP_MAX_PX;
-      case 'cqLh': {
-        if (!this.selectionHasCreativeType()) return true;
-        const cur = this.previewQuestionsLineHeightCreative;
-        const next = H.clampPreviewQuestionsLineHeight(cur + 0.1, H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT);
-        return next <= cur;
-      }
+      case 'cqLh':
+        return true;
       default:
         return true;
     }
   }
 
   /**
-   * After fonts and tighten steps, increase MCQ/CQ gap and per-kind line height when layout allows (per {@link autoFitExpandLayoutOk}).
+   * After fonts and tighten steps, increase MCQ/CQ **gaps** when layout allows (per {@link autoFitExpandLayoutOk}).
+   * Per-kind question body line heights are not auto-expanded.
    */
   private maybeAutoFitExpandSpacingAfterFontFit(candidatePages: PreviewPage[]): boolean {
     if (!this.autoFitBaselineBudgetsCaptured) return false;
@@ -6083,42 +6046,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Last auto-fit step: increase header line height (+0.1) after other properties settle, only while
-   * {@link autoFitExpandLayoutOk}. Skips if no header text.
+   * Paper header line-height is not auto-increased after expand steps; header typography stays user-controlled.
    */
-  private maybeAutoFitHeaderLineHeightAfterExpand(candidatePages: PreviewPage[]): boolean {
-    if (!this.autoFitBaselineBudgetsCaptured) return false;
-    if (this.autoFitHeaderLineHeightPending) {
-      // Awaiting validation/revert from maybeRevertAutoFitHeaderLineHeightIfInvalid on the next layout pass.
-      return false;
-    }
-    if (this.autoFitExpandPending) {
-      // Do not stack header LH trial while a gap/LH question-body bump is still pending.
-      return false;
-    }
-    if (this.autoFitHeaderLineHeightGrowBlocked) {
-      // User or revert path set this after a failed header LH bump — no more header auto-grow until onPreviewLayoutChange clears it.
-      return false;
-    }
-    if (!(this.questionHeader || '').trim()) {
-      return false;
-    }
-    const counts = this.countKindsInCandidatePages(candidatePages);
-    if (!this.autoFitExpandLayoutOk(counts, candidatePages.length)) {
-      return false;
-    }
-    const H = QuestionCreatorComponent;
-    const cur = this.previewHeaderLineHeight;
-    const next = H.clampPreviewLineHeight(cur + 0.1, H.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT);
-    if (next <= cur) {
-      return false;
-    }
-    this.autoFitHeaderLineHeightPending = { prev: cur };
-    // Tentative +0.1 on the paper question header block line-height (separate from per-kind question body LH).
-    this.previewHeaderLineHeight = next; //  *
-    this.resetAutoFitFontGrowBlocks();
-    this.scheduleLayout();
-    return true;
+  private maybeAutoFitHeaderLineHeightAfterExpand(_candidatePages: PreviewPage[]): boolean {
+    return false;
   }
 
   /**
@@ -6589,7 +6520,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return QuestionCreatorComponent.PREVIEW_Q_SUBPART_PL_EM;
   }
 
-  private syncGlobalPreviewQuestionsFontPxFromPerKind(): void {
+  /**
+   * @param opts Optional flags.
+   * @param opts.skipBumpHeaderTrackedLinesToQuestionBody When `true`, do not run
+   *   {@link ensureTrackedHeaderLinesAtLeastQuestionBodyFont}. Passed for **all** auto-fit–driven question body px
+   *   changes so per-line header font sizes (`headerLineFontSizes`) stay fixed while the fitter runs.
+   */
+  private syncGlobalPreviewQuestionsFontPxFromPerKind(
+    opts?: { skipBumpHeaderTrackedLinesToQuestionBody?: boolean }
+  ): void {
     // Legacy/global field retained for backwards compatibility in persisted payloads.
     this.previewQuestionsFontPx = Math.min(this.previewQuestionsFontPxCreative, this.previewQuestionsFontPxMcq);
     const H = QuestionCreatorComponent;
@@ -6603,7 +6542,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       H.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT
     );
     this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
-    this.ensureTrackedHeaderLinesAtLeastQuestionBodyFont();
+    if (!opts?.skipBumpHeaderTrackedLinesToQuestionBody) {
+      this.ensureTrackedHeaderLinesAtLeastQuestionBodyFont();
+    }
   }
 
   /**
@@ -7116,8 +7057,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           suppressAutoFit = false;
         }
         // Auto-fit pipeline (each helper may call scheduleLayout() and return true to defer assigning paginatedPages):
-        // (0) ramp to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH / header LH (3) question fonts
-        // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps/LH (7) paper header LH.
+        // (0) ramp to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
+        // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps only (7) header LH no-op.
         if (!suppressAutoFit) {
           if (this.maybeRevertAutoFitExpandIfInvalid(candidatePages)) {
             return;
