@@ -2079,21 +2079,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Mixed CQ + MCQ on separate sheet pages: unified 7-line textarea drives both headers
-   * ({@link QuestionCreatorComponent.MIXED_HEADER_UNIFIED_MIN_LINES}).
+   * Structured CQ + MCQ: one shared textarea (7+ rows; plain বিষয় কোড row at index 6; sq দ্রষ্টব্য rows at 7–8 when eligible).
+   * True even when the preview merges CQ+MCQ onto one header block ({@link mixedTypesSinglePageMergedHeader}) — slicing and font slots must stay aligned with MCQ / CQ previews.
    */
-  private mixedHeaderUsesExpandedEditorLines(): boolean {
+  mixedUnifiedHeaderTextareaLayoutActive(): boolean {
     return (
       !this.headerUseLegacyQuestionHeader &&
       this.paperSubjectMetaLinesEligible() &&
-      this.selectionHasBothHeaderTypes() &&
-      !this.mixedTypesSinglePageMergedHeader
+      this.selectionHasBothHeaderTypes()
     );
   }
 
   /** True when mixed header uses one plain line for both CQ and MCQ code grids (line index 6). */
   mixedBothTypesUseUnifiedCodeGridLine(): boolean {
-    return this.mixedHeaderUsesExpandedEditorLines();
+    return this.mixedUnifiedHeaderTextareaLayoutActive();
   }
 
   /** Plain বিষয় কোড row (textarea index 6) shown inside both code areas when mixed. */
@@ -2103,7 +2102,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Mixed + sq 25/30: show দ্রষ্টব্য lines 8–9 in textarea (indices 7–8). */
   mixedSqNoticeLinesEligible(): boolean {
-    return this.mixedHeaderUsesExpandedEditorLines() && this.subjectSqExamVariant() !== null;
+    return this.mixedUnifiedHeaderTextareaLayoutActive() && this.subjectSqExamVariant() !== null;
   }
 
   /**
@@ -2135,7 +2134,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Minimum textarea rows for unified mixed header (7, or 9 when sq 25/30 notices apply). */
   private mixedUnifiedHeaderTextareaMinLines(): number {
-    if (!this.mixedHeaderUsesExpandedEditorLines()) {
+    if (!this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return QuestionCreatorComponent.MIXED_HEADER_UNIFIED_MIN_LINES;
     }
     return this.mixedSqNoticeLinesEligible()
@@ -2302,7 +2301,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * so it never fixes this — insert canonical MCQ at index 3 and shift the block down.
    */
   private mixedHeaderRepairShiftedCoreRowsMissingMcq(lines: string[]): boolean {
-    if (!this.mixedHeaderUsesExpandedEditorLines()) {
+    if (!this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return false;
     }
     const mcqC = this.examSqMetaCombinedLineMcq().trim();
@@ -2342,7 +2341,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Pad / migrate textarea to the unified mixed two-page layout (7 core lines + tail).
    */
   private ensureMixedExpandedHeaderEditorLines(): void {
-    if (!this.mixedHeaderUsesExpandedEditorLines()) {
+    if (!this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return;
     }
     if (this.headerManualEditSinceRebuild) {
@@ -2566,7 +2565,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (
       this.selectionHasBothHeaderTypes() &&
       !this.mixedTypesSinglePageMergedHeader &&
-      !this.mixedHeaderUsesExpandedEditorLines()
+      !this.mixedUnifiedHeaderTextareaLayoutActive()
     ) {
       return;
     }
@@ -2575,7 +2574,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       next.push('');
     }
     const cur = (next[2] ?? '').trimEnd();
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       const plainName = (this.creatorSubjectLabel ?? '').trimEnd();
       if (!plainName) {
         return;
@@ -2643,7 +2642,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (
       this.selectionHasBothHeaderTypes() &&
       !this.mixedTypesSinglePageMergedHeader &&
-      !this.mixedHeaderUsesExpandedEditorLines()
+      !this.mixedUnifiedHeaderTextareaLayoutActive()
     ) {
       return;
     }
@@ -2651,7 +2650,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     while (next.length < 4) {
       next.push('');
     }
-    const expandedMix = this.mixedHeaderUsesExpandedEditorLines();
+    const expandedMix = this.mixedUnifiedHeaderTextareaLayoutActive();
     const combined = this.examSqMetaCombinedLineCreative();
     if (!combined) {
       return;
@@ -2869,7 +2868,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.selectionHasCreativeType() || this.selectionHasMcqType()) {
       return;
     }
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return;
     }
     if (this.creativeOnlySqNoticeRowsEligible()) {
@@ -3450,7 +3449,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         { kind: 'text', text: slot5 },
       ];
     }
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       // MCQ lower block renders its own <hr>; do not also show an <hr> inside the upper band slot.
       const t5 = (lines[5] ?? '').trim();
       const slot5 = t5.toLowerCase().includes('<hr') ? '' : (lines[5] ?? '');
@@ -3484,7 +3483,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     if (
       this.mcqOnlyUsesSixLineTextareaBlock() ||
-      this.mixedHeaderUsesExpandedEditorLines()
+      this.mixedUnifiedHeaderTextareaLayoutActive()
     ) {
       if (slotIndex === 2 || slotIndex === 3) {
         return 2;
@@ -3528,7 +3527,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.mcqOnlyUsesSixLineTextareaBlock()) {
       return withSingleHr(lines.slice(7));
     }
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       if (this.mixedSqNoticeLinesEligible()) {
         return withSingleHr(lines.slice(8));
       }
@@ -3542,7 +3541,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.mcqOnlyUsesSixLineTextareaBlock()) {
       return 7;
     }
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return this.mixedSqNoticeLinesEligible() ? 8 : 7;
     }
     return 6;
@@ -3551,7 +3550,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Same slice start as {@link mcqHeaderLowerLines} before `withSingleHr` prepends `<hr>`. */
   private mcqHeaderLowerSourceSliceStart(): number {
     if (this.mcqOnlyUsesSixLineTextareaBlock()) return 7;
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return this.mixedSqNoticeLinesEligible() ? 8 : 7;
     }
     return 4;
@@ -3622,7 +3621,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Mixed CQ+MCQ: same as exam line (textarea index 1, sidebar “Header line 2”) — not the plain code row.
    */
   mcqCodeGridHeaderFontIndex(): number {
-    if (this.mcqOnlyUsesSixLineTextareaBlock() || this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mcqOnlyUsesSixLineTextareaBlock() || this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return 1;
     }
     const n = this.headerLineFontSizes.length;
@@ -4005,7 +4004,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (topIndex !== 3) {
       return false;
     }
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return this.parseCreativeSqCombinedDisplayParts(line) != null;
     }
     return (
@@ -4015,7 +4014,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   creativeSqSplitLineFirst(line: string): string {
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return this.parseCreativeSqCombinedDisplayParts(line)?.first ?? '';
     }
     return (
@@ -4026,7 +4025,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   creativeSqSplitLineSecond(line: string): string {
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return this.parseCreativeSqCombinedDisplayParts(line)?.second ?? '';
     }
     return (
@@ -4057,7 +4056,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * combined line at model index 3).
    */
   creativeTopLineFontIndex(ti: number): number {
-    if (this.mixedHeaderUsesExpandedEditorLines() && ti === 3) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive() && ti === 3) {
       return 4;
     }
     return ti;
@@ -4066,7 +4065,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** সৃজনশীল structured header: first four lines (padded); mixed: index 4 = সৃজনশীল সময়+পূর্ণমান. */
   creativeHeaderTopLinesPadded(): string[] {
     const L = this.headerPreviewLines;
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       const subj = this.mixedUnifiedCreativeSubjectPreviewLine(L[2] ?? '');
       return [L[0] ?? '', this.examLineDisplayWithoutBracket(L[1] ?? ''), subj, L[4] ?? ''];
     }
@@ -4083,7 +4082,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Lines beside the code grid; mixed: HR at index 5; sq 25/30: only index 7 (CQ দ্রষ্টব্য) — index 8 is MCQ-only. */
   creativeHeaderBandLeftLines(): string[] {
     const L = this.headerPreviewLines;
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       const out: string[] = [];
       if (L.length > 5) {
         const v = (L[5] ?? '').trim();
@@ -4127,7 +4126,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * from preview line index to that filtered slot (e.g. CQ at preview index 7 → slot 6, not 5 = code or 7 = MCQ).
    */
   creativeBandFirstLineFontIndex(): number {
-    if (!this.mixedHeaderUsesExpandedEditorLines()) {
+    if (!this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return 4;
     }
     const L = this.headerPreviewLines;
@@ -4148,7 +4147,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Font index for `creativeHeaderBandLeftLines().slice(1)` rows (0-based `bj`). */
   creativeBandTailFontBase(): number {
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       /** + bj lines up with filtered slots: CQ @ preview 7 → slot 6, MCQ @ preview 8 → slot 7. */
       return 6;
     }
@@ -4164,7 +4163,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * সৃজনশীল-only: plain code row beside grid (index 5).
    */
   creativeCodeGridFontIndex(): number {
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return 1;
     }
     if (this.selectionHasCreativeType() && !this.selectionHasMcqType()) {
@@ -4216,13 +4215,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * if that row is empty but index 5 has digits — use 5 (legacy layouts).
    */
   private plainCodeLineIndexForGrid(): number {
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       return 6;
     }
     if (
       this.selectionHasCreativeType() &&
       !this.selectionHasMcqType() &&
-      !this.mixedHeaderUsesExpandedEditorLines()
+      !this.mixedUnifiedHeaderTextareaLayoutActive()
     ) {
       return 5;
     }
@@ -4472,6 +4471,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return (line ?? '').trim() === QuestionCreatorComponent.HEADER_MCQ_TITLE_LINE_BN;
   }
 
+  /** `[দ্রষ্টব্য : …]` notice rows — excluded from auto-matching header px to question body (see {@link ensureTrackedHeaderLinesAtLeastQuestionBodyFont}). */
+  private isHeaderLineBanglaDristobyoNotice(line: string): boolean {
+    const plain = (line ?? '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\u00a0/g, ' ')
+      .trim();
+    return plain.includes('[দ্রষ্টব্য');
+  }
+
   /**
    * Default px for a line when no override is stored.
    * Uses the "Reset all Header text size" rule described above.
@@ -4487,38 +4495,45 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return 12;
   }
 
-  /** Header rows that stay ≥ question body + 1px when bumped (never line 0 or MCQ title band). */
-  private headerEditorLineFontsTrackDominantQuestionBody(i: number): boolean {
+  /**
+   * Sidebar header rows that auto-grow toward the applicable preview question body size (not line 0, not MCQ title,
+   * not `[দ্রষ্টব্য : …]` notices).
+   */
+  private headerEditorLineEligibleForQuestionFontMatch(i: number): boolean {
     if (i === 0) return false;
     const lines = this.getHeaderEditorLinesRaw();
-    const line = (lines[i] ?? '').trim();
+    const line = lines[i] ?? '';
     if (this.isHeaderLineMcqTitleBn(line)) return false;
+    if (this.isHeaderLineBanglaDristobyoNotice(line)) return false;
     return true;
   }
 
   /**
-   * Tracked notice/meta header rows stay at least preview question body + 1px.
-   * They are never shrunk when question font decreases — only bumped up when currently below that floor (see
-   * {@link syncGlobalPreviewQuestionsFontPxFromPerKind} after creative/MCQ ± or input blur).
+   * When preview question body font is larger than a matching header row, bump that row up (by at least 1px per pass
+   * until it reaches the target, clamped) so it matches CQ and/or MCQ body size as applicable — never shrinks header.
+   * দ্রষ্টব্য notice lines are excluded. Mixed CQ+MCQ uses the stronger of CQ/MCQ body fonts for shared rows.
    */
   private ensureTrackedHeaderLinesAtLeastQuestionBodyFont(): void {
     this.syncHeaderFontSizesToLineCount();
-    let targetBody = 0;
+    let targetPx = 0;
     if (this.selectionHasCreativeType()) {
-      targetBody = Math.max(targetBody, Number(this.previewQuestionsFontPxCreative) || 0);
+      targetPx = Math.max(targetPx, Number(this.previewQuestionsFontPxCreative) || 0);
     }
     if (this.selectionHasMcqType()) {
-      targetBody = Math.max(targetBody, Number(this.previewQuestionsFontPxMcq) || 0);
+      targetPx = Math.max(targetPx, Number(this.previewQuestionsFontPxMcq) || 0);
     }
-    if (!(targetBody > 0)) return;
-    const bodyPx = this.clampPreviewQuestionFontPx(targetBody);
-    const floorTracked = this.clampHeaderLineFontPx(bodyPx + 1);
+    if (!(targetPx > 0)) return;
+    const bodyPx = this.clampPreviewQuestionFontPx(targetPx);
     for (let i = 0; i < this.headerLineFontSizes.length; i++) {
-      if (!this.headerEditorLineFontsTrackDominantQuestionBody(i)) continue;
-      const cur = this.headerLineFontSizes[i] ?? floorTracked;
-      if (cur + 1e-6 < floorTracked) {
-        this.headerLineFontSizes[i] = floorTracked;
+      if (!this.headerEditorLineEligibleForQuestionFontMatch(i)) continue;
+      let cur = this.headerLineFontSizes[i] ?? bodyPx;
+      if (cur + 1e-6 >= bodyPx) continue;
+      for (let guard = 0; guard < 128 && cur + 1e-6 < bodyPx; guard++) {
+        const bumped = this.clampHeaderLineFontPx(Math.min(bodyPx, cur + 1));
+        if (bumped <= cur + 1e-6) break;
+        cur = bumped;
       }
+      this.headerLineFontSizes[i] = cur;
     }
   }
 
