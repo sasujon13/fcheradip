@@ -5467,11 +5467,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.selectionHasMcqType()) return false;
     // Monotonic id bumped on each onPreviewLayoutChange — ties “same user edit” to grow/revert bookkeeping.
     const seq = this.previewLayoutChangeSeq;
-    const pages = candidatePages.length;
     const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
     const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
     const counts = this.countKindsInCandidatePages(candidatePages);
-    const mcqOverflow = counts.mcq > 1;
+    // Keep mixed behavior (per-kind sheet budget), but for MCQ-only fall back to total page count so
+    // auto-fit remains stable even when transitional pagination labels a page as "other".
+    const mcqOverflow =
+      this.selectionHasMcqType() && !this.selectionHasCreativeType()
+        ? candidatePages.length > 1
+        : counts.mcq > 1;
     const cur = this.previewQuestionsFontPxMcq;
     const defer = options?.deferSchedule === true;
     const finish = (): boolean => {
@@ -5519,11 +5523,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   ): boolean {
     if (!this.selectionHasCreativeType()) return false;
     const seq = this.previewLayoutChangeSeq;
-    const pages = candidatePages.length;
     const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
     const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
     const counts = this.countKindsInCandidatePages(candidatePages);
-    const cqOverflow = counts.creative > 2;
+    // Same as MCQ branch: retain mixed per-kind policy, but creative-only can safely use total pages
+    // as fallback against temporary "other" buckets during relayout.
+    const cqOverflow =
+      this.selectionHasCreativeType() && !this.selectionHasMcqType()
+        ? candidatePages.length > 2
+        : counts.creative > 2;
     const cur = this.previewQuestionsFontPxCreative;
     const defer = options?.deferSchedule === true;
     const finish = (): boolean => {
