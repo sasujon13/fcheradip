@@ -3402,7 +3402,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return out;
     }
     if (this.mcqOnlyUsesSixLineTextareaBlock()) {
-      return Array.from({ length: 6 }, (_, i) => ({ kind: 'text' as const, text: lines[i] ?? '' }));
+      // Match mixed MCQ band slot model (title row + subject/meta rows) so MCQ-only layout aligns
+      // with CQ+MCQ preview/export. Keep only one visible <hr> by suppressing stored <hr> in slot 5.
+      const t5 = (lines[5] ?? '').trim();
+      const slot5 = t5.toLowerCase().includes('<hr') ? '' : (lines[5] ?? '');
+      return [
+        { kind: 'text', text: lines[0] ?? '' },
+        { kind: 'text', text: this.examLineDisplayWithoutBracket(lines[1] ?? '') },
+        { kind: 'mcqTitle' },
+        { kind: 'text', text: lines[3] ?? '' },
+        { kind: 'text', text: lines[4] ?? '' },
+        { kind: 'text', text: slot5 },
+      ];
     }
     if (this.mixedHeaderUsesExpandedEditorLines()) {
       // MCQ lower block renders its own <hr>; do not also show an <hr> inside the upper band slot.
@@ -3433,10 +3444,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   mcqUpperSlotFontIndex(slotIndex: number, pageIndex?: number | null): number {
     const pi = pageIndex == null || !Number.isFinite(Number(pageIndex)) ? 0 : Number(pageIndex);
-    if (!this.headerUsesMcqCodeTable(pi) || this.mcqOnlyUsesSixLineTextareaBlock()) {
+    if (!this.headerUsesMcqCodeTable(pi)) {
       return slotIndex;
     }
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (
+      this.mcqOnlyUsesSixLineTextareaBlock() ||
+      this.mixedHeaderUsesExpandedEditorLines()
+    ) {
       if (slotIndex === 2 || slotIndex === 3) {
         return 2;
       }
@@ -3573,10 +3587,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Mixed CQ+MCQ: same as exam line (textarea index 1, sidebar “Header line 2”) — not the plain code row.
    */
   mcqCodeGridHeaderFontIndex(): number {
-    if (this.mcqOnlyUsesSixLineTextareaBlock()) {
-      return this.plainCodeLineIndexForGrid();
-    }
-    if (this.mixedHeaderUsesExpandedEditorLines()) {
+    if (this.mcqOnlyUsesSixLineTextareaBlock() || this.mixedHeaderUsesExpandedEditorLines()) {
       return 1;
     }
     const n = this.headerLineFontSizes.length;
@@ -7876,14 +7887,27 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           ? this.reorderQuestionsFromQidList(this.persistedMcqOrderBySet[setLetter])
           : this.previewQuestions;
 
-      // Export-only: send per-kind header strings so PDF header matches preview exactly in mixed mode.
-      const canSplitHeaderByKind =
+      // Export-only: per-kind MCQ/CQ header strings (+ line fonts). Mixed uses both kinds;
+      // structured MCQ-only uses the same MCQ split builder as mixed.
+      const canSplitCreativeMcqPdfHeaders =
         !this.headerUseLegacyQuestionHeader &&
         this.paperSubjectMetaLinesEligible() &&
         this.selectionHasBothHeaderTypes() &&
         !this.mixedTypesSinglePageMergedHeader;
+      const canExportStructuredMcqOnlyPdfHeader =
+        !this.headerUseLegacyQuestionHeader &&
+        this.paperSubjectMetaLinesEligible() &&
+        !this.selectionHasCreativeType() &&
+        this.selectionHasMcqType() &&
+        !this.mixedTypesSinglePageMergedHeader &&
+        this.mcqOnlyUsesSixLineTextareaBlock();
+      const useSplitMcqHeaderForPdf =
+        canSplitCreativeMcqPdfHeaders || canExportStructuredMcqOnlyPdfHeader;
       const buildHeaderForPdfKind = (kind: 'creative' | 'mcq'): string => {
-        if (!canSplitHeaderByKind) {
+        if (kind === 'creative' && !canSplitCreativeMcqPdfHeaders) {
+          return header;
+        }
+        if (kind === 'mcq' && !useSplitMcqHeaderForPdf) {
           return header;
         }
         const setL = setLetter !== null ? setLetter : this.selectedMcqSetLetter;
@@ -7942,12 +7966,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         const lower = this.mcqHeaderLowerLines();
         return [...upper, codeLine, ...lower].join('\n').trimEnd();
       };
-      const headerCreative = canSplitHeaderByKind ? buildHeaderForPdfKind('creative') : undefined;
-      const headerMcq = canSplitHeaderByKind ? buildHeaderForPdfKind('mcq') : undefined;
-      let pdfHeaderLineFontPxCreative = canSplitHeaderByKind
+      const headerCreative = canSplitCreativeMcqPdfHeaders ? buildHeaderForPdfKind('creative') : undefined;
+      const headerMcq = useSplitMcqHeaderForPdf ? buildHeaderForPdfKind('mcq') : undefined;
+      let pdfHeaderLineFontPxCreative = canSplitCreativeMcqPdfHeaders
         ? this.buildPdfHeaderLineFontPxListForSplitExport('creative', setLetter)
         : [];
-      let pdfHeaderLineFontPxMcq = canSplitHeaderByKind
+      let pdfHeaderLineFontPxMcq = useSplitMcqHeaderForPdf
         ? this.buildPdfHeaderLineFontPxListForSplitExport('mcq', setLetter)
         : [];
       const alignPdfHeaderFontsToNewlineCount = (hdr: string | undefined, px: number[]): number[] => {
@@ -7962,13 +7986,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       };
       pdfHeaderLineFontPxCreative = alignPdfHeaderFontsToNewlineCount(headerCreative, pdfHeaderLineFontPxCreative);
       pdfHeaderLineFontPxMcq = alignPdfHeaderFontsToNewlineCount(headerMcq, pdfHeaderLineFontPxMcq);
-      if (
-        headerCreative &&
-        headerMcq &&
-        persistedExportSplitHeaders.exportQuestionHeaderCreative === undefined
-      ) {
+      if (headerMcq && useSplitMcqHeaderForPdf && persistedExportSplitHeaders.exportQuestionHeaderMcq === undefined) {
         persistedExportSplitHeaders = {
-          exportQuestionHeaderCreative: headerCreative,
+          ...(headerCreative ? { exportQuestionHeaderCreative: headerCreative } : {}),
           exportQuestionHeaderMcq: headerMcq,
           ...(pdfHeaderLineFontPxCreative.length ? { headerLineFontSizesPdfCreative: pdfHeaderLineFontPxCreative } : {}),
           ...(pdfHeaderLineFontPxMcq.length ? { headerLineFontSizesPdfMcq: pdfHeaderLineFontPxMcq } : {}),
