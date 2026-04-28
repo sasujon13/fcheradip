@@ -349,6 +349,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private autoFitMcqGrowBlockedSeq = -1;
   private autoFitMcqLastGrowSeq = -1;
   private autoFitMcqLastGrowPrevFontPx = 0;
+  /**
+   * After a tentative +1px MCQ font is reverted because it breached the MCQ sheet budget (e.g. a 3rd MCQ page),
+   * stores that validated ceiling until {@link onPreviewLayoutChange}. Stops repeating +1 when
+   * {@link resetAutoFitFontGrowBlocks} clears {@link autoFitMcqGrowBlockedSeq} after gap/LH tweaks.
+   */
+  private autoFitMcqFontValidatedMaxPx: number | null = null;
   private autoFitCqGrowBlockedSeq = -1;
   private autoFitCqLastGrowSeq = -1;
   private autoFitCqLastGrowPrevFontPx = 0;
@@ -358,7 +364,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private autoFitRegularLayoutTightenStep = 0;
 
-  /** Gap/LH auto-expand (after fonts settle); validated per layout pass for MCQ≤1 / CQ≤2 sheets. */
+  /** Gap/LH auto-expand (after fonts settle); validated per layout pass for MCQ≤2 / CQ≤2 sheets (mixed), or MCQ-only rules. */
   private autoFitExpandPhase = 0;
   private autoFitExpandPending:
     | { kind: 'cqGap'; prev: number; stepIndex: number }
@@ -369,7 +375,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private autoFitExpandStepBlocked = new Set<string>();
 
   /**
-   * After gap/LH expand: try +0.1 header line height while MCQ≤1 sheet and CQ≤2 sheets.
+   * After gap/LH expand: try +0.1 header line height while sheet counts stay within auto-fit policy (MCQ≤2, CQ≤2 when mixed).
    * Revert and block further tries this session if overflow (cleared on {@link onPreviewLayoutChange}).
    */
   private autoFitHeaderLineHeightPending: { prev: number } | null = null;
@@ -660,6 +666,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * required for {@link waitForLayoutIdle} to wait until auto-fit chains finish.
    */
   private layoutPassInFlight = false;
+  /**
+   * True only after {@link runLayout}'s RAF pass assigns {@link paginatedPages} — avoids auto-fit overlay 100%
+   * on paths that bail early with another {@link scheduleLayout}.
+   */
+  private layoutDidCommitPaginatedPages = false;
   /**
    * Prevent duplicate load/error listeners on the same `<img>` inside measure blocks.
    * Used to re-run pagination once async media dimensions are known.
@@ -5013,6 +5024,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const suppress = options?.suppressAutoFit ?? true;
     // Bumped on every preview-affecting UI change so font grow/revert logic can correlate attempts (MCQ/CQ).
     this.previewLayoutChangeSeq++;
+    this.autoFitMcqFontValidatedMaxPx = null;
     // Restart the “tighten padding then header line fonts” round-robin from step 0 after any manual layout change.
     this.autoFitRegularLayoutTightenStep = 0;
     // Restart gap/LH expand rotation and cancel any in-flight bump — old pending values would be stale vs new layout.
@@ -5300,11 +5312,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private maybeAutoFitPerKindSpacingTargets(candidatePages: PreviewPage[]): boolean {
     // Count how many preview sheets contain MCQ vs CQ (from first item per page — see countKindsInCandidatePages).
     const counts = this.countKindsInCandidatePages(candidatePages);
-    const mcqBudget = this.selectionHasMcqType() && !this.selectionHasCreativeType() ? 2 : 1;
+    /** MCQ sheets allowed before tightening padding — same budget as MCQ-only (2 sheets), including mixed CQ+MCQ. */
+    const mcqBudget = this.selectionHasMcqType() ? 2 : 1;
     // Smallest allowed inner padding around the question stack (shared for both kinds in this step).
     const minPad = QuestionCreatorComponent.QUESTIONS_PADDING_MIN_PX;
 
-    // Mixed: MCQ budget=1 sheet. MCQ-only: budget=2 sheets.
+    // MCQ: allow up to 2 sheets (same as MCQ-only); CQ: up to 2 sheets.
     if (counts.mcq > mcqBudget || counts.creative > 2) {
       // Only shrink padding if there is room above the hard minimum (otherwise this step would do nothing).
       if (this.questionsPadding > minPad) {
@@ -5326,10 +5339,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private maybeShrinkFontsToFitTwoPagesPerKind(candidatePages: PreviewPage[]): boolean {
     const counts = this.countKindsInCandidatePages(candidatePages);
-    const mcqBudget = this.selectionHasMcqType() && !this.selectionHasCreativeType() ? 2 : 1;
+    const mcqBudget = this.selectionHasMcqType() ? 2 : 1;
     // CQ is considered “too tall” for policy when it needs more than two sheets (third sheet appears).
     const creativeNeedsShrink = counts.creative > 2;
-    // Mixed: MCQ is “too tall” above 1 sheet; MCQ-only above 2 sheets.
+    // MCQ: “too tall” above 2 MCQ sheets (same threshold for MCQ-only and mixed).
     const mcqNeedsShrink = counts.mcq > mcqBudget;
     const needsShrink = creativeNeedsShrink || mcqNeedsShrink;
     // Nothing to do if both kinds are within their sheet budgets.
@@ -5359,9 +5372,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Question font steps after {@link maybeShrinkFontsToFitTwoPagesPerKind}: shrink when total pages over two
-   * (only when a kind exceeds its sheet limit, or single-kind overflow), then grow MCQ/CQ fonts when
-   * total pages ≤ 2 (via {@link maybeAutoFitMcqQuestionFontPages} / {@link maybeAutoFitCqQuestionFontPages}).
+   * Question font steps after {@link maybeShrinkFontsToFitTwoPagesPerKind}: shrink when a kind exceeds its sheet
+   * limit, then grow MCQ/CQ fonts via {@link maybeAutoFitMcqQuestionFontPages} / {@link maybeAutoFitCqQuestionFontPages}
+   * (mixed CQ+MCQ also runs that pair when total pages > 2 but each kind stays within CQ/MCQ budgets).
    * Used only from {@link maybeAutoFitQuestionFontsOnly}.
    */
   private maybeAutoFitRegularPreferOneThenTwo(candidatePages: PreviewPage[]): boolean {
@@ -5382,14 +5395,25 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.scheduleLayout();
           return true;
         }
-        if (counts.mcq > 1 && this.previewQuestionsFontPxMcq > minToTryOne) {
-          // Mixed exam, many total pages: MCQ uses >1 sheet — shrink MCQ font one px toward min.
+        if (counts.mcq > 2 && this.previewQuestionsFontPxMcq > minToTryOne) {
+          // Mixed exam: MCQ uses >2 sheets — shrink MCQ font one px toward min (same MCQ-only sheet budget).
           this.previewQuestionsFontPxMcq = Math.max(minToTryOne, this.previewQuestionsFontPxMcq - 1); //  *
           this.syncGlobalPreviewQuestionsFontPxFromPerKind();
           this.scheduleLayout();
           return true;
         }
-        // MCQ≤1 sheet and CQ≤2 sheets: do not shrink here — total pages can exceed 2 without violating per-kind limits.
+        // MCQ≤2 sheets and CQ≤2 sheets: font growth/delegates below handle fill; total pages may exceed 2.
+        const cqFirst = this.previewLayoutChangeSeq % 2 === 0;
+        const first = cqFirst
+          ? this.maybeAutoFitCqQuestionFontPages(candidatePages, { deferSchedule: true })
+          : this.maybeAutoFitMcqQuestionFontPages(candidatePages, { deferSchedule: true });
+        const second = cqFirst
+          ? this.maybeAutoFitMcqQuestionFontPages(candidatePages, { deferSchedule: true })
+          : this.maybeAutoFitCqQuestionFontPages(candidatePages, { deferSchedule: true });
+        if (first || second) {
+          this.scheduleLayout();
+          return true;
+        }
         return false;
       }
       if (hasM && !hasC) {
@@ -5428,14 +5452,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Phase 1 — fonts only: (1) when within per-kind sheet targets (MCQ≤1, CQ≤2) and total pages ≤ 2, try
-   * growing question fonts first; (2) shrink per-kind fonts when over those targets; (3) remaining shrink
-   * or grow for total pages and single-kind cases. Non-font steps must not run until this returns false.
+   * Phase 1 — fonts only: (1) when within per-kind sheet targets (MCQ≤2 / CQ≤2 when mixed; MCQ-only rules alone)
+   * and total pages ≤ 2 (or mixed handled in prefer-one-then-two), try growing question fonts first;
+   * (2) shrink per-kind fonts when over those targets; (3) remaining shrink / grow paths.
+   * Non-font steps must not run until this returns false.
    */
   private maybeAutoFitQuestionFontsOnly(candidatePages: PreviewPage[]): boolean {
     const pages = candidatePages.length;
     const counts = this.countKindsInCandidatePages(candidatePages);
-    // True when MCQ uses at most one sheet and CQ at most two (same predicate used for gap/LH expand).
+    // Sheet-count policy aligned with gap/LH expand (mixed: MCQ≤2 and CQ≤2 sheets; MCQ-only: dedicated rules).
     const withinTargets = this.autoFitExpandLayoutOk(counts, pages);
     // Only attempt +1px font growth when pagination is “compact” (≤2 total sheets) AND per-kind sheet counts OK.
     const growFirst = pages <= 2 && withinTargets;
@@ -5461,7 +5486,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return false;
   }
 
-  /** MCQ question font: shrink when total pages > 2; grow +1px while MCQ fits on ≤1 sheet (revert if overflow). */
+  /** MCQ question font: grow +1px while MCQ stays within sheet budget (revert if overflow); same 2-sheet policy as MCQ-only in mixed CQ+MCQ. */
   private maybeAutoFitMcqQuestionFontPages(
     candidatePages: PreviewPage[],
     options?: { deferSchedule?: boolean }
@@ -5472,9 +5497,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
     const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
     const counts = this.countKindsInCandidatePages(candidatePages);
-    const mcqBudget = this.selectionHasMcqType() && !this.selectionHasCreativeType() ? 2 : 1;
-    // Keep mixed behavior (budget=1), but for MCQ-only use budget=2 and fall back to total page count so
-    // auto-fit remains stable even when transitional pagination labels a page as "other".
+    // Two MCQ sheets for every selection that includes MCQ (MCQ-only still uses total-page overflow below).
+    const mcqBudget = this.selectionHasMcqType() ? 2 : 1;
+    // MCQ-only: compare total sheets (handles transient `other` pages). Mixed: count MCQ sheets only so CQ pages do not affect MCQ overflow.
     const mcqOverflow =
       this.selectionHasMcqType() && !this.selectionHasCreativeType()
         ? candidatePages.length > mcqBudget
@@ -5493,6 +5518,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     ) {
       // Last pass applied +1px MCQ font under same seq; MCQ now exceeds active sheet target — revert trial bump.
       this.previewQuestionsFontPxMcq = this.autoFitMcqLastGrowPrevFontPx; //  *
+      this.autoFitMcqFontValidatedMaxPx = this.autoFitMcqLastGrowPrevFontPx;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind();
       // Block further +1 for this seq so we do not immediately retry the same failed size.
       this.autoFitMcqGrowBlockedSeq = seq;
@@ -5501,12 +5527,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     if (mcqOverflow) {
       if (cur <= minQ) return false;
+      // MCQ exceeds sheet budget outside the +1 trial path (e.g. content grew): shrink and clear validated ceiling.
+      this.autoFitMcqFontValidatedMaxPx = null;
       // MCQ currently exceeds active sheet target: shrink MCQ font by 1px toward min.
       this.previewQuestionsFontPxMcq = Math.max(minQ, cur - 1); //  *
       this.syncGlobalPreviewQuestionsFontPxFromPerKind();
       return finish();
     }
-    
+
+    // Do not propose +1 again while at the auto-fit validated max (+1 spilled to excess MCQ sheets).
+    if (this.autoFitMcqFontValidatedMaxPx !== null && cur >= this.autoFitMcqFontValidatedMaxPx) {
+      return false;
+    }
+
     if (this.autoFitMcqGrowBlockedSeq === seq) return false;
     if (cur >= maxQ) return false;
 
@@ -5625,16 +5658,21 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Predicate for gap/LH/header-LH bumps. Mixed CQ+MCQ: MCQ≤1 sheet, CQ≤2.
-   * MCQ-only: also enforce total preview sheet count ≤ 2 — lead-empty / transitional pages may be
+   * Predicate for gap/LH/header-LH bumps. Mixed CQ+MCQ: MCQ≤2 sheets and CQ≤2 (same MCQ allowance as MCQ-only).
+   * MCQ-only: enforce total preview sheet count ≤ 2 — lead-empty / transitional pages may be
    * classified `other`, so relying on `counts.mcq` alone can wrongly allow expands onto a third sheet.
    */
   private autoFitExpandLayoutOk(
     counts: { creative: number; mcq: number },
     totalSheetPages: number
   ): boolean {
-    if (this.selectionHasMcqType() && !this.selectionHasCreativeType()) {
+    const hasM = this.selectionHasMcqType();
+    const hasC = this.selectionHasCreativeType();
+    if (hasM && !hasC) {
       return totalSheetPages <= 2 && counts.creative === 0;
+    }
+    if (hasM && hasC) {
+      return counts.mcq <= 2 && counts.creative <= 2;
     }
     return counts.mcq <= 1 && counts.creative <= 2;
   }
@@ -5735,7 +5773,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const counts = this.countKindsInCandidatePages(candidatePages);
     const ok = this.autoFitExpandLayoutOk(counts, candidatePages.length);
     if (ok) {
-      // Bump is compatible with MCQ≤1 / CQ≤2 — commit: clear pending, advance ring, unblock all steps.
+      // Bump is compatible with MCQ/CQ sheet policy — commit: clear pending, advance ring, unblock all steps.
       this.autoFitExpandPending = null;
       this.advanceAutoFitExpandPhaseAfterBump(p.stepIndex);
       this.autoFitExpandStepBlocked.clear();
@@ -5797,7 +5835,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * After fonts and tighten steps, increase MCQ/CQ gap and per-kind line height when layout allows (MCQ≤1, CQ≤2).
+   * After fonts and tighten steps, increase MCQ/CQ gap and per-kind line height when layout allows (per {@link autoFitExpandLayoutOk}).
    */
   private maybeAutoFitExpandSpacingAfterFontFit(candidatePages: PreviewPage[]): boolean {
     if (this.autoFitExpandPending) {
@@ -5807,7 +5845,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const H = QuestionCreatorComponent;
     const counts = this.countKindsInCandidatePages(candidatePages);
     if (!this.autoFitExpandLayoutOk(counts, candidatePages.length)) {
-      // Do not expand spacing while sheet counts violate MCQ≤1 / CQ≤2 — font phase must shrink first.
+      // Do not expand spacing while sheet counts violate MCQ/CQ policy — font phase must shrink first.
       return false;
     }
 
@@ -5859,7 +5897,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * Last auto-fit step: increase header line height (+0.1) after other properties settle, only while
-   * {@link autoFitExpandLayoutOk} (CQ≤2 sheets, MCQ≤1 sheet). Skips if no header text.
+   * {@link autoFitExpandLayoutOk}. Skips if no header text.
    */
   private maybeAutoFitHeaderLineHeightAfterExpand(candidatePages: PreviewPage[]): boolean {
     if (this.autoFitHeaderLineHeightPending) {
@@ -6818,6 +6856,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         try {
+        this.layoutDidCommitPaginatedPages = false;
         const blocksNow = this.measureBlocks?.toArray() ?? [];
         // Register image load/error listeners so late image dimensions trigger a follow-up pagination pass.
         // Do not block this pass; otherwise preview can stay empty while media is still loading.
@@ -6903,6 +6942,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           }
         }
         this.paginatedPages = candidatePages;
+        this.layoutDidCommitPaginatedPages = true;
         if (this.previewAutoFitForceOneLayoutChain) {
           // Forced chain (Reset / Smart) completed one full pagination commit — return to normal exam gating.
           this.previewAutoFitForceOneLayoutChain = false;
@@ -6910,6 +6950,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.updatePreviewFitScale();
         this.cdr.markForCheck();
         } finally {
+          if (
+            this.layoutDidCommitPaginatedPages &&
+            this.layoutTimer == null &&
+            this.resetAutoFitOverlayPercent >= 10 &&
+            this.resetAutoFitOverlayPercent < 100 &&
+            this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey) &&
+            !this.resetAutoFitOverlayVisible &&
+            this.layoutPassInFlight
+          ) {
+            this.clearResetAutoFitProgressTimer();
+            this.resetAutoFitOverlayPercent = 100;
+            this.cdr.markForCheck();
+          }
           this.layoutPassInFlight = false;
         }
       });
