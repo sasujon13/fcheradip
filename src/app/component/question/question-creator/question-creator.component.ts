@@ -5182,19 +5182,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.headerVariantForPage(pageIndex);
   }
 
-  /** Preview/pagination bottom (mm): MCQ-only clears bottom margin; others use configured margin. */
+  /** Preview/pagination bottom (mm): use configured margin for all modes (MCQ-only/mixed/CQ-only). */
   private previewBottomMarginMmForKind(kind: 'creative' | 'mcq'): number {
-    if (kind === 'mcq' && this.selectionHasMcqType() && !this.selectionHasCreativeType()) {
-      return 0;
-    }
     return this.marginBottom;
   }
 
-  /** Bottom margin (mm) sent on save/export; MCQ-only clears bottom margin. */
+  /** Bottom margin (mm) sent on save/export: same value for all modes. */
   private marginBottomMmForPersistAndExportPayload(): number {
-    if (this.selectionHasMcqType() && !this.selectionHasCreativeType()) {
-      return 0;
-    }
     return this.marginBottom;
   }
 
