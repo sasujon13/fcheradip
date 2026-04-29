@@ -641,6 +641,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly PREVIEW_ONLY_MCQ_EXTRA_HEIGHT_IN = 0;
 
   /**
+   * When CQ+MCQ are both in the set: extra bottom strip on the **last MCQ preview sheet** only (live preview).
+   * Added equally to sheet height and bottom padding so {@link contentInnerHeightPxForPage} / pagination / export are unchanged.
+   */
+  private static readonly PREVIEW_ONLY_MIXED_CQ_MCQ_BOTTOM_EXTRA_IN = 0.5;
+
+  /**
    * Maximum “zoom out” (overview) vs true print width: 50% when the column is wide enough.
    * When the stage is narrower than paperWidthPx × this value, scale shrinks further to fit.
    */
@@ -662,8 +668,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   mixedTypesSinglePageMergedHeader = false;
   /** First page should reserve an empty leading column (content starts at column 2). */
   leadEmptyFirstPageActive = false;
-  /** Last measured header height used for page-fit calculations. */
+  /** Last measured header height used for page-fit calculations (CQ / page-0 rail). */
   measuredHeaderHeightPx = 0;
+  /** Measured MCQ header block height when CQ+MCQ is mixed (code grid + title band). */
+  measuredMcqHeaderHeightPx = 0;
 
   magnifierActive = false;
   /** Fixed viewport position (magnifier is `position: fixed`). */
@@ -676,6 +684,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   @ViewChild('measureRail') measureRail?: ElementRef<HTMLElement>;
   @ViewChild('measureHeader') measureHeader?: ElementRef<HTMLElement>;
+  @ViewChild('measureHeaderMcq') measureHeaderMcq?: ElementRef<HTMLElement>;
   @ViewChildren('measureBlock') measureBlocks!: QueryList<ElementRef<HTMLElement>>;
   @ViewChild('previewStage') previewStage?: ElementRef<HTMLElement>;
   @ViewChild('previewCol') previewCol?: ElementRef<HTMLElement>;
@@ -5311,6 +5320,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return n;
   }
 
+  /**
+   * CQ+MCQ mixed preview: true when this sheet is the last one whose {@link sheetPreviewKindKey} is `mcq`.
+   * The preview-only bottom band applies only there so earlier MCQ sheets match the printable height of the first.
+   */
+  private isLastMcqSheetPreviewPage(pageIndex: number): boolean {
+    if (!this.selectionHasBothHeaderTypes()) {
+      return false;
+    }
+    if (this.sheetPreviewKindKey(pageIndex) !== 'mcq') {
+      return false;
+    }
+    const pages = this.paginatedPages;
+    if (!pages?.length || pageIndex < 0 || pageIndex >= pages.length) {
+      return false;
+    }
+    let lastMcq = -1;
+    for (let i = 0; i < pages.length; i++) {
+      if (this.sheetPreviewKindKey(i) === 'mcq') {
+        lastMcq = i;
+      }
+    }
+    return lastMcq === pageIndex;
+  }
+
   private shouldUseLeadEmptyFirstColumnFromPages(pages: PreviewPage[]): boolean {
     if (pages.length <= 1) return false;
     if (Math.max(1, Math.floor(this.layoutColumnsForSheetPage(0))) <= 1) return false;
@@ -6129,6 +6162,36 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return cols;
   }
 
+  /**
+   * Off-screen rail: when CQ+MCQ are both present, also measure the MCQ header block — page 0’s rail is CQ-only
+   * (`paperHeaderVisibleForSheetPage(0)`), so MCQ sheets must not reuse that height for pagination / preview-questions.
+   */
+  measureMcqHeaderRailVisible(): boolean {
+    return (
+      !!(this.questionHeader || '').trim() &&
+      this.selectionHasBothHeaderTypes() &&
+      !this.mixedTypesSinglePageMergedHeader &&
+      this.paperSubjectMetaLinesEligible() &&
+      this.selectionHasMcqType()
+    );
+  }
+
+  /** `pi` for `paperQuestionHeader` in the MCQ measure rail (first MCQ sheet that shows a header, else 1). */
+  measureRailMcqHeaderSheetPi(): number {
+    if (!this.selectionHasBothHeaderTypes() || this.mixedTypesSinglePageMergedHeader) {
+      return 0;
+    }
+    const pages = this.paginatedPages;
+    if (pages?.length) {
+      for (let i = 0; i < pages.length; i++) {
+        if (this.sheetPreviewKindKey(i, pages) === 'mcq' && this.paperHeaderVisibleForSheetPage(i)) {
+          return i;
+        }
+      }
+    }
+    return 1;
+  }
+
   /** Content width for one column when using `cols` columns (same gap as preview). */
   columnWidthPxForCols(cols: number): number {
     const n = Math.max(1, Math.floor(cols));
@@ -6861,16 +6924,24 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   singleSectionQuestionsHeightPx(pageIndex: number): number {
+    const useMcqMeasured =
+      this.selectionHasBothHeaderTypes() &&
+      !this.mixedTypesSinglePageMergedHeader &&
+      this.previewKindForSheetPage(pageIndex) === 'mcq';
+    const measuredForPage =
+      useMcqMeasured && this.measuredMcqHeaderHeightPx > 0
+        ? this.measuredMcqHeaderHeightPx
+        : this.measuredHeaderHeightPx;
     const headerInsideFirstCol =
       (this.headerInFirstColumnLandscape(pageIndex) ||
         this.landscapeLeadEmptyFirstColumnForSheetPage(pageIndex)) &&
       this.paperHeaderVisibleForSheetPage(pageIndex) &&
       this.questionHeader?.trim() &&
-      this.measuredHeaderHeightPx > 0;
+      measuredForPage > 0;
     const headerBudget = headerInsideFirstCol
       ? 0
-      : this.paperHeaderVisibleForSheetPage(pageIndex) && this.questionHeader?.trim() && this.measuredHeaderHeightPx > 0
-        ? this.measuredHeaderHeightPx
+      : this.paperHeaderVisibleForSheetPage(pageIndex) && this.questionHeader?.trim() && measuredForPage > 0
+        ? measuredForPage
         : 0;
     const innerH = this.contentInnerHeightPxForPage(pageIndex);
 
@@ -7018,13 +7089,25 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           setTimeout(() => this.scheduleLayout(), 32);
           return;
         }
-        const headerH =
+        const headerCreativePx =
           this.questionHeader?.trim() && this.measureHeader && this.paperHeaderVisibleForSheetPage(0)
             ? this.measureHeader.nativeElement.offsetHeight
             : 0;
-        this.measuredHeaderHeightPx = headerH;
+        const headerMcqPx =
+          this.questionHeader?.trim() && this.measureHeaderMcq && this.measureMcqHeaderRailVisible()
+            ? this.measureHeaderMcq.nativeElement.offsetHeight
+            : 0;
+        this.measuredHeaderHeightPx = headerCreativePx;
+        this.measuredMcqHeaderHeightPx = headerMcqPx;
 
-        const candidatePages = this.splitIntoPages(heights, innerH, headerH, this.pageSections, pq);
+        const candidatePages = this.splitIntoPages(
+          heights,
+          innerH,
+          headerCreativePx,
+          headerMcqPx,
+          this.pageSections,
+          pq
+        );
         const shouldMergeHeaderForSinglePage =
           this.paperSubjectMetaLinesEligible() &&
           this.selectionHasBothHeaderTypes() &&
@@ -7225,7 +7308,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private splitIntoPages(
     heights: number[],
     innerH: number,
-    headerH: number,
+    headerCreativePx: number,
+    headerMcqPx: number,
     pageSections: number,
     questionList: any[]
   ): PreviewPage[] {
@@ -7237,10 +7321,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const gap = this.clampSectionGapPx();
 
     if (S <= 1) {
-      return this.splitIntoPagesSingleSection(heights, innerH, headerH, questionList);
+      return this.splitIntoPagesSingleSection(heights, innerH, headerCreativePx, headerMcqPx, questionList);
     }
 
-    return this.splitIntoPagesMultiSection(heights, innerH, headerH, S, gap, questionList);
+    return this.splitIntoPagesMultiSection(heights, innerH, headerCreativePx, headerMcqPx, S, gap, questionList);
   }
 
   /**
@@ -7314,7 +7398,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private splitIntoPagesSingleSection(
     heights: number[],
     innerH: number,
-    headerH: number,
+    headerCreativePx: number,
+    headerMcqPx: number,
     questionList: any[]
   ): PreviewPage[] {
     const pages: PreviewPage[] = [];
@@ -7330,15 +7415,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       : 0;
 
     const headerBudgetForPage = (startQ: number, si: number) => {
-      if (!(this.questionHeader || '').trim() || headerH <= 0) {
+      if (!(this.questionHeader || '').trim()) {
         return 0;
       }
       if (breakAtMixedBoundary) {
         const inCreative = startQ < creativeCount;
         const show = inCreative ? si === 0 : startQ === creativeCount;
-        return show ? headerH : 0;
+        if (!show) {
+          return 0;
+        }
+        const px = inCreative ? headerCreativePx : headerMcqPx;
+        return px > 0 ? px : 0;
       }
-      return this.paperHeaderVisibleForSheetPage(si) ? headerH : 0;
+      const px = this.paperHeaderVisibleForSheetPage(si) ? headerCreativePx : 0;
+      return px > 0 ? px : 0;
     };
 
     while (q < n) {
@@ -7375,7 +7465,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private splitIntoPagesMultiSection(
     heights: number[],
     innerH: number,
-    headerH: number,
+    headerCreativePx: number,
+    headerMcqPx: number,
     S: number,
     gap: number,
     questionList: any[]
@@ -7397,19 +7488,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const C = Math.max(1, Math.floor(this.layoutColumnsForPaginationPass(sheetPageIndex, q)));
       const avail = Math.max(1, pageInnerH);
       const band = (avail - (S - 1) * gap) / S;
+      const boundaryShow = breakAtMixedBoundary
+        ? q < creativeCount
+          ? sheetPageIndex === 0
+          : q === creativeCount
+        : this.paperHeaderVisibleForSheetPage(sheetPageIndex);
+      const headerPxChosen = breakAtMixedBoundary
+        ? q < creativeCount
+          ? headerCreativePx
+          : headerMcqPx
+        : headerCreativePx;
       const showHeaderThisPage =
-        !!(this.questionHeader || '').trim() &&
-        headerH > 0 &&
-        (breakAtMixedBoundary
-          ? q < creativeCount
-            ? sheetPageIndex === 0
-            : q === creativeCount
-          : this.paperHeaderVisibleForSheetPage(sheetPageIndex));
-      const headerPerSection = showHeaderThisPage ? headerH : 0;
+        !!(this.questionHeader || '').trim() && boundaryShow && headerPxChosen > 0;
+      const headerPerSection = showHeaderThisPage ? headerPxChosen : 0;
       const sectionCap = Math.max(1, band - headerPerSection);
 
       if (band <= 0) {
-        return this.splitIntoPagesSingleSection(heights, pageInnerH, headerH, questionList);
+        return this.splitIntoPagesSingleSection(heights, pageInnerH, headerCreativePx, headerMcqPx, questionList);
       }
 
       const sections: PreviewPageItem[][] = Array.from({ length: S }, () => []);
@@ -7511,6 +7606,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
   }
 
+  /** Preview-only bottom band on the last MCQ sheet when CQ+MCQ are both present (px). */
+  private previewOnlyMixedCQMcqBottomBandPxForSheetPage(pageIndex: number): number {
+    if (!this.isLastMcqSheetPreviewPage(pageIndex)) {
+      return 0;
+    }
+    return (
+      QuestionCreatorComponent.PREVIEW_ONLY_MIXED_CQ_MCQ_BOTTOM_EXTRA_IN *
+      QuestionCreatorComponent.INCH_TO_MM *
+      QuestionCreatorComponent.MM_TO_PX
+    );
+  }
+
   /**
    * Printable inner width (px) for CQ vs MCQ paper orientation.
    * Must match {@link contentInnerWidthPxForPage} for that kind — not {@link contentInnerWidthPx}, which uses
@@ -7569,7 +7676,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   paperHeightPxForPage(pageIndex: number): number {
     const kind = this.previewKindForSheetPage(pageIndex);
     const base = this.paperSizeMmForKind(kind).h * QuestionCreatorComponent.MM_TO_PX;
-    return kind === 'mcq' ? base + this.previewOnlyMcqExtraHeightPx() : base;
+    const mcqPreviewAir = kind === 'mcq' ? this.previewOnlyMcqExtraHeightPx() : 0;
+    return base + mcqPreviewAir + this.previewOnlyMixedCQMcqBottomBandPxForSheetPage(pageIndex);
   }
 
   marginTopPxForPage(pageIndex: number): number {
@@ -7583,7 +7691,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   marginBottomPxForPage(pageIndex: number): number {
     const kind = this.previewKindForSheetPage(pageIndex);
     const base = this.previewBottomMarginMmForKind(kind) * QuestionCreatorComponent.MM_TO_PX;
-    return kind === 'mcq' ? base + this.previewOnlyMcqExtraHeightPx() : base;
+    const mcqPreviewAir = kind === 'mcq' ? this.previewOnlyMcqExtraHeightPx() : 0;
+    return base + mcqPreviewAir + this.previewOnlyMixedCQMcqBottomBandPxForSheetPage(pageIndex);
   }
 
   marginLeftPxForPage(pageIndex: number): number {

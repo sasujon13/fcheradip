@@ -1274,6 +1274,13 @@
       <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: 0 }"></ng-container>
     </div>
     <div
+      #measureHeaderMcq
+      class="preview-header preview-measure-header"
+      *ngIf="measureMcqHeaderRailVisible()"
+    >
+      <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: measureRailMcqHeaderSheetPi() }"></ng-container>
+    </div>
+    <div
       *ngFor="let q of previewQuestions; let i = index; trackBy: trackPreviewQuestion"
       class="preview-measure-slot"
       [style.maxWidth.px]="columnMeasureWidthPxForQuestionIndex(i)"
