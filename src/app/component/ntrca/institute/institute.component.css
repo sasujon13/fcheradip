@@ -42,6 +42,13 @@
   margin-left: -7px;
 }
 
+.tokenbox .hover-message-container {
+  position: fixed;
+  display: inline-block;
+  right: 0;
+  top: 102px;
+}
+
 .hover-message-box {
   display: none;
   position: absolute;

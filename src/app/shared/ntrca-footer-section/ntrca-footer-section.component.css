@@ -45,7 +45,7 @@
 }
 
 :host .hover-message-container {
-  position: relative;
+  position: fixed;
   display: inline-block;
 }
 

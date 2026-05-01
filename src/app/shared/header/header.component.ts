@@ -240,14 +240,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  /** Apply 8-digit token from header token box (same API + same app-alert as vacant/recommend/merit). */
+  /** Apply TrxID (8–10 digits) from header token box (same API + same app-alert as vacant/recommend/merit). */
   applyToken(): void {
-    if (!this.newToken || this.newToken.length !== 8) {
-      this.showTokenAlertMessage('Enter a valid 8-digit token to unlock more Details!');
+    const trimmedToken = (this.newToken || '').trim();
+    if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) {
+      this.showTokenAlertMessage('Enter a valid 8–10 digit TrxID to unlock more Details!');
       return;
     }
     this.http.get<{ results?: Array<{ id?: number; Counter?: number; Status?: number }> }>(
-      `${environment.apiUrl}/token/?token=${this.newToken}`
+      `${environment.apiUrl}/token/?token=${encodeURIComponent(trimmedToken)}`
     ).subscribe({
       next: (res) => {
         const result = res?.results?.[0];
@@ -256,17 +257,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
           const newLimit = currentLimit + Number(result.Counter);
           localStorage.setItem('freeUnlockLimit', newLimit.toString());
           this.newToken = '';
-          this.showTokenAlertMessage('Token Successfully Activated, Now Click on Lock Icon to Unlock Informations!');
+          this.showTokenAlertMessage('TrxID Successfully Activated, Now Click on Lock Icon to Unlock Informations!');
           this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 }).subscribe({
             next: () => {},
             error: () => {}
           });
         } else {
-          this.showTokenAlertMessage('Token Already Used! Request a new 8 Digit Token to unlock more Details!');
+          this.showTokenAlertMessage('TrxID Already Used! Request another valid TrxID to unlock more Details!');
         }
       },
       error: () => {
-        this.showTokenAlertMessage('Failed to validate Token! Try again to unlock more Details!');
+        this.showTokenAlertMessage('Failed to validate TrxID! Try again to unlock more Details!');
       }
     });
   }

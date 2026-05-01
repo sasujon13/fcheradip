@@ -153,10 +153,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   editingQid: number | string | null = null;
   /** Inline-edit form values (question text, option_1..4). */
   editForm: { question: string; option_1: string; option_2: string; option_3: string; option_4: string } = { question: '', option_1: '', option_2: '', option_3: '', option_4: '' };
-  /** Success alert (same app-alert as Apply Token): message and visibility. */
+  /** Success alert (same app-alert as Apply TrxID): message and visibility. */
   successAlertMessage = '';
   showSuccessAlert = false;
-  /** Disappear feedback (snackbar like Apply Token). */
+  /** Disappear feedback (snackbar like Apply TrxID). */
   disappearAlertMessage = '';
   showDisappearAlert = false;
   /** Loved/favourite qids (client-side only). */

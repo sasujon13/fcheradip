@@ -648,7 +648,8 @@ export class NtrcaComponent implements OnInit {
   }
 
   verifyToken(): void {
-    if (!this.token || this.token.length !== 8) {
+    const trimmed = (this.token || '').trim();
+    if (!trimmed || trimmed.length < 8 || trimmed.length > 10) {
       this.showNoDataAlert7 = false;
       setTimeout(() => {
         this.showNoDataAlert7 = true;
@@ -656,15 +657,11 @@ export class NtrcaComponent implements OnInit {
       return;
     }
 
-    this.http.get<any>(`${environment.apiUrl}/token?token=${this.token}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token?token=${encodeURIComponent(trimmed)}`).subscribe({
       next: (res) => {
         if (res.success && res.counter > 0) {
           this.tokenCounter = res.counter;
-          if (this.token) {
-            localStorage.setItem('unlockToken', this.token);
-          } else {
-            console.warn('Token is null. Not storing to localStorage.');
-          }
+          localStorage.setItem('unlockToken', trimmed);
           localStorage.setItem('tokenCounter', this.tokenCounter.toString());
           this.showNoDataAlert8 = false;
           setTimeout(() => {

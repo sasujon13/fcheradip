@@ -42,7 +42,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
   /** When current search returned no results, we show last shown results and this message. */
   lastShownMessage: string | null = null;
 
-  /** Token box: 8-digit token input and apply (shared with college-theme via localStorage). */
+  /** Token box: TrxID (8–10 digits) input and apply (shared with college-theme via localStorage). */
   newToken: string = '';
   freeUnlockLimit = 10;
   unlockedEIINs: Set<string> = new Set();
@@ -342,11 +342,12 @@ export class InstituteComponent implements OnInit, OnDestroy {
     return `   ${start} - ${end}   `;
   }
 
-  /** Validate and apply 8-digit token; updates freeUnlockLimit from API and persists to localStorage. */
+  /** Validate and apply TrxID; updates freeUnlockLimit from API and persists to localStorage. */
   applyToken(): void {
-    if (!this.newToken || this.newToken.trim().length !== 8) return;
+    const trimmedToken = (this.newToken || '').trim();
+    if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) return;
 
-    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${encodeURIComponent(trimmedToken)}`).subscribe({
       next: (res) => {
         const result = res?.results?.[0];
         if (result && result.Counter != null && Number(result.Status) === 0) {

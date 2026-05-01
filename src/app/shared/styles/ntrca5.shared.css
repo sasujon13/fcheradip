@@ -1329,6 +1329,7 @@ button.view {
   width: 132px;
   border: 5px solid var(--color_primary_teal);
   border-left: 18px solid var(--color_primary_teal);
+  margin-left: -168px;
 }
 
 .token-input-box button {
@@ -1340,6 +1341,10 @@ button.view {
   border-top-right-radius: 20px;
   border-bottom-right-radius: 20px;
   margin-left: -7px;
+}
+
+.rmsg {
+  margin: -24px 0 0 224px;
 }
 
 .hover-message-box {
@@ -1354,6 +1359,7 @@ button.view {
   box-shadow: 0 0 10px #00808080;
   z-index: 100;
   border-radius: 12px;
+  margin-top: 16px;
 }
 
 .token-input-box2 {
@@ -1384,8 +1390,9 @@ button.view {
 }
 
 .hover-message-container {
-  position: relative;
+  position: fixed;
   display: inline-block;
+  margin-left: 10px;
 }
 
 .loading-indicator2 {

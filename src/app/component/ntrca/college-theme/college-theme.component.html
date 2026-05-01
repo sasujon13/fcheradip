@@ -2,8 +2,8 @@
   <div class="token-input-box">
     <br>
     <div class="hover-message-container">
-      <input type="text" [(ngModel)]="newToken" placeholder="8-Digit Token" maxlength="8" />
-      <button (click)="applyToken()">Apply Token</button>
+      <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10" />
+      <button (click)="applyToken()">Apply TrxID</button>
       <p style="margin-top: 7px;">Remaining unlocks: <b>{{ (freeUnlockLimit || 0) - unlockedEIINs.size
           }}</b></p>
       <div class="hover-message-box" style="text-align: left;">
@@ -11,9 +11,8 @@
         2. Send Money to <strong>01722710298</strong> (Personal) Tk 200<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Using <strong>bKash / Nagad</strong> to Unlock &nbsp;<strong>1000</strong>&nbsp;
         Institutes.<br>
-        3. WhatsApp / Message me the <strong>TrxID</strong> for Token and,<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then Place the <strong>Token</strong> & Click on <strong>Apply Token</strong>
-        Button!
+        3. WhatsApp / Message me your <strong>TrxID</strong> after payment,<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then enter the <strong>TrxID</strong> here & click <strong>Apply TrxID</strong>.
       </div>
     </div>
   </div>

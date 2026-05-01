@@ -30,7 +30,7 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
   error: string | null = null;
   data: any = null;
 
-  /** Token box: 8-digit token input and apply. */
+  /** Token box: TrxID (8–10 digits) input and apply. */
   newToken: string = '';
   freeUnlockLimit = 10;
   unlockedEIINs: Set<string> = new Set();
@@ -514,11 +514,12 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
     setTimeout(() => (this.copyFeedback = false), 1500);
   }
 
-  /** Validate and apply 8-digit token; updates freeUnlockLimit from API and persists to localStorage. */
+  /** Validate and apply TrxID; updates freeUnlockLimit from API and persists to localStorage. */
   applyToken(): void {
-    if (!this.newToken || this.newToken.trim().length !== 8) return;
+    const trimmedToken = (this.newToken || '').trim();
+    if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) return;
 
-    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${encodeURIComponent(trimmedToken)}`).subscribe({
       next: (res) => {
         const result = res?.results?.[0];
         if (result && result.Counter != null && Number(result.Status) === 0) {

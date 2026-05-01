@@ -15,7 +15,7 @@
   --ct-sky: #6b9ac4;
 }
 
-/* Token box (8-digit token + remaining unlocks) */
+/* Token box (TrxID 8–10 digits + remaining unlocks) */
 .tokenbox {
   position: relative;
   max-width: 1920px;
@@ -58,8 +58,10 @@
 }
 
 .hover-message-container {
-  position: relative;
+  position: fixed;
   display: inline-block;
+  right: 0;
+  top: 102px;
 }
 
 .hover-message-container:hover .hover-message-box {

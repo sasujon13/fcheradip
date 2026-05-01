@@ -1016,13 +1016,14 @@ export class NtrcaComponent implements OnInit, AfterViewInit {
   }
 
   applyToken(): void {
-    if (!this.newToken || this.newToken.length !== 8) {
+    const trimmedToken = (this.newToken || '').trim();
+    if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) {
       this.showNoDataAlert7 = false;
       setTimeout(() => this.showNoDataAlert7 = true);
       return;
     }
 
-    this.http.get<any>(`${environment.apiUrl}/token/?token=${this.newToken}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${encodeURIComponent(trimmedToken)}`).subscribe({
       next: (res) => {
         const result = res?.results?.[0];
         console.log(result);
