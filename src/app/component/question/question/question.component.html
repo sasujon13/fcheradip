@@ -1,4 +1,4 @@
-<div class="question-container">
+<div class="question-container2">
   <!-- Single-line filter row (like institute: division, district, thana); wraps and centers -->
   <div class="question-filter-row">
     <div #filterItem class="question-filter-item filter-dropdown-wrap">
@@ -198,13 +198,111 @@
     </div>
   </div>
 
-  <!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
+  <!-- Sticky circular FABs at bottom-right: Create Question, Live Chat -->
+  <div class="fab-wrapper">
+    <div class="fab-tooltip-wrap">
+      <span class="fab-tooltip">First Select Level, Class/Group, Subject and Topic from Top and then click here to create/add a New Question to Cheradip</span>
+      <button
+        type="button"
+        class="fab-btn fab-circle fab-create"
+        (click)="selectedCount > 0 ? goToCreateQuestion() : onCreateQuestion()"
+        [title]="selectedCount > 0 ? 'Create question set (' + selectedCount + ' selected)' : 'Create Question'"
+        aria-label="Create Question"
+      >
+        <i class="fa fa-plus" aria-hidden="true"></i>
+      </button>
+    </div>
+    <button
+      type="button"
+      class="fab-btn fab-circle fab-chat"
+      (click)="onLiveChat()"
+      title="Live Chat"
+      aria-label="Live Chat"
+    >
+      <i class="fa fa-comments" aria-hidden="true"></i>
+    </button>
+  </div>
+  <app-alert [message]="successAlertMessage" [showAlert]="showSuccessAlert" alertType="success" (alertClosed)="showSuccessAlert = false"></app-alert>
+  <app-alert [message]="disappearAlertMessage" [showAlert]="showDisappearAlert" alertType="success" (alertClosed)="showDisappearAlert = false"></app-alert>
+
+  <!-- Smart Question Creator: EIIN / exam / set → /question/create + auto-save -->
   <div
+    class="smart-creator-modal-backdrop"
+    *ngIf="smartCreatorModalOpen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="smart-creator-modal-title"
+    (click)="closeSmartQuestionCreatorModal()"
+  >
+    <div class="smart-creator-modal" (click)="$event.stopPropagation()">
+      <h2 id="smart-creator-modal-title" class="smart-creator-modal-title">Smart Question Creator</h2>
+      <p class="smart-creator-modal-hint">Choose header options, then continue. The creator opens and runs Save automatically for your selected questions.</p>
+      <div class="smart-creator-modal-field">
+        <label for="smart-creator-eiin">EIIN</label>
+        <input id="smart-creator-eiin" type="text" class="smart-creator-modal-input" [(ngModel)]="smartCreatorModalEiin" maxlength="16" autocomplete="off" />
+      </div>
+      <div class="smart-creator-modal-field">
+        <label for="smart-creator-exam">Exam name</label>
+        <select id="smart-creator-exam" class="smart-creator-modal-select" [(ngModel)]="smartCreatorModalExamKey">
+          <option *ngFor="let o of smartCreatorExamOptions" [ngValue]="o.key">{{ o.label }}</option>
+        </select>
+      </div>
+      <div class="smart-creator-modal-field" *ngIf="smartCreatorModalSelectionHasMcq()">
+        <label for="smart-creator-set">Set <span class="smart-creator-modal-optional">(optional)</span></label>
+        <select id="smart-creator-set" class="smart-creator-modal-select" [(ngModel)]="smartCreatorModalSetLetter">
+          <option [ngValue]="null">Select</option>
+          <option *ngFor="let s of smartCreatorSetLetters" [ngValue]="s">{{ s }}</option>
+        </select>
+        <p class="smart-creator-modal-field-hint">Leave on Select to save the same way as on the create page without a set code.</p>
+      </div>
+      <p class="smart-creator-modal-error" *ngIf="smartCreatorModalError">{{ smartCreatorModalError }}</p>
+      <div class="smart-creator-modal-actions">
+        <button type="button" class="smart-creator-modal-btn smart-creator-modal-btn--secondary" (click)="closeSmartQuestionCreatorModal()">Cancel</button>
+        <button type="button" class="smart-creator-modal-btn smart-creator-modal-btn--primary" (click)="confirmSmartQuestionCreatorModal()">Continue</button>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
+<div class="question-container3">
+  <div
+    style="background-color: #afd2c3;"
     class="topic-questions-section"
     *ngIf="primarySubject && topicQuestions.length > 0"
     appQuestionRichImgHost
   >
     <div class="topic-questions-header">
+      <div class="topic-questions-actions">
+        <label class="select-all-label">
+          <input type="checkbox" [checked]="allTopicQuestionsSelected" (change)="toggleSelectAllTopicQuestions()" />
+          <span>{{ allTopicQuestionsSelected ? 'Unselect All' : 'Select All' }}</span>
+        </label>
+        <span class="selected-count">{{ selectedCountOnCurrentPage }} Selected of {{ totalQuestionsInCurrentSelection }} of Total {{ totalQuestionsInDbForSubject != null ? totalQuestionsInDbForSubject : '?' }} Questions</span>
+        <button type="button" class="btn-clear-selection" *ngIf="selectedCount > 0" (click)="clearTopicQuestionSelection()">Clear All</button>
+      </div>
+
+      <!-- Buttons to open question creator: visible when questions are shown (subject or topic selection) -->
+      <div class="creator-buttons-row" *ngIf="primarySubject && topicQuestions.length > 0">
+        <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart Question Creator</button>
+        <button type="button" class="btn-creator btn-create-question" (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
+          {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
+<div class="question-container">
+  <div
+    class="topic-questions-section"
+    *ngIf="primarySubject && topicQuestions.length > 0"
+    appQuestionRichImgHost
+  >
+    <div class="topic-questions-header"
+        style="display: none;">
       <div class="topic-questions-actions">
         <label class="select-all-label">
           <input type="checkbox" [checked]="allTopicQuestionsSelected" (change)="toggleSelectAllTopicQuestions()" />
@@ -324,70 +422,5 @@
         ></app-questionlist>
       </ng-container>
     </main>
-  </div>
-
-  <!-- Sticky circular FABs at bottom-right: Create Question, Live Chat -->
-  <div class="fab-wrapper">
-    <div class="fab-tooltip-wrap">
-      <span class="fab-tooltip">First Select Level, Class/Group, Subject and Topic from Top and then click here to create/add a New Question to Cheradip</span>
-      <button
-        type="button"
-        class="fab-btn fab-circle fab-create"
-        (click)="selectedCount > 0 ? goToCreateQuestion() : onCreateQuestion()"
-        [title]="selectedCount > 0 ? 'Create question set (' + selectedCount + ' selected)' : 'Create Question'"
-        aria-label="Create Question"
-      >
-        <i class="fa fa-plus" aria-hidden="true"></i>
-      </button>
-    </div>
-    <button
-      type="button"
-      class="fab-btn fab-circle fab-chat"
-      (click)="onLiveChat()"
-      title="Live Chat"
-      aria-label="Live Chat"
-    >
-      <i class="fa fa-comments" aria-hidden="true"></i>
-    </button>
-  </div>
-  <app-alert [message]="successAlertMessage" [showAlert]="showSuccessAlert" alertType="success" (alertClosed)="showSuccessAlert = false"></app-alert>
-  <app-alert [message]="disappearAlertMessage" [showAlert]="showDisappearAlert" alertType="success" (alertClosed)="showDisappearAlert = false"></app-alert>
-
-  <!-- Smart Question Creator: EIIN / exam / set → /question/create + auto-save -->
-  <div
-    class="smart-creator-modal-backdrop"
-    *ngIf="smartCreatorModalOpen"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="smart-creator-modal-title"
-    (click)="closeSmartQuestionCreatorModal()"
-  >
-    <div class="smart-creator-modal" (click)="$event.stopPropagation()">
-      <h2 id="smart-creator-modal-title" class="smart-creator-modal-title">Smart Question Creator</h2>
-      <p class="smart-creator-modal-hint">Choose header options, then continue. The creator opens and runs Save automatically for your selected questions.</p>
-      <div class="smart-creator-modal-field">
-        <label for="smart-creator-eiin">EIIN</label>
-        <input id="smart-creator-eiin" type="text" class="smart-creator-modal-input" [(ngModel)]="smartCreatorModalEiin" maxlength="16" autocomplete="off" />
-      </div>
-      <div class="smart-creator-modal-field">
-        <label for="smart-creator-exam">Exam name</label>
-        <select id="smart-creator-exam" class="smart-creator-modal-select" [(ngModel)]="smartCreatorModalExamKey">
-          <option *ngFor="let o of smartCreatorExamOptions" [ngValue]="o.key">{{ o.label }}</option>
-        </select>
-      </div>
-      <div class="smart-creator-modal-field" *ngIf="smartCreatorModalSelectionHasMcq()">
-        <label for="smart-creator-set">Set <span class="smart-creator-modal-optional">(optional)</span></label>
-        <select id="smart-creator-set" class="smart-creator-modal-select" [(ngModel)]="smartCreatorModalSetLetter">
-          <option [ngValue]="null">Select</option>
-          <option *ngFor="let s of smartCreatorSetLetters" [ngValue]="s">{{ s }}</option>
-        </select>
-        <p class="smart-creator-modal-field-hint">Leave on Select to save the same way as on the create page without a set code.</p>
-      </div>
-      <p class="smart-creator-modal-error" *ngIf="smartCreatorModalError">{{ smartCreatorModalError }}</p>
-      <div class="smart-creator-modal-actions">
-        <button type="button" class="smart-creator-modal-btn smart-creator-modal-btn--secondary" (click)="closeSmartQuestionCreatorModal()">Cancel</button>
-        <button type="button" class="smart-creator-modal-btn smart-creator-modal-btn--primary" (click)="confirmSmartQuestionCreatorModal()">Continue</button>
-      </div>
-    </div>
   </div>
 </div>

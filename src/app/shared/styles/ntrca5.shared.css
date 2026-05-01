@@ -1395,7 +1395,7 @@ button.view {
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: 16px;
+  margin-top: 10px;
   padding: 10px;
   width: max-content;
   max-width: min(380px, 92vw);
