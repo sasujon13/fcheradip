@@ -1,11 +1,14 @@
 <div class="tokenbox header-tokenbox">
   <div class="token-input-box">
     <br>
-    <div class="hover-message-container">
+    <div class="hover-message-container"
+      (pointerenter)="onTrxHelpPointerEnter()"
+      (pointerleave)="onTrxHelpPointerLeave()">
       <input type="text" [ngModel]="newToken" (ngModelChange)="newTokenChange.emit($event)" placeholder="8/10 Digits TrxID" maxlength="10" />
       <button (click)="applyTokenClick.emit()">Apply TrxID</button>
-      <p class="rmsg">Remaining Balance: <b>{{ remainingUnlocks }}</b></p>
-      <div class="hover-message-box" style="text-align: left;">
+      <p class="rmsg">Balance: <b>{{ remainingUnlocks }}</b></p>
+      <div class="hover-message-box" [class.ntrca-help-phase-on]="trxHelpPhase === 'on'" [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'"
+        style="text-align: left;">
         1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
         2. Send Money to <strong>01722710298</strong> (Minimum Tk 20)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;using <strong>bKash / Nagad</strong> to use our Paid Services.<br>

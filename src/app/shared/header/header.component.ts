@@ -39,6 +39,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   /** Token apply feedback: same app-alert as vacant/recommend/merit (not MatSnackBar). */
   tokenAlertMessage = '';
   showTokenAlert = false;
+
+  /** Trx help tooltip: 1s after pointerleave, then 300ms fade (matches header.shared.css). */
+  trxHelpPhase: 'off' | 'on' | 'closing' = 'off';
+  private trxHelpTimers: number[] = [];
   @ViewChild('marquee', { static: true }) marqueeElement!: ElementRef;
   public notifications: any[] = [];
   private currentIndex = 0;
@@ -229,6 +233,29 @@ export class HeaderComponent implements OnInit, OnDestroy {
       clearTimeout(this.menuLeaveTimer);
       this.menuLeaveTimer = null;
     }
+    this.clearTrxHelpTimers();
+  }
+
+  onTrxHelpPointerEnter(): void {
+    this.clearTrxHelpTimers();
+    this.trxHelpPhase = 'on';
+  }
+
+  onTrxHelpPointerLeave(): void {
+    this.clearTrxHelpTimers();
+    const delayedClose = window.setTimeout(() => {
+      this.trxHelpPhase = 'closing';
+      const detach = window.setTimeout(() => {
+        this.trxHelpPhase = 'off';
+      }, 300);
+      this.trxHelpTimers.push(detach);
+    }, 1000);
+    this.trxHelpTimers.push(delayedClose);
+  }
+
+  private clearTrxHelpTimers(): void {
+    this.trxHelpTimers.forEach(clearTimeout);
+    this.trxHelpTimers.length = 0;
   }
 
   /** Show token alert (same app-alert as vacant/recommend/merit). Reset first so it re-shows on every click. */

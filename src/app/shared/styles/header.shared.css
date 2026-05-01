@@ -62,7 +62,7 @@ header .tokenbox.header-tokenbox {
   max-width: 1920px;
   margin: 0 auto;
   width: 100%;
-  z-index: 1001 !important;
+  z-index: 1002 !important;
 }
 header .tokenbox.header-tokenbox .token-input-box {
   padding: 12px 12px 12px 0;
@@ -79,7 +79,7 @@ header .tokenbox.header-tokenbox .token-input-box input {
   width: 132px;
   border: 5px solid var(--color_primary_teal);
   border-left: 5px solid var(--color_primary_teal);
-  margin-left: -168px;
+  margin-left: -95px;
 }
 header .tokenbox.header-tokenbox .token-input-box input:focus,
 header .tokenbox.header-tokenbox .token-input-box input:focus-visible {
@@ -107,22 +107,58 @@ header .tokenbox.header-tokenbox .hover-message-container {
   display: inline-block;
   margin-left: 10px;
 }
-header .tokenbox.header-tokenbox .hover-message-container:hover .hover-message-box {
-  display: block;
+/* Trx help tooltip: use .ntrca-help-phase-on / .ntrca-help-phase-closing + pointer handlers (same as app-ntrca-header-section) */
+header .tokenbox.header-tokenbox .hover-message-container .hover-message-box::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  height: 24px;
 }
+
 header .tokenbox.header-tokenbox .hover-message-box {
-  display: none;
+  display: block;
   position: absolute;
   top: 100%;
   left: 0;
-  background: #fff8dc;
-  border: 1px solid #ccc;
+  margin-top: 16px;
   padding: 10px;
   width: max-content;
+  max-width: min(380px, 92vw);
+  background: #fff8dc;
+  border: 1px solid #ccc;
   box-shadow: 0 0 10px #00808080;
-  z-index: 100;
   border-radius: 12px;
-  margin-top: 16px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition:
+    opacity 300ms ease,
+    visibility 0ms linear 300ms,
+    transform 300ms ease;
+}
+
+header .tokenbox.header-tokenbox .hover-message-box.ntrca-help-phase-on {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition-delay: 0ms;
+  transition-timing-function: ease;
+}
+
+header .tokenbox.header-tokenbox .hover-message-box.ntrca-help-phase-closing {
+  opacity: 0;
+  visibility: visible;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity 300ms ease,
+    visibility 0ms linear 300ms,
+    transform 300ms ease;
 }
 header .tokenbox.header-tokenbox .hover-message-box a {
   color: blue;

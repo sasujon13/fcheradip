@@ -9,7 +9,7 @@
   max-width: 1920px;
   margin: 0 auto;
   width: 100%;
-  z-index: 1001 !important;
+  z-index: 1002 !important;
 }
 
 /* ---- .token-input-box (top fixed bar) ---- */
@@ -29,7 +29,7 @@
   width: 132px;
   border: 5px solid var(--color_primary_teal);
   border-left: 5px solid var(--color_primary_teal);
-  margin-left: -168px;
+  margin-left: -95px;
 }
 
 :host .token-input-box input:focus,
@@ -61,23 +61,60 @@
   margin-left: 10px;
 }
 
-:host .hover-message-container:hover .hover-message-box {
-  display: block;
+/* Help panel: invisible hit bridge above box so cursor can cross the gap without leaving the zone */
+:host .hover-message-box::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  height: 24px;
 }
 
 :host .hover-message-box {
-  display: none;
+  display: block;
   position: absolute;
   top: 100%;
   left: 0;
-  background: #fff8dc;
-  border: 1px solid #ccc;
+  margin-top: 16px;
   padding: 10px;
   width: max-content;
+  max-width: min(380px, 92vw);
+  background: #fff8dc;
+  border: 1px solid #ccc;
   box-shadow: 0 0 10px #00808080;
-  z-index: 100;
   border-radius: 12px;
-  margin-top: 16px;
+  z-index: 100;
+  /* Hidden by default — avoid display:none so opacity can animate */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition:
+    opacity 300ms ease,
+    visibility 0ms linear 300ms,
+    transform 300ms ease;
+}
+
+:host .hover-message-box.ntrca-help-phase-on {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition-delay: 0ms;
+  transition-timing-function: ease;
+}
+
+/* After 1s grace: fades out smoothly in 300ms */
+:host .hover-message-box.ntrca-help-phase-closing {
+  opacity: 0;
+  visibility: visible;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity 300ms ease,
+    visibility 0ms linear 300ms,
+    transform 300ms ease;
 }
 
 :host .hover-message-box a {
