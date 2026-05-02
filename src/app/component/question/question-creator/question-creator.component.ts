@@ -27,6 +27,7 @@ import {
 } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export const QUESTION_CREATOR_STATE_KEY = 'questionCreatorReturnState';
 
@@ -3236,6 +3237,47 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   trackCreatorQuestionQid(_index: number, q: { qid?: unknown }): string | number {
     return q?.qid != null ? (q.qid as string | number) : _index;
+  }
+
+  /** Global indices in {@link previewQuestions} for one sidebar bucket (CQ / MCQ / other). */
+  private creatorSidebarKindGlobalIndices(kind: 'creative' | 'mcq' | 'other'): number[] {
+    const preview = this.previewQuestions;
+    const out: number[] = [];
+    for (let i = 0; i < preview.length; i++) {
+      const q = preview[i];
+      if (kind === 'creative' && this.questionIsCreativeType(q)) {
+        out.push(i);
+      } else if (kind === 'mcq' && !this.questionIsCreativeType(q) && this.questionIsMcqType(q)) {
+        out.push(i);
+      } else if (kind === 'other' && !this.questionIsCreativeType(q) && !this.questionIsMcqType(q)) {
+        out.push(i);
+      }
+    }
+    return out;
+  }
+
+  /** Manual reorder in “All questions” sidebar; updates sheet order + localStorage / MCQ set snapshot. */
+  onCreatorSidebarDropped(
+    event: CdkDragDrop<unknown>,
+    kind: 'creative' | 'mcq' | 'other'
+  ): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const map = this.creatorSidebarKindGlobalIndices(kind);
+    const fromG = map[event.previousIndex];
+    const toG = map[event.currentIndex];
+    if (fromG === undefined || toG === undefined) return;
+    const preview = this.previewQuestions.slice();
+    moveItemInArray(preview, fromG, toG);
+    const qids = preview.map((q) => q.qid);
+    this.questions = this.reorderQuestionsFromQidList(qids);
+    if (this.selectionHasMcqType() && this.selectedMcqSetLetter != null) {
+      const L = this.selectedMcqSetLetter;
+      this.persistedMcqOrderBySet = { ...this.persistedMcqOrderBySet, [L]: qids };
+      this.mcqOrdersFrozen = true;
+    }
+    this.scheduleLayout();
+    this.schedulePersistCreatorStateToLocalStorage();
+    this.cdr.markForCheck();
   }
 
   getOptionDisplayText(opt: unknown): string {

@@ -27,6 +27,7 @@ import { ChoiceComponent } from './component/cart/choice/choice.component';
 import { LoginComponent } from './component/user/login/login.component';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { AdminComponent } from './component/user/admin/admin.component';
 import { ProfileComponent } from './component/user/profile/profile.component';
 import { MyorderComponent } from './component/cart/myorder/myorder.component';
@@ -166,6 +167,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     ReactiveFormsModule,
     BrowserAnimationsModule,
     MatSnackBarModule,
+    DragDropModule,
     SignupComponent,
     AlertComponent,
     CountrySelectorComponent,

@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit, OnDestroy, Renderer2, ElementRef, Vie
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
+import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 
 @Component({
   selector: 'app-recommend5',
@@ -27,7 +28,7 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
 
   expandedRows: { [eiin: string]: boolean } = {};
   expandedRows2: { [eiin: string]: boolean } = {};
-  freeUnlockLimit = 10;
+  trxRemaining = 0;
   unlockedEIINs: Set<string> = new Set();
   eiinLoading: Set<string> = new Set();
   selectedEIINs: Set<string> = new Set();
@@ -274,7 +275,8 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private http: HttpClient,
     private renderer: Renderer2,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private trxUnlock: TrxUnlockService
   ) {}
 
   ngOnInit(): void {
@@ -286,8 +288,7 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
     const unlockedEIINs = localStorage.getItem('unlockedEIINs');
     if (unlockedEIINs) this.unlockedEIINs = new Set(JSON.parse(unlockedEIINs));
-    const stored = localStorage.getItem('freeUnlockLimit');
-    this.freeUnlockLimit = Number(stored) || 10;
+    this.trxRemaining = this.trxUnlock.getCachedRemaining();
 
     const deviceWidth = window.innerWidth;
     let columns = 12; // default
@@ -614,18 +615,26 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
       });
     };
 
-    if (this.unlockedEIINs.size <= this.freeUnlockLimit) {
-      fetchAndUnlock(); // free unlock
-      this.loading = false;
-      return;
-    }
-
-    else {
-      this.loading = false;
-      this.showNoDataAlert4 = false;
-      setTimeout(() => this.showNoDataAlert4 = true);
-      return;
-    }
+    this.trxUnlock.useOneUnlock().subscribe({
+      next: (r) => {
+        if (r.success) {
+          this.trxUnlock.setCachedRemaining(r.remaining);
+          this.trxRemaining = r.remaining;
+          fetchAndUnlock();
+        } else {
+          this.loading = false;
+          this.eiinLoading.delete(eiin);
+          this.showNoDataAlert4 = false;
+          setTimeout(() => this.showNoDataAlert4 = true);
+        }
+      },
+      error: () => {
+        this.loading = false;
+        this.eiinLoading.delete(eiin);
+        this.showNoDataAlert6 = false;
+        setTimeout(() => this.showNoDataAlert6 = true);
+      }
+    });
   }
 
   addUnlockedEIIN(eiin: string): void {
@@ -864,22 +873,19 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
         const result = res?.results?.[0];
         console.log(result);
 
-        if (result && result.Counter && Number(result.Status) === 0) {
-          const newLimit = Number(result.Counter);
-          this.freeUnlockLimit += newLimit;
-
-          localStorage.setItem('freeUnlockLimit', this.freeUnlockLimit.toString());
-
-          this.showNoDataAlert8 = false;
-          setTimeout(() => this.showNoDataAlert8 = true);
-
-          // 🔁 Update Token Status = 1 on the server
-          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 })
-            .subscribe({
-              next: () => console.log("Token status updated to 1"),
-              error: err => console.error("Failed to update token status", err)
-            });
-
+        if (result && result.Counter != null && Number(result.Status) === 0) {
+          this.trxUnlock.activateAppliedTrx({ id: result.id }).subscribe({
+            next: (rem) => {
+              this.trxRemaining = rem;
+              this.newToken = '';
+              this.showNoDataAlert8 = false;
+              setTimeout(() => this.showNoDataAlert8 = true);
+            },
+            error: () => {
+              this.showNoDataAlert6 = false;
+              setTimeout(() => this.showNoDataAlert6 = true);
+            }
+          });
         } else {
           this.showNoDataAlert11 = false;
           setTimeout(() => this.showNoDataAlert11 = true);

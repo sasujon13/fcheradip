@@ -1409,6 +1409,11 @@
   padding: 0;
 }
 
+.creator-question-item.cdk-drag-preview {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+}
+
 .creator-question-item {
   display: flex;
   align-items: flex-start;
@@ -1419,6 +1424,11 @@
   background: white;
   border: 1px solid #e8e8e8;
   border-radius: 6px;
+  cursor: grab;
+}
+
+.creator-question-item.cdk-drag-dragging {
+  cursor: grabbing;
 }
 
 .creator-question-body {

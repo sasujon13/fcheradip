@@ -6,6 +6,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
+import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 
 @Component({
   selector: 'app-ntrca',
@@ -25,7 +26,6 @@ export class NtrcaComponent implements OnInit {
 
   expandedRows: { [eiin: string]: boolean } = {};
   expandedRows2: { [eiin: string]: boolean } = {};
-  freeUnlockLimit = 100;
   unlockedEIINs: Set<string> = new Set();
   token: string | null = null;
   tokenCounter: number = 0;
@@ -255,7 +255,10 @@ export class NtrcaComponent implements OnInit {
     // Add more embed URLs here
   ];
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private trxUnlock: TrxUnlockService
+  ) { }
 
   ngOnInit(): void {
     const deviceWidth = window.innerWidth;
@@ -305,7 +308,7 @@ export class NtrcaComponent implements OnInit {
       }
 
       this.token = localStorage.getItem('unlockToken');
-      this.tokenCounter = Number(localStorage.getItem('tokenCounter')) || 0;
+      this.tokenCounter = this.trxUnlock.getCachedRemaining();
     }
 
   createTableRows(districts: string[], columns: number): string[][] {
@@ -504,64 +507,6 @@ export class NtrcaComponent implements OnInit {
     return this.unlockedEIINs.has(eiin);
   }
 
-  // unlockEIIN(eiin: string): void {
-  //   if (this.unlockedEIINs.has(eiin)) return;
-
-  //   const vacancy = this.vacancies.find(v => v.EIIN === eiin);
-  //   if (!vacancy) return;
-
-  //   const processUnlock = () => {
-  //     this.addUnlockedEIIN(eiin);
-
-  //     // Fetch baseUrl2 data and assign to vacancy
-  //     const url = `${this.baseUrl2}?eiin=${eiin}&ts=${Date.now()}`;
-  //     this.http.get<any>(url).subscribe({
-  //       next: (res) => {
-  //         vacancy.parameter = res;
-  //       },
-  //       error: (err) => {
-  //         console.error(`Error fetching baseUrl2 for EIIN ${eiin}:`, err);
-  //         vacancy.parameter = null;
-  //       }
-  //     });
-  //   };
-
-  //   // Free unlocks
-  //   if (this.unlockedEIINs.size < this.freeUnlockLimit) {
-  //     processUnlock();
-  //     return;
-  //   }
-
-  //   // Token required
-  //   if (!this.token || this.tokenCounter <= 0) {
-  //     this.showNoDataAlert4 = false;
-  //     setTimeout(() => this.showNoDataAlert4 = true);
-  //     return;
-  //   }
-
-  //   // Token API call
-  //   this.http.post<any>('https://cheradip.com/api/token', {
-  //     token: this.token,
-  //     eiin: eiin
-  //   }).subscribe({
-  //     next: (res) => {
-  //       if (res.success && res.remaining > 0) {
-  //         this.tokenCounter = res.remaining;
-  //         localStorage.setItem('tokenCounter', this.tokenCounter.toString());
-  //         processUnlock();
-  //       } else {
-  //         this.tokenCounter = 0;
-  //         localStorage.setItem('tokenCounter', '0');
-  //         this.showNoDataAlert5 = false;
-  //         setTimeout(() => this.showNoDataAlert5 = true);
-  //       }
-  //     },
-  //     error: () => {
-  //       this.showNoDataAlert6 = false;
-  //       setTimeout(() => this.showNoDataAlert6 = true);
-  //     }
-  //   });
-  // }
   unlockEIIN(eiin: string): void {
     if (this.unlockedEIINs.has(eiin)) return;
 
@@ -589,36 +534,22 @@ export class NtrcaComponent implements OnInit {
       });
     };
 
-    if (this.unlockedEIINs.size < this.freeUnlockLimit) {
-      fetchAndUnlock(); // free unlock
-      return;
-    }
-
-    if (!this.token || this.tokenCounter <= 0) {
-      this.showNoDataAlert4 = false;
-      setTimeout(() => this.showNoDataAlert4 = true); // token empty
-      this.eiinLoading.delete(eiin);
-      return;
-    }
-
-    // Use token
-    this.http.post<any>(`${environment.apiUrl}/token`, { token: this.token, eiin }).subscribe({
+    this.trxUnlock.useOneUnlock().subscribe({
       next: (res) => {
-        if (res.success && res.remaining > 0) {
+        if (res.success) {
+          this.trxUnlock.setCachedRemaining(res.remaining);
           this.tokenCounter = res.remaining;
-          localStorage.setItem('tokenCounter', this.tokenCounter.toString());
+          localStorage.setItem('tokenCounter', String(res.remaining));
           fetchAndUnlock();
         } else {
-          this.tokenCounter = 0;
-          localStorage.setItem('tokenCounter', '0');
-          this.showNoDataAlert5 = false;
-          setTimeout(() => this.showNoDataAlert5 = true);
+          this.showNoDataAlert4 = false;
+          setTimeout(() => this.showNoDataAlert4 = true);
           this.eiinLoading.delete(eiin);
         }
       },
       error: () => {
         this.showNoDataAlert6 = false;
-        setTimeout(() => this.showNoDataAlert6 = true); // token connection error
+        setTimeout(() => this.showNoDataAlert6 = true);
         this.eiinLoading.delete(eiin);
       }
     });
@@ -657,28 +588,32 @@ export class NtrcaComponent implements OnInit {
       return;
     }
 
-    this.http.get<any>(`${environment.apiUrl}/token?token=${encodeURIComponent(trimmed)}`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/token/?token=${encodeURIComponent(trimmed)}`).subscribe({
       next: (res) => {
-        if (res.success && res.counter > 0) {
-          this.tokenCounter = res.counter;
-          localStorage.setItem('unlockToken', trimmed);
-          localStorage.setItem('tokenCounter', this.tokenCounter.toString());
-          this.showNoDataAlert8 = false;
-          setTimeout(() => {
-            this.showNoDataAlert8 = true;
+        const result = res?.results?.[0];
+        if (result && result.Counter != null && Number(result.Status) === 0) {
+          this.trxUnlock.activateAppliedTrx({ id: result.id }).subscribe({
+            next: (rem) => {
+              this.tokenCounter = rem;
+              this.token = trimmed;
+              localStorage.setItem('unlockToken', trimmed);
+              localStorage.setItem('tokenCounter', String(rem));
+              this.showNoDataAlert8 = false;
+              setTimeout(() => this.showNoDataAlert8 = true);
+            },
+            error: () => {
+              this.showNoDataAlert6 = false;
+              setTimeout(() => this.showNoDataAlert6 = true);
+            }
           });
         } else {
           this.showNoDataAlert6 = false;
-          setTimeout(() => {
-            this.showNoDataAlert6 = true;
-          });
+          setTimeout(() => this.showNoDataAlert6 = true);
         }
       },
       error: () => {
         this.showNoDataAlert6 = false;
-        setTimeout(() => {
-          this.showNoDataAlert6 = true;
-        });
+        setTimeout(() => this.showNoDataAlert6 = true);
       }
     });
   }

@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { TrxUnlockService } from '../../service/trx-unlock.service';
 
 
 @Component({
@@ -29,12 +30,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const u = this.router.url;
     return /^\/(ntrca|vacant[5678]|merit[5678]|recommend[5678])(\/|$)/.test(u.split('?')[0]);
   }
-  /** Remaining unlocks from localStorage (freeUnlockLimit - unlockedEIINs.size). */
+  /** Remaining balance from cheradip_trxmanagement.token (cached after activate / each unlock). */
   get headerRemainingUnlocks(): number {
-    const limit = Number(localStorage.getItem('freeUnlockLimit')) || 10;
-    const unlocked = localStorage.getItem('unlockedEIINs');
-    const size = unlocked ? (JSON.parse(unlocked) as string[]).length : 0;
-    return Math.max(0, limit - size);
+    return this.trxUnlock.getCachedRemaining();
   }
   /** Token apply feedback: same app-alert as vacant/recommend/merit (not MatSnackBar). */
   tokenAlertMessage = '';
@@ -137,7 +135,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private loadingService: LoadingService,
     private snackBar: MatSnackBar,
     private http: HttpClient,
-    private cdr: ChangeDetectorRef) { }
+    private cdr: ChangeDetectorRef,
+    private trxUnlock: TrxUnlockService) { }
 
   ngOnInit(): void {
     this.loadingSub = this.loadingService.getState$().subscribe((s) => {
@@ -280,14 +279,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
       next: (res) => {
         const result = res?.results?.[0];
         if (result && result.Counter != null && Number(result.Status) === 0) {
-          const currentLimit = Number(localStorage.getItem('freeUnlockLimit')) || 10;
-          const newLimit = currentLimit + Number(result.Counter);
-          localStorage.setItem('freeUnlockLimit', newLimit.toString());
-          this.newToken = '';
-          this.showTokenAlertMessage('TrxID Successfully Activated, Now Click on Lock Icon to Unlock Informations!');
-          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 }).subscribe({
-            next: () => {},
-            error: () => {}
+          this.trxUnlock.activateAppliedTrx({ id: result.id as number }).subscribe({
+            next: () => {
+              this.newToken = '';
+              this.showTokenAlertMessage(
+                'TrxID Successfully Activated, Now Click on Lock Icon to Unlock Informations!'
+              );
+              this.cdr.markForCheck();
+            },
+            error: () => {
+              this.showTokenAlertMessage('Failed to activate TrxID! Try again.');
+            }
           });
         } else {
           this.showTokenAlertMessage('TrxID Already Used! Request another valid TrxID to unlock more Details!');

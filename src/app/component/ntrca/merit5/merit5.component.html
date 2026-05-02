@@ -1,7 +1,7 @@
 <app-ntrca-header-section
   [(newToken)]="newToken"
   (applyTokenClick)="applyToken()"
-  [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"
+  [remainingUnlocks]="trxRemaining"
 ></app-ntrca-header-section>
 <div class="container2">
   <!-- Diagonal Watermark -->
@@ -73,7 +73,7 @@
   <app-ntrca-footer-section
     [(newToken)]="newToken"
     (applyTokenClick)="applyToken()"
-    [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"
+    [remainingUnlocks]="trxRemaining"
     [showNoDataAlert]="showNoDataAlert"
     [showNoDataAlert2]="showNoDataAlert2"
     [showNoDataAlert3]="showNoDataAlert3"

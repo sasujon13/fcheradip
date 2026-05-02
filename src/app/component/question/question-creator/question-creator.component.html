@@ -1302,13 +1302,30 @@
       <h3 class="creator-questions-type-heading">
         {{ isEnglishSubject() ? 'Creative (CQ)' : 'সৃজনশীল' }} ({{ creatorSidebarCreativeQuestions.length }})
       </h3>
-      <ul class="creator-questions-list">
-        <li *ngFor="let q of creatorSidebarCreativeQuestions; trackBy: trackCreatorQuestionQid" class="creator-question-item">
+      <ul
+        class="creator-questions-list"
+        cdkDropList
+        (cdkDropListDropped)="onCreatorSidebarDropped($event, 'creative')"
+      >
+        <li
+          *ngFor="let q of creatorSidebarCreativeQuestions; trackBy: trackCreatorQuestionQid"
+          cdkDrag
+          class="creator-question-item"
+          title="Drag to reorder"
+        >
           <div class="creator-question-body">
             <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
             <span class="creator-question-text">{{ q.question }}</span>
           </div>
-          <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">X</button>
+          <button
+            type="button"
+            class="btn-remove"
+            (click)="removeQuestion(q.qid)"
+            (pointerdown)="$event.stopPropagation()"
+            title="Remove"
+          >
+            X
+          </button>
         </li>
       </ul>
     </ng-container>
@@ -1317,8 +1334,17 @@
       <h3 class="creator-questions-type-heading">
         {{ isEnglishSubject() ? 'Multiple choice (MCQ)' : 'বহুনির্বাচনি' }} ({{ creatorSidebarMcqQuestions.length }})
       </h3>
-      <ul class="creator-questions-list">
-        <li *ngFor="let q of creatorSidebarMcqQuestions; trackBy: trackCreatorQuestionQid" class="creator-question-item">
+      <ul
+        class="creator-questions-list"
+        cdkDropList
+        (cdkDropListDropped)="onCreatorSidebarDropped($event, 'mcq')"
+      >
+        <li
+          *ngFor="let q of creatorSidebarMcqQuestions; trackBy: trackCreatorQuestionQid"
+          cdkDrag
+          class="creator-question-item"
+          title="Drag to reorder"
+        >
           <div class="creator-question-body">
             <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
             <span class="creator-question-text">{{ q.question }}</span>
@@ -1329,7 +1355,15 @@
               <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
             </div>
           </div>
-          <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">X</button>
+          <button
+            type="button"
+            class="btn-remove"
+            (click)="removeQuestion(q.qid)"
+            (pointerdown)="$event.stopPropagation()"
+            title="Remove"
+          >
+            X
+          </button>
         </li>
       </ul>
     </ng-container>
@@ -1338,8 +1372,17 @@
       <h3 *ngIf="creatorSidebarCreativeQuestions.length || creatorSidebarMcqQuestions.length" class="creator-questions-type-heading">
         {{ isEnglishSubject() ? 'Other' : 'অন্যান্য' }} ({{ creatorSidebarOtherQuestions.length }})
       </h3>
-      <ul class="creator-questions-list">
-        <li *ngFor="let q of creatorSidebarOtherQuestions; trackBy: trackCreatorQuestionQid" class="creator-question-item">
+      <ul
+        class="creator-questions-list"
+        cdkDropList
+        (cdkDropListDropped)="onCreatorSidebarDropped($event, 'other')"
+      >
+        <li
+          *ngFor="let q of creatorSidebarOtherQuestions; trackBy: trackCreatorQuestionQid"
+          cdkDrag
+          class="creator-question-item"
+          title="Drag to reorder"
+        >
           <div class="creator-question-body">
             <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
             <span class="creator-question-text">{{ q.question }}</span>
@@ -1350,7 +1393,15 @@
               <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
             </div>
           </div>
-          <button type="button" class="btn-remove" (click)="removeQuestion(q.qid)" title="Remove">X</button>
+          <button
+            type="button"
+            class="btn-remove"
+            (click)="removeQuestion(q.qid)"
+            (pointerdown)="$event.stopPropagation()"
+            title="Remove"
+          >
+            X
+          </button>
         </li>
       </ul>
     </ng-container>

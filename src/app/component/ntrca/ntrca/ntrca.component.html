@@ -1,7 +1,7 @@
 <app-ntrca-header-section
   [(newToken)]="newToken"
   (applyTokenClick)="applyToken()"
-  [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"
+  [remainingUnlocks]="trxRemaining"
 ></app-ntrca-header-section>
 <div class="mainmsg" style="text-align: center;">
   <h1 class="msg">ট্রেড ইন্সট্রাক্টর/সহকারি শিক্ষক/প্রদর্শক/প্রভাষক  <b>আইসিটি</b> লিখিত কোর্স! <br><br> কেন আপনি <b>Cheradip</b> এর সাথে যুক্ত হবেন???</h1>
@@ -10,7 +10,7 @@
   [firstAlertMessage]="'Select Subject Code to Search!'"
   [(newToken)]="newToken"
   (applyTokenClick)="applyToken()"
-  [remainingUnlocks]="(freeUnlockLimit || 0) - unlockedEIINs.size"
+  [remainingUnlocks]="trxRemaining"
   [showNoDataAlert]="showNoDataAlert"
   [showNoDataAlert2]="showNoDataAlert2"
   [showNoDataAlert3]="showNoDataAlert3"

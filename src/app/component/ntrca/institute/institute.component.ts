@@ -5,6 +5,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { debounceTime, Subject } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
+import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 
 @Component({
   selector: 'app-institute',
@@ -44,7 +45,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
 
   /** Token box: TrxID (8–10 digits) input and apply (shared with college-theme via localStorage). */
   newToken: string = '';
-  freeUnlockLimit = 10;
+  trxRemaining = 0;
   unlockedEIINs: Set<string> = new Set();
 
   typeDropdownOpen = false;
@@ -59,13 +60,13 @@ export class InstituteComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private renderer: Renderer2,
     private lastInstitutes: LastInstitutesService,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private trxUnlock: TrxUnlockService
   ) {}
 
   ngOnInit(): void {
     this.loadingService.setTotal(1);
-    const storedLimit = localStorage.getItem('freeUnlockLimit');
-    this.freeUnlockLimit = Number(storedLimit) || 10;
+    this.trxRemaining = this.trxUnlock.getCachedRemaining();
     const stored = localStorage.getItem('unlockedEIINs');
     if (stored) this.unlockedEIINs = new Set(JSON.parse(stored));
 
@@ -342,7 +343,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
     return `   ${start} - ${end}   `;
   }
 
-  /** Validate and apply TrxID; updates freeUnlockLimit from API and persists to localStorage. */
+  /** Apply TrxID; balance stored server-side on cheradip_trxmanagement.token */
   applyToken(): void {
     const trimmedToken = (this.newToken || '').trim();
     if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) return;
@@ -351,11 +352,13 @@ export class InstituteComponent implements OnInit, OnDestroy {
       next: (res) => {
         const result = res?.results?.[0];
         if (result && result.Counter != null && Number(result.Status) === 0) {
-          const newLimit = Number(result.Counter);
-          this.freeUnlockLimit += newLimit;
-          localStorage.setItem('freeUnlockLimit', this.freeUnlockLimit.toString());
-          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 })
-            .subscribe({ next: () => {}, error: () => {} });
+          this.trxUnlock.activateAppliedTrx({ id: result.id }).subscribe({
+            next: (rem) => {
+              this.trxRemaining = rem;
+              this.newToken = '';
+            },
+            error: () => {}
+          });
         }
       },
       error: () => {}

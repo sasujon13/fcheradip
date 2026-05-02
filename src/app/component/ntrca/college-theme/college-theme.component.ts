@@ -8,10 +8,9 @@ import { map, catchError, filter } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { LoadingService } from 'src/app/service/loading.service';
+import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { slugForUrlDisplay } from 'src/app/url-serializer';
 
-/** Token / unlock state for institute view (persisted in localStorage). */
-const STORAGE_FREE_UNLOCK_LIMIT = 'freeUnlockLimit';
 const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
 
 @Component({
@@ -32,7 +31,7 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
 
   /** Token box: TrxID (8–10 digits) input and apply. */
   newToken: string = '';
-  freeUnlockLimit = 10;
+  trxRemaining = 0;
   unlockedEIINs: Set<string> = new Set();
 
   constructor(
@@ -42,13 +41,13 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
     private location: Location,
     private http: HttpClient,
     private lastInstitutes: LastInstitutesService,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private trxUnlock: TrxUnlockService
   ) {}
 
   ngOnInit(): void {
     this.loadingService.setTotal(1);
-    const storedLimit = localStorage.getItem(STORAGE_FREE_UNLOCK_LIMIT);
-    this.freeUnlockLimit = Number(storedLimit) || 10;
+    this.trxRemaining = this.trxUnlock.getCachedRemaining();
     const stored = localStorage.getItem(STORAGE_UNLOCKED_EIINS);
     if (stored) this.unlockedEIINs = new Set(JSON.parse(stored));
 
@@ -514,7 +513,7 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
     setTimeout(() => (this.copyFeedback = false), 1500);
   }
 
-  /** Validate and apply TrxID; updates freeUnlockLimit from API and persists to localStorage. */
+  /** Apply TrxID: activate row and sync balance from server. */
   applyToken(): void {
     const trimmedToken = (this.newToken || '').trim();
     if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) return;
@@ -523,11 +522,13 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
       next: (res) => {
         const result = res?.results?.[0];
         if (result && result.Counter != null && Number(result.Status) === 0) {
-          const newLimit = Number(result.Counter);
-          this.freeUnlockLimit += newLimit;
-          localStorage.setItem(STORAGE_FREE_UNLOCK_LIMIT, this.freeUnlockLimit.toString());
-          this.http.post(`${environment.apiUrl}/token/${result.id}/update_status/`, { Status: 1 })
-            .subscribe({ next: () => {}, error: () => {} });
+          this.trxUnlock.activateAppliedTrx({ id: result.id }).subscribe({
+            next: (rem) => {
+              this.trxRemaining = rem;
+              this.newToken = '';
+            },
+            error: () => {}
+          });
         }
       },
       error: () => {}
