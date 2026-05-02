@@ -8,6 +8,7 @@ import { of, Subject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
+import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
 
 
 @Component({
@@ -63,7 +64,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     private renderer: Renderer2,
     private countryService: CountryService,
     private cdr: ChangeDetectorRef,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private welcomeCeremony: WelcomeBonusCeremonyService
   ) {
     this.authForm = this.fb.group({
       countryCode: ['BD', [Validators.required]],
@@ -230,12 +232,15 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
       const formData = { ...this.authForm.value, username };
       localStorage.setItem('formData', JSON.stringify(formData));
       this.apiService.login(username, password, countryCode || undefined, this.loginFoundIn ?? undefined).subscribe({
-        next: (response) => {
+        next: (response: { authToken?: string; showWelcomeCoinsCeremony?: boolean }) => {
           this.showAuthAlertMessage('LoggedIn successfully!', true);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('username', username);
           if (response && response.authToken) localStorage.setItem('authToken', response.authToken);
           localStorage.setItem('formData', JSON.stringify(formData));
+          if (response?.showWelcomeCoinsCeremony) {
+            this.welcomeCeremony.schedule();
+          }
           this.logout();
           const returnUrl = localStorage.getItem('returnUrl') || '/';
           setTimeout(() => {

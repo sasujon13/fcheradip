@@ -281,6 +281,8 @@ export class Vacant7Component implements OnInit, AfterViewInit {
     const unlockedEIINs = localStorage.getItem('unlockedEIINs');
     if (unlockedEIINs) this.unlockedEIINs = new Set(JSON.parse(unlockedEIINs));
     this.trxRemaining = this.trxUnlock.getCachedRemaining();
+    this.newToken = this.trxUnlock.readPendingTrxidForInput(this.newToken);
+    this.trxUnlock.fetchCoinBalance().subscribe((n) => (this.trxRemaining = n));
 
     const deviceWidth = window.innerWidth;
     let columns = 12;
@@ -1046,40 +1048,30 @@ export class Vacant7Component implements OnInit, AfterViewInit {
   }
 
   applyToken(): void {
-    const trimmedToken = (this.newToken || '').trim();
-    if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) {
-      this.showNoDataAlert7 = false;
-      setTimeout(() => this.showNoDataAlert7 = true);
-      return;
-    }
-
-    this.http.get<any>(`${environment.apiUrl}/token/?token=${encodeURIComponent(trimmedToken)}`).subscribe({
-      next: (res) => {
-        const result = res?.results?.[0];
-        console.log(result);
-
-        if (result && result.Counter != null && Number(result.Status) === 0) {
-          this.trxUnlock.activateAppliedTrx({ id: result.id }).subscribe({
-            next: (rem) => {
-              this.trxRemaining = rem;
-              this.newToken = '';
-              this.showNoDataAlert8 = false;
-              setTimeout(() => this.showNoDataAlert8 = true);
-            },
-            error: () => {
-              this.showNoDataAlert6 = false;
-              setTimeout(() => this.showNoDataAlert6 = true);
-            }
-          });
-        } else {
+    this.trxUnlock.validateTrxidAndActivate(this.newToken).subscribe({
+      next: (rem) => {
+        this.trxRemaining = rem;
+        this.newToken = '';
+        this.showNoDataAlert8 = false;
+        setTimeout(() => this.showNoDataAlert8 = true);
+      },
+      error: (e: { code?: string }) => {
+        if (e?.code === 'login_required') {
+          return;
+        }
+        if (e?.code === 'invalid_format') {
+          this.showNoDataAlert7 = false;
+          setTimeout(() => this.showNoDataAlert7 = true);
+          return;
+        }
+        if (e?.code === 'trx_invalid') {
           this.showNoDataAlert11 = false;
           setTimeout(() => this.showNoDataAlert11 = true);
+          return;
         }
-      },
-      error: () => {
         this.showNoDataAlert6 = false;
         setTimeout(() => this.showNoDataAlert6 = true);
-      }
+      },
     });
   }
 

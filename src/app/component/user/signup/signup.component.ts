@@ -8,6 +8,7 @@ import { AlertComponent } from '../../faqs/alert/alert.component';
 import { ApiService } from '../../../service/api.service';
 import { CountryService, Country } from '../../../service/country.service';
 import { LoadingService } from 'src/app/service/loading.service';
+import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { of, Subject } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -199,7 +200,8 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
     private renderer: Renderer2,
     private countryService: CountryService,
     private cdr: ChangeDetectorRef,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private welcomeCeremony: WelcomeBonusCeremonyService
   ) {
     const today = new Date();
     today.setFullYear(today.getFullYear() - 5);
@@ -1261,14 +1263,23 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
       };
 
       this.apiService.signupWithData(formData).subscribe({
-        next: (response: any) => {
+        next: (response: { authToken?: string; showWelcomeCoinsCeremony?: boolean } | string) => {
           // Log in immediately: no overlay, no delay
+          const token =
+            typeof response === 'string' ? response : response?.authToken || '';
+          const showWelcome =
+            typeof response === 'object' &&
+            response != null &&
+            (response as { showWelcomeCoinsCeremony?: boolean }).showWelcomeCoinsCeremony === true;
           localStorage.setItem('username', formData.username);
           localStorage.setItem('fullName', formData.fullName);
           localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('authToken', response.authToken || response);
+          localStorage.setItem('authToken', token);
           localStorage.setItem('formData', JSON.stringify(formData));
           localStorage.removeItem(SIGNUP_DRAFT_KEY);
+          if (showWelcome) {
+            this.welcomeCeremony.schedule();
+          }
 
           this.showLoggedInHeader();
 

@@ -48,6 +48,8 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
   ngOnInit(): void {
     this.loadingService.setTotal(1);
     this.trxRemaining = this.trxUnlock.getCachedRemaining();
+    this.newToken = this.trxUnlock.readPendingTrxidForInput(this.newToken);
+    this.trxUnlock.fetchCoinBalance().subscribe((n) => (this.trxRemaining = n));
     const stored = localStorage.getItem(STORAGE_UNLOCKED_EIINS);
     if (stored) this.unlockedEIINs = new Set(JSON.parse(stored));
 
@@ -513,25 +515,14 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
     setTimeout(() => (this.copyFeedback = false), 1500);
   }
 
-  /** Apply TrxID: activate row and sync balance from server. */
+  /** Apply TrxID: activate row; coin balance from customer.settings on server. */
   applyToken(): void {
-    const trimmedToken = (this.newToken || '').trim();
-    if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) return;
-
-    this.http.get<any>(`${environment.apiUrl}/token/?token=${encodeURIComponent(trimmedToken)}`).subscribe({
-      next: (res) => {
-        const result = res?.results?.[0];
-        if (result && result.Counter != null && Number(result.Status) === 0) {
-          this.trxUnlock.activateAppliedTrx({ id: result.id }).subscribe({
-            next: (rem) => {
-              this.trxRemaining = rem;
-              this.newToken = '';
-            },
-            error: () => {}
-          });
-        }
+    this.trxUnlock.validateTrxidAndActivate(this.newToken).subscribe({
+      next: (rem) => {
+        this.trxRemaining = rem;
+        this.newToken = '';
       },
-      error: () => {}
+      error: () => {},
     });
   }
 }

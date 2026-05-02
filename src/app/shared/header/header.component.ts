@@ -30,7 +30,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const u = this.router.url;
     return /^\/(ntrca|vacant[5678]|merit[5678]|recommend[5678])(\/|$)/.test(u.split('?')[0]);
   }
-  /** Remaining balance from cheradip_trxmanagement.token (cached after activate / each unlock). */
+  /** Coin balance from customer settings (synced via TrxUnlockService, not localStorage). */
   get headerRemainingUnlocks(): number {
     return this.trxUnlock.getCachedRemaining();
   }
@@ -147,6 +147,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
+        this.syncNewTokenFromPendingStash();
+        this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
         setTimeout(() => {
           this.checkVisibility();
         }, 100000);
@@ -154,6 +156,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
+        this.syncNewTokenFromPendingStash();
+        this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
         setTimeout(() => {
           this.checkVisibility();
         }, 100000);
@@ -206,6 +210,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.countrySubscription = this.countryService.country$.subscribe((country: Country | null) => {
       this.currentCountry = country;
     });
+    this.syncNewTokenFromPendingStash();
+    this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+  }
+
+  /** Refill header TrxID box from session stash after login (hidden on NTRCA section routes). */
+  private syncNewTokenFromPendingStash(): void {
+    if (this.isNtrcaSectionRoute) return;
+    const n = this.trxUnlock.readPendingTrxidForInput(this.newToken);
+    if (n !== this.newToken) {
+      this.newToken = n;
+      this.cdr.markForCheck();
+    }
   }
 
   ngOnDestroy(): void {
@@ -266,38 +282,30 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  /** Apply TrxID (8–10 digits) from header token box (same API + same app-alert as vacant/recommend/merit). */
+  /** Apply TrxID (8–10 digits) from header token box — requires login; same flow as NTRCA pages. */
   applyToken(): void {
-    const trimmedToken = (this.newToken || '').trim();
-    if (!trimmedToken || trimmedToken.length < 8 || trimmedToken.length > 10) {
-      this.showTokenAlertMessage('Enter a valid 8–10 digit TrxID to unlock more Details!');
-      return;
-    }
-    this.http.get<{ results?: Array<{ id?: number; Counter?: number; Status?: number }> }>(
-      `${environment.apiUrl}/token/?token=${encodeURIComponent(trimmedToken)}`
-    ).subscribe({
-      next: (res) => {
-        const result = res?.results?.[0];
-        if (result && result.Counter != null && Number(result.Status) === 0) {
-          this.trxUnlock.activateAppliedTrx({ id: result.id as number }).subscribe({
-            next: () => {
-              this.newToken = '';
-              this.showTokenAlertMessage(
-                'TrxID Successfully Activated, Now Click on Lock Icon to Unlock Informations!'
+    this.trxUnlock.validateTrxidAndActivate(this.newToken).subscribe({
+      next: () => {
+        this.newToken = '';
+          this.showTokenAlertMessage(
+                'TrxID Successfully Activated, Now you can use the paid services!'
               );
-              this.cdr.markForCheck();
-            },
-            error: () => {
-              this.showTokenAlertMessage('Failed to activate TrxID! Try again.');
-            }
-          });
-        } else {
-          this.showTokenAlertMessage('TrxID Already Used! Request another valid TrxID to unlock more Details!');
-        }
+        this.cdr.markForCheck();
       },
-      error: () => {
-        this.showTokenAlertMessage('Failed to validate TrxID! Try again to unlock more Details!');
-      }
+      error: (e: { code?: string }) => {
+        if (e?.code === 'login_required') {
+          return;
+        }
+        if (e?.code === 'invalid_format') {
+          this.showTokenAlertMessage('Enter a valid 8–10 digit TrxID to unlock more Details!');
+          return;
+        }
+        if (e?.code === 'trx_invalid') {
+          this.showTokenAlertMessage('TrxID Already Used! Request another valid TrxID to unlock more Details!');
+          return;
+        }
+        this.showTokenAlertMessage('Failed to validate or activate TrxID! Try again.');
+      },
     });
   }
 
