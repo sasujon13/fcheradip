@@ -140,12 +140,35 @@ export class WelcomeBonusCeremonyService {
       return `<img class="wbc-rose-img wbc-ri-${kind}" src="${src}" alt="" draggable="false" style="--left:${leftPct.toFixed(2)}%;--phase:${phase}s;--dur:${dur}s;--r0:${r0.toFixed(2)}deg;--sway:${sway.toFixed(1)}px;--y0:${y0}vh;--rot-spd:${rotSpd}deg;--rw:${w}px"/>`;
     }).join('');
 
+    /** Fewer sites; long `--fc-dur` + keyframe “quiet” tail = rare pops; each burst is richer (ring + sparks + stagger). */
+    const firecrackerBurstCount = 14;
+    const firecrackerHtml = Array.from({ length: firecrackerBurstCount }, (_, i) => {
+      const leftPct = rnd() * 100;
+      const topPct = rnd() * 100;
+      const scale = 0.48 + rnd() * 1.28;
+      const periodNum = 3.5 + rnd() * 2.85;
+      const dur = periodNum.toFixed(3);
+      const delay = (i * 0.62 + rnd() * 5.5).toFixed(3);
+      const hueBase = Math.floor(rnd() * 360);
+      const nSparks = 18 + Math.floor(rnd() * 12);
+      const sparks = Array.from({ length: nSparks }, (_, j) => {
+        const ang = (360 / nSparks) * j + rnd() * 22 - 11;
+        const len = (36 + rnd() * 132).toFixed(1);
+        const sh = Math.floor((hueBase + j * 17 + rnd() * 40) % 360);
+        const sd = (j * 0.014 + rnd() * 0.055).toFixed(3);
+        const sw = (2.2 + rnd() * 3.8).toFixed(2);
+        return `<span class="wbc-fc-spark" style="--a:${ang.toFixed(2)}deg;--len:${len}px;--sh:${sh};--sd:${sd}s;--sw:${sw}px"></span>`;
+      }).join('');
+      return `<div class="wbc-fc-burst" style="--fc-left:${leftPct.toFixed(2)}%;--fc-top:${topPct.toFixed(2)}%;--fc-scale:${scale.toFixed(3)};--fc-delay:${delay}s;--fc-dur:${dur}s"><span class="wbc-fc-core" aria-hidden="true"></span><span class="wbc-fc-flash" aria-hidden="true"></span><span class="wbc-fc-ring" aria-hidden="true"></span><div class="wbc-fc-sparks">${sparks}</div></div>`;
+    }).join('');
+
     const root = document.createElement('div');
     root.setAttribute('data-welcome-ceremony', '1');
     root.innerHTML = `
       <div class="wbc-dismiss-layer" aria-hidden="true"></div>
       <div class="wbc-stage">
         <div class="wbc-petal-field" aria-hidden="true">${petalsHtml}${roseDropsHtml}</div>
+        <div class="wbc-firecracker-field" aria-hidden="true">${firecrackerHtml}</div>
         <div class="wbc-focus">
           <div class="wbc-burst-crown" aria-hidden="true">${burstCrownHtml}</div>
           <div class="wbc-ambient-glow" aria-hidden="true"></div>
@@ -172,6 +195,7 @@ export class WelcomeBonusCeremonyService {
         box-sizing:border-box;isolation:isolate;
       }
       [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-petal-field,
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-firecracker-field,
       [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-burst-crown,
       [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-ambient-glow{
         opacity:0;visibility:hidden;pointer-events:none;
@@ -182,14 +206,19 @@ export class WelcomeBonusCeremonyService {
         animation-play-state:paused;
       }
       [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-burst-crown *,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-ambient-glow{
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-ambient-glow,
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-firecracker-field,
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-firecracker-field *{
         animation-play-state:paused !important;
       }
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-burst-crown *,
-      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-ambient-glow{
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-ambient-glow,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-firecracker-field,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-firecracker-field *{
         animation-play-state:running !important;
       }
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-petal-field,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-firecracker-field,
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-burst-crown,
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-ambient-glow{
         opacity:1;visibility:visible;transition:opacity 0.45s ease;
@@ -284,6 +313,77 @@ export class WelcomeBonusCeremonyService {
       [data-welcome-ceremony] .wbc-petal-field{
         position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
         overflow:hidden;pointer-events:none;z-index:1;
+      }
+      [data-welcome-ceremony] .wbc-firecracker-field{
+        position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
+        overflow:hidden;pointer-events:none;z-index:3;
+      }
+      [data-welcome-ceremony] .wbc-fc-burst{
+        position:absolute;left:var(--fc-left,50%);top:var(--fc-top,50%);width:0;height:0;
+        transform:translate(-50%,-50%) scale(var(--fc-scale,1));
+        transform-origin:center center;pointer-events:none;
+      }
+      [data-welcome-ceremony] .wbc-fc-core{
+        position:absolute;left:0;top:0;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
+        background:radial-gradient(circle at 32% 30%,#fff 0%,#fff7c2 22%,#fbbf24 42%,#ea580c 62%,transparent 78%);
+        box-shadow:0 0 18px 8px rgba(255,248,220,.88),0 0 48px 18px rgba(251,146,60,.45),0 0 72px 28px rgba(234,88,12,.22);
+        animation:wbcFcCore var(--fc-dur,4s) cubic-bezier(0.2,0.9,0.2,1) infinite;
+        animation-delay:var(--fc-delay,0s);
+        will-change:transform,opacity,filter;
+      }
+      [data-welcome-ceremony] .wbc-fc-flash{
+        position:absolute;left:0;top:0;width:140px;height:140px;margin:-70px 0 0 -70px;border-radius:50%;
+        background:radial-gradient(circle at 45% 42%,rgba(255,255,255,.92) 0%,rgba(254,243,199,.55) 14%,rgba(251,191,36,.28) 32%,transparent 58%);
+        filter:blur(3px);
+        mix-blend-mode:screen;
+        animation:wbcFcFlash var(--fc-dur,4s) ease-out infinite;
+        animation-delay:var(--fc-delay,0s);
+        will-change:transform,opacity;
+      }
+      [data-welcome-ceremony] .wbc-fc-ring{
+        position:absolute;left:0;top:0;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
+        border:2px solid rgba(255,237,160,.88);
+        box-shadow:0 0 10px rgba(255,200,80,.55);
+        animation:wbcFcRing var(--fc-dur,4s) cubic-bezier(0.15,0.85,0.2,1) infinite;
+        animation-delay:var(--fc-delay,0s);
+        will-change:transform,opacity;
+      }
+      [data-welcome-ceremony] .wbc-fc-sparks{
+        position:absolute;left:0;top:0;width:0;height:0;transform:translate(0,0);
+      }
+      [data-welcome-ceremony] .wbc-fc-spark{
+        position:absolute;left:0;top:0;width:var(--sw,4px);height:calc(var(--sw, 4px) * 1.55);margin:calc(-0.5 * var(--sw, 4px)) 0 0 calc(-0.5 * var(--sw, 4px));border-radius:40%;
+        background:linear-gradient(180deg,hsl(var(--sh,48),100%,72%) 0%,hsl(calc(var(--sh,48) + 22),92%,52%) 55%,hsl(calc(var(--sh,48) + 44),85%,38%) 100%);
+        box-shadow:0 0 10px 3px hsla(var(--sh,48),100%,62%,.75),0 0 2px 1px rgba(255,255,255,.35);
+        transform:rotate(var(--a,0deg)) translate3d(0,0,0);
+        animation:wbcFcSpark var(--fc-dur,4s) cubic-bezier(0.08,0.72,0.18,1) infinite;
+        animation-delay:calc(var(--fc-delay, 0s) + var(--sd, 0s));
+        will-change:transform,opacity;
+      }
+      @keyframes wbcFcCore{
+        0%,68%{transform:scale(0.06);opacity:0;filter:brightness(1);}
+        71%{opacity:0.95;}
+        76%{transform:scale(1.05);opacity:1;filter:brightness(1.55);}
+        86%{transform:scale(5.8);opacity:0.88;filter:brightness(1.22);}
+        93%,100%{transform:scale(0.04);opacity:0;filter:brightness(1);}
+      }
+      @keyframes wbcFcFlash{
+        0%,66%{transform:scale(0.04);opacity:0;}
+        72%{opacity:0.88;}
+        84%{transform:scale(1.05);opacity:0.5;}
+        94%,100%{transform:scale(1.25);opacity:0;}
+      }
+      @keyframes wbcFcRing{
+        0%,67%{transform:scale(0.15);opacity:0;}
+        74%{opacity:0.95;}
+        92%{transform:scale(12);opacity:0.08;}
+        98%,100%{transform:scale(14);opacity:0;}
+      }
+      @keyframes wbcFcSpark{
+        0%,66%{opacity:0;transform:rotate(var(--a,0deg)) translate3d(0,0,0) scale(0.85);}
+        72%{opacity:1;}
+        91%{opacity:0.45;transform:rotate(var(--a,0deg)) translate3d(0,calc(-1 * var(--len,88px)),0) scale(0.35);}
+        97%,100%{opacity:0;transform:rotate(var(--a,0deg)) translate3d(0,calc(-1 * var(--len,88px)),0) scale(0.12);}
       }
       [data-welcome-ceremony] .wbc-petal{
         position:absolute;left:var(--left,10%);top:-5vh;width:9px;height:14px;margin-left:-4.5px;
