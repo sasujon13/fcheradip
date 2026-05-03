@@ -1329,7 +1329,7 @@ button.view {
   width: 132px;
   border: 5px solid var(--color_primary_teal);
   border-left: 18px solid var(--color_primary_teal);
-  margin-left: -95px;
+  margin-left: -87px;
 }
 
 .token-input-box button {
