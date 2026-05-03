@@ -34,6 +34,11 @@
   z-index: 1001;
 }
 
+/* Logged-in + profile menu visible (see component HostBinding): align with header chrome */
+:host.ntrca-user-logged-in .token-input-box input {
+  margin-left: -112px;
+}
+
 :host .token-input-box input:focus,
 :host .token-input-box input:focus-visible {
   outline: none;

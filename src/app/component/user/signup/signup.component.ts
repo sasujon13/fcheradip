@@ -1283,9 +1283,11 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
 
           this.showLoggedInHeader();
 
-          const returnUrl = localStorage.getItem('returnUrl') || '/';
+          const useSavedReturnUrl = sessionStorage.getItem('signupFromAppNav') === '1';
+          sessionStorage.removeItem('signupFromAppNav');
+          const returnUrl = useSavedReturnUrl ? (localStorage.getItem('returnUrl') || '/') : '/';
+          localStorage.setItem('returnUrl', '');
           this.router.navigateByUrl(returnUrl).then(() => {
-            localStorage.setItem('returnUrl', '');
             const scrollY = sessionStorage.getItem('signupReturnScrollY');
             if (scrollY != null) {
               sessionStorage.removeItem('signupReturnScrollY');

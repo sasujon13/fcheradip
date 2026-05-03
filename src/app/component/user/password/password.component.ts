@@ -192,6 +192,11 @@ export class PasswordComponent implements OnInit {
     }
     return false;
   }
+  navigateToSignupWithReturnIntent(): void {
+    sessionStorage.setItem('signupFromAppNav', '1');
+    void this.router.navigate(['/auth']);
+  }
+
   onAuth() {
     this.authForm.markAllAsTouched();
     if (this.hasEmptyFields()) {

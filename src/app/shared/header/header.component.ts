@@ -685,6 +685,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (!url.startsWith('/auth'))
       localStorage.setItem('returnUrl', url);
     sessionStorage.setItem('signupReturnScrollY', String(window.scrollY));
+    sessionStorage.setItem('signupFromAppNav', '1');
     this.router.navigate(['/auth']);
   }
 
@@ -715,6 +716,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       menu_item2.style.display = 'none';
       profileMenu.style.display = 'none';
     }
+    window.dispatchEvent(new CustomEvent('cheradip-auth-changed'));
     // Do not navigate: stay on same page and scroll position (like after login/signup)
   }
 

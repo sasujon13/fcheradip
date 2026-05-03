@@ -84,6 +84,10 @@ header .tokenbox.header-tokenbox .token-input-box input {
   position: relative;
   z-index: 1001;
 }
+
+header.logged-in .tokenbox.header-tokenbox .token-input-box input {
+  margin-left: -112px;
+}
 header .tokenbox.header-tokenbox .token-input-box input:focus,
 header .tokenbox.header-tokenbox .token-input-box input:focus-visible {
   outline: none;

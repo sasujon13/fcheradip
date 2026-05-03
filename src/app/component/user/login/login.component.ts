@@ -268,6 +268,12 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showPassword = !this.showPassword;
   }
 
+  /** Opens signup with intent to return after registration (preserves returnUrl from AuthGuard / navigateToLogin — same session flag as header SignUp). */
+  navigateToSignupWithReturnIntent(): void {
+    sessionStorage.setItem('signupFromAppNav', '1');
+    void this.router.navigate(['/auth']);
+  }
+
   /** Show auth alert (same snackbar as NTRCA: success = teal, error = darkred). Reset first so it re-shows on every submit. */
   private showAuthAlertMessage(msg: string, isSuccess: boolean): void {
     this.showAuthAlert = false;

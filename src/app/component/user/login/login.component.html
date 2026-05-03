@@ -37,8 +37,8 @@
       <span class="label-colon"></span>
       <div class="form-field">
         <div class="error-message">
-          You don't have an account with this Mobile number. Please <a [routerLink]="['/auth']"
-            routerLinkActive="auth">Signup</a> / try with a different Mobile number!
+          You don't have an account with this Mobile number. Please <a href="javascript:void(0)"
+            (click)="navigateToSignupWithReturnIntent()">Signup</a> / try with a different Mobile number!
         </div>
       </div>
     </div>
@@ -69,7 +69,7 @@
 
   <div class="login-link">
     <p>Don't have an account?</p>
-    <a [routerLink]="['/auth']" routerLinkActive="auth" class="switch-btn">Signup</a>
+    <a href="javascript:void(0)" class="switch-btn" (click)="navigateToSignupWithReturnIntent()">Signup</a>
   </div>
 </div>
 
