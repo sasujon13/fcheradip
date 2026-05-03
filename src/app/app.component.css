@@ -10,7 +10,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
+  top: 500px;
   bottom: 0;
   pointer-events: none;
   z-index: 999;

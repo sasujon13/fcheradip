@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, AfterViewInit, Renderer2 } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject, OnInit, OnDestroy, AfterViewInit, Renderer2 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { Location } from '@angular/common';
@@ -18,7 +18,7 @@ const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
   templateUrl: './college-theme.component.html',
   styleUrls: ['./college-theme.component.css']
 })
-export class CollegeThemeComponent implements OnInit, AfterViewInit {
+export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   private banbeisUrl = `${environment.apiUrl}/banbeis/`;
   private institutesUrl = `${environment.apiUrl}/institutes/`;
   /** Direct fetch by EIIN (no search). Used when opening from sitemap / eiin or eiin-name URL. */
@@ -33,6 +33,9 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
   newToken: string = '';
   trxRemaining = 0;
   unlockedEIINs: Set<string> = new Set();
+  /** Token input horizontal offset when logged in (matches header token box). */
+  tokenInputLoggedIn = false;
+  private tokenPollId?: ReturnType<typeof setInterval>;
 
   constructor(
     @Inject(DOCUMENT) private doc: Document,
@@ -42,7 +45,8 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
     private http: HttpClient,
     private lastInstitutes: LastInstitutesService,
     private loadingService: LoadingService,
-    private trxUnlock: TrxUnlockService
+    private trxUnlock: TrxUnlockService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -61,7 +65,27 @@ export class CollegeThemeComponent implements OnInit, AfterViewInit {
     });
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd)
-    ).subscribe(() => this.scheduleUrlNormalize());
+    ).subscribe(() => {
+      this.scheduleUrlNormalize();
+      this.syncTokenInputLoggedIn();
+    });
+    this.syncTokenInputLoggedIn();
+    this.tokenPollId = window.setInterval(() => this.syncTokenInputLoggedIn(), 400);
+  }
+
+  ngOnDestroy(): void {
+    if (this.tokenPollId != null) {
+      clearInterval(this.tokenPollId);
+      this.tokenPollId = undefined;
+    }
+  }
+
+  private syncTokenInputLoggedIn(): void {
+    const next = localStorage.getItem('isLoggedIn') === 'true';
+    if (next !== this.tokenInputLoggedIn) {
+      this.tokenInputLoggedIn = next;
+      this.cdr.markForCheck();
+    }
   }
 
   ngAfterViewInit(): void {

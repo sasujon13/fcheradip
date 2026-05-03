@@ -113,7 +113,8 @@
     <div class="hover-message-container"
       (pointerenter)="onTrxHelpPointerEnter()"
       (pointerleave)="onTrxHelpPointerLeave()">
-      <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10" />
+      <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
+        [style.margin-left]="loginStatus ? '-112px' : '-87px'" />
       <button (click)="applyToken()">Apply TrxID</button>
       <p class="rmsg">Balance: <b>{{ headerRemainingUnlocks }}</b></p>
       <div class="hover-message-box"

@@ -231,27 +231,30 @@ export class WelcomeBonusCeremonyService {
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-firecracker-field,
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-burst-crown,
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-ambient-glow{
-        opacity:1;visibility:visible;transition:opacity 0.45s ease;
+        opacity:1;visibility:visible;
         animation-play-state:running;
       }
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-petal,
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-rose-img{
         animation-play-state:running;
       }
+      /* Scrim: fixed gradient + blur always; only opacity animates (avoids backdrop/gradient tween glitches + “shifting” dim). */
       [data-welcome-ceremony] .wbc-dismiss-layer{
         position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
         z-index:0;pointer-events:auto;
-        transition:opacity 0.55s ease,backdrop-filter 0.5s ease,background-color 0.5s ease;
+        background:radial-gradient(ellipse 115% 95% at 50% 42%,rgba(30,22,48,0.38) 0%,rgba(12,8,24,0.72) 52%,rgba(6,4,14,0.88) 100%);
+        backdrop-filter:saturate(1.1) blur(5px);
+        -webkit-backdrop-filter:saturate(1.1) blur(5px);
+        transform:translateZ(0);
+        opacity:0;
+        transition:opacity 0.48s ease;
       }
       [data-welcome-ceremony][data-wbc-phase="text"] .wbc-dismiss-layer{
-        opacity:0;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;
+        opacity:0;
       }
       [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-dismiss-layer,
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-dismiss-layer{
         opacity:1;
-        background:radial-gradient(ellipse 115% 95% at 50% 42%,rgba(30,22,48,0.38) 0%,rgba(12,8,24,0.72) 52%,rgba(6,4,14,0.88) 100%);
-        backdrop-filter:saturate(1.1) blur(5px);
-        -webkit-backdrop-filter:saturate(1.1) blur(5px);
       }
       [data-welcome-ceremony] .wbc-stage{
         position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;

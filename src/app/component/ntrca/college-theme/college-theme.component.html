@@ -2,7 +2,8 @@
   <div class="token-input-box">
     <br>
     <div class="hover-message-container">
-      <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10" />
+      <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
+        [style.margin-left]="tokenInputLoggedIn ? '-112px' : '-87px'" />
       <button (click)="applyToken()">Apply TrxID</button>
       <p style="margin-top: 7px;">Balance: <b>{{ trxRemaining }}</b></p>
       <div class="hover-message-box" style="text-align: left;">

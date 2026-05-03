@@ -151,15 +151,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.syncNewTokenFromPendingStash();
-        this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
-        setTimeout(() => {
-          this.checkVisibility();
-        }, 100000);
-      }
-    });
-    this.router.events.subscribe((event) => {
-      if (event instanceof NavigationEnd) {
-        this.syncNewTokenFromPendingStash();
+        this.refreshLoginStatusFromStorage();
         this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
         setTimeout(() => {
           this.checkVisibility();
@@ -215,6 +207,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     this.syncNewTokenFromPendingStash();
     this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+  }
+
+  /** Keeps token-input margin and other bindings aligned with `localStorage.isLoggedIn` after login redirect. */
+  private refreshLoginStatusFromStorage(): void {
+    this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
+    this.cdr.markForCheck();
   }
 
   /** Refill header TrxID box from session stash after login (hidden on NTRCA section routes). */
@@ -719,6 +717,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
       menu_item2.style.display = 'none';
       profileMenu.style.display = 'none';
     }
+    this.loginStatus = false;
+    this.cdr.markForCheck();
     // Do not navigate: stay on same page and scroll position (like after login/signup)
   }
 

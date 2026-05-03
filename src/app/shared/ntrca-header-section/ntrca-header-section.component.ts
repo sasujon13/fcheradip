@@ -1,4 +1,7 @@
-import { Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { NavigationEnd, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 /**
  * Shared header section for NTRCA pages: token box + main message + notice links (৮ম, ৭ম, ৬ষ্ঠ, ৫ম).
@@ -9,16 +12,53 @@ import { Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core
   templateUrl: './ntrca-header-section.component.html',
   styleUrls: ['./ntrca-header-section.component.css']
 })
-export class NtrcaHeaderSectionComponent implements OnDestroy {
+export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
   @Input() newToken = '';
   @Output() newTokenChange = new EventEmitter<string>();
   @Input() remainingUnlocks = 0;
   @Output() applyTokenClick = new EventEmitter<void>();
 
+  /** Matches header `loginStatus`: shifts token input when logged in (same-tab logout has no route change). */
+  tokenInputLoggedIn = false;
+  private authRouteSub?: Subscription;
+  private authPollId?: ReturnType<typeof setInterval>;
+
   trxHelpPhase: 'off' | 'on' | 'closing' = 'off';
   private trxHelpTimers: number[] = [];
 
+  constructor(
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+  ) {}
+
+  ngOnInit(): void {
+    this.syncTokenInputLoggedIn();
+    this.authRouteSub = this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => {
+        this.syncTokenInputLoggedIn();
+        this.cdr.markForCheck();
+      });
+    this.authPollId = window.setInterval(() => this.syncTokenInputLoggedIn(), 400);
+  }
+
+  private syncTokenInputLoggedIn(): void {
+    const next = localStorage.getItem('isLoggedIn') === 'true';
+    if (next !== this.tokenInputLoggedIn) {
+      this.tokenInputLoggedIn = next;
+      this.cdr.markForCheck();
+    }
+  }
+
   ngOnDestroy(): void {
+    if (this.authRouteSub) {
+      this.authRouteSub.unsubscribe();
+      this.authRouteSub = undefined;
+    }
+    if (this.authPollId != null) {
+      clearInterval(this.authPollId);
+      this.authPollId = undefined;
+    }
     this.clearTrxHelpTimers();
   }
 
