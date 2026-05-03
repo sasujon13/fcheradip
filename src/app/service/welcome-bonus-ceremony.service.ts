@@ -52,11 +52,29 @@ export class WelcomeBonusCeremonyService {
     }
     this.playing = true;
 
-    const particleCount = 22;
-    const debrisHtml = Array.from({ length: particleCount }, (_, i) => {
-      const deg = (360 / particleCount) * i + (i % 3) * 4;
-      const hue = (i * 29) % 360;
-      return `<span class="wbc-d" style="--a:${deg}deg;--h:${hue};--i:${i}"></span>`;
+    const burstSiteCount = 16;
+    const debrisPerSite = 12;
+    const buildDebrisHtml = (siteIndex: number): string =>
+      Array.from({ length: debrisPerSite }, (_, i) => {
+        const deg = (360 / debrisPerSite) * i + (i % 3) * 4;
+        const hue = (i * 29 + siteIndex * 19) % 360;
+        return `<span class="wbc-d" style="--a:${deg}deg;--h:${hue};--i:${i}"></span>`;
+      }).join('');
+    const burstSiteInnerHtml = (siteIndex: number): string => {
+      const debrisHtml = buildDebrisHtml(siteIndex);
+      return `<div class="wbc-flash-core"></div>
+            <div class="wbc-ring wbc-ring-1"></div>
+            <div class="wbc-ring wbc-ring-2"></div>
+            <div class="wbc-ring wbc-ring-3"></div>
+            <div class="wbc-debris">${debrisHtml}</div>
+            <div class="wbc-smoke"></div>`;
+    };
+    const burstCrownHtml = Array.from({ length: burstSiteCount }, (_, siteIndex) => {
+      const spokeDeg = (360 / burstSiteCount) * siteIndex;
+      const delay = ((siteIndex * 0.06) % 2.4).toFixed(3);
+      return `<div class="wbc-spoke" style="--spoke:${spokeDeg}deg;--site-delay:${delay}s">
+          <div class="wbc-burst-axis" aria-hidden="true">${burstSiteInnerHtml(siteIndex)}</div>
+        </div>`;
     }).join('');
 
     /** Petals: rose gradient pairs; each petal uses Math.random() for continuous random drops */
@@ -120,23 +138,18 @@ export class WelcomeBonusCeremonyService {
     root.innerHTML = `
       <div class="wbc-backdrop"></div>
       <div class="wbc-stage">
-        <div class="wbc-burst-axis" aria-hidden="true">
-          <div class="wbc-flash-core"></div>
-          <div class="wbc-ring wbc-ring-1"></div>
-          <div class="wbc-ring wbc-ring-2"></div>
-          <div class="wbc-ring wbc-ring-3"></div>
-          <div class="wbc-debris">${debrisHtml}</div>
-          <div class="wbc-smoke"></div>
-        </div>
-        <div class="wbc-ambient-glow" aria-hidden="true"></div>
         <div class="wbc-petal-field" aria-hidden="true">${petalsHtml}${roseDropsHtml}</div>
-        <div class="wbc-card">
-          <div class="wbc-ribbon">✨ Cheradip ✨</div>
-          <h1 class="wbc-title">Congratulations!</h1>
-          <p class="wbc-sub">You have received <strong>5000 coins</strong> as your welcome bonus!</p>
-          <p class="wbc-foot">Your journey with us begins in style — explore, learn, and shine. 🎉</p>
-          <div class="wbc-logo-wrap">
-            <img src="/assets/images/cheradip.svg" alt="Cheradip" class="wbc-logo" />
+        <div class="wbc-focus">
+          <div class="wbc-burst-crown" aria-hidden="true">${burstCrownHtml}</div>
+          <div class="wbc-ambient-glow" aria-hidden="true"></div>
+          <div class="wbc-card">
+            <div class="wbc-ribbon">✨ Cheradip ✨</div>
+            <h1 class="wbc-title">Congratulations!</h1>
+            <p class="wbc-sub">You have received <strong>5000 coins</strong> as your welcome bonus!</p>
+            <p class="wbc-foot">Your journey with us begins in style — explore, learn, and shine. 🎉</p>
+            <div class="wbc-logo-wrap">
+              <img src="/assets/images/cheradip.svg" alt="Cheradip" class="wbc-logo" />
+            </div>
           </div>
         </div>
       </div>
@@ -155,8 +168,21 @@ export class WelcomeBonusCeremonyService {
         position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;
         z-index:1;
       }
+      [data-welcome-ceremony] .wbc-focus{
+        position:relative;width:min(88vmin,440px);aspect-ratio:1/1;flex-shrink:0;z-index:4;
+      }
+      [data-welcome-ceremony] .wbc-burst-crown{
+        position:absolute;inset:0;border-radius:50%;overflow:visible;z-index:1;pointer-events:none;
+      }
+      [data-welcome-ceremony] .wbc-spoke{
+        position:absolute;left:50%;bottom:50%;width:0;height:50%;
+        transform-origin:bottom center;
+        transform:translateX(-50%) rotate(var(--spoke,0deg));
+        pointer-events:none;
+      }
       [data-welcome-ceremony] .wbc-burst-axis{
-        position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;
+        position:absolute;left:50%;top:0;width:0;height:0;pointer-events:none;
+        transform:translate(-50%,-50%) scale(0.88);
       }
       [data-welcome-ceremony] .wbc-flash-core{
         position:absolute;left:0;top:0;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;
@@ -164,16 +190,24 @@ export class WelcomeBonusCeremonyService {
         box-shadow:0 0 40px 20px rgba(255,255,255,.9),0 0 80px 40px rgba(251,191,36,.6);
         animation:wbcCoreCharm 2.8s cubic-bezier(0.25,0.7,0.2,1) infinite;
       }
+      [data-welcome-ceremony] .wbc-spoke .wbc-flash-core{animation-delay:var(--site-delay,0s);}
       [data-welcome-ceremony] .wbc-ring{
         position:absolute;left:0;top:0;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;
         border:3px solid rgba(250,204,21,.95);
         animation:wbcRingCharm 2.2s ease-out infinite;
       }
+      [data-welcome-ceremony] .wbc-spoke .wbc-ring-1{animation-delay:var(--site-delay,0s);}
       [data-welcome-ceremony] .wbc-ring-2{
         border-color:rgba(20,184,166,.75);animation-delay:0.35s;animation-duration:2.4s;
       }
+      [data-welcome-ceremony] .wbc-spoke .wbc-ring-2{
+        animation-delay:calc(var(--site-delay, 0s) + 0.35s);animation-duration:2.4s;
+      }
       [data-welcome-ceremony] .wbc-ring-3{
         border-color:rgba(244,63,94,.6);border-width:2px;animation-delay:0.65s;animation-duration:2.6s;
+      }
+      [data-welcome-ceremony] .wbc-spoke .wbc-ring-3{
+        animation-delay:calc(var(--site-delay, 0s) + 0.65s);animation-duration:2.6s;
       }
       [data-welcome-ceremony] .wbc-debris{position:absolute;inset:0;width:0;height:0;left:0;top:0;}
       [data-welcome-ceremony] .wbc-d{
@@ -182,7 +216,7 @@ export class WelcomeBonusCeremonyService {
         box-shadow:0 0 6px hsla(var(--h,40),90%,60%,.9);
         transform:rotate(var(--a,0deg)) translate3d(0,0,0);
         animation:wbcShardLoop 3.2s cubic-bezier(0.12,0.65,0.2,1) infinite;
-        animation-delay:calc(var(--i,0) * 0.045s);
+        animation-delay:calc(var(--site-delay, 0s) + var(--i, 0) * 0.045s);
       }
       [data-welcome-ceremony] .wbc-smoke{
         position:absolute;left:0;top:0;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;
@@ -191,12 +225,17 @@ export class WelcomeBonusCeremonyService {
         animation:wbcSmokeCharm 3.5s ease-in-out infinite;
         animation-delay:0.1s;
       }
+      [data-welcome-ceremony] .wbc-spoke .wbc-smoke{
+        animation-delay:calc(var(--site-delay, 0s) + 0.1s);
+      }
       [data-welcome-ceremony] .wbc-ambient-glow{
-        position:absolute;left:50%;top:50%;width:min(90vw,480px);height:min(90vw,480px);
-        margin:calc(min(90vw,480px)/-2) 0 0 calc(min(90vw,480px)/-2);
+        position:absolute;left:50%;top:50%;width:min(90vw,480px);height:min(90vw,480px);z-index:2;
+        transform:translate(-50%,-50%);
+        margin:0;
         border-radius:50%;
         background:conic-gradient(from 0deg,#fbbf24,#f97316,#ec4899,#8b5cf6,#14b8a6,#fbbf24);
-        filter:blur(70px);opacity:0.35;animation:wbcAmbient 3.5s ease-in-out infinite;
+        filter:blur(70px);opacity:0.32;animation:wbcAmbient 3.5s ease-in-out infinite;
+        pointer-events:none;
       }
       [data-welcome-ceremony] .wbc-petal-field{
         position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3;
@@ -229,12 +268,12 @@ export class WelcomeBonusCeremonyService {
       [data-welcome-ceremony] .wbc-ri-pink{filter:drop-shadow(0 2px 5px rgba(120,20,60,.22));}
       [data-welcome-ceremony] .wbc-card{
         position:relative;z-index:5;
-        width:min(88vmin,440px);height:auto;max-width:none;
-        aspect-ratio:1/1;border-radius:50%;box-sizing:border-box;overflow:hidden;
+        width:100%;height:100%;max-width:none;box-sizing:border-box;
+        border-radius:50%;overflow:hidden;
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         text-align:center;padding:clamp(1rem,3.5vmin,2rem) clamp(1rem,3vmin,1.75rem);
-        background:radial-gradient(circle at 50% 50%,rgba(255,255,250,0.5) 0%,rgba(255,250,240,0.32) 42%,rgba(255,252,248,0.1) 68%,rgba(255,255,255,0) 100%);
-        box-shadow:0 25px 80px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.35) inset,0 0 60px rgba(251,191,36,.12);
+        background:linear-gradient(165deg,#ffffff,#fafafa);
+        box-shadow:0 25px 80px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.55) inset,0 0 60px rgba(251,191,36,.15);
         animation:wbcCardPop 0.7s cubic-bezier(0.2,0.9,0.2,1) 0.2s both;
       }
       [data-welcome-ceremony] .wbc-ribbon{font-size:.78rem;letter-spacing:0.28em;text-transform:uppercase;color:#b45309;font-weight:700;margin-bottom:0.75rem;animation:wbcShine 2.2s ease-in-out infinite;
