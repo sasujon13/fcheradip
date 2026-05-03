@@ -1330,6 +1330,8 @@ button.view {
   border: 5px solid var(--color_primary_teal);
   border-left: 18px solid var(--color_primary_teal);
   margin-left: -87px;
+  position: relative;
+  z-index: 1001;
 }
 
 .token-input-box button {
@@ -1341,10 +1343,14 @@ button.view {
   border-top-right-radius: 20px;
   border-bottom-right-radius: 20px;
   margin-left: -7px;
+  position: relative;
+  z-index: 1001;
+  cursor: pointer;
 }
 
 .rmsg {
   margin: -24px 0 0 224px;
+  pointer-events: none;
 }
 
 .token-input-box2 {
