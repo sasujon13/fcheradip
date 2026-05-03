@@ -12,7 +12,7 @@
 .question-container2 {
   padding: 20px 20px 0 20px;
   max-width: 1920px;
-  margin: 61px auto 0 auto;
+  margin: -62px auto 0 auto;
   position: fixed;
   width: 100%;
   z-index: 1001;
@@ -22,7 +22,7 @@
 .question-container3 {
   padding: 20px;
   max-width: 1920px;
-  margin: 124px auto 0 auto;
+  margin: 1px auto 0 auto;
   position: fixed;
   width: 100%;
   z-index: 1000;

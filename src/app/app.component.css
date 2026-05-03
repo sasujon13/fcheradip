@@ -5,7 +5,7 @@
   z-index: 0;
 }
 
-/* Scrollable pages: layer tracks page shell; marks at ~20% and +1400px (global-watermark.shared.css). */
+/* Scrollable pages: layer fills shell; marks use global 20% + 1400px (no effect on document flow). */
 .app-global-watermark-layer {
   position: absolute;
   left: 0;
@@ -18,10 +18,9 @@
 }
 
 /*
- * Short pages (whole document fits in viewport — no window scrollbar):
- * fixed overlay only for watermarks. Reset global absolute/top/transform so we do NOT stack
- * padding-top + top:20% + translate(-50%,-50%) (that caused extra top offset).
- * First line: exactly 100px below the top of the viewport; second: margin controlled by --wm-gap.
+ * Short pages only: fixed overlay (does not participate in layout — no extra page margin).
+ * Both marks absolutely positioned from the viewport top; --wm-gap is the vertical offset from
+ * the first line’s anchor to the second (computed in TS). No flex, no stacking with global top:20%.
  */
 .app-global-watermark-layer--compact {
   position: fixed;
@@ -29,31 +28,26 @@
   left: 0;
   right: 0;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding-top: 0;
+  pointer-events: none;
+  z-index: 999;
   margin: 0;
-  box-sizing: border-box;
+  padding: 0;
 }
 
 .app-global-watermark-layer--compact .diagonal-watermark:not(.fb-watermark) {
-  position: relative;
-  top: auto !important;
-  left: auto !important;
-  margin: 100px 0 0 !important;
-  transform: rotate(-45deg) !important;
-  transform-origin: center center;
+  position: absolute !important;
+  top: 100px !important;
+  left: 50% !important;
+  margin: 0 !important;
+  transform: translateX(-50%) rotate(-45deg) !important;
+  transform-origin: center top;
 }
 
 .app-global-watermark-layer--compact .fb-watermark {
-  position: relative;
-  top: auto !important;
-  left: auto !important;
-  margin-top: var(--wm-gap, 64px) !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  margin-bottom: 0 !important;
-  transform: rotate(-45deg) !important;
+  position: absolute !important;
+  top: calc(100px + var(--wm-line-h, 230px) + var(--wm-gap, 64px)) !important;
+  left: 50% !important;
+  margin: 0 !important;
+  transform: translateX(-50%) rotate(-45deg) !important;
+  transform-origin: center top;
 }

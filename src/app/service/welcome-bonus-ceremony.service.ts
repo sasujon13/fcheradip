@@ -1,6 +1,10 @@
-import { Injectable } from '@angular/core';
+import { Inject, Injectable } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { environment } from '../../environments/environment';
 import { ApiService } from './api.service';
+
+/** One clip at a time: s1→s2→s3, then s3→s1→s2, then s2→s3→s1, repeat (indices 0,1,2). */
+const WBC_BOMB_PLAY_ORDER: readonly number[] = [0, 1, 2, 2, 0, 1, 1, 2, 0];
 
 /**
  * One-shot “opening ceremony” overlay after signup / first login when the server
@@ -10,7 +14,10 @@ import { ApiService } from './api.service';
 export class WelcomeBonusCeremonyService {
   private playing = false;
 
-  constructor(private api: ApiService) {}
+  constructor(
+    private api: ApiService,
+    @Inject(DOCUMENT) private readonly doc: Document,
+  ) {}
 
   /** Queue celebration to run after the next route navigation (e.g. post-login redirect). */
   schedule(): void {
@@ -136,19 +143,22 @@ export class WelcomeBonusCeremonyService {
     const root = document.createElement('div');
     root.setAttribute('data-welcome-ceremony', '1');
     root.innerHTML = `
-      <div class="wbc-backdrop"></div>
+      <div class="wbc-dismiss-layer" aria-hidden="true"></div>
       <div class="wbc-stage">
         <div class="wbc-petal-field" aria-hidden="true">${petalsHtml}${roseDropsHtml}</div>
         <div class="wbc-focus">
           <div class="wbc-burst-crown" aria-hidden="true">${burstCrownHtml}</div>
           <div class="wbc-ambient-glow" aria-hidden="true"></div>
           <div class="wbc-card">
-            <div class="wbc-ribbon">✨ Cheradip ✨</div>
-            <h1 class="wbc-title">Congratulations!</h1>
-            <p class="wbc-sub">You have received <strong>5000 coins</strong> as your welcome bonus!</p>
-            <p class="wbc-foot">Your journey with us begins in style — explore, learn, and shine. 🎉</p>
-            <div class="wbc-logo-wrap">
-              <img src="/assets/images/cheradip.svg" alt="Cheradip" class="wbc-logo" />
+            <div class="wbc-card-front">
+              <div class="wbc-ribbon">✨ Cheradip ✨</div>
+              <h1 class="wbc-title">Congratulations!</h1>
+              <p class="wbc-intro-line">You have received</p>
+              <p class="wbc-coins">5000 Coins</p>
+              <p class="wbc-copy-black">as your welcome bonus! Your journey with us begins in style — explore, learn, and shine. 🎉</p>
+              <div class="wbc-logo-wrap">
+                <img src="/assets/images/cheradip.svg" alt="Cheradip" class="wbc-logo" />
+              </div>
             </div>
           </div>
         </div>
@@ -156,20 +166,54 @@ export class WelcomeBonusCeremonyService {
     `;
     const style = document.createElement('style');
     style.textContent = `
-      [data-welcome-ceremony]{position:fixed;inset:0;z-index:2147483000;pointer-events:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;}
-      [data-welcome-ceremony] .wbc-backdrop{
-        position:absolute;inset:0;
-        background:
-          radial-gradient(circle at 50% 50%,rgba(10,8,22,0.5) 0%,rgba(10,8,22,0.32) 32%,rgba(10,8,22,0.12) 58%,rgba(10,8,22,0) 72%),
-          radial-gradient(circle at 50% 50%,rgba(255,245,200,.42) 0%,rgba(80,20,10,.72) 40%,rgba(8,6,24,.96) 78%);
-        animation:wbcBackdropIn .35s ease-out both;
+      [data-welcome-ceremony]{
+        position:fixed;top:0;left:0;right:0;bottom:0;width:100%;min-height:100vh;min-height:100dvh;
+        z-index:2147483647;pointer-events:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;
+        box-sizing:border-box;isolation:isolate;
+      }
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-petal-field,
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-burst-crown,
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-ambient-glow{
+        opacity:0;visibility:hidden;pointer-events:none;
+        animation-play-state:paused;
+      }
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-petal,
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-rose-img{
+        animation-play-state:paused;
+      }
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-burst-crown *,
+      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-ambient-glow{
+        animation-play-state:paused !important;
+      }
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-burst-crown *,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-ambient-glow{
+        animation-play-state:running !important;
+      }
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-petal-field,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-burst-crown,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-ambient-glow{
+        opacity:1;visibility:visible;transition:opacity 0.45s ease;
+        animation-play-state:running;
+      }
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-petal,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-rose-img{
+        animation-play-state:running;
+      }
+      [data-welcome-ceremony] .wbc-dismiss-layer{
+        position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
+        z-index:0;background:transparent;pointer-events:auto;
       }
       [data-welcome-ceremony] .wbc-stage{
-        position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;
-        z-index:1;
+        position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
+        display:flex;align-items:center;justify-content:center;padding:max(12px,env(safe-area-inset-top)) 24px 24px;
+        z-index:1;box-sizing:border-box;pointer-events:none;
       }
       [data-welcome-ceremony] .wbc-focus{
-        position:relative;width:min(88vmin,440px);aspect-ratio:1/1;flex-shrink:0;z-index:4;
+        position:relative;flex:0 0 auto;isolation:isolate;pointer-events:none;
+        width:min(88vmin,440px);height:min(88vmin,440px);min-width:min(88vmin,440px);min-height:min(88vmin,440px);
+        max-width:min(88vmin,440px);max-height:min(88vmin,440px);
+        z-index:10;
+        transform:translateZ(0);
       }
       [data-welcome-ceremony] .wbc-burst-crown{
         position:absolute;inset:0;border-radius:50%;overflow:visible;z-index:1;pointer-events:none;
@@ -238,7 +282,8 @@ export class WelcomeBonusCeremonyService {
         pointer-events:none;
       }
       [data-welcome-ceremony] .wbc-petal-field{
-        position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3;
+        position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
+        overflow:hidden;pointer-events:none;z-index:1;
       }
       [data-welcome-ceremony] .wbc-petal{
         position:absolute;left:var(--left,10%);top:-5vh;width:9px;height:14px;margin-left:-4.5px;
@@ -267,33 +312,46 @@ export class WelcomeBonusCeremonyService {
       [data-welcome-ceremony] .wbc-ri-yellow{filter:drop-shadow(0 2px 5px rgba(80,60,0,.28));}
       [data-welcome-ceremony] .wbc-ri-pink{filter:drop-shadow(0 2px 5px rgba(120,20,60,.22));}
       [data-welcome-ceremony] .wbc-card{
-        position:relative;z-index:5;
+        position:relative;z-index:100;
         width:100%;height:100%;max-width:none;box-sizing:border-box;
-        border-radius:50%;overflow:hidden;
+        border:none;outline:none;border-radius:50%;overflow:visible;
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         text-align:center;padding:clamp(1rem,3.5vmin,2rem) clamp(1rem,3vmin,1.75rem);
-        background:linear-gradient(165deg,#ffffff,#fafafa);
-        box-shadow:0 25px 80px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.55) inset,0 0 60px rgba(251,191,36,.15);
-        animation:wbcCardPop 0.7s cubic-bezier(0.2,0.9,0.2,1) 0.2s both;
+        pointer-events:auto;
+        background:transparent;
+        box-shadow:none;
+        animation:wbcCardPop 0.65s cubic-bezier(0.2,0.9,0.2,1) 0s both;
+        transform:translateZ(2px);
       }
-      [data-welcome-ceremony] .wbc-ribbon{font-size:.78rem;letter-spacing:0.28em;text-transform:uppercase;color:#b45309;font-weight:700;margin-bottom:0.75rem;animation:wbcShine 2.2s ease-in-out infinite;
+      [data-welcome-ceremony] .wbc-card-front{
+        position:relative;z-index:101;isolation:isolate;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        text-align:center;width:100%;pointer-events:auto;
+        transform:translateZ(3px);
+      }
+      [data-welcome-ceremony] .wbc-ribbon{font-size:calc(0.78rem + 8px);letter-spacing:0.28em;text-transform:uppercase;color:#b45309;font-weight:700;margin-bottom:0.75rem;animation:wbcShine 2.2s ease-in-out infinite;
         text-shadow:0 1px 2px rgba(255,255,255,.9),0 2px 10px rgba(0,0,0,.22),0 0 20px rgba(251,191,36,.15);}
-      [data-welcome-ceremony] .wbc-title{font-size:clamp(1.6rem,4vw,2.1rem);margin:0 0 0.5rem;
+      [data-welcome-ceremony] .wbc-title{font-size:clamp(calc(1.6rem + 8px),calc(4vw + 8px),calc(2.1rem + 8px));margin:0 0 0.5rem;
         background:linear-gradient(120deg,#c2410c,#ea580c,#f59e0b,#eab308);
         -webkit-background-clip:text;background-clip:text;color:transparent;animation:wbcTitle 0.9s ease-out 0.25s both;
         filter:drop-shadow(0 2px 4px rgba(0,0,0,.35)) drop-shadow(0 1px 2px rgba(255,255,255,.45));}
-      [data-welcome-ceremony] .wbc-sub{font-size:1.05rem;line-height:1.55;color:#334155;margin:0 0 0.75rem;
-        text-shadow:0 1px 3px rgba(255,255,255,.92),0 2px 8px rgba(0,0,0,.18);}
-      [data-welcome-ceremony] .wbc-sub strong{color:#0f766e;font-size:1.15em;text-shadow:0 1px 3px rgba(255,255,255,.85),0 2px 6px rgba(0,0,0,.14);}
-      [data-welcome-ceremony] .wbc-foot{font-size:0.9rem;color:#64748b;margin:0 0 0.25rem;
-        text-shadow:0 1px 2px rgba(255,255,255,.9),0 2px 8px rgba(0,0,0,.15);}
+      [data-welcome-ceremony] .wbc-intro-line{
+        margin:0 0 0.35rem;font-size:calc(1.05rem + 8px);line-height:1.55;color:#000;text-align:center;
+      }
+      [data-welcome-ceremony] .wbc-coins{
+        margin:0 0 0.35rem;font-size:calc(1.15rem + 8px);font-weight:700;line-height:1.3;
+        color:#0000ff;white-space:nowrap;text-align:center;
+      }
+      [data-welcome-ceremony] .wbc-copy-black{
+        margin:0 0 0.5rem;font-size:calc(1.05rem + 8px);line-height:1.55;color:#000;
+        text-align:center;
+      }
       [data-welcome-ceremony] .wbc-logo-wrap{
         margin-top:1rem;display:flex;justify-content:center;align-items:center;width:100%;
       }
       [data-welcome-ceremony] .wbc-logo{
         width:75%;max-width:75%;height:auto;display:block;object-fit:contain;
       }
-      @keyframes wbcBackdropIn{from{opacity:0}to{opacity:1}}
       @keyframes wbcCoreCharm{
         0%{transform:scale(0.15);opacity:0.55;filter:brightness(1.1);}
         22%{transform:scale(2.1);opacity:1;filter:brightness(1.45);}
@@ -328,59 +386,164 @@ export class WelcomeBonusCeremonyService {
     `;
     document.head.appendChild(style);
     document.body.appendChild(root);
+    root.setAttribute('data-wbc-phase', 'intro');
 
     /**
-     * Three separate `<audio>` elements with fixed `src` (never reassigned) so the browser
-     * loads/decode as media — not like navigating to a new URL (which can trigger a save dialog
-     * for .wav when Content-Type is wrong). After 1s, play one clip at random; on `ended`, pick
-     * another random clip and play (sequential, no overlap).
+     * One `<audio>` + `blob:` URLs only. Loads `welcome-bomb.bundle.json` first (one GET; build via
+     * `npm run pack-welcome-sounds`) so s1/s2/s3 are not requested as separate `.wav` URLs on hosts
+     * that force download for those paths. Per-wav fetch is only a fallback for missing bundle slots.
+     * Order: 123 → 312 → 231 → repeat.
      */
-    const bombTracks = [
-      '/assets/sounds/s1.wav',
-      '/assets/sounds/s2.wav',
-      '/assets/sounds/s3.wav',
-    ] as const;
-    const bombAudios: HTMLAudioElement[] = bombTracks.map((url) => {
-      const a = document.createElement('audio');
-      a.preload = 'auto';
-      a.src = url;
-      a.volume = 0.22;
-      return a;
-    });
+    const bombLoadAbort = new AbortController();
+    const bombBlobUrls: (string | null)[] = [null, null, null];
+    const bombEl = document.createElement('audio');
+    bombEl.preload = 'auto';
+    bombEl.setAttribute('playsinline', '');
+    bombEl.volume = 0.5;
+    let bombPlaylistPos = 0;
+    let bombEndedListener: (() => void) | null = null;
+    let bombTimeUpdateListener: (() => void) | null = null;
+    /** Stop each clip this many seconds before its natural end, then start the next loop step. */
+    const BOMB_SKIP_LAST_SEC = 1;
+    let bombBlobsReady = false;
+    let bombFxWanted = false;
+    let bombPlaylistStarted = false;
 
-    const onBombTrackEnded = (): void => {
-      playRandomBombTrack();
-    };
-
-    const playRandomBombTrack = (): void => {
-      const next = bombAudios[Math.floor(Math.random() * bombAudios.length)]!;
-      for (const a of bombAudios) {
-        a.removeEventListener('ended', onBombTrackEnded);
-        if (a !== next) {
-          a.pause();
-          a.currentTime = 0;
-        }
+    const detachBombAdvanceListeners = (): void => {
+      if (bombEndedListener !== null) {
+        bombEl.removeEventListener('ended', bombEndedListener);
       }
-      next.addEventListener('ended', onBombTrackEnded);
-      next.currentTime = 0;
-      void next.play().catch(() => {});
+      if (bombTimeUpdateListener !== null) {
+        bombEl.removeEventListener('timeupdate', bombTimeUpdateListener);
+      }
+      bombEndedListener = null;
+      bombTimeUpdateListener = null;
     };
 
-    let bombStartTimer: number | null = window.setTimeout(() => {
-      bombStartTimer = null;
-      playRandomBombTrack();
-    }, 1000);
+    const stopAllBombAudio = (): void => {
+      bombLoadAbort.abort();
+      detachBombAdvanceListeners();
+      bombEl.pause();
+      bombEl.removeAttribute('src');
+      bombEl.load();
+      bombBlobUrls.forEach((u) => {
+        if (u) {
+          URL.revokeObjectURL(u);
+        }
+      });
+      bombBlobUrls[0] = bombBlobUrls[1] = bombBlobUrls[2] = null;
+    };
+
+    const advanceBombPlaylist = (): void => {
+      bombPlaylistPos += 1;
+      if (bombPlaylistPos >= WBC_BOMB_PLAY_ORDER.length) {
+        bombPlaylistPos = 0;
+      }
+    };
+
+    const tryStartBombPlaylist = (): void => {
+      if (bombPlaylistStarted || !bombBlobsReady || !bombFxWanted || !root.isConnected) {
+        return;
+      }
+      bombPlaylistStarted = true;
+      bombPlaylistPos = 0;
+      playCurrentBombClip();
+    };
+
+    const playCurrentBombClip = (): void => {
+      if (!root.isConnected || !bombPlaylistStarted) {
+        return;
+      }
+      if (!bombBlobUrls.some((u) => u != null)) {
+        return;
+      }
+      for (let skip = 0; skip < WBC_BOMB_PLAY_ORDER.length + 2; skip++) {
+        if (bombPlaylistPos >= WBC_BOMB_PLAY_ORDER.length) {
+          bombPlaylistPos = 0;
+        }
+        const track = WBC_BOMB_PLAY_ORDER[bombPlaylistPos]!;
+        const blobUrl = bombBlobUrls[track];
+        if (!blobUrl) {
+          advanceBombPlaylist();
+          continue;
+        }
+        detachBombAdvanceListeners();
+        bombEl.pause();
+        if (bombEl.src !== blobUrl) {
+          bombEl.src = blobUrl;
+          bombEl.load();
+        }
+        bombEl.currentTime = 0;
+
+        let bombGoNextArmed = true;
+        const goNextBombClip = (): void => {
+          if (!bombGoNextArmed) {
+            return;
+          }
+          bombGoNextArmed = false;
+          detachBombAdvanceListeners();
+          bombEl.pause();
+          advanceBombPlaylist();
+          playCurrentBombClip();
+        };
+
+        const onBombTimeUpdate = (): void => {
+          const d = bombEl.duration;
+          if (!Number.isFinite(d) || d <= BOMB_SKIP_LAST_SEC + 0.05) {
+            return;
+          }
+          if (bombEl.currentTime >= d - BOMB_SKIP_LAST_SEC) {
+            goNextBombClip();
+          }
+        };
+        bombTimeUpdateListener = onBombTimeUpdate;
+        bombEl.addEventListener('timeupdate', onBombTimeUpdate);
+
+        bombEndedListener = (): void => {
+          goNextBombClip();
+        };
+        bombEl.addEventListener('ended', bombEndedListener, { once: true });
+
+        void bombEl.play().catch(() => {
+          detachBombAdvanceListeners();
+          advanceBombPlaylist();
+          playCurrentBombClip();
+        });
+        return;
+      }
+    };
+
+    void (async (): Promise<void> => {
+      if (bombLoadAbort.signal.aborted || !root.isConnected) {
+        return;
+      }
+      try {
+        await this.loadWelcomeBombBlobSlots(bombLoadAbort.signal, bombBlobUrls);
+      } catch {
+        return;
+      }
+      if (!root.isConnected || bombLoadAbort.signal.aborted) {
+        return;
+      }
+      bombBlobsReady = true;
+      tryStartBombPlaylist();
+    })();
+
+    /** Petals, blast, glow + audio begin after card content is visible first. */
+    const FX_REVEAL_MS = 1000;
+    let fxRevealTimer: number | null = window.setTimeout(() => {
+      fxRevealTimer = null;
+      root.setAttribute('data-wbc-phase', 'fx');
+      bombFxWanted = true;
+      tryStartBombPlaylist();
+    }, FX_REVEAL_MS);
 
     const end = () => {
-      if (bombStartTimer !== null) {
-        clearTimeout(bombStartTimer);
-        bombStartTimer = null;
+      if (fxRevealTimer !== null) {
+        clearTimeout(fxRevealTimer);
+        fxRevealTimer = null;
       }
-      for (const a of bombAudios) {
-        a.removeEventListener('ended', onBombTrackEnded);
-        a.pause();
-        a.currentTime = 0;
-      }
+      stopAllBombAudio();
       this.playing = false;
       root.remove();
       style.remove();
@@ -405,6 +568,102 @@ export class WelcomeBonusCeremonyService {
       cardEl.addEventListener('mouseleave', () => {
         scheduleDismiss();
       });
+    }
+  }
+
+  private resolveAssetUrl(relativePath: string): string {
+    const normalized = relativePath.replace(/^\//, '');
+    const baseEl = this.doc.querySelector('base');
+    const base = baseEl?.href ?? this.doc.defaultView?.location.href ?? '/';
+    return new URL(normalized, base).href;
+  }
+
+  private looksLikeWavBytes(buf: ArrayBuffer): boolean {
+    if (buf.byteLength < 12) {
+      return false;
+    }
+    const u = new Uint8Array(buf);
+    return u[0] === 0x52 && u[1] === 0x49 && u[2] === 0x46 && u[3] === 0x46;
+  }
+
+  private base64ToArrayBuffer(b64: string): ArrayBuffer | null {
+    const t = b64.trim();
+    if (!t) {
+      return null;
+    }
+    try {
+      const bin = atob(t);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) {
+        bytes[i] = bin.charCodeAt(i);
+      }
+      return bytes.buffer;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Prefer one JSON bundle (see `npm run pack-welcome-sounds`) so s1/s2/s3 are not
+   * requested as separate `.wav` URLs (some hosts attach those and trigger downloads).
+   * Fetches individual files only for slots still empty; skips non-WAV bodies.
+   */
+  private async loadWelcomeBombBlobSlots(
+    signal: AbortSignal,
+    out: (string | null)[],
+  ): Promise<void> {
+    try {
+      const bundleRes = await fetch(this.resolveAssetUrl('assets/sounds/welcome-bomb.bundle.json'), {
+        signal,
+      });
+      if (bundleRes.ok) {
+        const j = (await bundleRes.json()) as { s1?: string; s2?: string; s3?: string };
+        const slots: [number, 's1' | 's2' | 's3'][] = [
+          [0, 's1'],
+          [1, 's2'],
+          [2, 's3'],
+        ];
+        for (const [idx, key] of slots) {
+          const raw = j[key];
+          if (typeof raw !== 'string') {
+            continue;
+          }
+          const ab = this.base64ToArrayBuffer(raw);
+          if (!ab || !this.looksLikeWavBytes(ab)) {
+            continue;
+          }
+          if (out[idx]) {
+            URL.revokeObjectURL(out[idx]!);
+          }
+          out[idx] = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+        }
+      }
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        throw e;
+      }
+    }
+
+    const paths = ['assets/sounds/s1.wav', 'assets/sounds/s2.wav', 'assets/sounds/s3.wav'];
+    for (let i = 0; i < paths.length; i++) {
+      if (out[i] || signal.aborted) {
+        continue;
+      }
+      try {
+        const res = await fetch(this.resolveAssetUrl(paths[i]!), { signal });
+        if (!res.ok) {
+          continue;
+        }
+        const ab = await res.arrayBuffer();
+        if (!this.looksLikeWavBytes(ab)) {
+          continue;
+        }
+        out[i] = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+      } catch (e: unknown) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          throw e;
+        }
+      }
     }
   }
 }

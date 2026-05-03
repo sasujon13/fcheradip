@@ -28,9 +28,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Vertical gap between the two watermark lines in compact mode (px). */
   watermarkGapPx = 400;
 
+  /** Exposed for template: anchor height after first line for `top` calc on the fb line (matches gap math). */
+  readonly wmLineHeightPx = 230;
+
   private readonly wmTopPx = 100;
   private readonly wmBottomReservePx = 48;
-  /** Approximate bounding height per rotated line (164px font); avoids overlap when computing gap. */
+  /** Approximate bounding height per rotated line (164px font); must match wmLineHeightPx. */
   private readonly wmApproxLinePx = 230;
   private readonly wmGapMinPx = 48;
   private readonly wmGapMaxPx = 1400;
@@ -38,6 +41,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private watermarkLayoutTimer: ReturnType<typeof setTimeout> | null = null;
   private resizeListener = () => this.scheduleWatermarkLayout();
   private shellResizeObserver?: ResizeObserver;
+  /** Deferred passes after route/content paint so scrollHeight / shell bottom reflect loaded UI. */
+  private contentMeasureTimers: number[] = [];
 
   constructor(
     private countryService: CountryService,
@@ -52,7 +57,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {
         setTimeout(() => this.welcomeCeremony.tryPlayAfterNavigation(), 400);
-        this.scheduleWatermarkLayout();
+        this.queueWatermarkMeasureAfterContent();
       });
     // Preferred UI language: from storage or infer from country (e.g. BD -> bn). Data from country table.
     this.countryService.country$.pipe(take(1)).subscribe(c => {
@@ -61,9 +66,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    this.updateWatermarkLayout();
-    this.cdr.markForCheck();
-    this.scheduleWatermarkLayout();
+    this.queueWatermarkMeasureAfterContent();
     this.ngZone.runOutsideAngular(() => {
       window.addEventListener('resize', this.resizeListener);
       this.attachShellResizeObserver();
@@ -76,6 +79,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.watermarkLayoutTimer !== null) {
       clearTimeout(this.watermarkLayoutTimer);
     }
+    this.clearContentMeasureTimers();
   }
 
   private scheduleWatermarkLayout(): void {
@@ -89,6 +93,38 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         this.cdr.markForCheck();
       });
     }, 80);
+  }
+
+  private clearContentMeasureTimers(): void {
+    for (const id of this.contentMeasureTimers) {
+      clearTimeout(id);
+    }
+    this.contentMeasureTimers = [];
+  }
+
+  /**
+   * Re-measure document / #pageShell after routed content, HTTP data, and images have had time to paint.
+   * Uses double rAF (next frame after layout) plus several timeouts so slow pages still converge.
+   */
+  private queueWatermarkMeasureAfterContent(): void {
+    this.clearContentMeasureTimers();
+
+    const run = () => {
+      this.ngZone.run(() => {
+        this.updateWatermarkLayout();
+        this.cdr.markForCheck();
+      });
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(run);
+    });
+
+    const delaysMs = [0, 120, 300, 600, 1200, 2200];
+    for (const ms of delaysMs) {
+      const id = window.setTimeout(run, ms);
+      this.contentMeasureTimers.push(id);
+    }
   }
 
   private attachShellResizeObserver(): void {
@@ -105,18 +141,22 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Compact watermarks only when there is no vertical window scrollbar: document height fits in the viewport.
-   * Then: fixed overlay, first line 100px from the top of the window, gap (--wm-gap) minimized so both lines fit.
-   * Otherwise: absolute layer on the page shell with the default 20% / +1400px layout (no extra page margin).
+   * Compact only when the window does not need a vertical scrollbar AND the main shell’s bottom edge
+   * sits in the viewport (avoids false positives where document height is wrong but content is tall).
+   * Then: fixed overlay (no layout impact), first line 100px from viewport top, --wm-gap shrinks the space
+   * between the two lines so both fit. Otherwise: absolute layer + global 20% / +1400px.
    */
   private updateWatermarkLayout(): void {
     const vh = window.innerHeight;
     const doc = document.documentElement;
-    const scrollH = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0);
-    /** True iff the whole document fits in the viewport (no need to scroll the window). */
-    const documentFitsViewport = scrollH <= vh + 1;
+    const docScrollH = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0);
+    const noWindowScroll = docScrollH <= vh + 1;
 
-    if (!documentFitsViewport) {
+    const shell = this.pageShellRef?.nativeElement;
+    const shellBottom = shell?.getBoundingClientRect().bottom ?? 0;
+    const shellFitsViewport = shell ? shellBottom <= vh + 3 : false;
+
+    if (!noWindowScroll || !shellFitsViewport) {
       this.watermarkCompact = false;
       return;
     }

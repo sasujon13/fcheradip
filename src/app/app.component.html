@@ -4,6 +4,7 @@
     class="app-global-watermark-layer"
     [class.app-global-watermark-layer--compact]="watermarkCompact"
     [style.--wm-gap.px]="watermarkCompact ? watermarkGapPx : null"
+    [style.--wm-line-h.px]="watermarkCompact ? wmLineHeightPx : null"
     aria-hidden="true"
   >
     <h1 class="diagonal-watermark">cheradip.com</h1>
