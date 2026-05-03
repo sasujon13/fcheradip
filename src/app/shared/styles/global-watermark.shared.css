@@ -19,20 +19,17 @@
   -webkit-text-stroke: 1px var(--color_primary_teal);
   -webkit-text-fill-color: transparent;
   position: absolute;
-  top: 20%;
   left: 50%;
   transform-origin: center center;
   pointer-events: none;
 }
 
 .diagonal-watermark {
-  top: 20%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 .fb-watermark {
-  top: 20%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-45deg);
   margin-top: 1400px;

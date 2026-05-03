@@ -36,7 +36,6 @@
 
 .app-global-watermark-layer--compact .diagonal-watermark:not(.fb-watermark) {
   position: absolute !important;
-  top: 100px !important;
   left: 50% !important;
   margin: 0 !important;
   transform: translateX(-50%) rotate(-45deg) !important;
