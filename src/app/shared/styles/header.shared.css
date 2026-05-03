@@ -80,13 +80,9 @@ header .tokenbox.header-tokenbox .token-input-box input {
   width: 132px;
   border: 5px solid var(--color_primary_teal);
   border-left: 5px solid var(--color_primary_teal);
-  margin-left: -87px;
+  margin-left: -112px;
   position: relative;
   z-index: 1001;
-}
-
-header.logged-in .tokenbox.header-tokenbox .token-input-box input {
-  margin-left: -112px;
 }
 header .tokenbox.header-tokenbox .token-input-box input:focus,
 header .tokenbox.header-tokenbox .token-input-box input:focus-visible {

@@ -716,7 +716,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
       menu_item2.style.display = 'none';
       profileMenu.style.display = 'none';
     }
-    window.dispatchEvent(new CustomEvent('cheradip-auth-changed'));
     // Do not navigate: stay on same page and scroll position (like after login/signup)
   }
 
