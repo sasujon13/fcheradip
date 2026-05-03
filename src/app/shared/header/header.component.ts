@@ -68,11 +68,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private translationProgressInterval: ReturnType<typeof setInterval> | null = null;
   @ViewChild('countryWrap') countryWrapRef!: ElementRef;
   @ViewChild('countryTriggerRef') countryTriggerRef!: ElementRef<HTMLElement>;
-  /** Drawer: max 600px, min 150px, 100000px from window bottom */
+  /** Drawer: max 600px, min 150px — same vertical gap as login/signup {@link CountrySelectorComponent} drawerMode */
   countryDropdownMaxHeight = 600;
   private readonly DRAWER_MIN = 150;
   private readonly DRAWER_MAX = 600;
-  private readonly BOTTOM_GAP = 100000;
+  private readonly BOTTOM_GAP = 100;
   /** Search term for header country dropdown (filter countries like login/signup). */
   headerCountrySearch = '';
   /** Global loading overlay (from LoadingService). */
@@ -110,6 +110,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @HostListener('window:resize', ['$event'])
   onScroll(event: any) {
     this.checkVisibility();
+    if (this.showCountryDropdown) {
+      this.computeCountryDrawerMaxHeight();
+    }
   }
 
   checkVisibility() {

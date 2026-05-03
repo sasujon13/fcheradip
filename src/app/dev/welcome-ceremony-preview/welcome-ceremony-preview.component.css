@@ -1,0 +1,41 @@
+.wbc-preview {
+  max-width: 520px;
+  margin: 48px auto;
+  padding: 24px;
+  font-family: system-ui, sans-serif;
+}
+
+.wbc-preview h1 {
+  font-size: 1.35rem;
+  margin: 0 0 12px;
+  color: #0f766e;
+}
+
+.wbc-preview-note {
+  color: #475569;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.wbc-preview-url {
+  margin: 0 0 20px;
+  font-size: 0.95rem;
+}
+
+.wbc-preview-url code {
+  font-size: 0.9rem;
+}
+
+.wbc-preview-btn {
+  padding: 12px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 10px;
+  background: #0d9488;
+  color: #fff;
+  cursor: pointer;
+}
+
+.wbc-preview-btn:hover {
+  background: #0f766e;
+}

@@ -1,0 +1,59 @@
+@import './shared/styles/global-watermark.shared.css';
+
+.app-page-shell {
+  position: relative;
+  z-index: 0;
+}
+
+/* Scrollable pages: layer tracks page shell; marks at ~20% and +1400px (global-watermark.shared.css). */
+.app-global-watermark-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 999;
+  overflow: visible;
+}
+
+/*
+ * Short pages (whole document fits in viewport — no window scrollbar):
+ * fixed overlay only for watermarks. Reset global absolute/top/transform so we do NOT stack
+ * padding-top + top:20% + translate(-50%,-50%) (that caused extra top offset).
+ * First line: exactly 100px below the top of the viewport; second: margin controlled by --wm-gap.
+ */
+.app-global-watermark-layer--compact {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.app-global-watermark-layer--compact .diagonal-watermark:not(.fb-watermark) {
+  position: relative;
+  top: auto !important;
+  left: auto !important;
+  margin: 100px 0 0 !important;
+  transform: rotate(-45deg) !important;
+  transform-origin: center center;
+}
+
+.app-global-watermark-layer--compact .fb-watermark {
+  position: relative;
+  top: auto !important;
+  left: auto !important;
+  margin-top: var(--wm-gap, 64px) !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+  transform: rotate(-45deg) !important;
+}

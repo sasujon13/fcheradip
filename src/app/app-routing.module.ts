@@ -53,6 +53,7 @@ import { StatsComponent } from './component/student/stats/stats.component';
 import { LeaderboardComponent } from './component/student/leaderboard/leaderboard.component';
 import { TutorComponent } from './component/student/tutor/tutor.component';
 import { ScraperComponent } from './component/scraper/scraper/scraper.component';
+import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
 
 const routes: Routes = [
   {path:'', redirectTo:'index',pathMatch:'full'},
@@ -88,6 +89,8 @@ const routes: Routes = [
   {path:'scrape', component: ScraperComponent},
   {path:'index', component: IndexComponent},
   {path:'login', component: LoginComponent},
+  /** Local preview of welcome-bonus overlay; redirects to index in production build */
+  {path:'dev/welcome-ceremony', component: WelcomeCeremonyPreviewComponent},
   {path:'auth', component: SignupComponent},
   {path:'auth/login', redirectTo:'login',pathMatch:'full'},
   {path:'login/auth', redirectTo:'auth',pathMatch:'full'},
