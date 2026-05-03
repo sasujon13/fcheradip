@@ -194,21 +194,31 @@ export class WelcomeBonusCeremonyService {
         z-index:2147483647;pointer-events:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;
         box-sizing:border-box;isolation:isolate;
       }
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-petal-field,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-firecracker-field,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-burst-crown,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-ambient-glow{
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-petal-field,
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-firecracker-field,
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-burst-crown,
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-ambient-glow,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-petal-field,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-firecracker-field,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-burst-crown,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-ambient-glow{
         opacity:0;visibility:hidden;pointer-events:none;
         animation-play-state:paused;
       }
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-petal,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-rose-img{
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-petal,
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-rose-img,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-petal,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-rose-img{
         animation-play-state:paused;
       }
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-burst-crown *,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-ambient-glow,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-firecracker-field,
-      [data-welcome-ceremony][data-wbc-phase="intro"] .wbc-firecracker-field *{
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-burst-crown *,
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-ambient-glow,
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-firecracker-field,
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-firecracker-field *,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-burst-crown *,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-ambient-glow,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-firecracker-field,
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-firecracker-field *{
         animation-play-state:paused !important;
       }
       [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-burst-crown *,
@@ -230,7 +240,18 @@ export class WelcomeBonusCeremonyService {
       }
       [data-welcome-ceremony] .wbc-dismiss-layer{
         position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
-        z-index:0;background:transparent;pointer-events:auto;
+        z-index:0;pointer-events:auto;
+        transition:opacity 0.55s ease,backdrop-filter 0.5s ease,background-color 0.5s ease;
+      }
+      [data-welcome-ceremony][data-wbc-phase="text"] .wbc-dismiss-layer{
+        opacity:0;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;
+      }
+      [data-welcome-ceremony][data-wbc-phase="overlay"] .wbc-dismiss-layer,
+      [data-welcome-ceremony][data-wbc-phase="fx"] .wbc-dismiss-layer{
+        opacity:1;
+        background:radial-gradient(ellipse 115% 95% at 50% 42%,rgba(30,22,48,0.38) 0%,rgba(12,8,24,0.72) 52%,rgba(6,4,14,0.88) 100%);
+        backdrop-filter:saturate(1.1) blur(5px);
+        -webkit-backdrop-filter:saturate(1.1) blur(5px);
       }
       [data-welcome-ceremony] .wbc-stage{
         position:absolute;inset:0;width:100%;height:100%;min-height:100vh;min-height:100dvh;
@@ -486,7 +507,8 @@ export class WelcomeBonusCeremonyService {
     `;
     document.head.appendChild(style);
     document.body.appendChild(root);
-    root.setAttribute('data-wbc-phase', 'intro');
+    /** `text` → copy first; `overlay` → dim scrim; `fx` → petals, crackers, crown, audio. */
+    root.setAttribute('data-wbc-phase', 'text');
 
     /**
      * One `<audio>` + `blob:` URLs only. Loads `welcome-bomb.bundle.json` first (one GET; build via
@@ -629,16 +651,24 @@ export class WelcomeBonusCeremonyService {
       tryStartBombPlaylist();
     })();
 
-    /** Petals, blast, glow + audio begin after card content is visible first. */
-    const FX_REVEAL_MS = 1000;
+    const WBC_TEXT_MS = 420;
+    const WBC_OVERLAY_BEFORE_FX_MS = 680;
+    let overlayRevealTimer: number | null = window.setTimeout(() => {
+      overlayRevealTimer = null;
+      root.setAttribute('data-wbc-phase', 'overlay');
+    }, WBC_TEXT_MS);
     let fxRevealTimer: number | null = window.setTimeout(() => {
       fxRevealTimer = null;
       root.setAttribute('data-wbc-phase', 'fx');
       bombFxWanted = true;
       tryStartBombPlaylist();
-    }, FX_REVEAL_MS);
+    }, WBC_TEXT_MS + WBC_OVERLAY_BEFORE_FX_MS);
 
     const end = () => {
+      if (overlayRevealTimer !== null) {
+        clearTimeout(overlayRevealTimer);
+        overlayRevealTimer = null;
+      }
       if (fxRevealTimer !== null) {
         clearTimeout(fxRevealTimer);
         fxRevealTimer = null;
