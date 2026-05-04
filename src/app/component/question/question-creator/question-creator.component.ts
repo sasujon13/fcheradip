@@ -7757,6 +7757,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
   }
 
+  /** Diagonal sheet watermark: scales with printable area (matches PDF export logic). */
+  previewSheetWatermarkFontPxForPage(pageIndex: number): number {
+    const iw = this.contentInnerWidthPxForPage(pageIndex);
+    const ih = this.contentInnerHeightPxForPage(pageIndex);
+    const side = Math.min(iw, ih);
+    return Math.max(28, Math.min(160, Math.round(side * 0.15)));
+  }
+
+  /** Page 1 / 3 / … → site; page 2 / 4 / … → fb line (same alternation as PDF). */
+  previewSheetWatermarkTextForPage(pageIndex: number): string {
+    return pageIndex % 2 === 0 ? 'cheradip.com' : 'fb: p.cheradip';
+  }
+
   /** Scale-wrap width: max sheet width when pages differ (landscape vs portrait). */
   get previewPaperWidthPxMax(): number {
     if (this.paginatedPages.length === 0) {

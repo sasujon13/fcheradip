@@ -981,6 +981,12 @@
                   [style.paddingBottom.px]="marginBottomPxForPage(pi)"
                   [style.paddingLeft.px]="marginLeftPxForPage(pi)"
                 >
+                  <div class="preview-sheet-watermark" aria-hidden="true">
+                    <span
+                      class="preview-sheet-watermark-text"
+                      [style.fontSize.px]="previewSheetWatermarkFontPxForPage(pi)"
+                    >{{ previewSheetWatermarkTextForPage(pi) }}</span>
+                  </div>
                   <div
                     class="preview-sheet-inner"
                     [style.width.px]="contentInnerWidthPxForPage(pi)"
@@ -1230,6 +1236,12 @@
                 [style.paddingBottom.px]="marginBottomPx"
                 [style.paddingLeft.px]="marginLeftPx"
               >
+                <div class="preview-sheet-watermark" aria-hidden="true">
+                  <span
+                    class="preview-sheet-watermark-text"
+                    [style.fontSize.px]="previewSheetWatermarkFontPxForPage(0)"
+                  >{{ previewSheetWatermarkTextForPage(0) }}</span>
+                </div>
                 <div
                   class="preview-sheet-inner"
                   [style.width.px]="contentInnerWidthPx"
