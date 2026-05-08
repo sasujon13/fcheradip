@@ -6,6 +6,9 @@ import { ApiService } from './api.service';
 /** One clip at a time: s1→s2→s3, then s3→s1→s2, then s2→s3→s1, repeat (indices 0,1,2). */
 const WBC_BOMB_PLAY_ORDER: readonly number[] = [0, 1, 2, 2, 0, 1, 1, 2, 0];
 
+/** If true: hide the ring of bursting flashes around the card; scattered firecrackers + bomb sounds stay. */
+const WBC_DISABLE_BURST_CROWN = true;
+
 /**
  * One-shot “opening ceremony” overlay after signup / first login when the server
  * indicates welcome coins should be celebrated.
@@ -69,29 +72,56 @@ export class WelcomeBonusCeremonyService {
     let previewBodyBgStored: string | undefined;
     let previewHtmlBgStored: string | undefined;
 
-    const burstSiteCount = 16;
-    const debrisPerSite = 12;
-    const buildDebrisHtml = (siteIndex: number): string =>
-      Array.from({ length: debrisPerSite }, (_, i) => {
-        const deg = (360 / debrisPerSite) * i + (i % 3) * 4;
-        const hue = (i * 29 + siteIndex * 19) % 360;
-        return `<span class="wbc-d" style="--a:${deg}deg;--h:${hue};--i:${i}"></span>`;
-      }).join('');
-    const burstSiteInnerHtml = (siteIndex: number): string => {
-      const debrisHtml = buildDebrisHtml(siteIndex);
-      return `<div class="wbc-flash-core"></div>
+    const rnd = (): number => Math.random();
+
+    let burstCrownHtml = '';
+    if (!WBC_DISABLE_BURST_CROWN) {
+      const burstSiteCount = 16;
+      const debrisPerSite = 12;
+      const buildDebrisHtml = (siteIndex: number): string =>
+        Array.from({ length: debrisPerSite }, (_, i) => {
+          const deg = (360 / debrisPerSite) * i + (i % 3) * 4;
+          const hue = (i * 29 + siteIndex * 19) % 360;
+          return `<span class="wbc-d" style="--a:${deg}deg;--h:${hue};--i:${i}"></span>`;
+        }).join('');
+      const burstSiteInnerHtml = (siteIndex: number): string => {
+        const debrisHtml = buildDebrisHtml(siteIndex);
+        return `<div class="wbc-flash-core"></div>
             <div class="wbc-ring wbc-ring-1"></div>
             <div class="wbc-ring wbc-ring-2"></div>
             <div class="wbc-ring wbc-ring-3"></div>
             <div class="wbc-debris">${debrisHtml}</div>
             <div class="wbc-smoke"></div>`;
-    };
-    const burstCrownHtml = Array.from({ length: burstSiteCount }, (_, siteIndex) => {
-      const spokeDeg = (360 / burstSiteCount) * siteIndex;
-      const delay = ((siteIndex * 0.06) % 2.4).toFixed(3);
-      return `<div class="wbc-spoke" style="--spoke:${spokeDeg}deg;--site-delay:${delay}s">
+      };
+      burstCrownHtml = Array.from({ length: burstSiteCount }, (_, siteIndex) => {
+        const spokeDeg = (360 / burstSiteCount) * siteIndex;
+        const delay = ((siteIndex * 0.06) % 2.4).toFixed(3);
+        return `<div class="wbc-spoke" style="--spoke:${spokeDeg}deg;--site-delay:${delay}s">
           <div class="wbc-burst-axis" aria-hidden="true">${burstSiteInnerHtml(siteIndex)}</div>
         </div>`;
+      }).join('');
+    }
+
+    /** Fewer sites; long `--fc-dur` + keyframe “quiet” tail = rare pops; each burst is richer (ring + sparks + stagger). */
+    const firecrackerBurstCount = 14;
+    const firecrackerHtml = Array.from({ length: firecrackerBurstCount }, (_, i) => {
+      const leftPct = rnd() * 100;
+      const topPct = rnd() * 100;
+      const scale = 0.48 + rnd() * 1.28;
+      const periodNum = 3.5 + rnd() * 2.85;
+      const dur = periodNum.toFixed(3);
+      const delay = (i * 0.62 + rnd() * 5.5).toFixed(3);
+      const hueBase = Math.floor(rnd() * 360);
+      const nSparks = 18 + Math.floor(rnd() * 12);
+      const sparks = Array.from({ length: nSparks }, (_, j) => {
+        const ang = (360 / nSparks) * j + rnd() * 22 - 11;
+        const len = (36 + rnd() * 132).toFixed(1);
+        const sh = Math.floor((hueBase + j * 17 + rnd() * 40) % 360);
+        const sd = (j * 0.014 + rnd() * 0.055).toFixed(3);
+        const sw = (2.2 + rnd() * 3.8).toFixed(2);
+        return `<span class="wbc-fc-spark" style="--a:${ang.toFixed(2)}deg;--len:${len}px;--sh:${sh};--sd:${sd}s;--sw:${sw}px"></span>`;
+      }).join('');
+      return `<div class="wbc-fc-burst" style="--fc-left:${leftPct.toFixed(2)}%;--fc-top:${topPct.toFixed(2)}%;--fc-scale:${scale.toFixed(3)};--fc-delay:${delay}s;--fc-dur:${dur}s"><span class="wbc-fc-core" aria-hidden="true"></span><span class="wbc-fc-flash" aria-hidden="true"></span><span class="wbc-fc-ring" aria-hidden="true"></span><div class="wbc-fc-sparks">${sparks}</div></div>`;
     }).join('');
 
     /** Petals: rose gradient pairs; each petal uses Math.random() for continuous random drops */
@@ -99,7 +129,6 @@ export class WelcomeBonusCeremonyService {
       [355, 328], [340, 300], [2, 330], [350, 312], [18, 345],
       [325, 275], [335, 308], [345, 318], [8, 352], [28, 340],
     ];
-    const rnd = (): number => Math.random();
     /** Spread each petal to a random phase so loops never “empty” the sky; pair with keyframes that avoid opacity flash at loop reset. */
     const petalCount = 420;
     const petalsHtml = Array.from({ length: petalCount }, (_, i) => {
@@ -146,30 +175,7 @@ export class WelcomeBonusCeremonyService {
       const sway = -48 + rnd() * 96;
       const y0 = (-12 - rnd() * 18).toFixed(2);
       const rotSpd = 260 + Math.floor(rnd() * 260);
-      const w = (44 + rnd() * 38).toFixed(0);
-      return `<img class="wbc-rose-img wbc-ri-${kind}" src="${src}" alt="" draggable="false" style="--left:${leftPct.toFixed(2)}%;--phase:${phase}s;--dur:${dur}s;--r0:${r0.toFixed(2)}deg;--sway:${sway.toFixed(1)}px;--y0:${y0}vh;--rot-spd:${rotSpd}deg;--rw:${w}px"/>`;
-    }).join('');
-
-    /** Fewer sites; long `--fc-dur` + keyframe “quiet” tail = rare pops; each burst is richer (ring + sparks + stagger). */
-    const firecrackerBurstCount = 14;
-    const firecrackerHtml = Array.from({ length: firecrackerBurstCount }, (_, i) => {
-      const leftPct = rnd() * 100;
-      const topPct = rnd() * 100;
-      const scale = 0.48 + rnd() * 1.28;
-      const periodNum = 3.5 + rnd() * 2.85;
-      const dur = periodNum.toFixed(3);
-      const delay = (i * 0.62 + rnd() * 5.5).toFixed(3);
-      const hueBase = Math.floor(rnd() * 360);
-      const nSparks = 18 + Math.floor(rnd() * 12);
-      const sparks = Array.from({ length: nSparks }, (_, j) => {
-        const ang = (360 / nSparks) * j + rnd() * 22 - 11;
-        const len = (36 + rnd() * 132).toFixed(1);
-        const sh = Math.floor((hueBase + j * 17 + rnd() * 40) % 360);
-        const sd = (j * 0.014 + rnd() * 0.055).toFixed(3);
-        const sw = (2.2 + rnd() * 3.8).toFixed(2);
-        return `<span class="wbc-fc-spark" style="--a:${ang.toFixed(2)}deg;--len:${len}px;--sh:${sh};--sd:${sd}s;--sw:${sw}px"></span>`;
-      }).join('');
-      return `<div class="wbc-fc-burst" style="--fc-left:${leftPct.toFixed(2)}%;--fc-top:${topPct.toFixed(2)}%;--fc-scale:${scale.toFixed(3)};--fc-delay:${delay}s;--fc-dur:${dur}s"><span class="wbc-fc-core" aria-hidden="true"></span><span class="wbc-fc-flash" aria-hidden="true"></span><span class="wbc-fc-ring" aria-hidden="true"></span><div class="wbc-fc-sparks">${sparks}</div></div>`;
+      return `<img class="wbc-rose-img wbc-ri-${kind}" src="${src}" alt="" draggable="false" style="--left:${leftPct.toFixed(2)}%;--phase:${phase}s;--dur:${dur}s;--r0:${r0.toFixed(2)}deg;--sway:${sway.toFixed(1)}px;--y0:${y0}vh;--rot-spd:${rotSpd}deg"/>`;
     }).join('');
 
     const root = document.createElement('div');
@@ -222,9 +228,6 @@ export class WelcomeBonusCeremonyService {
       [data-welcome-ceremony][data-wbc-preview="1"] .wbc-intro-line,
       [data-welcome-ceremony][data-wbc-preview="1"] .wbc-copy-black{
         color:#e2e8f0;
-      }
-      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-coins{
-        color:#93c5fd;
       }
       /* Avoid rotating conic “blob” and small square debris glitches on dev preview. */
       [data-welcome-ceremony][data-wbc-preview="1"] .wbc-ambient-glow{
@@ -399,7 +402,6 @@ export class WelcomeBonusCeremonyService {
         position:absolute;left:0;top:0;width:140px;height:140px;margin:-70px 0 0 -70px;border-radius:50%;
         background:radial-gradient(circle at 45% 42%,rgba(255,255,255,.92) 0%,rgba(254,243,199,.55) 14%,rgba(251,191,36,.28) 32%,transparent 58%);
         filter:blur(3px);
-        mix-blend-mode:screen;
         animation:wbcFcFlash var(--fc-dur,4s) ease-out infinite;
         animation-delay:var(--fc-delay,0s);
         will-change:transform,opacity;
@@ -462,10 +464,10 @@ export class WelcomeBonusCeremonyService {
       }
       [data-welcome-ceremony] .wbc-rose-img{
         position:absolute;left:var(--left,50%);top:-10vh;
-        width:var(--rw,64px);height:auto;margin-left:calc(var(--rw, 64px) / -2);
+        width:auto;height:auto;margin:0;
         object-fit:contain;pointer-events:none;user-select:none;
         filter:drop-shadow(0 2px 4px rgba(0,0,0,.2));
-        animation:wbcPetalFall var(--dur,9s) linear infinite;
+        animation:wbcRoseFall var(--dur,9s) linear infinite;
         animation-delay:calc(0.2s - var(--phase,0s));
         transform-origin:50% 55%;
         will-change:transform;
@@ -503,8 +505,12 @@ export class WelcomeBonusCeremonyService {
         margin:0 0 0.35rem;font-size:calc(1.05rem + 8px);line-height:1.55;color:#000;text-align:center;
       }
       [data-welcome-ceremony] .wbc-coins{
-        margin:0 0 0.35rem;font-size:calc(1.15rem + 8px);font-weight:700;line-height:1.3;
-        color:#0000ff;white-space:nowrap;text-align:center;
+        margin:0 0 0.35rem;
+        font-size:clamp(calc(1.38rem + 8px),calc(3.4vw + 10px),calc(2rem + 10px));
+        font-weight:700;line-height:1.28;white-space:nowrap;text-align:center;
+        background:linear-gradient(120deg,#c2410c,#ea580c,#f59e0b,#eab308);
+        -webkit-background-clip:text;background-clip:text;color:transparent;
+        filter:drop-shadow(0 2px 4px rgba(0,0,0,.35)) drop-shadow(0 1px 2px rgba(255,255,255,.45));
       }
       [data-welcome-ceremony] .wbc-copy-black{
         margin:0 0 0.5rem;font-size:calc(1.05rem + 8px);line-height:1.55;color:#000;
@@ -546,6 +552,11 @@ export class WelcomeBonusCeremonyService {
       @keyframes wbcPetalFall{
         0%{transform:translate3d(0,var(--y0,-12vh),0) rotate(var(--r0,0deg));opacity:0.9;}
         100%{transform:translate3d(var(--sway,18px),118vh,0) rotate(calc(var(--r0,0deg) + var(--rot-spd,520deg)));opacity:0.55;}
+      }
+      /* Photo roses: intrinsic bitmap size + translateX(-50%) centered on horizontal --left %. */
+      @keyframes wbcRoseFall{
+        0%{transform:translateX(-50%) translate3d(0,var(--y0,-12vh),0) rotate(var(--r0,0deg));opacity:0.95;}
+        100%{transform:translateX(-50%) translate3d(var(--sway,18px),118vh,0) rotate(calc(var(--r0,0deg) + var(--rot-spd,520deg)));opacity:0.55;}
       }
     `;
     document.head.appendChild(style);
@@ -702,6 +713,8 @@ export class WelcomeBonusCeremonyService {
 
     const WBC_TEXT_MS = 420;
     const WBC_OVERLAY_BEFORE_FX_MS = 680;
+    /** Auto-close after this long unless the user clicks away (card hover pauses the timer). */
+    const WBC_AUTO_DISMISS_MS = 30_000;
     let overlayRevealTimer: number | null = window.setTimeout(() => {
       overlayRevealTimer = null;
       root.setAttribute('data-wbc-phase', 'overlay');
@@ -739,10 +752,10 @@ export class WelcomeBonusCeremonyService {
       }
     };
     root.addEventListener('click', end);
-    let dismissTimer: number | null = window.setTimeout(end, 8500);
+    let dismissTimer: number | null = window.setTimeout(end, WBC_AUTO_DISMISS_MS);
     const scheduleDismiss = () => {
       if (dismissTimer) clearTimeout(dismissTimer);
-      dismissTimer = window.setTimeout(end, 8500);
+      dismissTimer = window.setTimeout(end, WBC_AUTO_DISMISS_MS);
     };
     const cardEl = root.querySelector('.wbc-card');
     if (cardEl) {
