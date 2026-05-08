@@ -3,8 +3,8 @@ import { DOCUMENT } from '@angular/common';
 import { environment } from '../../environments/environment';
 import { ApiService } from './api.service';
 
-/** One clip at a time: s1→s2→s3, then s3→s1→s2, then s2→s3→s1, repeat (indices 0,1,2). */
-const WBC_BOMB_PLAY_ORDER: readonly number[] = [0, 1, 2, 2, 0, 1, 1, 2, 0];
+/** One clip at a time: repeat 201 → 120 → 012 → 201 → … (0=s1, 1=s2, 2=s3). */
+const WBC_BOMB_PLAY_ORDER: readonly number[] = [2, 0, 1, 1, 2, 0, 0, 1, 2, 2, 0, 1];
 
 /** If true: hide the ring of bursting flashes around the card; scattered firecrackers + bomb sounds stay. */
 const WBC_DISABLE_BURST_CROWN = true;
@@ -571,10 +571,9 @@ export class WelcomeBonusCeremonyService {
     root.setAttribute('data-wbc-phase', 'text');
 
     /**
-     * One `<audio>` + `blob:` URLs only. Loads `welcome-bomb.bundle.json` first (one GET; build via
-     * `npm run pack-welcome-sounds`) so s1/s2/s3 are not requested as separate `.wav` URLs on hosts
-     * that force download for those paths. Per-wav fetch is only a fallback for missing bundle slots.
-     * Order: 123 → 312 → 231 → repeat.
+     * One `<audio>` + blob URLs (WAV/MP3/…). Loads `welcome-bomb.bundle.json` first (one GET; build via
+     * `npm run pack-welcome-sounds`) so s1–s3 are not requested as separate asset URLs on hosts that
+     * force download for those paths. Order: 201 → 120 → 012 → 201 → repeat.
      */
     const bombLoadAbort = new AbortController();
     const bombBlobUrls: (string | null)[] = [null, null, null];
@@ -585,8 +584,8 @@ export class WelcomeBonusCeremonyService {
     let bombPlaylistPos = 0;
     let bombEndedListener: (() => void) | null = null;
     let bombTimeUpdateListener: (() => void) | null = null;
-    /** Stop each clip this many seconds before its natural end, then start the next loop step. */
-    const BOMB_SKIP_LAST_SEC = 1;
+    /** Seconds before natural end to cut to the next clip (s1/s2: 1s; s3: 2s). */
+    const bombSkipTailSecForTrack = (track: number): number => (track === 2 ? 2 : 1);
     let bombBlobsReady = false;
     let bombFxWanted = false;
     let bombPlaylistStarted = false;
@@ -649,14 +648,8 @@ export class WelcomeBonusCeremonyService {
           advanceBombPlaylist();
           continue;
         }
-        detachBombAdvanceListeners();
-        bombEl.pause();
-        if (bombEl.src !== blobUrl) {
-          bombEl.src = blobUrl;
-          bombEl.load();
-        }
-        bombEl.currentTime = 0;
 
+        const skipTailSec = bombSkipTailSecForTrack(track);
         let bombGoNextArmed = true;
         const goNextBombClip = (): void => {
           if (!bombGoNextArmed) {
@@ -669,12 +662,20 @@ export class WelcomeBonusCeremonyService {
           playCurrentBombClip();
         };
 
+        detachBombAdvanceListeners();
+        bombEl.pause();
+        if (bombEl.src !== blobUrl) {
+          bombEl.src = blobUrl!;
+          bombEl.load();
+        }
+        bombEl.currentTime = 0;
+
         const onBombTimeUpdate = (): void => {
           const d = bombEl.duration;
-          if (!Number.isFinite(d) || d <= BOMB_SKIP_LAST_SEC + 0.05) {
+          if (!Number.isFinite(d) || d <= skipTailSec + 0.05) {
             return;
           }
-          if (bombEl.currentTime >= d - BOMB_SKIP_LAST_SEC) {
+          if (bombEl.currentTime >= d - skipTailSec) {
             goNextBombClip();
           }
         };
@@ -786,6 +787,57 @@ export class WelcomeBonusCeremonyService {
     return u[0] === 0x52 && u[1] === 0x49 && u[2] === 0x46 && u[3] === 0x46;
   }
 
+  /** MIME for `<audio>` blob URLs from magic bytes; null if unknown. */
+  private guessAudioMimeFromBuffer(buf: ArrayBuffer): string | null {
+    if (buf.byteLength < 4) {
+      return null;
+    }
+    const u = new Uint8Array(buf);
+    if (this.looksLikeWavBytes(buf)) {
+      return 'audio/wav';
+    }
+    /** Ogg (Vorbis/Opus) */
+    if (u[0] === 0x4f && u[1] === 0x67 && u[2] === 0x67 && u[3] === 0x53) {
+      return 'audio/ogg';
+    }
+    /** WebM / Matroska (EBML) — often Opus/A-Vorbis */
+    if (u[0] === 0x1a && u[1] === 0x45 && u[2] === 0xdf && u[3] === 0xa3) {
+      return 'audio/webm';
+    }
+    /** Core Audio Format */
+    if (u[0] === 0x63 && u[1] === 0x61 && u[2] === 0x66 && u[3] === 0x66) {
+      return 'audio/x-caf';
+    }
+    /** AIFF */
+    if (
+      u[0] === 0x46 &&
+      u[1] === 0x4f &&
+      u[2] === 0x52 &&
+      u[3] === 0x4d &&
+      buf.byteLength >= 12 &&
+      u[8] === 0x41 &&
+      u[9] === 0x49 &&
+      u[10] === 0x46 &&
+      u[11] === 0x46
+    ) {
+      return 'audio/aiff';
+    }
+    if (u[0] === 0x49 && u[1] === 0x44 && u[2] === 0x33) {
+      return 'audio/mpeg';
+    }
+    if (u[0] === 0xff && (u[1] & 0xe0) === 0xe0) {
+      return 'audio/mpeg';
+    }
+    /** MP4/M4A: `ftyp` usually at 4; scan in case of leading atom */
+    const scan = Math.min(u.length - 8, 4096);
+    for (let i = 4; i <= scan; i++) {
+      if (u[i] === 0x66 && u[i + 1] === 0x74 && u[i + 2] === 0x79 && u[i + 3] === 0x70) {
+        return 'audio/mp4';
+      }
+    }
+    return null;
+  }
+
   private base64ToArrayBuffer(b64: string): ArrayBuffer | null {
     const t = b64.trim();
     if (!t) {
@@ -803,10 +855,21 @@ export class WelcomeBonusCeremonyService {
     }
   }
 
+  private fillBombSlotFromBytes(ab: ArrayBuffer, idx: number, out: (string | null)[]): void {
+    const mime = this.guessAudioMimeFromBuffer(ab);
+    if (!mime) {
+      return;
+    }
+    if (out[idx]) {
+      URL.revokeObjectURL(out[idx]!);
+    }
+    out[idx] = URL.createObjectURL(new Blob([ab], { type: mime }));
+  }
+
   /**
    * Prefer one JSON bundle (see `npm run pack-welcome-sounds`) so s1/s2/s3 are not
-   * requested as separate `.wav` URLs (some hosts attach those and trigger downloads).
-   * Fetches individual files only for slots still empty; skips non-WAV bodies.
+   * requested as separate asset URLs (some hosts attach those and trigger downloads).
+   * Fetches individual files only for slots still empty; skips bodies with unknown format.
    */
   private async loadWelcomeBombBlobSlots(
     signal: AbortSignal,
@@ -829,13 +892,10 @@ export class WelcomeBonusCeremonyService {
             continue;
           }
           const ab = this.base64ToArrayBuffer(raw);
-          if (!ab || !this.looksLikeWavBytes(ab)) {
+          if (!ab) {
             continue;
           }
-          if (out[idx]) {
-            URL.revokeObjectURL(out[idx]!);
-          }
-          out[idx] = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+          this.fillBombSlotFromBytes(ab, idx, out);
         }
       }
     } catch (e: unknown) {
@@ -855,10 +915,7 @@ export class WelcomeBonusCeremonyService {
           continue;
         }
         const ab = await res.arrayBuffer();
-        if (!this.looksLikeWavBytes(ab)) {
-          continue;
-        }
-        out[i] = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+        this.fillBombSlotFromBytes(ab, i, out);
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') {
           throw e;
