@@ -36,6 +36,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.primeBrowserAudioOnFirstUserGesture();
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {
@@ -45,6 +46,35 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     // Preferred UI language: from storage or infer from country (e.g. BD -> bn). Data from country table.
     this.countryService.country$.pipe(take(1)).subscribe(c => {
       this.countryService.initPreferredLangFromCountry(c?.country_code);
+    });
+  }
+
+  /**
+   * Chrome (and most desktop browsers) block `HTMLAudioElement.play()` without a prior user gesture.
+   * Waking the Web Audio path once from the first pointer/key event helps later ceremony audio on localhost.
+   */
+  private primeBrowserAudioOnFirstUserGesture(): void {
+    this.ngZone.runOutsideAngular(() => {
+      const once = (): void => {
+        window.removeEventListener('pointerdown', once);
+        window.removeEventListener('keydown', once);
+        const AC =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AC) {
+          return;
+        }
+        const ctx = new AC();
+        void ctx.resume().finally(() => {
+          try {
+            ctx.close();
+          } catch {
+            /* noop */
+          }
+        });
+      };
+      window.addEventListener('pointerdown', once, { passive: true });
+      window.addEventListener('keydown', once);
     });
   }
 

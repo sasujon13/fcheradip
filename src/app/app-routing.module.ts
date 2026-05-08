@@ -89,8 +89,8 @@ const routes: Routes = [
   {path:'scrape', component: ScraperComponent},
   {path:'index', component: IndexComponent},
   {path:'login', component: LoginComponent},
-  /** Local preview of welcome-bonus overlay; redirects to index in production build */
-  {path:'dev/welcome-ceremony', component: WelcomeCeremonyPreviewComponent},
+  {path:'welcome', component: WelcomeCeremonyPreviewComponent},
+  {path:'dev/welcome-ceremony', redirectTo: 'welcome', pathMatch: 'full'},
   {path:'auth', component: SignupComponent},
   {path:'auth/login', redirectTo:'login',pathMatch:'full'},
   {path:'login/auth', redirectTo:'auth',pathMatch:'full'},

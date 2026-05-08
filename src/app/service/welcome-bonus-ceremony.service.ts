@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { environment } from '../../environments/environment';
 import { ApiService } from './api.service';
 
 /** One clip at a time: repeat 201 → 120 → 012 → 201 → … (0=s1, 1=s2, 2=s3). */
@@ -37,15 +36,17 @@ export class WelcomeBonusCeremonyService {
   }
 
   /**
-   * Development only: play the overlay immediately (no signup). Visit `/dev/welcome-ceremony`.
+   * Full-screen ceremony from the `/welcome` route (no signup). Clicks do not dismiss;
+   * auto-dismiss and card-hover behavior match signup unless `standaloneWelcomeRoute` differs.
    * Does not PATCH customer settings.
    */
-  previewForDesign(): void {
-    if (environment.production) {
-      return;
-    }
+  playStandaloneWelcomePage(): void {
     requestAnimationFrame(() =>
-      this.playDomCeremony({ skipServerClear: true, previewDevPage: true }),
+      this.playDomCeremony({
+        skipServerClear: true,
+        previewDevPage: true,
+        standaloneWelcomeRoute: true,
+      }),
     );
   }
 
@@ -60,8 +61,10 @@ export class WelcomeBonusCeremonyService {
 
   private playDomCeremony(options?: {
     skipServerClear?: boolean;
-    /** `/dev/welcome-ceremony`: black page, no blur scrim, card text fades out, restore page bg on end. */
+    /** `/welcome`: black page, no blur scrim, card text fades out, restore page bg on end. */
     previewDevPage?: boolean;
+    /** `/welcome`: do not end the ceremony when clicking the backdrop (signup flow still dismisses on click). */
+    standaloneWelcomeRoute?: boolean;
   }): void {
     if (this.playing) {
       return;
@@ -69,6 +72,7 @@ export class WelcomeBonusCeremonyService {
     this.playing = true;
 
     const previewDev = options?.previewDevPage === true;
+    const standaloneWelcome = options?.standaloneWelcomeRoute === true;
     let previewBodyBgStored: string | undefined;
     let previewHtmlBgStored: string | undefined;
 
@@ -589,6 +593,15 @@ export class WelcomeBonusCeremonyService {
     let bombBlobsReady = false;
     let bombFxWanted = false;
     let bombPlaylistStarted = false;
+    /** Chrome autoplay: remove listeners registered when `play()` was blocked. */
+    let bombAutoplayUnlockTeardown: (() => void) | null = null;
+
+    const clearBombAutoplayUnlock = (): void => {
+      if (bombAutoplayUnlockTeardown) {
+        bombAutoplayUnlockTeardown();
+        bombAutoplayUnlockTeardown = null;
+      }
+    };
 
     const detachBombAdvanceListeners = (): void => {
       if (bombEndedListener !== null) {
@@ -602,6 +615,7 @@ export class WelcomeBonusCeremonyService {
     };
 
     const stopAllBombAudio = (): void => {
+      clearBombAutoplayUnlock();
       bombLoadAbort.abort();
       detachBombAdvanceListeners();
       bombEl.pause();
@@ -687,7 +701,37 @@ export class WelcomeBonusCeremonyService {
         };
         bombEl.addEventListener('ended', bombEndedListener, { once: true });
 
-        void bombEl.play().catch(() => {
+        void bombEl.play().catch((err: unknown) => {
+          const notAllowed =
+            err instanceof DOMException && err.name === 'NotAllowedError';
+          if (notAllowed && root.isConnected) {
+            clearBombAutoplayUnlock();
+            const resumeAfterGesture = (): void => {
+              clearBombAutoplayUnlock();
+              if (!root.isConnected || !bombPlaylistStarted) {
+                return;
+              }
+              void bombEl.play().catch((e: unknown) => {
+                const na = e instanceof DOMException && e.name === 'NotAllowedError';
+                if (na) {
+                  return;
+                }
+                detachBombAdvanceListeners();
+                advanceBombPlaylist();
+                playCurrentBombClip();
+              });
+            };
+            const onGesture = (): void => {
+              resumeAfterGesture();
+            };
+            window.addEventListener('pointerdown', onGesture, { passive: true, capture: true });
+            window.addEventListener('keydown', onGesture, { capture: true });
+            bombAutoplayUnlockTeardown = (): void => {
+              window.removeEventListener('pointerdown', onGesture, { capture: true });
+              window.removeEventListener('keydown', onGesture, { capture: true });
+            };
+            return;
+          }
           detachBombAdvanceListeners();
           advanceBombPlaylist();
           playCurrentBombClip();
@@ -714,7 +758,7 @@ export class WelcomeBonusCeremonyService {
 
     const WBC_TEXT_MS = 420;
     const WBC_OVERLAY_BEFORE_FX_MS = 680;
-    /** Auto-close after this long unless the user clicks away (card hover pauses the timer). */
+    /** Auto-close after this long (card hover pauses the timer; signup also dismisses on click). */
     const WBC_AUTO_DISMISS_MS = 30_000;
     let overlayRevealTimer: number | null = window.setTimeout(() => {
       overlayRevealTimer = null;
@@ -752,7 +796,9 @@ export class WelcomeBonusCeremonyService {
         this.clearPendingOnServer();
       }
     };
-    root.addEventListener('click', end);
+    if (!standaloneWelcome) {
+      root.addEventListener('click', end);
+    }
     let dismissTimer: number | null = window.setTimeout(end, WBC_AUTO_DISMISS_MS);
     const scheduleDismiss = () => {
       if (dismissTimer) clearTimeout(dismissTimer);
