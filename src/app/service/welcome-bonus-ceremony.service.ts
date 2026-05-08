@@ -41,7 +41,9 @@ export class WelcomeBonusCeremonyService {
     if (environment.production) {
       return;
     }
-    requestAnimationFrame(() => this.playDomCeremony({ skipServerClear: true }));
+    requestAnimationFrame(() =>
+      this.playDomCeremony({ skipServerClear: true, previewDevPage: true }),
+    );
   }
 
   private clearPendingOnServer(): void {
@@ -53,11 +55,19 @@ export class WelcomeBonusCeremonyService {
       .subscribe({ error: () => {} });
   }
 
-  private playDomCeremony(options?: { skipServerClear?: boolean }): void {
+  private playDomCeremony(options?: {
+    skipServerClear?: boolean;
+    /** `/dev/welcome-ceremony`: black page, no blur scrim, card text fades out, restore page bg on end. */
+    previewDevPage?: boolean;
+  }): void {
     if (this.playing) {
       return;
     }
     this.playing = true;
+
+    const previewDev = options?.previewDevPage === true;
+    let previewBodyBgStored: string | undefined;
+    let previewHtmlBgStored: string | undefined;
 
     const burstSiteCount = 16;
     const debrisPerSite = 12;
@@ -164,6 +174,9 @@ export class WelcomeBonusCeremonyService {
 
     const root = document.createElement('div');
     root.setAttribute('data-welcome-ceremony', '1');
+    if (previewDev) {
+      root.setAttribute('data-wbc-preview', '1');
+    }
     root.innerHTML = `
       <div class="wbc-dismiss-layer" aria-hidden="true"></div>
       <div class="wbc-stage">
@@ -193,6 +206,33 @@ export class WelcomeBonusCeremonyService {
         position:fixed;top:0;left:0;right:0;bottom:0;width:100%;min-height:100vh;min-height:100dvh;
         z-index:2147483647;pointer-events:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;
         box-sizing:border-box;isolation:isolate;
+      }
+      [data-welcome-ceremony][data-wbc-preview="1"]{
+        background:#000;
+      }
+      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-dismiss-layer{
+        display:none !important;
+        opacity:0 !important;
+        visibility:hidden !important;
+        pointer-events:none !important;
+        backdrop-filter:none !important;
+        -webkit-backdrop-filter:none !important;
+      }
+      /* Black preview bg: light copy (default #000 text would vanish). */
+      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-intro-line,
+      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-copy-black{
+        color:#e2e8f0;
+      }
+      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-coins{
+        color:#93c5fd;
+      }
+      /* Avoid rotating conic “blob” and small square debris glitches on dev preview. */
+      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-ambient-glow{
+        display:none !important;
+      }
+      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-debris,
+      [data-welcome-ceremony][data-wbc-preview="1"] .wbc-d{
+        display:none !important;
       }
       [data-welcome-ceremony][data-wbc-phase="text"] .wbc-petal-field,
       [data-welcome-ceremony][data-wbc-phase="text"] .wbc-firecracker-field,
@@ -509,6 +549,12 @@ export class WelcomeBonusCeremonyService {
       }
     `;
     document.head.appendChild(style);
+    if (previewDev) {
+      previewBodyBgStored = this.doc.body.style.backgroundColor;
+      previewHtmlBgStored = this.doc.documentElement.style.backgroundColor;
+      this.doc.body.style.backgroundColor = '#000';
+      this.doc.documentElement.style.backgroundColor = '#000';
+    }
     document.body.appendChild(root);
     /** `text` → copy first; `overlay` → dim scrim; `fx` → petals, crackers, crown, audio. */
     root.setAttribute('data-wbc-phase', 'text');
@@ -680,6 +726,14 @@ export class WelcomeBonusCeremonyService {
       this.playing = false;
       root.remove();
       style.remove();
+      if (previewDev) {
+        if (previewBodyBgStored !== undefined) {
+          this.doc.body.style.backgroundColor = previewBodyBgStored;
+        }
+        if (previewHtmlBgStored !== undefined) {
+          this.doc.documentElement.style.backgroundColor = previewHtmlBgStored;
+        }
+      }
       if (!options?.skipServerClear) {
         this.clearPendingOnServer();
       }

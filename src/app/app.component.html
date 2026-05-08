@@ -1,14 +1,4 @@
 <app-header></app-header>
 <div class="app-page-shell" #pageShell>
-  <div
-    class="app-global-watermark-layer"
-    [class.app-global-watermark-layer--compact]="watermarkCompact"
-    [style.--wm-gap.px]="watermarkCompact ? watermarkGapPx : null"
-    [style.--wm-line-h.px]="watermarkCompact ? wmLineHeightPx : null"
-    aria-hidden="true"
-  >
-    <h1 class="diagonal-watermark">cheradip.com</h1>
-    <h1 class="diagonal-watermark fb-watermark">fb: p.cheradip</h1>
-  </div>
   <router-outlet></router-outlet>
 </div>

@@ -3,7 +3,7 @@
     <br>
     <div class="hover-message-container">
       <input type="text" [ngModel]="newToken" (ngModelChange)="newTokenChange.emit($event)" placeholder="8/10 Digits TrxID" maxlength="10" />
-      <button (click)="applyTokenClick.emit()">Apply TrxID</button>
+      <button (click)="applyTokenClick.emit()">Apply</button>
       <p style="margin-top: 7px;">Remaining unlocks: <b>{{ remainingUnlocks }}</b></p>
       <div class="hover-message-box" style="text-align: left;">
         1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
@@ -11,7 +11,7 @@
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Using <strong>bKash / Nagad</strong> to Unlock &nbsp;<strong>1000</strong>&nbsp;
         Institutes.<br>
         3. WhatsApp / Message me your <strong>TrxID</strong> after payment,<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then enter the <strong>TrxID</strong> here & click <strong>Apply TrxID</strong>.
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then enter the <strong>TrxID</strong> here & click <strong>Apply</strong>.
       </div>
     </div>
   </div>
@@ -132,7 +132,7 @@
 <app-alert [message]="'You have to select Districts!!!'"
   [showAlert]="showNoDataAlert3"></app-alert>
 <app-alert [message]="'You have used all Points! Paid সার্ভিস ব্যাবহারের জন্য, 01722710298 (Personal) নাম্বারে (সর্বোনিম্ন ২০ টাকা) Send Money (bKash/Nagad) 
-    করে কনফার্মেশন মেসেজটি WhatsApp/Message এ ফরওয়ার্ড করুন। তারপর উপরের বামদিকের কোণায় TrxID বক্সে ৮/১০ ডিজিটের TrxID লিখে Apply TrxID বাটনে ক্লিক করুন!'"
+    করে কনফার্মেশন মেসেজটি WhatsApp/Message এ ফরওয়ার্ড করুন। তারপর উপরের বামদিকের কোণায় TrxID বক্সে ৮/১০ ডিজিটের TrxID লিখে Apply বাটনে ক্লিক করুন!'"
   [showAlert]="showNoDataAlert4"></app-alert>
 <app-alert [message]="'Invalid TrxID / TrxID Not Found! Please request a new one to unlock more Details!'"
   [showAlert]="showNoDataAlert5"></app-alert>

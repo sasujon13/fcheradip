@@ -8,13 +8,15 @@
   opacity: 1;
   font-weight: 700;
   font-size: 164px;
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   white-space: nowrap;
+  width: max-content;
+  max-width: var(--wm-max-width-px, 94vw);
+  --wm-scale: 1;
   text-shadow: 1px 1px 3px rgba(0, 128, 128, 0.25);
   font-family: 'Segoe UI Black', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  transform: rotate(-45deg);
   color: transparent;
   -webkit-text-stroke: 1px var(--color_primary_teal);
   -webkit-text-fill-color: transparent;
@@ -22,15 +24,10 @@
   left: 50%;
   transform-origin: center center;
   pointer-events: none;
-}
-
-.diagonal-watermark {
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-45deg);
+  transform: translate(-50%, -50%) rotate(-45deg) scale(var(--wm-scale));
 }
 
 .fb-watermark {
   left: 50%;
-  transform: translate(-50%, -50%) rotate(-45deg);
   margin-top: 1400px;
 }

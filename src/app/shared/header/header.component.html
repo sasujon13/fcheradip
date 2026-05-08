@@ -110,13 +110,16 @@
 <div class="tokenbox header-tokenbox" *ngIf="!isNtrcaSectionRoute">
   <div class="token-input-box">
     <br>
-    <div class="hover-message-container"
+    <div
+      class="hover-message-container"
+      [style.margin-left.px]="loginStatus ? -40 : null"
       (pointerenter)="onTrxHelpPointerEnter()"
-      (pointerleave)="onTrxHelpPointerLeave()">
+      (pointerleave)="onTrxHelpPointerLeave()"
+    >
       <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
         [style.margin-left]="loginStatus ? '-112px' : '-87px'" />
-      <button (click)="applyToken()">Apply TrxID</button>
-      <p class="rmsg">Balance: <b>{{ headerRemainingUnlocks }}</b></p>
+      <button (click)="applyToken()">Apply</button>
+      <p class="rmsg">🪙 <b>{{ headerRemainingUnlocks }}</b> Coins</p>
       <div class="hover-message-box"
         [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
         [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'"
@@ -124,7 +127,7 @@
         1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
         2. Send Money to <strong>01722710298</strong> (Minimum Tk 20)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;using <strong>bKash / Nagad</strong> to use our Paid Services.<br>
-        3. Place your <strong>TrxID</strong> and click on <strong>Apply TrxID</strong> to activate it.<br>
+        3. Place your <strong>TrxID</strong> and click on <strong>Apply</strong> to activate it.<br>
         4. If you find any errors then forward the Send Money<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;confirmation <strong>SMS</strong> through <strong>WhatsApp / SMS</strong>.
       </div>

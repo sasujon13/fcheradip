@@ -105,15 +105,18 @@ header .tokenbox.header-tokenbox .token-input-box button {
 
 
 header .rmsg {
-  margin: -24px 0 0 224px;
+  margin: -25px 0 0 236px;
+  font-size: 1.5em;
   pointer-events: none;
 }
 
 header .tokenbox.header-tokenbox .hover-message-container {
   position: fixed;
   display: inline-block;
-  margin-left: 10px;
+  margin-left: -34px;
 }
+
+/* Logged-in offset (-40px) is applied inline from header.component.html so logout clears it and this -34px shows again */
 /* Trx help tooltip: use .ntrca-help-phase-on / .ntrca-help-phase-closing + pointer handlers (same as app-ntrca-header-section) */
 header .tokenbox.header-tokenbox .hover-message-container .hover-message-box::before {
   content: '';
@@ -665,7 +668,7 @@ i.fa-bars{
     right: 0;
     top: 35px;
     margin-top: 0;
-    margin-right: -10px;
+    margin-right: -28px;
     max-height: none;
     overflow: visible;
     align-items: center;
@@ -685,7 +688,10 @@ i.fa-bars{
   }
   .sign_menu li#menu_item0,
   .sign_menu li#menu_item1 {
-    margin: 0 20px 0 0;
+    margin: 0 12px 0 0;
+  }
+  ul.profileMenu {
+    right: -6px;
   }
   /* When logged in at ≤839px: hide Login/SignUp, show profile menu */
   header.logged-in .sign_menu,

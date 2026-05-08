@@ -1220,5 +1220,45 @@ span.mx-3 {
   border-radius: 4px;
 }
 
+/* /question responsive top spacing fixes */
+@media (min-width: 937px) and (max-width: 1599.98px) {
+  .topic-questions-section {
+    margin-top: 45px;
+  }
+}
+
+@media (min-width: 881px) and (max-width: 937.98px) {
+  .topic-questions-section {
+    margin-top: 45px;
+  }
+  .topic-questions-list {
+    margin-top: 86px;
+  }
+}
+
+@media (min-width: 630px) and (max-width: 847.98px) {
+  .topic-questions-section {
+    margin-top: 87px;
+  }
+  .topic-questions-list {
+    margin-top: 86px;
+  }
+}
+
+@media (min-width: 446px) and (max-width: 629.98px) {
+  .topic-questions-section {
+    margin-top: 141px;
+  }
+  .topic-questions-list {
+    margin-top: 106px;
+  }
+}
+
+@media (max-width: 445.98px) {
+  .topic-questions-section {
+    margin-top: 230px;
+  }
+}
+
 
 

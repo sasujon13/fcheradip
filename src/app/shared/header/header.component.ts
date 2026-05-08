@@ -699,27 +699,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.router.navigate(['/login']);
   }
 
-  /** Log out and stay on same page/position (like after login/signup). */
+  /** Log out: clear auth storage, then full reload so header/token UI resets reliably. */
   logout(): void {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('loginStatus');
     localStorage.removeItem('authToken');
-    const menu_item0 = document.getElementById('menu_item0');
-    const menu_item1 = document.getElementById('menu_item1');
-    const menu_item2 = document.getElementById('menu_item2');
-    const profileMenu = document.getElementById('profileMenu');
-    const sign_menu = document.getElementById('sign_menu');
-    if (menu_item2 && menu_item1 && menu_item0 && profileMenu && sign_menu) {
-      document.querySelector('header')?.classList.remove('logged-in');
-      sign_menu.style.display = '-webkit-inline-box';
-      menu_item0.style.display = 'block';
-      menu_item1.style.display = 'block';
-      menu_item2.style.display = 'none';
-      profileMenu.style.display = 'none';
-    }
-    this.loginStatus = false;
-    this.cdr.markForCheck();
-    // Do not navigate: stay on same page and scroll position (like after login/signup)
+    window.location.reload();
   }
 
   resetInactivityTimeout() {
