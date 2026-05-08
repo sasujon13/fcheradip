@@ -1,6 +1,9 @@
 /* Shared NTRCA header: token box + mainmsg + notice links – CSS copied from ntrca5.shared.css block */
+/* Stack above .container2 / fixed toolbars (z-index ~1001) so Trx row stays clickable like header.tokenbox on other pages */
 :host {
   display: block;
+  position: relative;
+  z-index: 1003;
 }
 
 /* ---- .tokenbox ---- */
@@ -12,7 +15,7 @@
   z-index: 1002 !important;
 }
 
-/* ---- .token-input-box (top fixed bar) ---- */
+/* ---- .token-input-box (NTRCA header strip; main site header uses margin-top: 35px) ---- */
 :host .token-input-box {
   padding: 12px 12px 12px 0;
   background: transparent;
@@ -38,7 +41,6 @@
 :host .token-input-box input:focus-visible {
   outline: none;
   border-color: var(--color_primary_teal);
-  box-shadow: 0 0 0 2px var(--color_primary_teal);
 }
 
 :host .token-input-box button {
@@ -55,17 +57,18 @@
   cursor: pointer;
 }
 
-/* Block + negative margin overlaps the button row; keep visible but do not steal clicks */
+/* Block + negative margin overlaps the button row; match header .rmsg */
 :host .rmsg {
-  margin: -24px 0 0 224px;
+  margin: -25px 0 0 236px;
+  font-size: 1.5em;
   pointer-events: none;
 }
 
-/* ---- .hover-message-container / .hover-message-box ---- */
+/* ---- .hover-message-container / .hover-message-box — match header (base -34px; -40px when logged in via template) ---- */
 :host .hover-message-container {
   position: fixed;
   display: inline-block;
-  margin-left: 10px;
+  margin-left: -34px;
 }
 
 /* Help panel: invisible hit bridge above box so cursor can cross the gap without leaving the zone */

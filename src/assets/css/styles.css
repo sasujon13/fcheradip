@@ -140,4 +140,12 @@ input:disabled {
   transition: opacity 700ms ease, transform 700ms ease, visibility 0s 0s !important;
 }
 
+/* Unscoped: mobile notification strip under fixed header (pairs with div#notification in app-header; avoids encapsulation gaps on NTRCA routes) */
+@media screen and (max-width: 539px) {
+  div.notification {
+    height: 92px;
+    background: linear-gradient(to bottom, #ffffff 85%, rgba(255, 255, 255, 0));
+  }
+}
+
 

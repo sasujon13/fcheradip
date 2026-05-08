@@ -8,6 +8,13 @@ div.notification{
   position: fixed;
   background: linear-gradient(to bottom, #ffffff 75%, rgba(255, 255, 255, 0));
   z-index: 1;
+  /* Let clicks reach NTRCA Trx strip (in app-page-shell) on same horizontal band */
+  pointer-events: none;
+}
+div.notification a,
+div.notification button,
+div.notification [role="button"] {
+  pointer-events: auto;
 }
 div.profile_back{
   text-align: center;
@@ -52,6 +59,11 @@ div.profile_back{
   overflow-x: hidden;
   overflow-y: hidden;
   box-sizing: border-box;
+  pointer-events: none;
+}
+.marquee a,
+.marquee .msg_link {
+  pointer-events: auto;
 }
 .marquee .msg {
   font-size: 1.25em;
@@ -736,10 +748,6 @@ i.fa-bars{
 
   .search-bar input {
     background-color: var(--color_primary_teal);
-  }
-  div.notification{
-    height: 92px;
-    background: linear-gradient(to bottom, #ffffff 85%, rgba(255, 255, 255, 0));
   }
 }
 

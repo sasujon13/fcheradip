@@ -1,9 +1,12 @@
 <div class="tokenbox header-tokenbox">
   <div class="token-input-box">
     <br>
-    <div class="hover-message-container"
+    <div
+      class="hover-message-container"
+      [style.margin-left.px]="tokenInputLoggedIn ? -40 : null"
       (pointerenter)="onTrxHelpPointerEnter()"
-      (pointerleave)="onTrxHelpPointerLeave()">
+      (pointerleave)="onTrxHelpPointerLeave()"
+    >
       <input type="text" [ngModel]="newToken" (ngModelChange)="newTokenChange.emit($event)" placeholder="8/10 Digits TrxID" maxlength="10"
         [style.margin-left]="tokenInputLoggedIn ? '-112px' : '-87px'" />
       <button (click)="applyTokenClick.emit()">Apply</button>
