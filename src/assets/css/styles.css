@@ -148,4 +148,9 @@ input:disabled {
   }
 }
 
+/* Snackbar above welcome bonus overlay (inset ceremony uses z-index 9998 under header) */
+.cdk-overlay-container .cdk-overlay-pane:has(.auth-flow-snackbar-top) {
+  z-index: 10050 !important;
+}
+
 

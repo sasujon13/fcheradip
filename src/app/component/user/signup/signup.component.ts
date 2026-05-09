@@ -10,6 +10,10 @@ import { CountryService, Country } from '../../../service/country.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
 import { getDefaultDashboardPath } from 'src/app/service/dashboard-route.util';
+import {
+  resolveAuthTokenFromResponse,
+  resolveShowWelcomeAfterSignup,
+} from 'src/app/service/auth-response.util';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { of, Subject } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -1317,14 +1321,9 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
       };
 
       this.apiService.signupWithData(formData).subscribe({
-        next: (response: { authToken?: string; showWelcomeCoinsCeremony?: boolean } | string) => {
-          // Log in immediately: no overlay, no delay
-          const token =
-            typeof response === 'string' ? response : response?.authToken || '';
-          const showWelcome =
-            typeof response === 'object' &&
-            response != null &&
-            (response as { showWelcomeCoinsCeremony?: boolean }).showWelcomeCoinsCeremony === true;
+        next: (response: unknown) => {
+          const token = resolveAuthTokenFromResponse(response);
+          const showWelcome = resolveShowWelcomeAfterSignup(response, token);
           localStorage.setItem('username', formData.username);
           localStorage.setItem('fullName', formData.fullName);
           localStorage.setItem('isLoggedIn', 'true');
@@ -1341,6 +1340,17 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
             savedReturn.startsWith('/') ? savedReturn : `/${savedReturn}`;
           const targetUrl = useSavedReturnUrl ? normalizedSaved : getDefaultDashboardPath();
 
+          const successMsg = showWelcome
+            ? 'Welcome! Your account is ready — enjoy your welcome bonus celebration.'
+            : 'Successfully signed up and logged in.';
+          // Snackbar stacks above welcome overlay (see styles.css .auth-flow-snackbar-top)
+          this.snackBar.open(successMsg, 'Close', {
+            duration: showWelcome ? 8000 : 5000,
+            panelClass: ['auth-flow-snackbar-top'],
+            verticalPosition: 'top',
+          });
+          this.showAuthAlertMessage(successMsg, true);
+
           if (showWelcome) {
             this.welcomeCeremony.playTimedWelcomeThenNavigate(targetUrl);
           } else {
@@ -1352,8 +1362,6 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
               }
             });
           }
-
-          this.showAuthAlertMessage('Successfully logged in.', true);
         },
         error: (error: any) => {
           console.error('Signup error:', error);

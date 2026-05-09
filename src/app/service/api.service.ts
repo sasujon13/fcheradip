@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { catchError, map, tap } from 'rxjs/operators';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { resolveAuthTokenFromResponse } from './auth-response.util';
 
 export interface ScraperLibrary {
   loginUrl?: string;
@@ -139,10 +140,12 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/login/`, loginData).pipe(
       tap((response: any) => {
         if (response) {
-          const token = response.authToken || response.token || response;
-          this.setToken(typeof token === 'string' ? token : (response.authToken || ''));
+          const token = resolveAuthTokenFromResponse(response);
+          if (token) {
+            this.setToken(token);
+          }
           localStorage.setItem('acctype', response.acctype ?? '');
-          localStorage.setItem('fullName', response.fullName ?? '');
+          localStorage.setItem('fullName', response.fullName ?? response.full_name ?? '');
           localStorage.setItem('username', response.username ?? username);
           localStorage.setItem('division', response.division ?? '');
           localStorage.setItem('district', response.district ?? '');
@@ -152,7 +155,7 @@ export class ApiService {
           localStorage.setItem('group', response.group ?? '');
           localStorage.setItem('gender', response.gender ?? '');
           localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('authToken', typeof token === 'string' ? token : (response.authToken || ''));
+          localStorage.setItem('authToken', token);
           localStorage.setItem('formData', JSON.stringify(loginData));
         }
       }),
@@ -723,13 +726,16 @@ export class ApiService {
     }
     return this.http.post(`${this.baseUrl}/signup/`, body).pipe(
       tap((response: any) => {
-        if (response && (response.token || response.authToken)) {
-          const token = response.token || response.authToken;
+        const token = resolveAuthTokenFromResponse(response);
+        if (token) {
           this.setToken(token);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('authToken', token);
+        }
+        if (response && typeof response === 'object') {
           if (response.username) localStorage.setItem('username', response.username);
-          if (response.fullName) localStorage.setItem('fullName', response.fullName);
+          const fn = response.fullName ?? response.full_name;
+          if (fn) localStorage.setItem('fullName', fn);
         }
       }),
       catchError((error) => { throw error; })

@@ -11,6 +11,11 @@ import { LoadingService } from 'src/app/service/loading.service';
 import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.session';
 import { getDefaultDashboardPath } from 'src/app/service/dashboard-route.util';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import {
+  resolveAuthTokenFromResponse,
+  resolveShowWelcomeCoinsCeremony,
+} from 'src/app/service/auth-response.util';
 
 
 @Component({
@@ -69,6 +74,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     private loadingService: LoadingService,
     private welcomeCeremony: WelcomeBonusCeremonyService,
     private route: ActivatedRoute,
+    private snackBar: MatSnackBar,
   ) {
     this.authForm = this.fb.group({
       countryCode: ['BD', [Validators.required]],
@@ -252,15 +258,25 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
       const formData = { ...this.authForm.value, username };
       localStorage.setItem('formData', JSON.stringify(formData));
       this.apiService.login(username, password, countryCode || undefined, this.loginFoundIn ?? undefined).subscribe({
-        next: (response: { authToken?: string; showWelcomeCoinsCeremony?: boolean }) => {
-          this.showAuthAlertMessage('LoggedIn successfully!', true);
+        next: (response: unknown) => {
+          const token = resolveAuthTokenFromResponse(response);
+          const showWelcome = resolveShowWelcomeCoinsCeremony(response);
+          const successMsg = showWelcome
+            ? 'Logged in — welcome bonus celebration starting!'
+            : 'Logged in successfully!';
+          this.snackBar.open(successMsg, 'Close', {
+            duration: showWelcome ? 7000 : 4000,
+            panelClass: ['auth-flow-snackbar-top'],
+            verticalPosition: 'top',
+          });
+          this.showAuthAlertMessage(successMsg, true);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('username', username);
-          if (response && response.authToken) localStorage.setItem('authToken', response.authToken);
+          if (token) localStorage.setItem('authToken', token);
           localStorage.setItem('formData', JSON.stringify(formData));
           this.logout();
           const targetUrl = this.consumePostLoginTargetUrl();
-          if (response?.showWelcomeCoinsCeremony) {
+          if (showWelcome) {
             this.welcomeCeremony.playTimedWelcomeThenNavigate(targetUrl);
           } else {
             setTimeout(() => {
