@@ -6,8 +6,8 @@ import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 import { SESSION_LOGIN_USE_STORED_RETURN } from './login-redirect.session';
 
-/** Persist active trx row id (which TrxID activation applies to) until another TrxID is applied. */
-export const LS_ACTIVE_TRX_ROW_ID = 'cheradipActiveTrxRowId';
+/** Remove once per session if present (old unlock stored Trx row id here). */
+const LEGACY_ACTIVE_TRX_LS = 'cheradipActiveTrxRowId';
 
 /** Session-only: TrxID typed before login / 401 so it can refill the input after return. */
 export const SESSION_PENDING_TRXID_KEY = 'cheradipPendingTrxidInput';
@@ -24,7 +24,7 @@ export type TrxApplyErrorCode =
 
 @Injectable({ providedIn: 'root' })
 export class TrxUnlockService {
-  /** Coin balance from ``cheradip_customers.settings.balance`` (synced from API only; not localStorage). */
+  /** Last known ``customer.settings.balance`` from API (display + after unlock). */
   private coinBalance = 0;
 
   constructor(
@@ -33,17 +33,12 @@ export class TrxUnlockService {
     private zone: NgZone
   ) {}
 
-  /**
-   * Same notion of "logged in" as the header: both token and flag must be set.
-   * Avoids treating stale authToken alone as logged-in (would hit public /token/ and show "already used").
-   */
   private hasAppSession(): boolean {
     const t = (localStorage.getItem('authToken') || '').trim();
     if (!t) return false;
     return localStorage.getItem('isLoggedIn') === 'true';
   }
 
-  /** Run inside Angular zone so navigation always runs from injectables / HTTP callbacks. */
   private goToLogin(): void {
     const returnUrl = this.router.url || '/';
     this.zone.run(() => {
@@ -52,7 +47,6 @@ export class TrxUnlockService {
     });
   }
 
-  /** Remember TrxID input (e.g. before redirect to login / 401) until activation succeeds. */
   stashPendingTrxidIfAny(raw: string): void {
     const v = (raw || '').trim().slice(0, 10);
     if (v) {
@@ -69,7 +63,6 @@ export class TrxUnlockService {
     sessionStorage.removeItem(SESSION_PENDING_TRXID_KEY);
   }
 
-  /** If the field is empty but a value was stashed, return stash for binding (does not clear stash). */
   readPendingTrxidForInput(fieldCurrent: string): string {
     if ((fieldCurrent || '').trim()) {
       return fieldCurrent;
@@ -77,29 +70,10 @@ export class TrxUnlockService {
     return this.getPendingTrxid() || '';
   }
 
-  getActiveTrxRowId(): number | null {
-    const v = localStorage.getItem(LS_ACTIVE_TRX_ROW_ID);
-    if (v == null || v === '') return null;
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  }
-
-  /**
-   * Remember which TrxManagement row is active for ``use_trx``; optionally sync coin balance from API.
-   */
-  setActiveTrxRowId(id: number, coinBalanceFromApi?: number): void {
-    localStorage.setItem(LS_ACTIVE_TRX_ROW_ID, String(id));
-    if (coinBalanceFromApi !== undefined) {
-      this.setCoinBalance(coinBalanceFromApi);
-    }
-  }
-
-  /** Current coin balance (from customer settings); updated by activate / use_trx / fetchCoinBalance. */
   getCachedRemaining(): number {
     return this.coinBalance;
   }
 
-  /** @deprecated Use server-driven balance; kept for call sites that sync after unlock. */
   setCachedRemaining(n: number): void {
     this.setCoinBalance(n);
   }
@@ -109,11 +83,16 @@ export class TrxUnlockService {
     this.coinBalance = Number.isFinite(v) && v >= 0 ? v : 0;
   }
 
-  /** GET /customer_settings/ → ``settings.balance`` (requires Bearer). */
+  /** GET /customer_settings/ → ``settings.balance`` (Bearer). Single source of truth for coins. */
   fetchCoinBalance(): Observable<number> {
     if (!this.hasAppSession()) {
       this.setCoinBalance(0);
       return of(0);
+    }
+    try {
+      localStorage.removeItem(LEGACY_ACTIVE_TRX_LS);
+    } catch {
+      /* ignore */
     }
     return this.http.get<{ settings?: { balance?: number } }>(`${environment.apiUrl}/customer_settings/`).pipe(
       map((res) => {
@@ -130,8 +109,8 @@ export class TrxUnlockService {
   }
 
   /**
-   * POST activate: credits TrxManagement row and (when Bearer present) **adds** the same amount to
-   * ``customer.settings.balance``. Response ``remaining`` is total wallet for the header, not trx-only.
+   * Activate TrxID: credits Trx row and (Bearer) adds to ``customer.settings.balance``.
+   * Updates in-memory balance from response ``remaining`` only.
    */
   activateAppliedTrx(row: { id: number }): Observable<number> {
     return this.http
@@ -142,31 +121,8 @@ export class TrxUnlockService {
       .pipe(
         map((r) => {
           const rem = Number(r.remaining ?? r.token ?? 0);
-          this.setActiveTrxRowId(row.id, rem);
-          return rem;
-        }),
-        catchError((err) => {
-          if (err?.status === 401) {
-            this.goToLogin();
-          }
-          return throwError(() => err);
-        })
-      );
-  }
-
-  /** POST use_trx: debits ``NTRCA_UNLOCK_DEBIT`` coins from customer.settings.balance (Bearer required). */
-  useOneUnlock(): Observable<{ success: boolean; remaining: number }> {
-    const id = this.getActiveTrxRowId();
-    if (id == null) {
-      return of({ success: false, remaining: this.getCachedRemaining() });
-    }
-    return this.http
-      .post<{ success: boolean; remaining: number }>(`${environment.apiUrl}/token/use_trx/`, { id })
-      .pipe(
-        tap((r) => {
-          if (r && typeof r.remaining === 'number' && Number.isFinite(r.remaining)) {
-            this.setCoinBalance(r.remaining);
-          }
+          this.setCoinBalance(Number.isFinite(rem) && rem >= 0 ? rem : 0);
+          return this.coinBalance;
         }),
         catchError((err) => {
           if (err?.status === 401) {
@@ -178,9 +134,45 @@ export class TrxUnlockService {
   }
 
   /**
-   * Validate TrxID then activate (logged-in users only). If not logged in, stashes input and navigates to /login.
-   * Clears stash only after successful activation (same moment as success alert).
+   * NTRCA paid unlock: server debits **only** ``customer.settings.balance`` (Bearer).
+   * Request body is empty — no Trx row id, no localStorage.
    */
+  useOneUnlock(): Observable<{ success: boolean; remaining: number }> {
+    if (!this.hasAppSession()) {
+      return of({ success: false, remaining: 0 });
+    }
+    return this.http
+      .post<{ success: boolean; remaining: number }>(`${environment.apiUrl}/token/use_trx/`, {})
+      .pipe(
+        map((r) => ({
+          success: Boolean(r?.success),
+          remaining:
+            typeof r?.remaining === 'number' && Number.isFinite(r.remaining)
+              ? Math.max(0, r.remaining)
+              : this.getCachedRemaining(),
+        })),
+        map((r) => {
+          if (r.success) {
+            this.setCoinBalance(r.remaining);
+          }
+          return r;
+        }),
+        catchError((err: { status?: number; error?: { remaining?: number } }) => {
+          if (err?.status === 401) {
+            this.goToLogin();
+          }
+          const rem = Number(err?.error?.remaining);
+          if (Number.isFinite(rem) && rem >= 0) {
+            this.setCoinBalance(rem);
+          }
+          return of({
+            success: false,
+            remaining: Number.isFinite(rem) && rem >= 0 ? rem : this.getCachedRemaining(),
+          });
+        })
+      );
+  }
+
   validateTrxidAndActivate(rawToken: string): Observable<number> {
     if (!this.hasAppSession()) {
       this.stashPendingTrxidIfAny(rawToken);
@@ -208,6 +200,12 @@ export class TrxUnlockService {
           }
           return this.activateAppliedTrx({ id: result.id as number });
         }),
+        switchMap((rem) =>
+          this.fetchCoinBalance().pipe(
+            map(() => rem),
+            catchError(() => of(rem))
+          )
+        ),
         tap(() => this.clearPendingTrxid()),
         catchError((err: { code?: TrxApplyErrorCode; status?: number; name?: string }) => {
           if (
