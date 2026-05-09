@@ -544,6 +544,10 @@ a:hover{
   border-bottom: 1px solid white;
   user-select: none;
 }
+/* Logged-in: hide Login/SignUp (beats mobile .sign_menu { display: flex !important }) */
+header.logged-in .sign_menu {
+  display: none !important;
+}
 .sign_menu li a{
   padding: 0;
   font-size: 14px !important;
@@ -708,12 +712,7 @@ i.fa-bars{
   ul.profileMenu {
     right: -6px;
   }
-  /* When logged in at ≤839px: hide Login/SignUp, show profile menu */
-  header.logged-in .sign_menu,
-  header.logged-in li#menu_item0,
-  header.logged-in li#menu_item1 {
-    display: none !important;
-  }
+  /* When logged in at ≤839px: hide Login/SignUp (see global header.logged-in .sign_menu), show profile */
   header.logged-in ul.profileMenu {
     display: block !important;
   }

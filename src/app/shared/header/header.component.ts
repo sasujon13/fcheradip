@@ -174,31 +174,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     localStorage.getItem(`cartState_`); //added later
     sessionStorage.getItem('sessionChoiceItems'); //added later
     localStorage.getItem(`choiceState_`); //added later
-    const menu_item0 = document.getElementById('menu_item0');
-    const menu_item1 = document.getElementById('menu_item1');
-    const menu_item2 = document.getElementById('menu_item2');
-    const sign_menu = document.getElementById('sign_menu');
-    const profileMenu = document.getElementById('profileMenu');
-    if (menu_item2 && menu_item1 && menu_item0 && sign_menu && profileMenu) {
-      this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
-      const headerEl = document.querySelector('header');
-      if (this.loginStatus) {
-        menu_item2.style.display = 'block';
-        menu_item1.style.display = 'none';
-        menu_item0.style.display = 'none';
-        sign_menu.style.display = 'none';
-        profileMenu.style.display = 'block';
-        headerEl?.classList.add('logged-in');
-      }
-      else {
-        profileMenu.style.display = 'none';
-        menu_item2.style.display = 'none';
-        menu_item1.style.display = 'block';
-        menu_item0.style.display = 'block';
-        sign_menu.style.display = '-webkit-inline-box';
-        headerEl?.classList.remove('logged-in');
-      }
-    }
+    this.applyHeaderLoginChromeFromStorage();
     this.apiService.search.subscribe((val: any) => {
       this.searchKey = val;
     });
@@ -218,7 +194,37 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   /** Keeps token-input margin and other bindings aligned with `localStorage.isLoggedIn` after login redirect. */
   private refreshLoginStatusFromStorage(): void {
+    this.applyHeaderLoginChromeFromStorage();
+  }
+
+  /** Sync profile vs Login/SignUp visibility and `header.logged-in` from storage (init + every navigation). */
+  private applyHeaderLoginChromeFromStorage(): void {
+    const menu_item0 = document.getElementById('menu_item0');
+    const menu_item1 = document.getElementById('menu_item1');
+    const menu_item2 = document.getElementById('menu_item2');
+    const sign_menu = document.getElementById('sign_menu');
+    const profileMenu = document.getElementById('profileMenu');
+    if (!menu_item2 || !menu_item1 || !menu_item0 || !sign_menu || !profileMenu) {
+      this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
+      this.cdr.markForCheck();
+      return;
+    }
     this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
+    const headerEl = document.querySelector('header');
+    if (this.loginStatus) {
+      menu_item2.style.display = 'block';
+      menu_item1.style.display = 'none';
+      menu_item0.style.display = 'none';
+      profileMenu.style.display = 'block';
+      headerEl?.classList.add('logged-in');
+    } else {
+      profileMenu.style.display = 'none';
+      menu_item2.style.display = 'none';
+      menu_item1.style.display = 'block';
+      menu_item0.style.display = 'block';
+      sign_menu.style.display = '-webkit-inline-box';
+      headerEl?.classList.remove('logged-in');
+    }
     this.cdr.markForCheck();
   }
 
