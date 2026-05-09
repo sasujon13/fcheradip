@@ -57,23 +57,34 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ngZone.runOutsideAngular(() => {
       const once = (): void => {
         window.removeEventListener('pointerdown', once);
+        window.removeEventListener('touchend', once);
         window.removeEventListener('keydown', once);
         const AC =
           window.AudioContext ||
           (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!AC) {
-          return;
+        if (AC) {
+          const ctx = new AC();
+          void ctx.resume().finally(() => {
+            try {
+              ctx.close();
+            } catch {
+              /* noop */
+            }
+          });
         }
-        const ctx = new AC();
-        void ctx.resume().finally(() => {
-          try {
-            ctx.close();
-          } catch {
-            /* noop */
-          }
-        });
+        try {
+          const a = new Audio();
+          a.preload = 'auto';
+          a.muted = true;
+          a.src =
+            'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAAAAAA==';
+          void a.play().catch(() => {});
+        } catch {
+          /* noop */
+        }
       };
       window.addEventListener('pointerdown', once, { passive: true });
+      window.addEventListener('touchend', once, { passive: true });
       window.addEventListener('keydown', once);
     });
   }

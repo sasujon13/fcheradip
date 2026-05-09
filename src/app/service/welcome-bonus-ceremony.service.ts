@@ -585,6 +585,15 @@ export class WelcomeBonusCeremonyService {
     bombEl.preload = 'auto';
     bombEl.setAttribute('playsinline', '');
     bombEl.volume = 0.5;
+    bombEl.setAttribute('data-wbc-bomb-audio', '1');
+    Object.assign(bombEl.style, {
+      position: 'absolute',
+      width: '0',
+      height: '0',
+      opacity: '0',
+      pointerEvents: 'none',
+    });
+    root.appendChild(bombEl);
     let bombPlaylistPos = 0;
     let bombEndedListener: (() => void) | null = null;
     let bombTimeUpdateListener: (() => void) | null = null;
@@ -645,6 +654,16 @@ export class WelcomeBonusCeremonyService {
       playCurrentBombClip();
     };
 
+    const isLikelyAutoplayDenial = (err: unknown): boolean => {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        return true;
+      }
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : '';
+      return /not allowed|user didn'?t interact|user gesture|must be (resumed|started)|autoplay policy/i.test(
+        msg,
+      );
+    };
+
     const playCurrentBombClip = (): void => {
       if (!root.isConnected || !bombPlaylistStarted) {
         return;
@@ -701,41 +720,55 @@ export class WelcomeBonusCeremonyService {
         };
         bombEl.addEventListener('ended', bombEndedListener, { once: true });
 
-        void bombEl.play().catch((err: unknown) => {
-          const notAllowed =
-            err instanceof DOMException && err.name === 'NotAllowedError';
-          if (notAllowed && root.isConnected) {
+        /**
+         * Timer-started playback: try muted-first (some browsers allow it).
+         */
+        const startBombPlaybackAutoplay = (): void => {
+          /** Chrome allows muted autoplay without a tap; unmute after decode starts (double rAF avoids silent glitch). */
+          const unmuteWhenPlaying = (): void => {
+            bombEl.removeEventListener('playing', unmuteWhenPlaying);
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                bombEl.muted = false;
+                bombEl.volume = 0.5;
+              });
+            });
+          };
+          bombEl.addEventListener('playing', unmuteWhenPlaying, { once: true });
+          bombEl.volume = 0.5;
+          bombEl.muted = true;
+          void bombEl.play().catch((err: unknown) => {
+            bombEl.removeEventListener('playing', unmuteWhenPlaying);
+            bombEl.muted = false;
+            if (!root.isConnected || !bombPlaylistStarted) {
+              return;
+            }
+            if (!isLikelyAutoplayDenial(err)) {
+              detachBombAdvanceListeners();
+              advanceBombPlaylist();
+              playCurrentBombClip();
+              return;
+            }
             clearBombAutoplayUnlock();
-            const resumeAfterGesture = (): void => {
+            const onGesture = (): void => {
               clearBombAutoplayUnlock();
               if (!root.isConnected || !bombPlaylistStarted) {
                 return;
               }
-              void bombEl.play().catch((e: unknown) => {
-                const na = e instanceof DOMException && e.name === 'NotAllowedError';
-                if (na) {
-                  return;
-                }
-                detachBombAdvanceListeners();
-                advanceBombPlaylist();
-                playCurrentBombClip();
-              });
-            };
-            const onGesture = (): void => {
-              resumeAfterGesture();
+              startBombPlaybackAutoplay();
             };
             window.addEventListener('pointerdown', onGesture, { passive: true, capture: true });
+            window.addEventListener('touchend', onGesture, { passive: true, capture: true });
             window.addEventListener('keydown', onGesture, { capture: true });
             bombAutoplayUnlockTeardown = (): void => {
               window.removeEventListener('pointerdown', onGesture, { capture: true });
+              window.removeEventListener('touchend', onGesture, { capture: true });
               window.removeEventListener('keydown', onGesture, { capture: true });
             };
-            return;
-          }
-          detachBombAdvanceListeners();
-          advanceBombPlaylist();
-          playCurrentBombClip();
-        });
+          });
+        };
+
+        startBombPlaybackAutoplay();
         return;
       }
     };
