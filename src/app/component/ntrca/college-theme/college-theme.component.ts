@@ -9,6 +9,7 @@ import { environment } from 'src/environments/environment';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
+import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 import { slugForUrlDisplay } from 'src/app/url-serializer';
 
 const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
@@ -46,6 +47,7 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     private lastInstitutes: LastInstitutesService,
     private loadingService: LoadingService,
     private trxUnlock: TrxUnlockService,
+    private ntrcaUnlocked: NtrcaUnlockedEiinsService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -55,7 +57,22 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     this.newToken = this.trxUnlock.readPendingTrxidForInput(this.newToken);
     this.trxUnlock.fetchCoinBalance().subscribe((n) => (this.trxRemaining = n));
     const stored = localStorage.getItem(STORAGE_UNLOCKED_EIINS);
-    if (stored) this.unlockedEIINs = new Set(JSON.parse(stored));
+    if (stored) {
+      try {
+        this.unlockedEIINs = new Set(JSON.parse(stored));
+      } catch {
+        /* ignore */
+      }
+    }
+    this.ntrcaUnlocked.syncServerWithLocalMigration().subscribe((list) => {
+      list.forEach((e) => this.unlockedEIINs.add(e));
+      try {
+        localStorage.setItem(STORAGE_UNLOCKED_EIINS, JSON.stringify(Array.from(this.unlockedEIINs)));
+      } catch {
+        /* ignore */
+      }
+      this.cdr.markForCheck();
+    });
 
     this.route.paramMap.subscribe(() => {
       this.slug = this.getSlugFromUrl();

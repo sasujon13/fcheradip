@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
+import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -274,7 +275,8 @@ export class NtrcaComponent implements OnInit, AfterViewInit {
     private http: HttpClient,
     private renderer: Renderer2,
     private loadingService: LoadingService,
-    private trxUnlock: TrxUnlockService
+    private trxUnlock: TrxUnlockService,
+    private ntrcaUnlocked: NtrcaUnlockedEiinsService
   ) {}
 
   ngOnInit(): void {
@@ -381,24 +383,7 @@ export class NtrcaComponent implements OnInit, AfterViewInit {
         }
       }, 700);
 
-      const unlocked = localStorage.getItem('unlockedEIINs');
-      if (unlocked) {
-        this.unlockedEIINs = new Set(JSON.parse(unlocked));
-        for (const eiin of this.unlockedEIINs) {
-          const vacancy = this.vacancies.find(v => v.EIIN === eiin);
-          if (vacancy) {
-            const url = `${this.baseUrl2}?eiin=${eiin}`;
-            this.http.get<any>(url).subscribe({
-              next: (res) => {
-                vacancy.parameter = res;
-              },
-              error: (err) => {
-                console.warn(`Failed to re-fetch data for EIIN ${eiin}`, err);
-              }
-            });
-          }
-        }
-      }
+      this.hydrateUnlockedVacancyRows();
 
       this.loading = false;
     });
@@ -567,7 +552,17 @@ export class NtrcaComponent implements OnInit, AfterViewInit {
 
   addUnlockedEIIN(eiin: string): void {
     this.unlockedEIINs.add(eiin);
-    localStorage.setItem('unlockedEIINs', JSON.stringify(Array.from(this.unlockedEIINs)));
+    const arr = Array.from(this.unlockedEIINs);
+    try {
+      localStorage.setItem('unlockedEIINs', JSON.stringify(arr));
+    } catch {
+      /* ignore */
+    }
+    this.ntrcaUnlocked.persistFullList(arr).subscribe();
+  }
+
+  private hydrateUnlockedVacancyRows(): void {
+    this.ntrcaUnlocked.hydrateUnlockedSubset(this.unlockedEIINs, this.vacancies, this.baseUrl2);
   }
 
   toggleSelection(eiin: string, event: Event): void {

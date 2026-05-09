@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
+import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 
 @Component({
   selector: 'app-merit7',
@@ -256,7 +257,8 @@ export class Merit7Component implements OnInit, AfterViewInit {
     private http: HttpClient,
     private renderer: Renderer2,
     private loadingService: LoadingService,
-    private trxUnlock: TrxUnlockService
+    private trxUnlock: TrxUnlockService,
+    private ntrcaUnlocked: NtrcaUnlockedEiinsService
   ) {}
 
   ngOnInit(): void {
@@ -265,7 +267,21 @@ export class Merit7Component implements OnInit, AfterViewInit {
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
     const unlockedEIINs = localStorage.getItem('unlockedEIINs');
-    if (unlockedEIINs) this.unlockedEIINs = new Set(JSON.parse(unlockedEIINs));
+    if (unlockedEIINs) {
+      try {
+        this.unlockedEIINs = new Set(JSON.parse(unlockedEIINs));
+      } catch {
+        /* ignore */
+      }
+    }
+    this.ntrcaUnlocked.syncServerWithLocalMigration().subscribe((list) => {
+      list.forEach((e) => this.unlockedEIINs.add(e));
+      try {
+        localStorage.setItem('unlockedEIINs', JSON.stringify(Array.from(this.unlockedEIINs)));
+      } catch {
+        /* ignore */
+      }
+    });
     this.trxRemaining = this.trxUnlock.getCachedRemaining();
     this.newToken = this.trxUnlock.readPendingTrxidForInput(this.newToken);
     this.trxUnlock.fetchCoinBalance().subscribe((n) => (this.trxRemaining = n));

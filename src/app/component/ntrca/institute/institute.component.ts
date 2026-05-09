@@ -6,6 +6,7 @@ import { debounceTime, Subject } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
+import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 
 @Component({
   selector: 'app-institute',
@@ -61,7 +62,8 @@ export class InstituteComponent implements OnInit, OnDestroy {
     private renderer: Renderer2,
     private lastInstitutes: LastInstitutesService,
     private loadingService: LoadingService,
-    private trxUnlock: TrxUnlockService
+    private trxUnlock: TrxUnlockService,
+    private ntrcaUnlocked: NtrcaUnlockedEiinsService
   ) {}
 
   ngOnInit(): void {
@@ -70,7 +72,21 @@ export class InstituteComponent implements OnInit, OnDestroy {
     this.newToken = this.trxUnlock.readPendingTrxidForInput(this.newToken);
     this.trxUnlock.fetchCoinBalance().subscribe((n) => (this.trxRemaining = n));
     const stored = localStorage.getItem('unlockedEIINs');
-    if (stored) this.unlockedEIINs = new Set(JSON.parse(stored));
+    if (stored) {
+      try {
+        this.unlockedEIINs = new Set(JSON.parse(stored));
+      } catch {
+        /* ignore */
+      }
+    }
+    this.ntrcaUnlocked.syncServerWithLocalMigration().subscribe((list) => {
+      list.forEach((e) => this.unlockedEIINs.add(e));
+      try {
+        localStorage.setItem('unlockedEIINs', JSON.stringify(Array.from(this.unlockedEIINs)));
+      } catch {
+        /* ignore */
+      }
+    });
 
     this.getTypes();
     this.getDivisions();
