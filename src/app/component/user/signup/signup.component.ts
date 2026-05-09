@@ -543,11 +543,54 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /** Option value for Teacher Subject dropdown: subject_code for Degree, id for others (backend expects teacher_subject_code). */
-  getTeacherSubjectOptionValue(sub: any): string | number {
-    return this.authForm.get('teacherLevel')?.value === 'University'
-      ? (sub.subject_code ?? sub.id)
-      : (sub.id ?? sub.subject_code);
+  /** Backend `teacher_subject_code` is a short code (max 10 chars), not subject title / subject_tr. */
+  private static readonly TEACHER_SUBJECT_CODE_MAX_LEN = 10;
+
+  /**
+   * Stored in `<select>` formControl and sent as `teacher_subject_code`.
+   * Prefer `subject_code` when non-empty and ≤ max length (ignore long values — often a title mis-labeled).
+   * Then short `id` (PK/slug); then short `subject_tr` only if it fits as a slug.
+   */
+  private resolveTeacherSubjectCodeFromRow(sub: any): string {
+    if (!sub || typeof sub !== 'object') return '';
+    const max = SignupComponent.TEACHER_SUBJECT_CODE_MAX_LEN;
+    const code = String(sub.subject_code ?? '').trim();
+    const idStr = sub.id != null && sub.id !== '' ? String(sub.id).trim() : '';
+    const tr = String(sub.subject_tr ?? '').trim();
+    const fits = (s: string) => s.length > 0 && s.length <= max;
+    if (fits(code)) return code;
+    if (fits(idStr)) return idStr;
+    if (fits(tr)) return tr;
+    if (idStr.length > 0) return idStr;
+    return '';
+  }
+
+  /** Option `[value]` for Teacher Subject dropdown — must stay ≤ backend max length. */
+  getTeacherSubjectOptionValue(sub: any): string {
+    return this.resolveTeacherSubjectCodeFromRow(sub);
+  }
+
+  /** Map form value to API field; repair drafts or stale values that stored display text instead of code. */
+  private normalizeTeacherSubjectPayload(raw: string | null | undefined): string | null {
+    if (raw == null || raw === '') return null;
+    const t = String(raw).trim();
+    const max = SignupComponent.TEACHER_SUBJECT_CODE_MAX_LEN;
+    if (t.length <= max) return t;
+    const byResolved = this.availableSubjects.find(
+      (s) => this.resolveTeacherSubjectCodeFromRow(s) === t,
+    );
+    if (byResolved) return this.resolveTeacherSubjectCodeFromRow(byResolved) || null;
+    const byLabel = this.availableSubjects.find(
+      (s: any) =>
+        t === (s.displayName || '') ||
+        (s.subject_tr && t.includes(s.subject_tr)) ||
+        (s.subject_name && t.includes(String(s.subject_name))),
+    );
+    if (byLabel) {
+      const resolved = this.resolveTeacherSubjectCodeFromRow(byLabel);
+      return resolved || null;
+    }
+    return null;
   }
 
   /** Pre-primary has no class choice; always Class Zero. */
@@ -1219,18 +1262,28 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
-    // Teacher validation
+    // Teacher validation + resolve short teacher_subject_code (not subject title / subject_tr)
+    let teacherSubjectCodeForApi: string | null = null;
     if (acctype === 'Teacher') {
       const level = this.authForm.value.teacherLevel;
-      if (level === 'PSC' || level === 'JSC' || level === 'SSC' || level === 'HSC') {
+      const needsSubject =
+        level === 'PSC' ||
+        level === 'JSC' ||
+        level === 'SSC' ||
+        level === 'HSC' ||
+        level === 'University';
+      if (needsSubject) {
         if (!this.authForm.value.teacherSubject) {
           this.snackBar.open('Please select a subject', 'Close', { duration: 3000 });
           return;
         }
-      }
-      if (level === 'University') {
-        if (!this.authForm.value.teacherSubject) {
-          this.snackBar.open('Please select a subject', 'Close', { duration: 3000 });
+        teacherSubjectCodeForApi = this.normalizeTeacherSubjectPayload(this.authForm.value.teacherSubject);
+        if (!teacherSubjectCodeForApi) {
+          this.snackBar.open(
+            'Subject code could not be resolved. Please open the subject list again and re-select your subject.',
+            'Close',
+            { duration: 5000 },
+          );
           return;
         }
       }
@@ -1254,7 +1307,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
         group: acctype === 'Student' ? (this.authForm.value.group || null) : null,
         department: acctype === 'Student' ? (this.authForm.value.department || null) : null,
         teacher_level: acctype === 'Teacher' ? (this.authForm.value.teacherLevel || null) : null,
-        teacher_subject_code: acctype === 'Teacher' ? (this.authForm.value.teacherSubject || null) : null,
+        teacher_subject_code: teacherSubjectCodeForApi,
         teacher_department_code: acctype === 'Teacher' && this.authForm.value.teacherLevel !== 'University' ? (this.authForm.value.teacherDepartment || null) : null,
         teacher_department_name: acctype === 'Teacher' && this.authForm.value.teacherLevel !== 'University' && (this.authForm.value.teacherDepartment || '').toUpperCase() === 'OTHER'
           ? (this.authForm.value.teacherDepartmentOther || '').trim() || null
