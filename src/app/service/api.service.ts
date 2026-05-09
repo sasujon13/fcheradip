@@ -732,6 +732,10 @@ export class ApiService {
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('authToken', token);
         }
+        const acc = String((response?.acctype ?? body?.acctype) ?? '').trim();
+        if (acc) {
+          localStorage.setItem('acctype', acc);
+        }
         if (response && typeof response === 'object') {
           if (response.username) localStorage.setItem('username', response.username);
           const fn = response.fullName ?? response.full_name;

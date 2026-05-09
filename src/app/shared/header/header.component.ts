@@ -9,7 +9,10 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { TrxUnlockService } from '../../service/trx-unlock.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../service/login-redirect.session';
-import { getDashboardRouterLinkSegments } from '../../service/dashboard-route.util';
+import {
+  getDashboardRouterLinkSegments,
+  isTeacherAccount,
+} from '../../service/dashboard-route.util';
 
 
 @Component({
@@ -39,6 +42,30 @@ export class HeaderComponent implements OnInit, OnDestroy {
   /** Profile → Dashboard: teachers `/dashboard`, others `/student/dashboard`. */
   get dashboardRouterSegments(): string[] {
     return getDashboardRouterLinkSegments();
+  }
+
+  /**
+   * Main nav “Dashboard”: guests → signup (`/auth`); logged-in teachers → `/dashboard`;
+   * everyone else → `/student/dashboard`. Stable array/options (not getters) so RouterLink
+   * does not receive new references every CD tick (avoids dev-mode errors / blank UI).
+   */
+  dashboardNavLinkSegments: string[] = ['auth'];
+  dashboardNavLinkActiveOptions: { exact: boolean } = { exact: true };
+
+  /** Call after `loginStatus` is read from storage so segments/options stay in sync. */
+  private syncMainNavDashboardLink(): void {
+    if (!this.loginStatus) {
+      this.dashboardNavLinkSegments = ['auth'];
+      this.dashboardNavLinkActiveOptions = { exact: true };
+      return;
+    }
+    if (isTeacherAccount()) {
+      this.dashboardNavLinkSegments = ['dashboard'];
+      this.dashboardNavLinkActiveOptions = { exact: true };
+    } else {
+      this.dashboardNavLinkSegments = ['student', 'dashboard'];
+      this.dashboardNavLinkActiveOptions = { exact: false };
+    }
   }
 
   /** Token apply feedback: same app-alert as vacant/recommend/merit (not MatSnackBar). */
@@ -206,6 +233,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const profileMenu = document.getElementById('profileMenu');
     if (!menu_item2 || !menu_item1 || !menu_item0 || !sign_menu || !profileMenu) {
       this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
+      this.syncMainNavDashboardLink();
       this.cdr.markForCheck();
       return;
     }
@@ -225,6 +253,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       sign_menu.style.display = '-webkit-inline-box';
       headerEl?.classList.remove('logged-in');
     }
+    this.syncMainNavDashboardLink();
     this.cdr.markForCheck();
   }
 

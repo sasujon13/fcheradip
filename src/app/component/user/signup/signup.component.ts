@@ -1330,6 +1330,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
           localStorage.setItem('fullName', formData.fullName);
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('authToken', token);
+          localStorage.setItem('acctype', String(formData.acctype || '').trim());
           localStorage.setItem('formData', JSON.stringify(formData));
           localStorage.removeItem(SIGNUP_DRAFT_KEY);
           this.showLoggedInHeader();
