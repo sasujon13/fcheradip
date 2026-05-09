@@ -54,6 +54,21 @@ export class WelcomeBonusCeremonyService {
     );
   }
 
+  /**
+   * Same visuals as `/welcome` (inset below header), plays ~30s or until dismiss click, then navigates.
+   * Used after signup/login when the server indicates welcome coins celebration.
+   */
+  playTimedWelcomeThenNavigate(navigateTo: string): void {
+    requestAnimationFrame(() =>
+      this.playDomCeremony({
+        previewDevPage: true,
+        layoutLikeWelcomePage: true,
+        navigateWhenFinished: navigateTo,
+        dismissAfterMs: 30_000,
+      }),
+    );
+  }
+
   private clearPendingOnServer(): void {
     if (!localStorage.getItem('authToken')) {
       return;
@@ -67,16 +82,24 @@ export class WelcomeBonusCeremonyService {
     skipServerClear?: boolean;
     /** `/welcome`: black page, no blur scrim, card text fades out, restore page bg on end. */
     previewDevPage?: boolean;
+    /** Same inset as `/welcome` (below header). */
+    layoutLikeWelcomePage?: boolean;
     /** `/welcome`: do not end the ceremony when clicking the backdrop (signup flow still dismisses on click). */
     standaloneWelcomeRoute?: boolean;
+    navigateWhenFinished?: string;
+    dismissAfterMs?: number;
   }): void {
     if (this.playing) {
       return;
     }
     this.playing = true;
 
-    const previewDev = options?.previewDevPage === true;
+    const previewDev =
+      options?.previewDevPage === true || options?.layoutLikeWelcomePage === true;
     const standaloneWelcome = options?.standaloneWelcomeRoute === true;
+    const welcomeInsetLayout =
+      options?.layoutLikeWelcomePage === true || options?.standaloneWelcomeRoute === true;
+    const navigateWhenFinished = options?.navigateWhenFinished;
     let previewBodyBgStored: string | undefined;
     let previewHtmlBgStored: string | undefined;
 
@@ -191,7 +214,7 @@ export class WelcomeBonusCeremonyService {
     if (previewDev) {
       root.setAttribute('data-wbc-preview', '1');
     }
-    if (standaloneWelcome) {
+    if (welcomeInsetLayout) {
       root.setAttribute('data-wbc-standalone-welcome', '1');
     }
     root.innerHTML = `
@@ -860,13 +883,22 @@ export class WelcomeBonusCeremonyService {
       if (!options?.skipServerClear) {
         this.clearPendingOnServer();
       }
+      if (navigateWhenFinished) {
+        void this.router.navigateByUrl(navigateWhenFinished);
+      }
     };
     if (!standaloneWelcome) {
       root.addEventListener('click', end);
     }
+    const dismissMsNonStandalone = (): number => {
+      if (typeof options?.dismissAfterMs === 'number') {
+        return options.dismissAfterMs;
+      }
+      return WBC_AUTO_DISMISS_MS;
+    };
     let dismissTimer: number | null = standaloneWelcome
       ? null
-      : window.setTimeout(end, WBC_AUTO_DISMISS_MS);
+      : window.setTimeout(end, dismissMsNonStandalone());
     const scheduleDismiss = (): void => {
       if (standaloneWelcome) {
         return;
@@ -874,7 +906,7 @@ export class WelcomeBonusCeremonyService {
       if (dismissTimer) {
         clearTimeout(dismissTimer);
       }
-      dismissTimer = window.setTimeout(end, WBC_AUTO_DISMISS_MS);
+      dismissTimer = window.setTimeout(end, dismissMsNonStandalone());
     };
     const cardEl = root.querySelector('.wbc-card');
     if (cardEl && !standaloneWelcome) {

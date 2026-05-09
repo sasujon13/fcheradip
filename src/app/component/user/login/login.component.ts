@@ -9,6 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
 import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
+import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.session';
 
 
 @Component({
@@ -65,7 +66,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     private countryService: CountryService,
     private cdr: ChangeDetectorRef,
     private loadingService: LoadingService,
-    private welcomeCeremony: WelcomeBonusCeremonyService
+    private welcomeCeremony: WelcomeBonusCeremonyService,
+    private route: ActivatedRoute,
   ) {
     this.authForm = this.fb.group({
       countryCode: ['BD', [Validators.required]],
@@ -205,6 +207,23 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** When country is BD, normalize username field: strip leading 0 and cap at 10 digits. */
+  /**
+   * Guard/trx/deep flows: use query `returnUrl` or `localStorage.returnUrl`.
+   * Voluntary login (menu cleared the session flag): `/dashboard`.
+   */
+  private consumePostLoginTargetUrl(): string {
+    const useStored = sessionStorage.getItem(SESSION_LOGIN_USE_STORED_RETURN) === '1';
+    sessionStorage.removeItem(SESSION_LOGIN_USE_STORED_RETURN);
+    const fromQuery = this.route.snapshot.queryParamMap.get('returnUrl')?.trim() || '';
+    const fromStorage = (localStorage.getItem('returnUrl') || '').trim();
+    localStorage.setItem('returnUrl', '');
+    if (useStored) {
+      const raw = fromQuery || fromStorage || '/';
+      return raw.startsWith('/') ? raw : `/${raw}`;
+    }
+    return '/dashboard';
+  }
+
   private applyBangladeshPhoneDisplay(countryCode: string): void {
     if (!this.countryService.isBangladesh(countryCode)) return;
     const ctrl = this.authForm.get('username');
@@ -238,21 +257,21 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
           localStorage.setItem('username', username);
           if (response && response.authToken) localStorage.setItem('authToken', response.authToken);
           localStorage.setItem('formData', JSON.stringify(formData));
-          if (response?.showWelcomeCoinsCeremony) {
-            this.welcomeCeremony.schedule();
-          }
           this.logout();
-          const returnUrl = localStorage.getItem('returnUrl') || '/';
-          setTimeout(() => {
-            this.router.navigateByUrl(returnUrl).then(() => {
-              localStorage.setItem('returnUrl', '');
-              const scrollY = sessionStorage.getItem('signupReturnScrollY');
-              if (scrollY != null) {
-                sessionStorage.removeItem('signupReturnScrollY');
-                requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
-              }
-            });
-          }, 700);
+          const targetUrl = this.consumePostLoginTargetUrl();
+          if (response?.showWelcomeCoinsCeremony) {
+            this.welcomeCeremony.playTimedWelcomeThenNavigate(targetUrl);
+          } else {
+            setTimeout(() => {
+              this.router.navigateByUrl(targetUrl).then(() => {
+                const scrollY = sessionStorage.getItem('signupReturnScrollY');
+                if (scrollY != null) {
+                  sessionStorage.removeItem('signupReturnScrollY');
+                  requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
+                }
+              });
+            }, 700);
+          }
         },
         error: () => {
           this.isPasswordMismatch = true;

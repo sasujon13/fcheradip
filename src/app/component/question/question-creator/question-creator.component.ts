@@ -26,6 +26,7 @@ import {
   CUSTOMER_SETTINGS_QUESTION_CREATOR_KEY,
 } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
+import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.session';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
@@ -8108,6 +8109,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         JSON.stringify({ ...this.buildPersistPayload(), questions: this.questions })
       );
       localStorage.setItem('returnUrl', '/question/create');
+      sessionStorage.setItem(SESSION_LOGIN_USE_STORED_RETURN, '1');
       this.router.navigate(['/login']);
       return;
     }

@@ -4,6 +4,7 @@ import { forkJoin } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import { LoadingService } from '../../../service/loading.service';
+import { SESSION_LOGIN_USE_STORED_RETURN } from '../../../service/login-redirect.session';
 import { DisappearedQuestionsService } from '../../../service/disappeared-questions.service';
 import { diffChars } from 'diff';
 
@@ -2399,6 +2400,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   submitPendingEdit(event?: Event): void {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     if (!this.apiService.isLoggedIn()) {
+      localStorage.setItem('returnUrl', this.router.url);
+      sessionStorage.setItem(SESSION_LOGIN_USE_STORED_RETURN, '1');
       this.router.navigate(['/login']);
       return;
     }

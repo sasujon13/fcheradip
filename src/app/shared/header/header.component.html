@@ -91,6 +91,7 @@
         <li class="menu_item menu_item2" #menu_item2 id="menu_item2" (click)="toggleDropdown()">
           <a><i class="fa fa-user"></i></a>
           <ul class="dropdown" [class.open]="isDropdownOpen">
+            <li><a [routerLink]="['/dashboard']" routerLinkActive="dashboard"><i class="fa fa-th-large"></i>&nbsp;&nbsp; Dashboard</a></li>
             <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew / Upgrade</a></li>
             <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
             <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update Profile</a></li>

@@ -89,6 +89,7 @@ const routes: Routes = [
   {path:'scrape', component: ScraperComponent},
   {path:'index', component: IndexComponent},
   {path:'login', component: LoginComponent},
+  { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] },
   {path:'welcome', component: WelcomeCeremonyPreviewComponent},
   {path:'dev/welcome-ceremony', redirectTo: 'welcome', pathMatch: 'full'},
   {path:'auth', component: SignupComponent},

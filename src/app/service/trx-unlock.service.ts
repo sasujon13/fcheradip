@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
+import { SESSION_LOGIN_USE_STORED_RETURN } from './login-redirect.session';
 
 /** Persist active trx row id (which TrxID activation applies to) until another TrxID is applied. */
 export const LS_ACTIVE_TRX_ROW_ID = 'cheradipActiveTrxRowId';
@@ -46,6 +47,7 @@ export class TrxUnlockService {
   private goToLogin(): void {
     const returnUrl = this.router.url || '/';
     this.zone.run(() => {
+      sessionStorage.setItem(SESSION_LOGIN_USE_STORED_RETURN, '1');
       void this.router.navigate(['/login'], { queryParams: { returnUrl } });
     });
   }

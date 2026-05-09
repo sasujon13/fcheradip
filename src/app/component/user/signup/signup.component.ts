@@ -1277,23 +1277,27 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
           localStorage.setItem('authToken', token);
           localStorage.setItem('formData', JSON.stringify(formData));
           localStorage.removeItem(SIGNUP_DRAFT_KEY);
-          if (showWelcome) {
-            this.welcomeCeremony.schedule();
-          }
-
           this.showLoggedInHeader();
 
           const useSavedReturnUrl = sessionStorage.getItem('signupFromAppNav') === '1';
           sessionStorage.removeItem('signupFromAppNav');
-          const returnUrl = useSavedReturnUrl ? (localStorage.getItem('returnUrl') || '/') : '/';
+          const savedReturn = (localStorage.getItem('returnUrl') || '/').trim();
           localStorage.setItem('returnUrl', '');
-          this.router.navigateByUrl(returnUrl).then(() => {
-            const scrollY = sessionStorage.getItem('signupReturnScrollY');
-            if (scrollY != null) {
-              sessionStorage.removeItem('signupReturnScrollY');
-              requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
-            }
-          });
+          const normalizedSaved =
+            savedReturn.startsWith('/') ? savedReturn : `/${savedReturn}`;
+          const targetUrl = useSavedReturnUrl ? normalizedSaved : '/dashboard';
+
+          if (showWelcome) {
+            this.welcomeCeremony.playTimedWelcomeThenNavigate(targetUrl);
+          } else {
+            this.router.navigateByUrl(targetUrl).then(() => {
+              const scrollY = sessionStorage.getItem('signupReturnScrollY');
+              if (scrollY != null) {
+                sessionStorage.removeItem('signupReturnScrollY');
+                requestAnimationFrame(() => window.scrollTo(0, parseInt(scrollY, 10)));
+              }
+            });
+          }
 
           this.showAuthAlertMessage('Successfully logged in.', true);
         },

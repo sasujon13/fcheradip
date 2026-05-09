@@ -8,6 +8,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { TrxUnlockService } from '../../service/trx-unlock.service';
+import { SESSION_LOGIN_USE_STORED_RETURN } from '../../service/login-redirect.session';
 
 
 @Component({
@@ -696,6 +697,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (!url.startsWith('/login'))
       localStorage.setItem('returnUrl', url);
     sessionStorage.setItem('signupReturnScrollY', String(window.scrollY));
+    sessionStorage.removeItem(SESSION_LOGIN_USE_STORED_RETURN);
     this.router.navigate(['/login']);
   }
 
