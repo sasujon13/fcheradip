@@ -61,8 +61,10 @@ import {
 } from './service/dashboard-routing.guard';
 
 const routes: Routes = [
-  {path:'', redirectTo:'index',pathMatch:'full'},
-  {path:'packages', component: PackagesComponent},
+  /** Root URL must render index here — do not rely on redirect-only (avoids empty outlet on `/`). */
+  { path: '', component: IndexComponent, pathMatch: 'full' },
+  { path: 'index', component: IndexComponent },
+  { path: 'packages', component: PackagesComponent },
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutComponent},
   {path:'live_chat', component: ChatComponent},
@@ -92,7 +94,6 @@ const routes: Routes = [
   {path:'order', component: OrderComponent, canActivate: [AuthGuard]},
   {path:'cart', component: CartComponent},
   {path:'scrape', component: ScraperComponent},
-  {path:'index', component: IndexComponent},
   {path:'login', component: LoginComponent},
   { path: 'dashboard', component: HomeDashboardComponent, canActivate: [AuthGuard] },
   {path:'welcome', component: WelcomeCeremonyPreviewComponent},
