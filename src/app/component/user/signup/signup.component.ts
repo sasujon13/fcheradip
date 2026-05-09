@@ -9,6 +9,7 @@ import { ApiService } from '../../../service/api.service';
 import { CountryService, Country } from '../../../service/country.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
+import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { getDefaultDashboardPath } from 'src/app/service/dashboard-route.util';
 import {
   resolveAuthTokenFromResponse,
@@ -206,7 +207,8 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
     private countryService: CountryService,
     private cdr: ChangeDetectorRef,
     private loadingService: LoadingService,
-    private welcomeCeremony: WelcomeBonusCeremonyService
+    private welcomeCeremony: WelcomeBonusCeremonyService,
+    private trxUnlock: TrxUnlockService,
   ) {
     const today = new Date();
     today.setFullYear(today.getFullYear() - 5);
@@ -1331,6 +1333,9 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
           localStorage.setItem('formData', JSON.stringify(formData));
           localStorage.removeItem(SIGNUP_DRAFT_KEY);
           this.showLoggedInHeader();
+          if (token) {
+            this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+          }
 
           const useSavedReturnUrl = sessionStorage.getItem('signupFromAppNav') === '1';
           sessionStorage.removeItem('signupFromAppNav');
