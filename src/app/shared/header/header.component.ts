@@ -9,6 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { TrxUnlockService } from '../../service/trx-unlock.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../service/login-redirect.session';
+import { getDashboardRouterLinkSegments } from '../../service/dashboard-route.util';
 
 
 @Component({
@@ -35,6 +36,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
   get headerRemainingUnlocks(): number {
     return this.trxUnlock.getCachedRemaining();
   }
+  /** Profile → Dashboard: teachers `/dashboard`, others `/student/dashboard`. */
+  get dashboardRouterSegments(): string[] {
+    return getDashboardRouterLinkSegments();
+  }
+
   /** Token apply feedback: same app-alert as vacant/recommend/merit (not MatSnackBar). */
   tokenAlertMessage = '';
   showTokenAlert = false;

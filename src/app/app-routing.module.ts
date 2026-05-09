@@ -43,6 +43,7 @@ import { QuestionComponent } from './component/question/question/question.compon
 import { QuestionCreatorComponent } from './component/question/question-creator/question-creator.component';
 import { StudentComponent } from './component/student/student/student.component';
 import { DashboardComponent } from './component/student/dashboard/dashboard.component';
+import { HomeDashboardComponent } from './component/dashboard/home-dashboard/home-dashboard.component';
 import { LiveexamComponent } from './component/student/liveexam/liveexam.component';
 import { RegularexamComponent } from './component/student/regularexam/regularexam.component';
 import { ArchiveComponent } from './component/student/archive/archive.component';
@@ -54,6 +55,10 @@ import { LeaderboardComponent } from './component/student/leaderboard/leaderboar
 import { TutorComponent } from './component/student/tutor/tutor.component';
 import { ScraperComponent } from './component/scraper/scraper/scraper.component';
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
+import {
+  StudentSectionDashboardGuard,
+  TeacherHomeDashboardGuard,
+} from './service/dashboard-routing.guard';
 
 const routes: Routes = [
   {path:'', redirectTo:'index',pathMatch:'full'},
@@ -89,7 +94,7 @@ const routes: Routes = [
   {path:'scrape', component: ScraperComponent},
   {path:'index', component: IndexComponent},
   {path:'login', component: LoginComponent},
-  { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] },
+  { path: 'dashboard', component: HomeDashboardComponent, canActivate: [AuthGuard] },
   {path:'welcome', component: WelcomeCeremonyPreviewComponent},
   {path:'dev/welcome-ceremony', redirectTo: 'welcome', pathMatch: 'full'},
   {path:'auth', component: SignupComponent},
@@ -115,7 +120,7 @@ const routes: Routes = [
     canActivate: [AuthGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-      { path: 'dashboard', component: DashboardComponent },
+      { path: 'dashboard', component: DashboardComponent, canActivate: [StudentSectionDashboardGuard] },
       { path: 'liveexam', component: LiveexamComponent },
       { path: 'regularexam', component: RegularexamComponent },
       { path: 'exam-set/:id', component: ExamSetSessionComponent },

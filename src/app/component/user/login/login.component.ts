@@ -10,6 +10,7 @@ import { ChangeDetectorRef } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
 import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.session';
+import { getDefaultDashboardPath } from 'src/app/service/dashboard-route.util';
 
 
 @Component({
@@ -209,7 +210,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   /** When country is BD, normalize username field: strip leading 0 and cap at 10 digits. */
   /**
    * Guard/trx/deep flows: use query `returnUrl` or `localStorage.returnUrl`.
-   * Voluntary login (menu cleared the session flag): `/dashboard`.
+   * Voluntary login (menu cleared the session flag): teacher → `/dashboard`, else `/student/dashboard`.
    */
   private consumePostLoginTargetUrl(): string {
     const useStored = sessionStorage.getItem(SESSION_LOGIN_USE_STORED_RETURN) === '1';
@@ -221,7 +222,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
       const raw = fromQuery || fromStorage || '/';
       return raw.startsWith('/') ? raw : `/${raw}`;
     }
-    return '/dashboard';
+    return getDefaultDashboardPath();
   }
 
   private applyBangladeshPhoneDisplay(countryCode: string): void {

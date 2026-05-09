@@ -9,6 +9,7 @@ import { ApiService } from '../../../service/api.service';
 import { CountryService, Country } from '../../../service/country.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { WelcomeBonusCeremonyService } from 'src/app/service/welcome-bonus-ceremony.service';
+import { getDefaultDashboardPath } from 'src/app/service/dashboard-route.util';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { of, Subject } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -1285,7 +1286,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
           localStorage.setItem('returnUrl', '');
           const normalizedSaved =
             savedReturn.startsWith('/') ? savedReturn : `/${savedReturn}`;
-          const targetUrl = useSavedReturnUrl ? normalizedSaved : '/dashboard';
+          const targetUrl = useSavedReturnUrl ? normalizedSaved : getDefaultDashboardPath();
 
           if (showWelcome) {
             this.welcomeCeremony.playTimedWelcomeThenNavigate(targetUrl);

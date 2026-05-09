@@ -65,6 +65,7 @@ import { QuestionComponent } from './component/question/question/question.compon
 import { QuestionCreatorComponent } from './component/question/question-creator/question-creator.component';
 import { StudentComponent } from './component/student/student/student.component';
 import { DashboardComponent } from './component/student/dashboard/dashboard.component';
+import { HomeDashboardComponent } from './component/dashboard/home-dashboard/home-dashboard.component';
 import { LiveexamComponent } from './component/student/liveexam/liveexam.component';
 import { RegularexamComponent } from './component/student/regularexam/regularexam.component';
 import { ArchiveComponent } from './component/student/archive/archive.component';
@@ -148,6 +149,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     McqOptionsComponent,
     StudentComponent,
     DashboardComponent,
+    HomeDashboardComponent,
     LiveexamComponent,
     RegularexamComponent,
     ArchiveComponent,
