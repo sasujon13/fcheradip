@@ -74,13 +74,14 @@ export class InstituteComponent implements OnInit, OnDestroy {
     const stored = localStorage.getItem('unlockedEIINs');
     if (stored) {
       try {
-        this.unlockedEIINs = new Set(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(Array.isArray(parsed) ? parsed : []));
       } catch {
         /* ignore */
       }
     }
     this.ntrcaUnlocked.syncServerWithLocalMigration().subscribe((list) => {
-      list.forEach((e) => this.unlockedEIINs.add(e));
+      this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(list));
       try {
         localStorage.setItem('unlockedEIINs', JSON.stringify(Array.from(this.unlockedEIINs)));
       } catch {

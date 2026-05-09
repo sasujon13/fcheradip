@@ -107,10 +107,10 @@
             </ng-container>
 
             <ng-container *ngIf="!isEIINUnlocked(vacancy.EIIN)">
-              <button *ngIf="!eiinLoading.has(vacancy.EIIN)" (click)="unlockEIIN(vacancy.EIIN)">
+              <button *ngIf="!isEiinRowLoading(vacancy.EIIN)" (click)="unlockEIIN(vacancy.EIIN)">
                 🔓<br>Unlock<br>{{ vacancy.EIIN }}
               </button>
-              <div *ngIf="eiinLoading.has(vacancy.EIIN)">
+              <div *ngIf="isEiinRowLoading(vacancy.EIIN)">
                 <span class="spinner"></span>
                 <br>Loading...
               </div>

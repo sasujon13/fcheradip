@@ -23,10 +23,15 @@ export class NtrcaUnlockedEiinsService {
     if (!Array.isArray(raw)) return [];
     const out: string[] = [];
     for (const x of raw) {
-      const s = String(x ?? '').trim();
+      const s = this.normalizeEiinKey(x);
       if (s) out.push(s);
     }
     return out;
+  }
+
+  /** Single EIIN for Set lookup and banbeis URLs; must match row matching in ``hydrateUnlockedSubset``. */
+  normalizeEiinKey(eiin: unknown): string {
+    return String(eiin ?? '').trim();
   }
 
   readLegacyLocalList(): string[] {
@@ -119,10 +124,12 @@ export class NtrcaUnlockedEiinsService {
   }
 
   /** For each EIIN in ``unlocked`` that appears on ``vacancies``, fetch banbeis details (paid row data). */
-  hydrateUnlockedSubset(unlocked: Set<string>, vacancies: any[], baseUrl2: string): void {
-    if (!vacancies?.length || !baseUrl2 || !unlocked.size) return;
-    for (const eiin of unlocked) {
-      const vacancy = vacancies.find((v) => String(v?.EIIN ?? '').trim() === eiin);
+  hydrateUnlockedSubset(unlocked: Iterable<unknown>, vacancies: any[], baseUrl2: string): void {
+    if (!vacancies?.length || !baseUrl2) return;
+    const keys = [...new Set(this.normalizeList(Array.from(unlocked)))];
+    if (!keys.length) return;
+    for (const eiin of keys) {
+      const vacancy = vacancies.find((v) => this.normalizeEiinKey(v?.EIIN) === eiin);
       if (vacancy) {
         const url = `${baseUrl2}?eiin=${encodeURIComponent(eiin)}`;
         this.http.get<any>(url).subscribe({

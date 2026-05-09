@@ -266,16 +266,17 @@ export class Merit8Component implements OnInit, AfterViewInit {
     this.getTotalTableCount();
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
-    const unlockedEIINs = localStorage.getItem('unlockedEIINs');
-    if (unlockedEIINs) {
+    const unlockedEIINsRaw = localStorage.getItem('unlockedEIINs');
+    if (unlockedEIINsRaw) {
       try {
-        this.unlockedEIINs = new Set(JSON.parse(unlockedEIINs));
+        const parsed = JSON.parse(unlockedEIINsRaw);
+        this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(Array.isArray(parsed) ? parsed : []));
       } catch {
         /* ignore */
       }
     }
     this.ntrcaUnlocked.syncServerWithLocalMigration().subscribe((list) => {
-      list.forEach((e) => this.unlockedEIINs.add(e));
+      this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(list));
       try {
         localStorage.setItem('unlockedEIINs', JSON.stringify(Array.from(this.unlockedEIINs)));
       } catch {

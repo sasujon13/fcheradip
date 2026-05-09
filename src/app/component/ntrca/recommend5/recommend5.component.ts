@@ -288,16 +288,17 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
 
     const selected = localStorage.getItem('selectedEIINs');
     if (selected) this.selectedEIINs = new Set(JSON.parse(selected));
-    const unlockedEIINs = localStorage.getItem('unlockedEIINs');
-    if (unlockedEIINs) {
+    const unlockedEIINsRaw = localStorage.getItem('unlockedEIINs');
+    if (unlockedEIINsRaw) {
       try {
-        this.unlockedEIINs = new Set(JSON.parse(unlockedEIINs));
+        const parsed = JSON.parse(unlockedEIINsRaw);
+        this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(Array.isArray(parsed) ? parsed : []));
       } catch {
         /* ignore */
       }
     }
     this.ntrcaUnlocked.syncServerWithLocalMigration().subscribe((list) => {
-      list.forEach((e) => this.unlockedEIINs.add(e));
+      this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(list));
       try {
         localStorage.setItem('unlockedEIINs', JSON.stringify(Array.from(this.unlockedEIINs)));
       } catch {
@@ -585,33 +586,35 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  isEIINUnlocked(eiin: string): boolean {
-    return this.unlockedEIINs.has(eiin);
+  isEIINUnlocked(eiin: string | number): boolean {
+    const k = this.ntrcaUnlocked.normalizeEiinKey(eiin);
+    return k.length > 0 && this.unlockedEIINs.has(k);
   }
 
-  unlockEIIN(eiin: string): void {
-    if (this.unlockedEIINs.has(eiin)) return;
+  unlockEIIN(eiin: string | number): void {
+    const key = this.ntrcaUnlocked.normalizeEiinKey(eiin);
+    if (!key || this.unlockedEIINs.has(key)) return;
 
-    const vacancy = this.vacancies.find(v => v.EIIN === eiin);
+    const vacancy = this.vacancies.find((v) => this.ntrcaUnlocked.normalizeEiinKey(v.EIIN) === key);
     if (!vacancy) return;
 
-    this.eiinLoading.add(eiin); // show loader
+    this.eiinLoading.add(key); // show loader
 
     const fetchAndUnlock = () => {
-      const url = `${this.baseUrl2}?eiin=${eiin}`;
+      const url = `${this.baseUrl2}?eiin=${encodeURIComponent(key)}`;
       this.http.get<any>(url).subscribe({
         next: (res) => {
           vacancy.parameter = res;
 
           // Only unlock if request was successful
-          this.addUnlockedEIIN(eiin);
-          this.eiinLoading.delete(eiin);
+          this.addUnlockedEIIN(key);
+          this.eiinLoading.delete(key);
         },
         error: (err) => {
-          console.error(`EIIN fetch failed: ${eiin}`, err);
+          console.error(`EIIN fetch failed: ${key}`, err);
           this.showNoDataAlert6 = false;
           setTimeout(() => this.showNoDataAlert6 = true); // connection error message
-          this.eiinLoading.delete(eiin);
+          this.eiinLoading.delete(key);
         }
       });
     };
@@ -624,29 +627,36 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
           fetchAndUnlock();
         } else {
           this.loading = false;
-          this.eiinLoading.delete(eiin);
+          this.eiinLoading.delete(key);
           this.showNoDataAlert4 = false;
           setTimeout(() => this.showNoDataAlert4 = true);
         }
       },
       error: () => {
         this.loading = false;
-        this.eiinLoading.delete(eiin);
+        this.eiinLoading.delete(key);
         this.showNoDataAlert6 = false;
         setTimeout(() => this.showNoDataAlert6 = true);
       }
     });
   }
 
-  addUnlockedEIIN(eiin: string): void {
-    this.unlockedEIINs.add(eiin);
-    const arr = Array.from(this.unlockedEIINs);
+  addUnlockedEIIN(eiin: string | number): void {
+    const key = this.ntrcaUnlocked.normalizeEiinKey(eiin);
+    if (!key) return;
+    this.unlockedEIINs.add(key);
+    const arr = this.ntrcaUnlocked.normalizeList(Array.from(this.unlockedEIINs));
+    this.unlockedEIINs = new Set(arr);
     try {
       localStorage.setItem('unlockedEIINs', JSON.stringify(arr));
     } catch {
       /* ignore */
     }
     this.ntrcaUnlocked.persistFullList(arr).subscribe();
+  }
+
+  isEiinRowLoading(eiin: string | number): boolean {
+    return this.eiinLoading.has(this.ntrcaUnlocked.normalizeEiinKey(eiin));
   }
 
   private hydrateUnlockedVacancyRows(): void {
