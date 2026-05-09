@@ -129,7 +129,10 @@ export class TrxUnlockService {
     );
   }
 
-  /** POST activate: credits customer.settings.balance by received_amount*100; requires Bearer auth. */
+  /**
+   * POST activate: credits TrxManagement row and (when Bearer present) **adds** the same amount to
+   * ``customer.settings.balance``. Response ``remaining`` is total wallet for the header, not trx-only.
+   */
   activateAppliedTrx(row: { id: number }): Observable<number> {
     return this.http
       .post<{ success?: boolean; token?: number; remaining?: number }>(
