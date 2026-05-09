@@ -227,13 +227,13 @@ export class WelcomeBonusCeremonyService {
       [data-welcome-ceremony][data-wbc-preview="1"]{
         background:#000;
       }
-      /* /welcome: below fixed header (z-index 9999); ceremony fills viewport under 100px top band */
+      /* /welcome: below fixed header (z-index 9999); ceremony fills viewport under 60px top band */
       [data-welcome-ceremony][data-wbc-preview="1"][data-wbc-standalone-welcome="1"]{
-        top:100px;
+        top:60px;
         bottom:0;
         height:auto;
-        min-height:calc(100vh - 100px);
-        min-height:calc(100dvh - 100px);
+        min-height:calc(100vh - 60px);
+        min-height:calc(100dvh - 60px);
         z-index:9998;
       }
       [data-welcome-ceremony][data-wbc-standalone-welcome="1"] .wbc-dismiss-layer,

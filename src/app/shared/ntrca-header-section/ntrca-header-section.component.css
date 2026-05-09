@@ -1,9 +1,9 @@
 /* Shared NTRCA header: token box + mainmsg + notice links – CSS copied from ntrca5.shared.css block */
-/* Stack above .container2 / fixed toolbars (z-index ~1001) so Trx row stays clickable like header.tokenbox on other pages */
+/* Stack above .container2 / fixed toolbars and welcome ceremony overlay (z-index 9998) */
 :host {
   display: block;
   position: relative;
-  z-index: 1003;
+  z-index: 10000;
 }
 
 /* ---- .tokenbox ---- */
@@ -69,6 +69,7 @@
   position: fixed;
   display: inline-block;
   margin-left: -34px;
+  z-index: 10000;
 }
 
 /* Help panel: invisible hit bridge above box so cursor can cross the gap without leaving the zone */
