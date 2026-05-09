@@ -1,0 +1,29 @@
+# --- Backend ---
+cd /home/sasha/apps/cheradip/bcheradip
+git fetch origin
+git checkout main
+git pull origin main
+source venv/bin/activate
+python -m pip install -r requirements.txt
+python manage.py collectstatic --noinput
+sudo systemctl restart cheradip
+
+# --- Frontend ---
+cd /home/sasha/apps/cheradip/fcheradip
+git fetch origin
+git checkout main
+git pull origin main
+npm ci
+npm run build -- --configuration production
+
+FRONT_DIST="/home/sasha/apps/cheradip/fcheradip/dist/frontend"
+if [ -f "$FRONT_DIST/index.html" ]; then
+  sudo rsync -av --delete "$FRONT_DIST/" /var/www/cheradip/
+elif [ -f "$FRONT_DIST/browser/index.html" ]; then
+  sudo rsync -av --delete "$FRONT_DIST/browser/" /var/www/cheradip/
+else
+  find /home/sasha/apps/cheradip/fcheradip/dist -name index.html
+fi
+
+sudo systemctl reload nginx
+sudo systemctl status cheradip nginx --no-pager
