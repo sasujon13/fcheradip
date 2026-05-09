@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { ApiService } from './api.service';
 
 /** One clip at a time: repeat 201 → 120 → 012 → 201 → … (0=s1, 1=s2, 2=s3). */
@@ -18,6 +20,7 @@ export class WelcomeBonusCeremonyService {
 
   constructor(
     private api: ApiService,
+    private router: Router,
     @Inject(DOCUMENT) private readonly doc: Document,
   ) {}
 
@@ -37,7 +40,8 @@ export class WelcomeBonusCeremonyService {
 
   /**
    * Full-screen ceremony from the `/welcome` route (no signup). Clicks do not dismiss;
-   * auto-dismiss and card-hover behavior match signup unless `standaloneWelcomeRoute` differs.
+   * plays until the user navigates to another route (no auto-dismiss). Header stays above
+   * the effect area; the ceremony is inset from the top (see CSS).
    * Does not PATCH customer settings.
    */
   playStandaloneWelcomePage(): void {
@@ -187,6 +191,9 @@ export class WelcomeBonusCeremonyService {
     if (previewDev) {
       root.setAttribute('data-wbc-preview', '1');
     }
+    if (standaloneWelcome) {
+      root.setAttribute('data-wbc-standalone-welcome', '1');
+    }
     root.innerHTML = `
       <div class="wbc-dismiss-layer" aria-hidden="true"></div>
       <div class="wbc-stage">
@@ -219,6 +226,22 @@ export class WelcomeBonusCeremonyService {
       }
       [data-welcome-ceremony][data-wbc-preview="1"]{
         background:#000;
+      }
+      /* /welcome: below fixed header (z-index 9999); ceremony fills viewport under 100px top band */
+      [data-welcome-ceremony][data-wbc-preview="1"][data-wbc-standalone-welcome="1"]{
+        top:100px;
+        bottom:0;
+        height:auto;
+        min-height:calc(100vh - 100px);
+        min-height:calc(100dvh - 100px);
+        z-index:9998;
+      }
+      [data-welcome-ceremony][data-wbc-standalone-welcome="1"] .wbc-dismiss-layer,
+      [data-welcome-ceremony][data-wbc-standalone-welcome="1"] .wbc-stage,
+      [data-welcome-ceremony][data-wbc-standalone-welcome="1"] .wbc-petal-field,
+      [data-welcome-ceremony][data-wbc-standalone-welcome="1"] .wbc-firecracker-field{
+        min-height:100% !important;
+        height:100% !important;
       }
       [data-welcome-ceremony][data-wbc-preview="1"] .wbc-dismiss-layer{
         display:none !important;
@@ -804,7 +827,16 @@ export class WelcomeBonusCeremonyService {
       tryStartBombPlaylist();
     }, WBC_TEXT_MS + WBC_OVERLAY_BEFORE_FX_MS);
 
+    let navTeardown: (() => void) | undefined;
+    let ceremonyEnded = false;
+
     const end = () => {
+      if (ceremonyEnded) {
+        return;
+      }
+      ceremonyEnded = true;
+      navTeardown?.();
+      navTeardown = undefined;
       if (overlayRevealTimer !== null) {
         clearTimeout(overlayRevealTimer);
         overlayRevealTimer = null;
@@ -832,13 +864,20 @@ export class WelcomeBonusCeremonyService {
     if (!standaloneWelcome) {
       root.addEventListener('click', end);
     }
-    let dismissTimer: number | null = window.setTimeout(end, WBC_AUTO_DISMISS_MS);
-    const scheduleDismiss = () => {
-      if (dismissTimer) clearTimeout(dismissTimer);
+    let dismissTimer: number | null = standaloneWelcome
+      ? null
+      : window.setTimeout(end, WBC_AUTO_DISMISS_MS);
+    const scheduleDismiss = (): void => {
+      if (standaloneWelcome) {
+        return;
+      }
+      if (dismissTimer) {
+        clearTimeout(dismissTimer);
+      }
       dismissTimer = window.setTimeout(end, WBC_AUTO_DISMISS_MS);
     };
     const cardEl = root.querySelector('.wbc-card');
-    if (cardEl) {
+    if (cardEl && !standaloneWelcome) {
       cardEl.addEventListener('mouseenter', () => {
         if (dismissTimer) {
           clearTimeout(dismissTimer);
@@ -848,6 +887,17 @@ export class WelcomeBonusCeremonyService {
       cardEl.addEventListener('mouseleave', () => {
         scheduleDismiss();
       });
+    }
+    if (standaloneWelcome) {
+      const sub = this.router.events
+        .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+        .subscribe(() => {
+          const path = this.router.url.split(/[?#]/)[0];
+          if (path !== '/welcome') {
+            end();
+          }
+        });
+      navTeardown = (): void => sub.unsubscribe();
     }
   }
 
