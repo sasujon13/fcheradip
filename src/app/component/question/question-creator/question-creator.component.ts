@@ -3571,18 +3571,25 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Maps MCQ upper-band slot index (0–5) to `headerLineFontSizes` index. Mixed unified: title + subject
-   * share font index 2 (textarea subject line) with সৃজনশীল display.
+   * Maps MCQ upper-band slot index (0–5) to `headerLineFontSizes` index.
+   *
+   * Mixed CQ+MCQ: the synthetic `mcqTitle` slot is INSERTED at preview slot 2 (no storage
+   * line), so every later slot displays `L[slot - 1]`. Slots 2 + 3 therefore share L[2]'s
+   * font (subject) and slot 4 reads L[3]'s font (MCQ সময়/পূর্ণমান).
+   *
+   * MCQ-only: storage already carries the literal MCQ band title at `L[2]`, so the
+   * synthetic `mcqTitle` slot displays the same text as L[2] and there is NO offset for
+   * the following slots — each preview slot reads its own storage line's font slot. Using
+   * the mixed mapping here would route sidebar Row 4 (subject) into slot 3 and Row 5 (MCQ
+   * সময়/পূর্ণমান) into slot 4 even though the preview reads slots 2 and 3 respectively,
+   * silently dropping +/- clicks on those rows.
    */
   mcqUpperSlotFontIndex(slotIndex: number, pageIndex?: number | null): number {
     const pi = pageIndex == null || !Number.isFinite(Number(pageIndex)) ? 0 : Number(pageIndex);
     if (!this.headerUsesMcqCodeTable(pi)) {
       return slotIndex;
     }
-    if (
-      this.mcqOnlyUsesSixLineTextareaBlock() ||
-      this.mixedUnifiedHeaderTextareaLayoutActive()
-    ) {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
       if (slotIndex === 2 || slotIndex === 3) {
         return 2;
       }
@@ -3592,6 +3599,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (slotIndex === 5) {
         return 5;
       }
+      return slotIndex;
+    }
+    if (this.mcqOnlyUsesSixLineTextareaBlock()) {
       return slotIndex;
     }
     if (slotIndex === 4) {
