@@ -20,12 +20,37 @@
   }
   
   .bengali-text {
-    font-family: 'Bengali Serif', sans-serif;
+    /* Test override: use 'Noto Sans Bengali' (loaded from Google Fonts in index.html). */
+    font-family: 'Roboto', 'Noto Sans Bengali', sans-serif;
   }
+
+  /*
+   * Test override (Bengali parity with PDF export):
+   * Global force — make every text element render Bengali in 'Noto Sans Bengali'
+   * instead of the system sans-serif fallback (which is Nirmala UI on Windows).
+   * Remove this whole block to go back to the previous look.
+   */
+  body, body * {
+    font-family: 'Roboto', 'Noto Sans Bengali', sans-serif !important;
+  }
+
+  /* Keep icon webfonts intact (so .fa / .material-icons keep rendering as glyphs).
+     `revert` would fall back to the *inherited* value here (which is our test stack),
+     so we must restore the icon font names explicitly. */
+  .fa, i[class^="fa-"], i[class*=" fa-"] {
+    font-family: 'FontAwesome' !important;
+  }
+  .fas, .fa-solid { font-family: 'Font Awesome 5 Free', 'FontAwesome' !important; font-weight: 900 !important; }
+  .far, .fa-regular { font-family: 'Font Awesome 5 Free', 'FontAwesome' !important; }
+  .fal { font-family: 'Font Awesome 5 Pro', 'FontAwesome' !important; }
+  .fab, .fa-brands { font-family: 'Font Awesome 5 Brands', 'FontAwesome' !important; }
+  .material-icons { font-family: 'Material Icons' !important; }
   
   html { height: 100%; }
   body {
-    font-family: 'Roboto', sans-serif;
+    /* Test: Bengali via 'Noto Sans Bengali' (loaded from Google Fonts in index.html).
+       Latin still uses Roboto; Chromium picks the Bengali face per-glyph from this stack. */
+    font-family: 'Roboto', 'Noto Sans Bengali', sans-serif;
     /* background-image: url('../images/bg1.jpg'); */
     background-repeat: no-repeat;
     background-size: cover;
