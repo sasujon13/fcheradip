@@ -4213,25 +4213,45 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * `headerPreviewLineTypoStyle` uses {@link headerLineFontSizes} indexed like {@link getHeaderEditorLinesRaw}
    * (same as sidebar `modelIndex`). Mixed: first band line may be preview L[5] or only L[7] (CQ দ্রষ্টব্য) — map
    * from preview line index to that filtered slot (e.g. CQ at preview index 7 → slot 6, not 5 = code or 7 = MCQ).
+   *
+   * CQ-only: same rule as {@link creativeHeaderBandLeftLines}. Band row 0 is preview `L[4]`
+   * when that's a non-`<hr>` custom line, otherwise it's preview `L[6]` (the SQ দ্রষ্টব্য
+   * row). The `<hr>` at index 4 is stripped by {@link getHeaderEditorLinesRaw}, so the
+   * notice's filtered-editor index is 5 (not 4) — without this mapping the sidebar +/- on
+   * the notice would write into slot 5 while the preview kept reading slot 4.
    */
   creativeBandFirstLineFontIndex(): number {
-    if (!this.mixedUnifiedHeaderTextareaLayoutActive()) {
-      return 4;
-    }
-    const L = this.headerPreviewLines;
-    if (L.length === 0) {
-      return 5;
-    }
-    /** Same rule as {@link creativeHeaderBandLeftLines}: optional non-HR L[5], else first sq line is L[7]. */
-    let previewIdx = 7;
-    if (L.length > 5) {
-      const v = (L[5] ?? '').trim();
-      if (v && !v.toLowerCase().includes('<hr')) {
-        previewIdx = 5;
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
+      const L = this.headerPreviewLines;
+      if (L.length === 0) {
+        return 5;
       }
+      /** Same rule as {@link creativeHeaderBandLeftLines}: optional non-HR L[5], else first sq line is L[7]. */
+      let previewIdx = 7;
+      if (L.length > 5) {
+        const v = (L[5] ?? '').trim();
+        if (v && !v.toLowerCase().includes('<hr')) {
+          previewIdx = 5;
+        }
+      }
+      const fi = this.filteredEditorIndexForPreviewLineIndex(previewIdx);
+      return fi >= 0 ? fi : 5;
     }
-    const fi = this.filteredEditorIndexForPreviewLineIndex(previewIdx);
-    return fi >= 0 ? fi : 5;
+    if (this.selectionHasCreativeType() && !this.selectionHasMcqType()) {
+      const L = this.headerPreviewLines;
+      let previewIdx = 4;
+      if (L.length <= 4) {
+        previewIdx = 6;
+      } else {
+        const v = (L[4] ?? '').trim();
+        if (!v || v.toLowerCase().includes('<hr')) {
+          previewIdx = 6;
+        }
+      }
+      const fi = this.filteredEditorIndexForPreviewLineIndex(previewIdx);
+      return fi >= 0 ? fi : 4;
+    }
+    return 4;
   }
 
   /** Font index for `creativeHeaderBandLeftLines().slice(1)` rows (0-based `bj`). */
