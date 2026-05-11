@@ -1369,37 +1369,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.questionHeaderByMcqSet = {};
     }
 
-    const hfs = parsed['headerLineFontSizes'];
-    if (Array.isArray(hfs)) {
-      this.headerLineFontSizes = hfs
-        .filter((x): x is number => typeof x === 'number' && Number.isFinite(x))
-        .map((x) =>
-          Math.max(
-            QuestionCreatorComponent.HEADER_LINE_FONT_MIN_PX,
-            Math.min(QuestionCreatorComponent.HEADER_LINE_FONT_MAX_PX, Math.round(x))
-          )
-        );
-    } else {
-      this.headerLineFontSizes = [];
-      const h1f = parsed['headerLine1FontPx'];
-      if (h1f != null && typeof h1f === 'number' && Number.isFinite(h1f)) {
-        this.headerLineFontSizes.push(
-          Math.max(
-            QuestionCreatorComponent.HEADER_LINE_FONT_MIN_PX,
-            Math.min(QuestionCreatorComponent.HEADER_LINE_FONT_MAX_PX, Math.round(h1f))
-          )
-        );
-      }
-      const h2f = parsed['headerLine2FontPx'];
-      if (h2f != null && typeof h2f === 'number' && Number.isFinite(h2f)) {
-        this.headerLineFontSizes.push(
-          Math.max(
-            QuestionCreatorComponent.HEADER_LINE_FONT_MIN_PX,
-            Math.min(QuestionCreatorComponent.HEADER_LINE_FONT_MAX_PX, Math.round(h2f))
-          )
-        );
-      }
-    }
+    /**
+     * Header per-line font sizes are deliberately NOT restored from the persisted payload
+     * (see {@link buildPersistPayload} / {@link buildRemoteCustomerSettingsPayload} — they no
+     * longer write this field). Reset to `[]` so {@link syncHeaderFontSizesToLineCount} seeds
+     * fresh content-aware defaults on every reload — most importantly the 10px default for
+     * `[দ্রষ্টব্য : …]` rows. Legacy `headerLineFontSizes` / `headerLine{1,2}FontPx` that may
+     * still exist in older customer-settings or `localStorage` blobs are ignored on purpose.
+     */
+    this.headerLineFontSizes = [];
 
     const hei = parsed['headerEiin'];
     if (hei != null && typeof hei === 'string') {
@@ -1429,15 +1407,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.headerUseLegacyQuestionHeader = false;
     }
 
+    const hasSavedHeader = typeof qhParsed === 'string';
     if (this.headerUseLegacyQuestionHeader) {
-      if (qhParsed != null && typeof qhParsed === 'string') {
-        this.questionHeader = qhParsed;
+      if (hasSavedHeader) {
+        this.questionHeader = qhParsed as string;
       }
     } else {
-      if (qhParsed != null && typeof qhParsed === 'string') {
-        this.questionHeader = qhParsed;
+      if (hasSavedHeader) {
+        this.questionHeader = qhParsed as string;
+      } else {
+        // No persisted header (current shape only saves layout meta): start clean so
+        // `rebuildQuestionHeader` seeds lines matching the active question-type selection.
+        this.questionHeader = '';
       }
-      if (!opts?.trustSavedHeader) {
+      if (!opts?.trustSavedHeader || !hasSavedHeader) {
         this.rebuildQuestionHeader();
       }
     }
@@ -1470,7 +1453,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const ctx = parsed['context'];
     this.context = (ctx as QuestionCreatorContext) || {};
     this.applyLayoutAndHeaderFromParsed(parsed, opts);
-    const trust = !!opts?.trustSavedHeader;
+    // Local-storage / customer-settings payloads no longer carry `questionHeader`, so the
+    // "trusted restore" fast-path in `ngAfterViewInit` (which skips the type-aware rebuild)
+    // must not fire — drop the trust flag when nothing was actually restored.
+    const hasSavedHeader = typeof parsed['questionHeader'] === 'string';
+    const trust = !!opts?.trustSavedHeader && hasSavedHeader;
     this.creatorTrustedHeaderRestored = trust;
     this.suppressHydrateHeaderRebuildOnce = trust;
 
@@ -4602,11 +4589,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /**
    * Default px for a line when no override is stored.
    * Uses the "Reset all Header text size" rule described above.
+   *
+   * Any `[দ্রষ্টব্য : …]` notice row defaults to 10px regardless of position or mode
+   * (MCQ-only / CQ-only / MCQ+CQ) — the position-based fallback (`n - 1` / `n - 2`)
+   * misses notices that aren't the trailing row(s), e.g. when extra notice/meta rows
+   * exist below them.
    */
   private defaultHeaderFontPxForLineFromContent(i: number): number {
     const lines = this.getHeaderEditorLinesRaw();
     const n = Math.max(1, lines.length);
     const mixed = this.selectionHasBothHeaderTypes();
+
+    const line = i < lines.length ? (lines[i] ?? '') : '';
+    if (this.isHeaderLineBanglaDristobyoNotice(line)) return 10;
 
     if (i === 0) return 18;
     if (mixed && i >= n - 2) return 10;
@@ -4979,10 +4974,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.onPreviewLayoutChange();
   }
 
-  private buildPersistPayload(): Record<string, unknown> {
+  private buildPersistPayload(opts?: { keepHeaderState?: boolean }): Record<string, unknown> {
     const questionQids = this.questions
       .map((q) => q?.qid)
       .filter((id): id is string | number => id != null && id !== '');
+    const stripHeader = !opts?.keepHeaderState;
     return {
       v: QUESTION_CREATOR_PAYLOAD_VERSION,
       savedAt: Date.now(),
@@ -4990,8 +4986,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       // Include full rows so reload can render real question text even if API hydration fails.
       questions: this.questions,
       context: this.context,
-      questionHeader: this.questionHeader,
-      ...this.buildLayoutSettingsForPersist(),
+      // `questionHeader` + per-line font sizes are intentionally NOT persisted to local
+      // storage / customer settings: switching the question-type selection
+      // (MCQ-only ↔ MCQ+CQ ↔ CQ-only) would otherwise drag stale lines from the previous
+      // shape into the new layout. Reload rebuilds the textarea from the current
+      // institute/exam/subject meta so lines always match the active selection.
+      // `keepHeaderState: true` (login-flow session storage) preserves the in-progress
+      // header for the redirect round-trip since the user is not switching modes there.
+      ...(stripHeader ? {} : { questionHeader: this.questionHeader }),
+      ...this.buildLayoutSettingsForPersist({ stripHeaderState: stripHeader }),
     };
   }
 
@@ -5013,8 +5016,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       questionQids: [] as (string | number)[],
       creatorFirstVisitResetDone: firstVisitDone,
       context: this.context,
-      questionHeader: this.questionHeader,
-      ...this.buildLayoutSettingsForPersist(),
+      // See {@link buildPersistPayload}: header content is rebuilt from current meta on load.
+      ...this.buildLayoutSettingsForPersist({ stripHeaderState: true }),
     };
   }
 
@@ -8150,8 +8153,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.exportFileNameBase + '.docx';
   }
 
-  /** Snapshot of layout options stored with the created set and mirrored on re-export. */
-  private buildLayoutSettingsForPersist(): Record<string, unknown> {
+  /**
+   * Snapshot of layout options stored with the created set and mirrored on re-export.
+   *
+   * `stripHeaderState`: when true, omit fields that depend on the current question type
+   * (`headerLineFontSizes`, `headerManualEditSinceRebuild`, `questionHeaderByMcqSet`).
+   * Local-storage / customer-settings auto-persist passes this so a header captured while in
+   * one mode (MCQ-only / CQ-only / MCQ+CQ) does not bleed into a different mode on reload —
+   * the textarea is rebuilt for the *current* selection instead. The Created-Questions save
+   * path leaves it false so the saved set still re-renders identically.
+   */
+  private buildLayoutSettingsForPersist(opts?: { stripHeaderState?: boolean }): Record<string, unknown> {
     const previewSerialByIndex: Record<string, number> = {};
     for (let i = 0; i < this.previewQuestions.length; i++) {
       const serial = this.previewQuestionDisplaySerialOneBased(i, this.previewQuestions[i]!);
@@ -8217,13 +8229,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       headerInstitute: this.headerInstitute,
       headerExamTypeKey: this.headerExamTypeKey,
       headerUseLegacyQuestionHeader: this.headerUseLegacyQuestionHeader,
-      headerManualEditSinceRebuild: this.headerManualEditSinceRebuild,
-      headerLineFontSizes: [...this.headerLineFontSizes],
+      ...(opts?.stripHeaderState
+        ? {}
+        : {
+            headerManualEditSinceRebuild: this.headerManualEditSinceRebuild,
+            headerLineFontSizes: [...this.headerLineFontSizes],
+          }),
       mcqSetLetter: this.selectedMcqSetLetter,
       ...(Object.keys(this.persistedMcqOrderBySet).length > 0
         ? { mcqOrderBySet: { ...this.persistedMcqOrderBySet } }
         : {}),
-      ...(Object.keys(this.questionHeaderByMcqSet).length > 0
+      ...(!opts?.stripHeaderState && Object.keys(this.questionHeaderByMcqSet).length > 0
         ? { questionHeaderByMcqSet: { ...this.questionHeaderByMcqSet } }
         : {}),
       /** Same order as PDF export (`previewQuestions`); draft `questions` may differ. */
@@ -8234,9 +8250,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   save(): void {
     if (!this.apiService.isLoggedIn()) {
       // Preserve full rows for post-login return, so preview isn't forced to rely on immediate API hydration.
+      // Keep the in-progress header here (single round-trip, no mode switch) so the user's edits survive login.
       sessionStorage.setItem(
         QUESTION_CREATOR_STATE_KEY,
-        JSON.stringify({ ...this.buildPersistPayload(), questions: this.questions })
+        JSON.stringify({ ...this.buildPersistPayload({ keepHeaderState: true }), questions: this.questions })
       );
       localStorage.setItem('returnUrl', '/question/create');
       sessionStorage.setItem(SESSION_LOGIN_USE_STORED_RETURN, '1');
