@@ -18,6 +18,24 @@
     font-family: 'Noto Serif Bengali';
     src: url('src/assets/fonts/NotoSerifBengali-Regular.ttf') format('truetype');
   }
+
+  /* Bundle Noto Sans Bengali locally so the UI never depends on fonts.googleapis.com
+     (some networks / Cloudflare configs block it, causing fallback to Nirmala UI on Windows
+     and the wrong glyph metrics elsewhere). Matches the font Playwright embeds for PDFs. */
+  @font-face {
+    font-family: 'Noto Sans Bengali';
+    src: url('src/assets/fonts/NotoSansBengali-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Noto Sans Bengali';
+    src: url('src/assets/fonts/NotoSansBengali-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
   
   .bengali-text {
     /* Test override: use 'Noto Sans Bengali' (loaded from Google Fonts in index.html). */

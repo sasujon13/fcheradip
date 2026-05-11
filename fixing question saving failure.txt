@@ -40,3 +40,4 @@ sudo apt update
 sudo apt install -y fonts-noto-core fonts-noto-extra fonts-beng fonts-beng-extra
 fc-cache -fv
 sudo systemctl restart cheradip
+
