@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ApiService } from '../../service/api.service';
 
 /**
  * Shared footer section for NTRCA pages: token box, container (why-choose + cta), alerts, loading, PDF loaders, gap.
@@ -10,6 +11,13 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
   styleUrls: ['./ntrca-footer-section.component.css']
 })
 export class NtrcaFooterSectionComponent {
+  constructor(private apiService: ApiService) {}
+
+  /** Hide guest signup promo when a bearer token exists (signed up / logged in). */
+  get showGuestSignupCta(): boolean {
+    return !this.apiService.isLoggedIn();
+  }
+
   /** First alert message (e.g. "Select Subject Code to Search!" on ntrca, else "Select All Critera to Search!") */
   @Input() firstAlertMessage: string = 'Select All Critera to Search!';
 

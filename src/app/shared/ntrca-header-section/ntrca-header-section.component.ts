@@ -39,7 +39,6 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
         this.syncTokenInputLoggedIn();
         this.cdr.markForCheck();
       });
-    this.authPollId = window.setInterval(() => this.syncTokenInputLoggedIn(), 400);
   }
 
   private syncTokenInputLoggedIn(): void {

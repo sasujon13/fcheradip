@@ -68,7 +68,7 @@
 :host .hover-message-container {
   position: fixed;
   display: inline-block;
-  margin-left: -34px;
+  margin-left: -21px;
   z-index: 10000;
 }
 

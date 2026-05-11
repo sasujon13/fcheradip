@@ -201,10 +201,49 @@
   to { transform: rotate(360deg); }
 }
 
+/* Teal → golden → green → black, then repeat head for a seamless L→R sweep */
+@keyframes ntrca-signup-gradient-flow {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 100% center;
+  }
+}
+
 :host li a {
   text-decoration: none;
   font-size: 18px;
   padding: 0;
 }
 
-
+:host .signup-btn-text {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+  max-width: 100%;
+  background-image: linear-gradient(
+    90deg,
+    #0d9488,
+    #d4af37,
+    #15803d,
+    #0a0a0a,
+    #0d9488,
+    #d4af37,
+    #15803d,
+    #0a0a0a
+  );
+  background-size: 300% 100%;
+  background-position: 0% center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: ntrca-signup-gradient-flow 12s linear infinite;
+}
+:host .signup-btn-text a {
+  color: inherit;
+  text-decoration: none;
+  font-weight: bold;
+  -webkit-text-fill-color: inherit;
+}

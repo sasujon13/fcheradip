@@ -113,12 +113,12 @@
     <br>
     <div
       class="hover-message-container"
-      [style.margin-left.px]="loginStatus ? -40 : null"
+      [style.margin-left.px]="loginStatus ? -37 : -37"
       (pointerenter)="onTrxHelpPointerEnter()"
       (pointerleave)="onTrxHelpPointerLeave()"
     >
       <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
-        [style.margin-left]="loginStatus ? '-112px' : '-87px'" />
+        [style.margin-left]="loginStatus ? '-80px' : '-80px'" />
       <button (click)="applyToken()">Apply</button>
       <p class="rmsg">🪙 <b>{{ headerRemainingUnlocks }}</b> Coins</p>
       <div class="hover-message-box"

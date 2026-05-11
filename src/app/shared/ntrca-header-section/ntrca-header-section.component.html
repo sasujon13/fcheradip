@@ -3,16 +3,16 @@
     <br>
     <div
       class="hover-message-container"
-      [style.margin-left.px]="tokenInputLoggedIn ? -40 : null"
+      [style.margin-left.px]="tokenInputLoggedIn ? -34 : -34"
       (pointerenter)="onTrxHelpPointerEnter()"
       (pointerleave)="onTrxHelpPointerLeave()"
     >
       <input type="text" [ngModel]="newToken" (ngModelChange)="newTokenChange.emit($event)" placeholder="8/10 Digits TrxID" maxlength="10"
-        [style.margin-left]="tokenInputLoggedIn ? '-112px' : '-87px'" />
+        />
       <button (click)="applyTokenClick.emit()">Apply</button>
       <p class="rmsg">🪙 <b>{{ remainingUnlocks }}</b> Coins</p>
       <div class="hover-message-box" [class.ntrca-help-phase-on]="trxHelpPhase === 'on'" [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'"
-        style="text-align: left;">
+        style="text-align: left; margin-left: 34px;">
         1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
         2. Send Money to <strong>01722710298</strong> (Minimum Tk 20)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;using <strong>bKash / Nagad</strong> to use our Paid Services.<br>
