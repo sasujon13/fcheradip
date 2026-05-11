@@ -160,6 +160,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   readonly headerLineFontMin = QuestionCreatorComponent.HEADER_LINE_FONT_MIN_PX;
   readonly headerLineFontMax = QuestionCreatorComponent.HEADER_LINE_FONT_MAX_PX;
 
+  /**
+   * Mixed CQ+MCQ aside row 3 override for the otherwise-hidden CQ subtitle (first `[...]`
+   * bracket on the composite row). Session-scoped: never written to `questionHeader`, so
+   * every other row's stored content/index stays exactly as it was. Default matches the
+   * suffix the renderer used before this feature existed.
+   */
+  mixedCqSubtitleOverride = '(সৃজনশীল)';
+  /**
+   * Mixed CQ+MCQ aside row 3 override for the synthetic MCQ band title (second `[...]`
+   * bracket on the composite row). Session-scoped — see {@link mixedCqSubtitleOverride}.
+   */
+  mixedMcqSubtitleOverride = 'বহুনির্বাচনি অভীক্ষা';
+
   /** Sidebar “header preview”: fixed sample copy (sizes only affect the sheet preview). */
   readonly headerSidebarSampleLine1 =
     'Your Institute Name';
@@ -175,6 +188,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly HEADER_ICT_SUBJECT_LINE_BN = 'তথ্য ও যোগাযোগ প্রযুক্তি';
   /** MCQ band title row — always default 21px (same as HEADER_LINE3_FONT_DEFAULT_PX). */
   private static readonly HEADER_MCQ_TITLE_LINE_BN = 'বহুনির্বাচনি অভীক্ষা';
+  /** Default for the CQ subtitle bracket on mixed-mode aside row 3 (same suffix the renderer used before this feature existed). */
+  private static readonly HEADER_MIXED_CQ_SUBTITLE_DEFAULT_BN = '(সৃজনশীল)';
+  /**
+   * Parses the mixed-mode aside row 3 composite: `Subject[CQ_subtitle][MCQ_subtitle]`.
+   * `[1]` = bare subject prefix, `[2]` = first bracket inner, `[3]` = second bracket inner.
+   * Brackets themselves must not contain nested `[` / `]`.
+   */
+  private static readonly HEADER_MIXED_SUBJECT_COMPOSITE_RE =
+    /^([\s\S]*?)\s*\[([^\[\]]*)\]\s*\[([^\[\]]*)\]\s*$/u;
   /** Mixed sq দ্রষ্টব্য rows (textarea indices 7–8): default sidebar/preview font. */
   private static readonly HEADER_MIXED_SQ_NOTICE_FONT_DEFAULT_PX = 10;
   /** Creative-only: combined সময়+পূর্ণমান row (canonical `examSqMetaCombinedLineCreative`) — 14px, not 3rd-line 21px. */
@@ -2172,16 +2194,38 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       : '';
   }
 
-  /** Creative row 3 (1-based): subject + (সৃজনশীল) from plain textarea line 2. */
+  /**
+   * Creative row 3 (1-based): subject + CQ subtitle from plain textarea line 2.
+   *
+   * In mixed CQ+MCQ mode the trailing subtitle is taken from {@link mixedCqSubtitleOverride}
+   * so the user can override it inline via the first `[...]` bracket on aside row 3.
+   * The legacy `(সৃজনশীল)` literal is still used for non-mixed callers and as the trim
+   * pattern when the plain subject already ends in the default suffix.
+   */
   mixedUnifiedCreativeSubjectPreviewLine(plainSubject: string | undefined | null): string {
     const t = (plainSubject ?? '').trimEnd();
+    const cq = this.mixedUnifiedHeaderTextareaLayoutActive()
+      ? this.mixedCqSubtitleOverride
+      : '(সৃজনশীল)';
     if (!t) {
-      return '(সৃজনশীল)';
+      return cq;
     }
     if (/\(সৃজনশীল\)\s*$/.test(t)) {
-      return t;
+      return cq ? t.replace(/\(সৃজনশীল\)\s*$/u, cq) : t.replace(/\s*\(সৃজনশীল\)\s*$/u, '');
     }
-    return `${t} (সৃজনশীল)`;
+    return cq ? `${t} ${cq}` : t;
+  }
+
+  /**
+   * Displayed MCQ band title for the synthetic `mcqTitle` slot in the question preview.
+   * Tracks {@link mixedMcqSubtitleOverride} in mixed CQ+MCQ mode so the second `[...]`
+   * bracket on aside row 3 drives it; falls back to the canonical literal otherwise.
+   */
+  mcqBandTitleDisplayBn(): string {
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
+      return this.mixedMcqSubtitleOverride;
+    }
+    return QuestionCreatorComponent.HEADER_MCQ_TITLE_LINE_BN;
   }
 
   private mixedHeaderEditorLooksUnifiedSix(lines: string[]): boolean {
@@ -4698,6 +4742,37 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (out.length === 0) {
       return [{ modelIndex: 0, text: '' }];
     }
+    /**
+     * Mixed CQ+MCQ aside row 3 only: append two editable trailing brackets so users can
+     * override the otherwise-hidden CQ subtitle and MCQ band title from the same input.
+     * Row 3's `modelIndex` and every other row's text/modelIndex stay exactly as the
+     * unmodified `out` had them — only the displayed string for visible Row 3 changes.
+     * Bracket parsing on edit lives in {@link onHeaderEditorLineChange}.
+     *
+     * Legacy MCQ-only-style saves leave the literal `বহুনির্বাচনি অভীক্ষা` in `lines[2]`
+     * because the older 6→7 migration kept it there instead of the subject. For those
+     * saves we substitute the displayed prefix with the canonical subject from
+     * `creatorSubjectLabel` so the user sees `Subject[(সৃজনশীল)][বহুনির্বাচনি অভীক্ষা]`
+     * instead of the placeholder — storage is untouched until the user actually edits
+     * the row, at which point {@link onHeaderEditorLineChange} writes the typed bare
+     * prefix back to `lines[2]`.
+     */
+    if (this.mixedUnifiedHeaderTextareaLayoutActive() && out.length >= 3) {
+      const r = out[2]!;
+      let subjectText = r.text;
+      if (subjectText.trim() === QuestionCreatorComponent.HEADER_MCQ_TITLE_LINE_BN) {
+        const canonical = (this.creatorSubjectLabel ?? '').trim();
+        if (canonical) {
+          subjectText = canonical;
+        }
+      }
+      if (!subjectText.includes('[')) {
+        out[2] = {
+          modelIndex: r.modelIndex,
+          text: `${subjectText}[${this.mixedCqSubtitleOverride}][${this.mixedMcqSubtitleOverride}]`,
+        };
+      }
+    }
     return out;
   }
 
@@ -4748,10 +4823,35 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   onHeaderEditorLineChange(index: number, value: string): void {
+    /**
+     * Mixed CQ+MCQ aside row 3 carries two trailing `[...]` brackets that override the
+     * otherwise-hidden CQ subtitle and MCQ band title. Strip those brackets here and
+     * route them into the session-scoped override fields, so only the bare subject text
+     * is committed to the model — every other row's storage path stays unchanged.
+     * `compositeParsed` blocks the default empty-line splice below (otherwise a user who
+     * types only brackets would have row 3 removed from storage, shifting every row 4+).
+     */
+    let compositeParsed = false;
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
+      const rows = this.getHeaderEditorSidebarRows();
+      const row3 = rows[2];
+      if (row3 && row3.modelIndex === index) {
+        const m = value.match(QuestionCreatorComponent.HEADER_MIXED_SUBJECT_COMPOSITE_RE);
+        if (m) {
+          this.mixedCqSubtitleOverride =
+            (m[2] ?? '').trim() ||
+            QuestionCreatorComponent.HEADER_MIXED_CQ_SUBTITLE_DEFAULT_BN;
+          this.mixedMcqSubtitleOverride =
+            (m[3] ?? '').trim() || QuestionCreatorComponent.HEADER_MCQ_TITLE_LINE_BN;
+          value = (m[1] ?? '').trimEnd();
+          compositeParsed = true;
+        }
+      }
+    }
     const lines = [...this.getHeaderEditorLinesRaw()];
     while (lines.length <= index) lines.push('');
     const normalized = QuestionCreatorComponent.normalizeHeaderLineRawForPreview(value);
-    if (!normalized.trim()) {
+    if (!normalized.trim() && !compositeParsed) {
       if (lines.length > 1) {
         lines.splice(index, 1);
         this.headerManualEditSinceRebuild = true;

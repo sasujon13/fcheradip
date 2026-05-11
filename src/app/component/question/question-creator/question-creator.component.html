@@ -112,7 +112,7 @@
                         [innerHTML]="headerLinePreviewInnerHtml(mcqUpperSlotDisplayText(li, slot))"
                       ></span>
                     </ng-container>
-                    <ng-container *ngIf="slot.kind === 'mcqTitle'">বহুনির্বাচনি অভীক্ষা</ng-container>
+                    <ng-container *ngIf="slot.kind === 'mcqTitle'">{{ mcqBandTitleDisplayBn() }}</ng-container>
                     <ng-container *ngIf="slot.kind === 'mcqSubject'">
                       <ng-container *ngIf="creatorSubjectLabel.length > 0">{{ creatorSubjectLabel }}</ng-container>
                       <ng-container *ngIf="creatorSubjectLabel.length === 0">&nbsp;</ng-container>
@@ -150,7 +150,7 @@
                   [innerHTML]="headerLinePreviewInnerHtml(mcqUpperSlotDisplayText(li, slot))"
                 ></span>
               </ng-container>
-              <ng-container *ngIf="slot.kind === 'mcqTitle'">বহুনির্বাচনি অভীক্ষা</ng-container>
+              <ng-container *ngIf="slot.kind === 'mcqTitle'">{{ mcqBandTitleDisplayBn() }}</ng-container>
               <ng-container *ngIf="slot.kind === 'mcqSubject'">
                 <ng-container *ngIf="creatorSubjectLabel.length > 0">{{ creatorSubjectLabel }}</ng-container>
                 <ng-container *ngIf="creatorSubjectLabel.length === 0">&nbsp;</ng-container>
