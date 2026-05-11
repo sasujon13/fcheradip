@@ -8403,6 +8403,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
       // Export-only: per-kind MCQ/CQ header strings (+ line fonts). Mixed uses both kinds;
       // structured MCQ-only uses the same MCQ split builder as mixed.
+      // Structured CQ-only uses the same `'creative'` split builder so the floating subject-code
+      // grid lands where the preview shows it (without the leftover `<hr>` and duplicated
+      // `বিষয় কোড` plain line that the raw `buildQuestionHeaderForPersist` output appends).
       const canSplitCreativeMcqPdfHeaders =
         !this.headerUseLegacyQuestionHeader &&
         this.paperSubjectMetaLinesEligible() &&
@@ -8415,10 +8418,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.selectionHasMcqType() &&
         !this.mixedTypesSinglePageMergedHeader &&
         this.mcqOnlyUsesSixLineTextareaBlock();
+      const canExportStructuredCreativeOnlyPdfHeader =
+        !this.headerUseLegacyQuestionHeader &&
+        this.paperSubjectMetaLinesEligible() &&
+        this.selectionHasCreativeType() &&
+        !this.selectionHasMcqType() &&
+        !this.mixedTypesSinglePageMergedHeader;
+      const useSplitCreativeHeaderForPdf =
+        canSplitCreativeMcqPdfHeaders || canExportStructuredCreativeOnlyPdfHeader;
       const useSplitMcqHeaderForPdf =
         canSplitCreativeMcqPdfHeaders || canExportStructuredMcqOnlyPdfHeader;
       const buildHeaderForPdfKind = (kind: 'creative' | 'mcq'): string => {
-        if (kind === 'creative' && !canSplitCreativeMcqPdfHeaders) {
+        if (kind === 'creative' && !useSplitCreativeHeaderForPdf) {
           return header;
         }
         if (kind === 'mcq' && !useSplitMcqHeaderForPdf) {
@@ -8448,10 +8459,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             return [ln ?? ''];
           });
           const band = this.creativeHeaderBandLeftLines();
-          const codeLine = ensureCodeLine(
-            this.mixedUnifiedCodeGridPlainLine(),
-            this.paperHeaderLine4Plain(piCq, setL)
-          );
+          // CQ-only: `mixedUnifiedCodeGridPlainLine()` (preview L[6]) is the দ্রষ্টব্য notice, not
+          // a বিষয় কোড line, so always use the canonical `paperHeaderLine4Plain` here.
+          const codeLine = this.mixedUnifiedHeaderTextareaLayoutActive()
+            ? ensureCodeLine(
+                this.mixedUnifiedCodeGridPlainLine(),
+                this.paperHeaderLine4Plain(piCq, setL)
+              )
+            : this.paperHeaderLine4Plain(piCq, setL);
           // Backend turns first "বিষয় কোড" line into the code grid; keep exactly one such line here.
           /* Do not trimEnd — it strips trailing newline runs and collapses \\n-split line count vs the font array
            * built in {@link buildPdfHeaderLineFontPxListForSplitExport} (দ্রষ্টব্য notices would mismatch → larger PDF fallback fonts). */
@@ -8480,9 +8495,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         const lower = this.mcqHeaderLowerLines();
         return [...upper, codeLine, ...lower].join('\n');
       };
-      const headerCreative = canSplitCreativeMcqPdfHeaders ? buildHeaderForPdfKind('creative') : undefined;
+      const headerCreative = useSplitCreativeHeaderForPdf ? buildHeaderForPdfKind('creative') : undefined;
       const headerMcq = useSplitMcqHeaderForPdf ? buildHeaderForPdfKind('mcq') : undefined;
-      let pdfHeaderLineFontPxCreative = canSplitCreativeMcqPdfHeaders
+      let pdfHeaderLineFontPxCreative = useSplitCreativeHeaderForPdf
         ? this.buildPdfHeaderLineFontPxListForSplitExport('creative', setLetter)
         : [];
       let pdfHeaderLineFontPxMcq = useSplitMcqHeaderForPdf
@@ -8507,6 +8522,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           exportQuestionHeaderMcq: headerMcq,
           ...(pdfHeaderLineFontPxCreative.length ? { headerLineFontSizesPdfCreative: pdfHeaderLineFontPxCreative } : {}),
           ...(pdfHeaderLineFontPxMcq.length ? { headerLineFontSizesPdfMcq: pdfHeaderLineFontPxMcq } : {}),
+        };
+      } else if (
+        headerCreative &&
+        useSplitCreativeHeaderForPdf &&
+        !useSplitMcqHeaderForPdf &&
+        persistedExportSplitHeaders.exportQuestionHeaderCreative === undefined
+      ) {
+        // CQ-only: persist split creative header so reloads keep the floating-grid layout.
+        persistedExportSplitHeaders = {
+          exportQuestionHeaderCreative: headerCreative,
+          ...(pdfHeaderLineFontPxCreative.length ? { headerLineFontSizesPdfCreative: pdfHeaderLineFontPxCreative } : {}),
         };
       }
 
