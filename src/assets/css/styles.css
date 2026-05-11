@@ -34,6 +34,11 @@
     font-family: 'Roboto', 'Noto Sans Bengali', sans-serif !important;
   }
 
+  /* Form controls don't inherit body font-family in all engines — force them too. */
+  input, textarea, select, button, optgroup, option {
+    font-family: 'Roboto', 'Noto Sans Bengali', sans-serif !important;
+  }
+
   /* Keep icon webfonts intact (so .fa / .material-icons keep rendering as glyphs).
      `revert` would fall back to the *inherited* value here (which is our test stack),
      so we must restore the icon font names explicitly. */
