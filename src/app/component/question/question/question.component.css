@@ -51,6 +51,15 @@
   min-width: 0;
 }
 
+/* Single-line toolbar only: align icon + row with fixed bar (multi-line keeps rules above) */
+.question-filter-toolbar:not(.question-filter-toolbar--multi) .question-filter-reveal-btn {
+  margin-top: 22px;
+}
+
+.question-filter-toolbar:not(.question-filter-toolbar--multi) .question-filter-row {
+  margin-top: -44px;
+}
+
 .question-filter-reveal-btn {
   display: inline-flex;
   align-items: center;
@@ -63,7 +72,6 @@
   /* Above `.filter-dropdown-wrap` (1001): multi-line row uses negative margin and overlaps this control */
   z-index: 1020;
   pointer-events: auto;
-  margin-top: 22px;
 }
 
 .question-filter-reveal-btn:hover {
@@ -97,7 +105,7 @@
   gap: 8px;
   padding: 12px 0 8px 0;
   text-align: center;
-  margin-top: -44px;
+  margin-top: 11px;
 }
 
 .question-filter-item {
