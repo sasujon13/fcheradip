@@ -193,6 +193,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   filtersCollapsedToIcon = false;
   lastKnownFilterRowMultiLine = false;
+  /** Distinct vertical lines of `#filterItem` from last layout measure; kept while collapsed (row not in DOM). */
+  lastKnownFilterRowLineCount = 1;
 
   /**
    * After opening filters via the icon while scrolled down, ignore scroll-based auto-collapse
@@ -786,6 +788,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     if (!this.filterItems?.length) {
       this.lastKnownFilterRowMultiLine = false;
+      this.lastKnownFilterRowLineCount = 1;
+      this.syncFilterCollapsedMarginCss();
       return;
     }
     const items = this.filterItems.map((f) => f.nativeElement);
@@ -803,6 +807,26 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     });
     const tops = new Set(items.map((el) => Math.round(el.getBoundingClientRect().top)));
     this.lastKnownFilterRowMultiLine = tops.size > 1;
+    this.lastKnownFilterRowLineCount = Math.max(1, tops.size);
+    this.syncFilterCollapsedMarginCss();
+  }
+
+  /** Pushes main content down when filter row is scroll-collapsed; height scales with measured filter wrap lines. */
+  private syncFilterCollapsedMarginCss(): void {
+    const root = this.getQuestionLayoutRoot();
+    if (!root) {
+      return;
+    }
+    const n = this.lastKnownFilterRowLineCount;
+    let marginPx = 176;
+    if (n >= 4) {
+      marginPx = 274;
+    } else if (n === 3) {
+      marginPx = 228;
+    } else if (n === 2) {
+      marginPx = 208;
+    }
+    root.style.setProperty('--question-container2-filter-collapsed-margin', `${marginPx}px`);
   }
 
   /**
@@ -848,6 +872,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private afterFilterCollapseToggle(): void {
+    this.syncFilterCollapsedMarginCss();
     this.updateQuestionContainer2MarginForFixedFilter();
     this.cdr.markForCheck();
     setTimeout(() => {

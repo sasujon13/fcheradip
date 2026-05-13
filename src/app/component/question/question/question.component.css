@@ -9,6 +9,8 @@
   background-color: white;
   /* Set in TS: offsetHeight + vertical margins of fixed .question-container3 */
   --question-filter-bar-reserved: 0px;
+  /* Set in TS from measured filter wrap lines when bar is icon-collapsed */
+  --question-container2-filter-collapsed-margin: 176px;
 }
 
 .question-container2 {
@@ -19,7 +21,7 @@
 }
 
 .question-container2.question-container2--filter-collapsed {
-  margin-top: 176px;
+  margin-top: var(--question-container2-filter-collapsed-margin);
 }
 
 /**
@@ -515,7 +517,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
 }
 
 .creator-buttons-row .btn-creator {
