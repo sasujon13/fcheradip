@@ -6,11 +6,10 @@
       [class.question-filter-toolbar--collapsed]="lastKnownFilterRowMultiLine && filtersCollapsedToIcon"
     >
       <button
-        *ngIf="lastKnownFilterRowMultiLine"
         type="button"
         class="question-filter-reveal-btn"
         (click)="toggleFiltersFromIcon()"
-        [attr.aria-expanded]="!filtersCollapsedToIcon"
+        [attr.aria-expanded]="lastKnownFilterRowMultiLine ? (!filtersCollapsedToIcon) : null"
         aria-label="Toggle filters"
       >
         <img src="assets/images/filter.svg" width="28" height="26" alt="" />
