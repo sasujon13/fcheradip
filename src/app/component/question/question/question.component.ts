@@ -1,4 +1,15 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, HostListener, ElementRef, ViewChildren, QueryList, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  AfterViewInit,
+  HostListener,
+  ElementRef,
+  ViewChild,
+  ViewChildren,
+  QueryList,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
@@ -169,7 +180,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   isEditRoute: boolean = false;
   editQuestion: any | null = null;
 
+  @ViewChild('filterBarHost', { static: false }) filterBarHost?: ElementRef<HTMLElement>;
   @ViewChildren('filterItem') filterItems!: QueryList<ElementRef<HTMLElement>>;
+
+  /** Keeps `.question-container2` margin-top in sync with measured `.question-container3` height. */
+  private filterBarResizeObserver: ResizeObserver | null = null;
 
   /** Layout per question index: '1row' | '2row' | '4row' based on content width. */
   optionsLayouts: ('1row' | '2row' | '4row')[] = [];
@@ -717,14 +732,21 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   ) { }
 
   ngAfterViewInit(): void {
-    const run = () => this.updateFilterLineStartMargins();
-    setTimeout(run, 0);
+    const run = () => {
+      this.updateFilterLineStartMargins();
+      this.updateQuestionContainer2MarginForFixedFilter();
+    };
+    setTimeout(() => {
+      run();
+      this.setupFixedFilterBarResizeObserver();
+    }, 0);
     this.filterItems.changes.subscribe(() => setTimeout(run, 0));
   }
 
   @HostListener('window:resize')
   onWindowResize(): void {
     this.updateFilterLineStartMargins();
+    this.updateQuestionContainer2MarginForFixedFilter();
     this.measureOptionsLayouts();
   }
 
@@ -830,6 +852,54 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnDestroy(): void {
     if (this.dropdownLeaveTimer) clearTimeout(this.dropdownLeaveTimer);
+    this.teardownFixedFilterBarResizeObserver();
+  }
+
+  private getQuestionLayoutRoot(): HTMLElement | null {
+    return this.elRef.nativeElement.querySelector('.question-container') as HTMLElement | null;
+  }
+
+  /**
+   * Fixed `.question-container3` is out of flow; set `--question-filter-bar-reserved` on
+   * `.question-container` so `.question-container2` can use `margin-top: var(...)`.
+   * Uses border-box height plus vertical margins (matches visual footprint of the fixed bar).
+   */
+  private updateQuestionContainer2MarginForFixedFilter(): void {
+    const root = this.getQuestionLayoutRoot();
+    const bar = this.filterBarHost?.nativeElement;
+    if (!root || !bar) {
+      return;
+    }
+    const cs = getComputedStyle(bar);
+    const mt = parseFloat(cs.marginTop) || 0;
+    const mb = parseFloat(cs.marginBottom) || 0;
+    const h = Math.ceil(bar.offsetHeight + mt + mb);
+    root.style.setProperty('--question-filter-bar-reserved', `${h}px`);
+  }
+
+  private setupFixedFilterBarResizeObserver(): void {
+    this.teardownFixedFilterBarResizeObserver();
+    const bar = this.filterBarHost?.nativeElement;
+    if (!bar) {
+      this.updateQuestionContainer2MarginForFixedFilter();
+      return;
+    }
+    if (typeof ResizeObserver === 'undefined') {
+      this.updateQuestionContainer2MarginForFixedFilter();
+      return;
+    }
+    this.filterBarResizeObserver = new ResizeObserver(() =>
+      this.updateQuestionContainer2MarginForFixedFilter()
+    );
+    this.filterBarResizeObserver.observe(bar);
+    this.updateQuestionContainer2MarginForFixedFilter();
+  }
+
+  private teardownFixedFilterBarResizeObserver(): void {
+    if (this.filterBarResizeObserver) {
+      this.filterBarResizeObserver.disconnect();
+      this.filterBarResizeObserver = null;
+    }
   }
 
   /** Load levels from cheradip_hsc (first dropdown). Order by class_level descending (highest first). */

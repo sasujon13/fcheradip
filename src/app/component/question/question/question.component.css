@@ -1,4 +1,4 @@
-﻿/* Import shared header styles */
+/* Import shared header styles */
 @import '../../../shared/styles/header.shared.css';
 
 /* Question component-specific styles */
@@ -7,11 +7,14 @@
   max-width: 1920px;
   width: 100%;
   background-color: white;
+  /* Set in TS: offsetHeight + vertical margins of fixed .question-container3 */
+  --question-filter-bar-reserved: 0px;
 }
 
 .question-container2 {
   position: relative;
   width: 100%;
+  margin-top: var(--question-filter-bar-reserved);
 }
 
 .question-container3 {
