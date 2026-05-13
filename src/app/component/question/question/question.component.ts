@@ -194,6 +194,14 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   filtersCollapsedToIcon = false;
   lastKnownFilterRowMultiLine = false;
 
+  /**
+   * After opening filters via the icon while scrolled down, ignore scroll-based auto-collapse
+   * until the user scrolls meaningfully again (avoids layout-induced scroll snapping the bar shut).
+   */
+  private filterBarScrollCollapseSuppressed = false;
+  private filterBarScrollYWhenExpandedOpen: number | null = null;
+  private static readonly FILTER_SCROLL_ANCHOR_DISMISS_PX = 40;
+
   /** Layout per question index: '1row' | '2row' | '4row' based on content width. */
   optionsLayouts: ('1row' | '2row' | '4row')[] = [];
   private readonly OPTIONS_GAP_PX = 24;
@@ -757,6 +765,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.filtersCollapsedToIcon) {
       this.filtersCollapsedToIcon = false;
     }
+    this.filterBarScrollCollapseSuppressed = false;
+    this.filterBarScrollYWhenExpandedOpen = null;
     this.updateFilterLineStartMargins();
     this.applyFilterScrollCollapseState();
     this.updateQuestionContainer2MarginForFixedFilter();
@@ -796,8 +806,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
-   * Multi-line filter row: collapse to icon-only when user scrolls down; use
-   * {@link toggleFiltersFromIcon} to show/hide the full row (not tied to scroll-to-top).
+   * Multi-line filter row: collapse to icon-only when user scrolls down. While
+   * {@link filterBarScrollCollapseSuppressed} is true (after opening filters via the icon away
+   * from the top), scroll is ignored until the page scrolls by at least
+   * {@link FILTER_SCROLL_ANCHOR_DISMISS_PX} from the post-layout anchor — then the bar can
+   * auto-collapse again, or the user can tap the icon to hide.
    */
   private applyFilterScrollCollapseState(): void {
     if (!this.lastKnownFilterRowMultiLine) {
@@ -805,14 +818,29 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         this.filtersCollapsedToIcon = false;
         this.afterFilterCollapseToggle();
       }
+      this.filterBarScrollCollapseSuppressed = false;
+      this.filterBarScrollYWhenExpandedOpen = null;
       return;
     }
     const y = window.scrollY || document.documentElement.scrollTop || 0;
     if (y <= 6) {
+      this.filterBarScrollCollapseSuppressed = false;
+      this.filterBarScrollYWhenExpandedOpen = null;
       return;
     }
     if (this.filtersCollapsedToIcon) {
       return;
+    }
+    if (this.filterBarScrollCollapseSuppressed) {
+      const base = this.filterBarScrollYWhenExpandedOpen;
+      if (base == null) {
+        return;
+      }
+      if (Math.abs(y - base) < QuestionComponent.FILTER_SCROLL_ANCHOR_DISMISS_PX) {
+        return;
+      }
+      this.filterBarScrollCollapseSuppressed = false;
+      this.filterBarScrollYWhenExpandedOpen = null;
     }
     this.filtersCollapsedToIcon = true;
     this.closeAllDropdowns();
@@ -831,14 +859,29 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }, 0);
   }
 
-  /** Multi-line filters: tap icon to show full row, tap again to hide (scroll can still auto-collapse). */
+  /** Multi-line filters: tap icon to show/hide full row; scroll collapses only when not suppressed. */
   toggleFiltersFromIcon(): void {
     if (!this.lastKnownFilterRowMultiLine) {
       return;
     }
     this.filtersCollapsedToIcon = !this.filtersCollapsedToIcon;
     if (this.filtersCollapsedToIcon) {
+      this.filterBarScrollCollapseSuppressed = false;
+      this.filterBarScrollYWhenExpandedOpen = null;
       this.closeAllDropdowns();
+    } else {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      if (y > 6) {
+        this.filterBarScrollCollapseSuppressed = true;
+        this.filterBarScrollYWhenExpandedOpen = null;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            this.filterBarScrollYWhenExpandedOpen =
+              window.scrollY || document.documentElement.scrollTop || 0;
+            this.cdr.markForCheck();
+          });
+        });
+      }
     }
     this.afterFilterCollapseToggle();
   }
