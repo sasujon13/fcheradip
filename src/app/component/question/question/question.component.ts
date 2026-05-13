@@ -186,6 +186,14 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Keeps `.question-container2` margin-top in sync with measured `.question-container3` height. */
   private filterBarResizeObserver: ResizeObserver | null = null;
 
+  /**
+   * When the filter row wraps to multiple lines and the user scrolls, the row is replaced by a
+   * compact filter icon; {@link lastKnownFilterRowMultiLine} is the last measured wrap state
+   * (kept while collapsed because filter items are not in the DOM).
+   */
+  filtersCollapsedToIcon = false;
+  lastKnownFilterRowMultiLine = false;
+
   /** Layout per question index: '1row' | '2row' | '4row' based on content width. */
   optionsLayouts: ('1row' | '2row' | '4row')[] = [];
   private readonly OPTIONS_GAP_PX = 24;
@@ -735,6 +743,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const run = () => {
       this.updateFilterLineStartMargins();
       this.updateQuestionContainer2MarginForFixedFilter();
+      this.applyFilterScrollCollapseState();
     };
     setTimeout(() => {
       run();
@@ -745,15 +754,31 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @HostListener('window:resize')
   onWindowResize(): void {
+    if (this.filtersCollapsedToIcon) {
+      this.filtersCollapsedToIcon = false;
+    }
     this.updateFilterLineStartMargins();
+    this.applyFilterScrollCollapseState();
     this.updateQuestionContainer2MarginForFixedFilter();
     this.measureOptionsLayouts();
+    this.cdr.markForCheck();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    this.applyFilterScrollCollapseState();
   }
 
   /** Mark the first element of each wrapped line so only they get margin-left: 21px */
   private updateFilterLineStartMargins(): void {
-    if (!this.filterItems?.length) return;
-    const items = this.filterItems.map(f => f.nativeElement);
+    if (this.filtersCollapsedToIcon && this.lastKnownFilterRowMultiLine) {
+      return;
+    }
+    if (!this.filterItems?.length) {
+      this.lastKnownFilterRowMultiLine = false;
+      return;
+    }
+    const items = this.filterItems.map((f) => f.nativeElement);
     const LINE_THRESHOLD = 2; // px tolerance for same line
     let prevTop = -1;
     items.forEach((el, i) => {
@@ -766,6 +791,56 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       }
       prevTop = rect.top;
     });
+    const tops = new Set(items.map((el) => Math.round(el.getBoundingClientRect().top)));
+    this.lastKnownFilterRowMultiLine = tops.size > 1;
+  }
+
+  /**
+   * Multi-line filter row: collapse to icon-only when user scrolls down; use
+   * {@link toggleFiltersFromIcon} to show/hide the full row (not tied to scroll-to-top).
+   */
+  private applyFilterScrollCollapseState(): void {
+    if (!this.lastKnownFilterRowMultiLine) {
+      if (this.filtersCollapsedToIcon) {
+        this.filtersCollapsedToIcon = false;
+        this.afterFilterCollapseToggle();
+      }
+      return;
+    }
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    if (y <= 6) {
+      return;
+    }
+    if (this.filtersCollapsedToIcon) {
+      return;
+    }
+    this.filtersCollapsedToIcon = true;
+    this.closeAllDropdowns();
+    this.afterFilterCollapseToggle();
+  }
+
+  private afterFilterCollapseToggle(): void {
+    this.updateQuestionContainer2MarginForFixedFilter();
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      if (!this.filtersCollapsedToIcon) {
+        this.updateFilterLineStartMargins();
+      }
+      this.setupFixedFilterBarResizeObserver();
+      this.updateQuestionContainer2MarginForFixedFilter();
+    }, 0);
+  }
+
+  /** Multi-line filters: tap icon to show full row, tap again to hide (scroll can still auto-collapse). */
+  toggleFiltersFromIcon(): void {
+    if (!this.lastKnownFilterRowMultiLine) {
+      return;
+    }
+    this.filtersCollapsedToIcon = !this.filtersCollapsedToIcon;
+    if (this.filtersCollapsedToIcon) {
+      this.closeAllDropdowns();
+    }
+    this.afterFilterCollapseToggle();
   }
 
   /** Timer for auto-close when cursor leaves dropdown (1000ms). */

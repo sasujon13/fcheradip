@@ -13,13 +13,73 @@
 
 .question-container2 {
   position: relative;
+  z-index: 0;
   width: 100%;
   margin-top: var(--question-filter-bar-reserved);
 }
 
+.question-container2.question-container2--filter-collapsed {
+  margin-top: 0;
+}
+
+/**
+ * Wraps filter row + optional multi-line toggle. When not multi-line, `display: contents` so
+ * layout matches the original single `.question-filter-row` (same margins on the row).
+ */
+.question-filter-toolbar {
+  display: contents;
+}
+
+.question-filter-toolbar--multi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  /* Same outer spacing as `.question-filter-row` */
+  margin-top: 11px;
+  padding: 12px 0 4px 8px;
+  position: relative;
+  z-index: 6;
+  box-sizing: border-box;
+}
+
+.question-filter-toolbar--multi .question-filter-row {
+  margin-top: -36px;
+  padding-top: 0;
+  padding-bottom: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.question-filter-reveal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  z-index: 7;
+  pointer-events: auto;
+}
+
+.question-filter-reveal-btn:hover {
+  background: var(--color_primary_transparent, rgba(0, 102, 102, 0.08));
+}
+
+.question-filter-reveal-btn img {
+  display: block;
+  width: 28px;
+  height: auto;
+  position: relative;
+  z-index: 1;
+}
+
 .question-container3 {
   position: fixed;
-  z-index: 1001;
+  /* Above page content / sibling `.question-container2`; below smart-creator modal (10050) */
+  z-index: 10040;
   margin-top: 50px;
   background: white;
   width: 100%;

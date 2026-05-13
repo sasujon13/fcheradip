@@ -1,9 +1,24 @@
 <div class="question-container">
   <div class="question-container3" #filterBarHost>
-    <!-- Single-line filter row (like institute: division, district, thana); wraps and centers -->
-    <div class="question-filter-row">
+    <div
+      class="question-filter-toolbar"
+      [class.question-filter-toolbar--multi]="lastKnownFilterRowMultiLine"
+      [class.question-filter-toolbar--collapsed]="lastKnownFilterRowMultiLine && filtersCollapsedToIcon"
+    >
+      <button
+        *ngIf="lastKnownFilterRowMultiLine"
+        type="button"
+        class="question-filter-reveal-btn"
+        (click)="toggleFiltersFromIcon()"
+        [attr.aria-expanded]="!filtersCollapsedToIcon"
+        aria-label="Toggle filters"
+      >
+        <img src="assets/images/filter.svg" width="28" height="26" alt="" />
+      </button>
+      <div class="question-filter-row" *ngIf="!lastKnownFilterRowMultiLine || !filtersCollapsedToIcon">
       <div #filterItem class="question-filter-item filter-dropdown-wrap">
-        <label class="question-filter-label"><b>Filter</b></label>
+        <!-- <label class="question-filter-label"><b>Filter</b></label> -->
+        <label class="question-filter-label"><b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b></label>
         <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()"
           (mouseleave)="onFilterDropdownLeave('level')">
           <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedLevel"
@@ -260,6 +275,7 @@
           </div>
         </div>
       </div>
+    </div>
 
       <!-- Sticky circular FABs at bottom-right: Create Question, Live Chat -->
       <div class="fab-wrapper">
@@ -351,7 +367,7 @@
   </div>
 
   <!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
-  <div class="question-container2">
+  <div class="question-container2" [class.question-container2--filter-collapsed]="filtersCollapsedToIcon">
     <div class="topic-questions-section" *ngIf="primarySubject && topicQuestions.length > 0" appQuestionRichImgHost>
       <div class="topic-questions-header" style="display: none;">
         <div class="topic-questions-actions">
