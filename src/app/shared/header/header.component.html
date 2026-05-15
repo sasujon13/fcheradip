@@ -120,7 +120,7 @@
       <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
         [style.margin-left]="loginStatus ? '-80px' : '-80px'" />
       <button (click)="applyToken()">Apply</button>
-      <p class="rmsg">🪙 <b>{{ headerRemainingUnlocks }}</b> Coins</p>
+      <p class="rmsg"><span aria-hidden="true">{{ null | coinEmoji }}</span> <b>{{ headerRemainingUnlocks }}</b> Coins</p>
       <div class="hover-message-box"
         [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
         [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'"

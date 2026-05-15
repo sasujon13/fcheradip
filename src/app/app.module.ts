@@ -14,6 +14,7 @@ import { OrderComponent } from './component/cart/order/order.component';
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { LanguageInterceptor } from './service/language.interceptor';
 import { AuthInterceptor } from './service/auth.interceptor';
+import { CoinEmojiPipe } from './shared/coin-emoji.pipe';
 import { FilterPipe } from './shared/filter.pipe';
 import { SafeUrlPipe } from './shared/safe-url.pipe';
 import { WrapRomanLinesPipe } from './shared/wrap-roman-lines.pipe';
@@ -100,6 +101,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     OrderComponent,
     PackagesComponent,
     ChoiceComponent,
+    CoinEmojiPipe,
     FilterPipe,
     SafeUrlPipe,
     WrapRomanLinesPipe,

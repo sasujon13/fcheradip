@@ -5,7 +5,7 @@
       <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
         [style.margin-left]="tokenInputLoggedIn ? '-112px' : '-87px'" />
       <button (click)="applyToken()">Apply</button>
-      <p class="rmsg" style="margin-top: 7px;">🪙 <b>{{ trxRemaining }}</b> Coins</p>
+      <p class="rmsg" style="margin-top: 7px;"><span aria-hidden="true">{{ null | coinEmoji }}</span> <b>{{ trxRemaining }}</b> Coins</p>
       <div class="hover-message-box" style="text-align: left;">
         1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
         2. Send Money to <strong>01722710298</strong> (Personal) Tk 200<br>
