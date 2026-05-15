@@ -345,7 +345,7 @@ export class ProfileComponent implements OnInit, AfterViewInit {
         ).subscribe(
           (response: any) => {
             this.snackBar.open('Profile Update Successful!', 'Close', {
-              duration: 3000,
+              duration: 7000,
               panelClass: ['success-snackbar'],
             });
             const token = response?.authToken || response?.token || response;
@@ -491,7 +491,7 @@ export class ProfileComponent implements OnInit, AfterViewInit {
     formattedMessage = formattedMessage.trim();
     if (formattedMessage.includes("Order Created Successfully")) {
       this.snackBar.open('Order Created Successfully!', 'Close', {
-        duration: 3000,
+        duration: 7000,
         panelClass: ['success-snackbar'],
       });
       this.router.navigate(['/products']);
@@ -619,7 +619,7 @@ export class ProfileComponent implements OnInit, AfterViewInit {
         if (response.success) {
           this.changePasswordSuccess = 'Password changed successfully!';
           this.snackBar.open('Password changed successfully!', 'Close', {
-            duration: 5000,
+            duration: 7000,
             panelClass: ['success-snackbar'],
           });
           setTimeout(() => {

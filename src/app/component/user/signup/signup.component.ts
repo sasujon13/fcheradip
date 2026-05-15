@@ -696,12 +696,12 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         this.addSubjectSubmitting = false;
         this.showAddSubjectPane = false;
-        this.snackBar.open(res?.message || 'Your subject request has been submitted for review.', 'Close', { duration: 5000 });
+        this.snackBar.open(res?.message || 'Your subject request has been submitted for review.', 'Close', { duration: 7000 });
       },
       error: (err) => {
         this.addSubjectSubmitting = false;
         const msg = err?.error?.error || err?.message || 'Request failed.';
-        this.snackBar.open(msg, 'Close', { duration: 4000 });
+        this.snackBar.open(msg, 'Close', { duration: 7000 });
       },
     });
   }
@@ -1256,13 +1256,13 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
     if (acctype === 'Student') {
       if (['9', '10', '11', '12', '9-10', '11-12'].includes(className)) {
         if (!this.authForm.value.group) {
-          this.snackBar.open('Please select a group', 'Close', { duration: 3000 });
+          this.snackBar.open('Please select a group', 'Close', { duration: 7000 });
           return;
         }
       }
       if (['13', '14', '15', '16', '13-16'].includes(className)) {
         if (!this.authForm.value.department) {
-          this.snackBar.open('Please select a department', 'Close', { duration: 3000 });
+          this.snackBar.open('Please select a department', 'Close', { duration: 7000 });
           return;
         }
       }
@@ -1280,7 +1280,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
         level === 'University';
       if (needsSubject) {
         if (!this.authForm.value.teacherSubject) {
-          this.snackBar.open('Please select a subject', 'Close', { duration: 3000 });
+          this.snackBar.open('Please select a subject', 'Close', { duration: 7000 });
           return;
         }
         teacherSubjectCodeForApi = this.normalizeTeacherSubjectPayload(this.authForm.value.teacherSubject);
@@ -1288,7 +1288,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
           this.snackBar.open(
             'Subject code could not be resolved. Please open the subject list again and re-select your subject.',
             'Close',
-            { duration: 5000 },
+            { duration: 7000 },
           );
           return;
         }
@@ -1351,7 +1351,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
             : 'Successfully signed up and logged in.';
           // Snackbar stacks above welcome overlay (see styles.css .auth-flow-snackbar-top)
           this.snackBar.open(successMsg, 'Close', {
-            duration: showWelcome ? 8000 : 5000,
+            duration: showWelcome ? 8000 : 7000,
             panelClass: ['auth-flow-snackbar-top'],
             verticalPosition: 'top',
           });

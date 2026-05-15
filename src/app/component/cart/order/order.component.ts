@@ -273,7 +273,7 @@ export class OrderComponent implements OnInit, AfterViewInit {
     formattedMessage = formattedMessage.trim();
     if (formattedMessage.includes("Order Created Successfully")) {
       this.snackBar.open('Order Created Successfully!', 'Close', {
-        duration: 3000,
+        duration: 7000,
         panelClass: ['success-snackbar'],
       });
       this.router.navigate(['/products']);

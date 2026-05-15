@@ -212,7 +212,7 @@ export class PasswordComponent implements OnInit {
         this.apiService.updatePassword(username, password, newpassword).subscribe(
           (response) => {
             this.snackBar.open('Password Update Successful!', 'Close', {
-              duration: 3000,
+              duration: 7000,
               panelClass: ['success-snackbar'],
             });
             this.logout();
@@ -281,7 +281,7 @@ export class PasswordComponent implements OnInit {
     formattedMessage = formattedMessage.trim();
     if (formattedMessage.includes("Order Created Successfully")) {
       this.snackBar.open('Order Created Successfully!', 'Close', {
-        duration: 3000,
+        duration: 7000,
         panelClass: ['success-snackbar'],
       });
       this.router.navigate(['/products']);
@@ -392,7 +392,7 @@ export class PasswordComponent implements OnInit {
         this.isResetting = false;
         if (response.success) {
           this.forgotPasswordSuccess = 'Password reset successful! You can now login.';
-          this.snackBar.open('Password reset successful!', 'Close', { duration: 5000, panelClass: ['success-snackbar'] });
+          this.snackBar.open('Password reset successful!', 'Close', { duration: 7000, panelClass: ['success-snackbar'] });
           setTimeout(() => this.closeForgotPasswordModal(), 2000);
         } else {
           this.forgotPasswordError = response.message || 'Failed to reset password.';

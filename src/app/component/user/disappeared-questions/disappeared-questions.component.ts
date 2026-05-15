@@ -30,7 +30,7 @@ export class DisappearedQuestionsComponent implements OnInit {
     this.disappeared.remove(qid);
     this.refresh();
     this.message = 'Question ' + qid + ' restored. It will show again in the question list.';
-    setTimeout(() => (this.message = ''), 4000);
+    setTimeout(() => (this.message = ''), 7000);
     this.cdr.detectChanges();
   }
 
@@ -39,7 +39,7 @@ export class DisappearedQuestionsComponent implements OnInit {
     this.disappeared.removeAll();
     this.refresh();
     this.message = count > 0 ? 'All ' + count + ' question(s) restored. They will show again in the question list.' : 'No questions to restore.';
-    setTimeout(() => (this.message = ''), 4000);
+    setTimeout(() => (this.message = ''), 7000);
     this.cdr.detectChanges();
   }
 }

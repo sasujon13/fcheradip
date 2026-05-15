@@ -1,6 +1,8 @@
-<div *ngIf="showAlert" class="custom-alert-overlay" (click)="onOverlayClick($event)">
-  <div class="custom-alert-box" [class.alert-success-box]="alertType === 'success'" (click)="$event.stopPropagation()">
+<div *ngIf="displayed" class="custom-alert-overlay" (click)="onOverlayClick($event)">
+  <div class="custom-alert-box" [class.alert-success-box]="alertType === 'success'" (click)="$event.stopPropagation()"
+    (mouseenter)="onDialogEnter()" (mouseleave)="onDialogLeave()"
+    (pointerenter)="onDialogEnter()" (pointerleave)="onDialogLeave()">
     <p [class.alert-success-text]="alertType === 'success'">{{ message }}</p>
-    <button (click)="onClose()">Close</button>
+    <button type="button" (click)="onClose()">Close</button>
   </div>
 </div>

@@ -265,7 +265,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
             ? 'Logged in — welcome bonus celebration starting!'
             : 'Logged in successfully!';
           this.snackBar.open(successMsg, 'Close', {
-            duration: showWelcome ? 7000 : 4000,
+            duration: showWelcome ? 8000 : 7000,
             panelClass: ['auth-flow-snackbar-top'],
             verticalPosition: 'top',
           });

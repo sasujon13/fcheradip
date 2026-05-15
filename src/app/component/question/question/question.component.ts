@@ -2801,7 +2801,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.cdr.detectChanges();
     this.showDisappearAlert = true;
     this.cdr.detectChanges();
-    setTimeout(() => { this.showDisappearAlert = false; this.cdr.detectChanges(); }, 4000);
   }
 
   /** Loose equality so number vs string qid still matches (e.g. 123 and "123"). */
