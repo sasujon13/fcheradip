@@ -26,11 +26,13 @@
             ],
             "styles": [
               "@angular/material/prebuilt-themes/indigo-pink.css",
+              "node_modules/katex/dist/katex.min.css",
               "src/assets/css/styles.css"
             ],            
             "scripts": [],
             "allowedCommonJsDependencies": [
-              "html2canvas"
+              "html2canvas",
+              "katex"
             ]
           },
           "configurations": {

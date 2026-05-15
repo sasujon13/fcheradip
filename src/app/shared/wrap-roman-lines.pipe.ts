@@ -1,6 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { formatMaybeCProgramQuestionText } from './c-program-question-format';
+import { enrichPlainTextWithKatex } from './question-katex-render';
 
 /** Roman numeral line pattern: i., ii., iii. or I., II., III. at start of line */
 const ROMAN_LINE = /^\s*(i|ii|iii|I|II|III)\./;
@@ -135,7 +136,7 @@ function escapeHtmlPreserveImages(line: string): string {
   let m: RegExpExecArray | null;
   IMG_STACK_OR_IMG_OR_BR_RE.lastIndex = 0;
   while ((m = IMG_STACK_OR_IMG_OR_BR_RE.exec(line)) !== null) {
-    parts.push(escapeHtml(line.slice(lastIndex, m.index)));
+    parts.push(enrichPlainTextWithKatex(line.slice(lastIndex, m.index)));
     const token = m[0];
     if (/^<br\s*\/?>/i.test(token)) {
       parts.push('<br />');
@@ -149,7 +150,7 @@ function escapeHtmlPreserveImages(line: string): string {
     }
     lastIndex = m.index + token.length;
   }
-  parts.push(escapeHtml(line.slice(lastIndex)));
+  parts.push(enrichPlainTextWithKatex(line.slice(lastIndex)));
   return parts.join('');
 }
 
@@ -160,7 +161,12 @@ export class WrapRomanLinesPipe implements PipeTransform {
   transform(text: string | null | undefined): SafeHtml {
     if (text == null || text === '') return this.sanitizer.bypassSecurityTrustHtml('');
     const prepared = formatMaybeCProgramQuestionText(String(text));
-    const lines = prepared.split(/\r?\n/);
+    /** Bangla (etc.) glued to roman clauses `i./ii./iii.` → break line (STEM MCQ stems). */
+    const romanBroken = prepared.replace(
+      /([\u0980-\u09FF])(iii|ii|i)\.(?!\d)/gi,
+      (_match, script: string, roman: string) => `${script}<br />${roman}.`,
+    );
+    const lines = romanBroken.split(/\r?\n/);
     const parts = lines.map((line) => {
       if (/^\s*<span class="q-code-block"[^>]*><code>[\s\S]*<\/code><\/span>\s*$/i.test(line)) {
         return line.trim();
