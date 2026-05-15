@@ -570,8 +570,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
-   * Load full subject cache: from localStorage if present, else fetch all questions via question_list (subject only) and save.
-   * Sets subjectCacheByChapter, this.topics, totalQuestionsInDbForSubject. Only falls back to per-topic API if subject list API fails.
+   * Load full subject cache: show localStorage immediately if present, then always refresh from API.
+   * Sets subjectCacheByChapter, this.topics, totalQuestionsInDbForSubject. Falls back to per-topic API only when no cache and subject list API fails.
    */
   private loadSubjectFullCache(onDone?: () => void): void {
     const sub = this.primarySubject;
@@ -579,11 +579,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       onDone?.();
       return;
     }
-    if (this.tryLoadSubjectCacheFromStorage()) {
+    const hadCache = this.tryLoadSubjectCacheFromStorage();
+    if (hadCache) {
       this.build999AndLoadFromCache();
       this.cdr.detectChanges();
       onDone?.();
-      return;
     }
     this.apiService.getQuestionListBySubject({
       level_tr: sub.level_tr,
@@ -593,20 +593,22 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       next: (res) => {
         const questions = (res.questions || []) as any[];
         if (questions.length === 0) {
-          this.loadSubjectFullCacheFallbackPerTopic(onDone);
+          if (!hadCache) this.loadSubjectFullCacheFallbackPerTopic(onDone);
           return;
         }
         const { byChapter, topics } = this.buildByChapterFromFlatList(questions);
         this.subjectCacheByChapter = byChapter;
         this.topics = topics;
         this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-        const stored = this.saveSubjectListToStorage(questions);
+        this.saveSubjectListToStorage(questions);
         this.applyTopicsFromSubjectCache();
-        this.build999AndLoadFromCache();
+        this.build999AndLoadFromCache(hadCache);
         this.cdr.detectChanges();
-        onDone?.();
+        if (!hadCache) onDone?.();
       },
-      error: () => this.loadSubjectFullCacheFallbackPerTopic(onDone)
+      error: () => {
+        if (!hadCache) this.loadSubjectFullCacheFallbackPerTopic(onDone);
+      }
     });
   }
 
@@ -2051,7 +2053,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /** Build 999 list, save to localStorage, then load first chunk; or load from cache if present. */
-  private build999AndLoadFromCache(): void {
+  private build999AndLoadFromCache(skipLocalQ999Cache = false): void {
     const sub = this.primarySubject;
     if (!sub) return;
     const hasTopicSelection = this.selectedTopicIds.size > 0;
@@ -2059,7 +2061,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!hasTopicSelection && !hasSubjectCache) return;
     this.topicQuestionsLoaded = false;
     const keyBase = this.buildQ999CacheKey();
-    if (keyBase) {
+    if (!skipLocalQ999Cache && keyBase) {
       try {
         const metaStr = localStorage.getItem(`${keyBase}_meta`);
         const meta = metaStr ? JSON.parse(metaStr) : null;
