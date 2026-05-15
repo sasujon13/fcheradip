@@ -569,9 +569,72 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topics = result;
   }
 
+  /** Read DB revision stored alongside subject cache (flat list or by-chapter meta). */
+  private getSubjectCacheRevisionFromStorage(): { dbMaxUpdatedAt: string | null; dbRowCount: number } | null {
+    const keyBase = this.buildSubjectCacheKey();
+    if (!keyBase) return null;
+    try {
+      for (const metaKey of [`${keyBase}_list_meta`, `${keyBase}_meta`]) {
+        const str = localStorage.getItem(metaKey);
+        if (!str) continue;
+        const meta = JSON.parse(str);
+        if (meta && (meta.dbMaxUpdatedAt !== undefined || meta.dbRowCount !== undefined)) {
+          return {
+            dbMaxUpdatedAt: meta.dbMaxUpdatedAt ?? null,
+            dbRowCount: typeof meta.dbRowCount === 'number' ? meta.dbRowCount : -1
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  private isSubjectCacheRevisionCurrent(
+    cached: { dbMaxUpdatedAt: string | null; dbRowCount: number },
+    server: { max_updated_at: string | null; row_count: number; has_updated_at: boolean }
+  ): boolean {
+    if (!server.has_updated_at) return false;
+    return (cached.dbMaxUpdatedAt ?? '') === (server.max_updated_at ?? '') &&
+      cached.dbRowCount === server.row_count;
+  }
+
+  private q999CacheMatchesSubjectRevision(meta: { dbMaxUpdatedAt?: string | null; dbRowCount?: number } | null): boolean {
+    const rev = this.getSubjectCacheRevisionFromStorage();
+    if (!rev || !meta) return false;
+    return (meta.dbMaxUpdatedAt ?? '') === (rev.dbMaxUpdatedAt ?? '') &&
+      meta.dbRowCount === rev.dbRowCount;
+  }
+
+  /** After by-chapter fallback cache write, store DB revision from lightweight API. */
+  private stampSubjectCacheRevisionFromApi(): void {
+    const sub = this.primarySubject;
+    if (!sub) return;
+    this.apiService.getQuestionSubjectRevision({
+      level_tr: sub.level_tr,
+      class_level: sub.class_level,
+      subject_tr: sub.subject_tr
+    }).subscribe({
+      next: (rev) => this.patchSubjectCacheRevisionInStorage(rev)
+    });
+  }
+
+  private patchSubjectCacheRevisionInStorage(revision: { max_updated_at: string | null; row_count: number }): void {
+    const keyBase = this.buildSubjectCacheKey();
+    if (!keyBase) return;
+    const patch = { dbMaxUpdatedAt: revision.max_updated_at ?? null, dbRowCount: revision.row_count };
+    for (const metaKey of [`${keyBase}_list_meta`, `${keyBase}_meta`]) {
+      try {
+        const str = localStorage.getItem(metaKey);
+        if (!str) continue;
+        const meta = JSON.parse(str);
+        localStorage.setItem(metaKey, JSON.stringify({ ...meta, ...patch }));
+        return;
+      } catch (_) {}
+    }
+  }
+
   /**
-   * Load full subject cache: show localStorage immediately if present, then always refresh from API.
-   * Sets subjectCacheByChapter, this.topics, totalQuestionsInDbForSubject. Falls back to per-topic API only when no cache and subject list API fails.
+   * Load full subject cache: use localStorage when DB revision matches; otherwise refetch and update storage.
    */
   private loadSubjectFullCache(onDone?: () => void): void {
     const sub = this.primarySubject;
@@ -579,11 +642,41 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       onDone?.();
       return;
     }
-    const hadCache = this.tryLoadSubjectCacheFromStorage();
-    if (hadCache) {
-      this.build999AndLoadFromCache();
-      this.cdr.detectChanges();
+    const cachedRev = this.getSubjectCacheRevisionFromStorage();
+    this.apiService.getQuestionSubjectRevision({
+      level_tr: sub.level_tr,
+      class_level: sub.class_level,
+      subject_tr: sub.subject_tr
+    }).subscribe({
+      next: (serverRev) => {
+        if (cachedRev && this.isSubjectCacheRevisionCurrent(cachedRev, serverRev) && this.tryLoadSubjectCacheFromStorage()) {
+          this.build999AndLoadFromCache();
+          this.cdr.detectChanges();
+          onDone?.();
+          return;
+        }
+        this.fetchSubjectListAndUpdateCache(serverRev, onDone);
+      },
+      error: () => {
+        if (this.tryLoadSubjectCacheFromStorage()) {
+          this.build999AndLoadFromCache();
+          this.cdr.detectChanges();
+          onDone?.();
+        } else {
+          this.loadSubjectFullCacheFallbackPerTopic(onDone);
+        }
+      }
+    });
+  }
+
+  private fetchSubjectListAndUpdateCache(
+    serverRev: { max_updated_at: string | null; row_count: number; has_updated_at: boolean },
+    onDone?: () => void
+  ): void {
+    const sub = this.primarySubject;
+    if (!sub) {
       onDone?.();
+      return;
     }
     this.apiService.getQuestionListBySubject({
       level_tr: sub.level_tr,
@@ -592,23 +685,22 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }).subscribe({
       next: (res) => {
         const questions = (res.questions || []) as any[];
+        const revision = res.revision ?? serverRev;
         if (questions.length === 0) {
-          if (!hadCache) this.loadSubjectFullCacheFallbackPerTopic(onDone);
+          this.loadSubjectFullCacheFallbackPerTopic(onDone);
           return;
         }
         const { byChapter, topics } = this.buildByChapterFromFlatList(questions);
         this.subjectCacheByChapter = byChapter;
         this.topics = topics;
         this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-        this.saveSubjectListToStorage(questions);
+        this.saveSubjectListToStorage(questions, revision);
         this.applyTopicsFromSubjectCache();
-        this.build999AndLoadFromCache(hadCache);
+        this.build999AndLoadFromCache(true);
         this.cdr.detectChanges();
-        if (!hadCache) onDone?.();
+        onDone?.();
       },
-      error: () => {
-        if (!hadCache) this.loadSubjectFullCacheFallbackPerTopic(onDone);
-      }
+      error: () => this.loadSubjectFullCacheFallbackPerTopic(onDone)
     });
   }
 
@@ -644,6 +736,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
               this.topics = [];
               this.totalQuestionsInDbForSubject = 0;
               this.saveSubjectCacheToStorage(byChapter, 0);
+              this.stampSubjectCacheRevisionFromApi();
               this.build999AndLoadFromCache();
               this.cdr.detectChanges();
               onDone?.();
@@ -657,6 +750,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
                 this.subjectCacheByChapter = byChapter;
                 this.totalQuestionsInDbForSubject = total;
                 this.saveSubjectCacheToStorage(byChapter, total);
+                this.stampSubjectCacheRevisionFromApi();
                 this.applyTopicsFromSubjectCache();
                 this.build999AndLoadFromCache();
                 this.cdr.detectChanges();
@@ -712,12 +806,21 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return set.size;
   }
 
-  private saveSubjectCacheToStorage(byChapter: { [chapterId: string]: { [topicId: string]: any[] } }, total: number): void {
+  private saveSubjectCacheToStorage(
+    byChapter: { [chapterId: string]: { [topicId: string]: any[] } },
+    total: number,
+    revision?: { max_updated_at: string | null; row_count: number }
+  ): void {
     const keyBase = this.buildSubjectCacheKey();
     if (!keyBase) return;
     try {
       const chapterIds = Object.keys(byChapter);
-      localStorage.setItem(`${keyBase}_meta`, JSON.stringify({ total, updatedAt: Date.now(), chapterIds }));
+      const meta: Record<string, unknown> = { total, updatedAt: Date.now(), chapterIds };
+      if (revision) {
+        meta['dbMaxUpdatedAt'] = revision.max_updated_at ?? null;
+        meta['dbRowCount'] = revision.row_count;
+      }
+      localStorage.setItem(`${keyBase}_meta`, JSON.stringify(meta));
       chapterIds.forEach(chId => {
         localStorage.setItem(`${keyBase}_ch_${chId}`, JSON.stringify({ topics: byChapter[chId] }));
       });
@@ -725,12 +828,21 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /** Save flat question list to localStorage (chunked). Returns false if storage fails (e.g. quota). */
-  private saveSubjectListToStorage(questions: any[]): boolean {
+  private saveSubjectListToStorage(
+    questions: any[],
+    revision?: { max_updated_at: string | null; row_count: number }
+  ): boolean {
     const keyBase = this.buildSubjectCacheKey();
     if (!keyBase || !Array.isArray(questions)) return false;
     try {
       const chunkCount = Math.ceil(questions.length / this.SUBJECT_LIST_CHUNK_SIZE) || 1;
-      localStorage.setItem(`${keyBase}_list_meta`, JSON.stringify({ total: questions.length, updatedAt: Date.now(), chunkCount }));
+      localStorage.setItem(`${keyBase}_list_meta`, JSON.stringify({
+        total: questions.length,
+        updatedAt: Date.now(),
+        chunkCount,
+        dbMaxUpdatedAt: revision?.max_updated_at ?? null,
+        dbRowCount: revision?.row_count ?? questions.length
+      }));
       for (let i = 0; i < chunkCount; i++) {
         const chunk = questions.slice(i * this.SUBJECT_LIST_CHUNK_SIZE, (i + 1) * this.SUBJECT_LIST_CHUNK_SIZE);
         localStorage.setItem(`${keyBase}_list_chunk_${i}`, JSON.stringify(chunk));
@@ -1225,7 +1337,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         this.setChaptersFromSubjectCache();
         this.topics = topics;
         this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-        this.saveSubjectListToStorage(questions);
+        this.saveSubjectListToStorage(questions, res.questions?.revision);
         this.applyRestoreFiltersAndBuild999();
       },
       error: () => {
@@ -1620,7 +1732,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           this.setChaptersFromSubjectCache();
           this.topics = topics;
           this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-          this.saveSubjectListToStorage(questions);
+          this.saveSubjectListToStorage(questions, res.questions?.revision);
           const useRestore = this._restoreChapterTopicAfterSubjectLoad;
           if (useRestore) {
             this._restoreChapterTopicAfterSubjectLoad = false;
@@ -2066,7 +2178,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         const metaStr = localStorage.getItem(`${keyBase}_meta`);
         const meta = metaStr ? JSON.parse(metaStr) : null;
         const total = meta?.total ?? 0;
-        if (total > 0) {
+        if (total > 0 && this.q999CacheMatchesSubjectRevision(meta)) {
           const allChunks: any[] = [];
           const chunkCount = Math.ceil(total / this.Q999_CHUNK_SIZE);
           for (let i = 0; i < chunkCount; i++) {
@@ -2329,7 +2441,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           const chunk = slice.slice(i, i + this.Q999_CHUNK_SIZE);
           localStorage.setItem(`${keyBase}_chunk_${i / this.Q999_CHUNK_SIZE}`, JSON.stringify(chunk));
         }
-        localStorage.setItem(`${keyBase}_meta`, JSON.stringify({ total: slice.length }));
+        const subjectRev = this.getSubjectCacheRevisionFromStorage();
+        localStorage.setItem(`${keyBase}_meta`, JSON.stringify({
+          total: slice.length,
+          dbMaxUpdatedAt: subjectRev?.dbMaxUpdatedAt ?? null,
+          dbRowCount: subjectRev?.dbRowCount ?? 0
+        }));
       } catch (_) {}
     }
     this.updateSubsourceOptionsFromList(slice);
