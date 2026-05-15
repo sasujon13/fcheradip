@@ -219,6 +219,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   private readonly Q999_CACHE_PREFIX = 'cheradip_q999_';
   /** Subject-level cache prefix: all questions for a subject (for fast total y and reuse). */
   private readonly SUBJECT_CACHE_PREFIX = 'cheradip_subject_all_';
+  /** User's pending-edit overlays (plain text) until admin approves and DB revision refreshes cache. */
+  private readonly USER_QUESTION_EDITS_PREFIX = 'cheradip_user_q_edits_';
   /** Chunk size for storing full subject question list in localStorage. */
   private readonly SUBJECT_LIST_CHUNK_SIZE = 500;
   private readonly Q999_PAGE_SIZE = 30;
@@ -304,6 +306,153 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const sub = this.primarySubject;
     if (!sub) return '';
     return `${this.SUBJECT_CACHE_PREFIX}${sub.level_tr}_${sub.class_level}_${sub.subject_tr}`;
+  }
+
+  private buildUserQuestionEditsStorageKey(): string {
+    const sub = this.primarySubject;
+    if (!sub) return '';
+    return `${this.USER_QUESTION_EDITS_PREFIX}${sub.level_tr}_${sub.class_level}_${sub.subject_tr}`;
+  }
+
+  private loadUserQuestionEditsMap(): Record<string, {
+    question?: string;
+    option_1?: string;
+    option_2?: string;
+    option_3?: string;
+    option_4?: string;
+    savedAt?: number;
+  }> {
+    const key = this.buildUserQuestionEditsStorageKey();
+    if (!key) return {};
+    try {
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private persistUserQuestionEditsMap(map: Record<string, unknown>): void {
+    const key = this.buildUserQuestionEditsStorageKey();
+    if (!key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(map));
+    } catch (_) {}
+  }
+
+  /** Cleared when subject list is reloaded from DB after revision change (e.g. admin approve). */
+  private clearUserQuestionEditsForSubject(): void {
+    const key = this.buildUserQuestionEditsStorageKey();
+    if (!key) return;
+    try {
+      localStorage.removeItem(key);
+    } catch (_) {}
+  }
+
+  private saveUserQuestionEdit(
+    qid: number | string,
+    patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
+  ): void {
+    const map = this.loadUserQuestionEditsMap();
+    map[String(qid)] = { ...patch, savedAt: Date.now() };
+    this.persistUserQuestionEditsMap(map);
+  }
+
+  private applyUserEditsToQuestions(list: any[]): any[] {
+    const map = this.loadUserQuestionEditsMap();
+    if (!list?.length || !Object.keys(map).length) return list;
+    return list.map((q) => {
+      if (!q || q.qid == null) return q;
+      const edit = map[String(q.qid)];
+      if (!edit) return q;
+      return {
+        ...q,
+        ...(edit.question !== undefined ? { question: edit.question } : {}),
+        ...(edit.option_1 !== undefined ? { option_1: edit.option_1 } : {}),
+        ...(edit.option_2 !== undefined ? { option_2: edit.option_2 } : {}),
+        ...(edit.option_3 !== undefined ? { option_3: edit.option_3 } : {}),
+        ...(edit.option_4 !== undefined ? { option_4: edit.option_4 } : {})
+      };
+    });
+  }
+
+  private patchQuestionInMemoryCaches(
+    qid: number | string,
+    patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
+  ): void {
+    const matchQid = (q: any) => q?.qid != null && q.qid == qid;
+    this.topicQuestionsFullCache = this.topicQuestionsFullCache.map((q) =>
+      matchQid(q) ? { ...q, ...patch } : q
+    );
+    Object.keys(this.subjectCacheByChapter).forEach((chapterId) => {
+      const topics = this.subjectCacheByChapter[chapterId] || {};
+      Object.keys(topics).forEach((topicId) => {
+        topics[topicId] = (topics[topicId] || []).map((q: any) =>
+          matchQid(q) ? { ...q, ...patch } : q
+        );
+      });
+    });
+    this.patchQuestionInSubjectListStorage(qid, patch);
+    this.patchQuestionInQ999ListStorage(qid, patch);
+  }
+
+  private patchQuestionInSubjectListStorage(
+    qid: number | string,
+    patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
+  ): void {
+    const keyBase = this.buildSubjectCacheKey();
+    if (!keyBase) return;
+    try {
+      const metaStr = localStorage.getItem(`${keyBase}_list_meta`);
+      const meta = metaStr ? JSON.parse(metaStr) : null;
+      if (!meta?.chunkCount) return;
+      const matchQid = (q: any) => q?.qid != null && q.qid == qid;
+      for (let i = 0; i < meta.chunkCount; i++) {
+        const chunkKey = `${keyBase}_list_chunk_${i}`;
+        const str = localStorage.getItem(chunkKey);
+        if (!str) continue;
+        const chunk = JSON.parse(str);
+        if (!Array.isArray(chunk)) continue;
+        let changed = false;
+        const next = chunk.map((q: any) => {
+          if (!matchQid(q)) return q;
+          changed = true;
+          return { ...q, ...patch };
+        });
+        if (changed) localStorage.setItem(chunkKey, JSON.stringify(next));
+      }
+    } catch (_) {}
+  }
+
+  private patchQuestionInQ999ListStorage(
+    qid: number | string,
+    patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
+  ): void {
+    const keyBase = this.buildQ999CacheKey();
+    if (!keyBase) return;
+    try {
+      const metaStr = localStorage.getItem(`${keyBase}_meta`);
+      const meta = metaStr ? JSON.parse(metaStr) : null;
+      const total = meta?.total ?? 0;
+      if (total <= 0) return;
+      const matchQid = (q: any) => q?.qid != null && q.qid == qid;
+      const chunkCount = Math.ceil(total / this.Q999_CHUNK_SIZE);
+      for (let i = 0; i < chunkCount; i++) {
+        const chunkKey = `${keyBase}_chunk_${i}`;
+        const str = localStorage.getItem(chunkKey);
+        if (!str) continue;
+        const chunk = JSON.parse(str);
+        if (!Array.isArray(chunk)) continue;
+        let changed = false;
+        const next = chunk.map((q: any) => {
+          if (!matchQid(q)) return q;
+          changed = true;
+          return { ...q, ...patch };
+        });
+        if (changed) localStorage.setItem(chunkKey, JSON.stringify(next));
+      }
+    } catch (_) {}
   }
 
   /**
@@ -694,6 +843,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         this.subjectCacheByChapter = byChapter;
         this.topics = topics;
         this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
+        this.clearUserQuestionEditsForSubject();
         this.saveSubjectListToStorage(questions, revision);
         this.applyTopicsFromSubjectCache();
         this.build999AndLoadFromCache(true);
@@ -2188,7 +2338,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
             else break;
           }
           if (allChunks.length > 0) {
-            this.topicQuestionsFullCache = allChunks;
+            this.topicQuestionsFullCache = this.applyUserEditsToQuestions(allChunks);
             this.topicQuestionsLoadedCount = allChunks.length;
             this.topicQuestionsCacheTotal = total;
             this.updateSubsourceOptionsFromList(this.topicQuestionsFullCache);
@@ -2430,7 +2580,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private finish999AndSave(all: any[]): void {
     const slice = all.slice(0, this.Q999_MAX);
-    this.topicQuestionsFullCache = slice.slice();
+    this.topicQuestionsFullCache = this.applyUserEditsToQuestions(slice.slice());
     this.topicQuestionsLoadedCount = slice.length;
     this.topicQuestionsCacheTotal = slice.length;
     this._hasShown999LimitAlert = false;
@@ -2790,8 +2940,14 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       payload.chapter = this.currentChapter || undefined;
       payload.topic = this.topics.find(t => this.selectedTopicIds.has(t.id))?.name || (this.topics[0]?.name) || undefined;
     }
+    const userPatch = { question: q, option_1: opt1, option_2: opt2, option_3: opt3, option_4: opt4 };
+    const savedQid = this.editingQid;
     this.apiService.submitPendingQuestionRequest(payload).subscribe({
       next: () => {
+        if (savedQid != null) {
+          this.saveUserQuestionEdit(savedQid, userPatch);
+          this.patchQuestionInMemoryCaches(savedQid, userPatch);
+        }
         this.showSuccessAlert = false;
         this.successAlertMessage = 'Thanks! Your changes have been submitted and are pending admin approval.';
         this.cdr.detectChanges();
@@ -2908,12 +3064,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       const bySourceYear = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
         ? sorted
         : sorted.filter((q: any) => this.questionMatchesSourceYear(q));
-      return filterDisappeared(filterByType(bySourceYear));
+      return this.applyUserEditsToQuestions(filterDisappeared(filterByType(bySourceYear)));
     }
     const list = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
       ? this.topicQuestions
       : this.topicQuestions.filter((q: any) => this.questionMatchesSourceYear(q));
-    return filterDisappeared(filterByType(list));
+    return this.applyUserEditsToQuestions(filterDisappeared(filterByType(list)));
   }
 
   getTopicQuestionsFilteredSorted(): any[] {
