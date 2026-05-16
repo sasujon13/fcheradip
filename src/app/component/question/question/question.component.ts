@@ -2335,6 +2335,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return 'Unlock all on this page';
   }
 
+  /** Teal FA icons (purchased / free reveal); emoji + teal button when coins required. */
+  pageUnlockUsesPurchasedStyle(): boolean {
+    if (this.allDisplayedQuestionsRevealed()) return true;
+    return this.pageUnlockActionIsFree();
+  }
+
   onUnlockPageBarClick(ev: Event): void {
     ev.stopPropagation();
     if (this.unlockBusy) return;

@@ -554,16 +554,11 @@
 
 .creator-buttons-row .btn-unlock-page {
   min-width: 44px;
-  padding: 7px 14px;
-  font-size: 18px;
+  padding: 0 7px;
+  font-size: 28px;
   line-height: 1;
-  background-color: #f5f5f5;
+  background-color: transparent;
   color: #333;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-}
-
-.creator-buttons-row .btn-unlock-page:hover:not(:disabled) {
-  background-color: #e8e8e8;
 }
 
 .creator-buttons-row .btn-unlock-page:disabled {
@@ -571,14 +566,17 @@
   cursor: default;
 }
 
-.creator-buttons-row .btn-unlock-page--free {
-  background-color: var(--color_primary_teal);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 128, 128, 0.35);
+.creator-buttons-row .btn-unlock-page:not(.btn-unlock-page--coins) .fa {
+  color: var(--color_primary_teal);
 }
 
-.creator-buttons-row .btn-unlock-page--free:hover:not(:disabled) {
-  background-color: #006666;
+.creator-buttons-row .btn-unlock-page:not(.btn-unlock-page--coins):hover:not(:disabled) .fa {
+  color: #006666;
+}
+
+.creator-buttons-row .btn-unlock-page--coins {
+  background-color: transparent;
+  color: #fff;
 }
 
 /* Answer & explanation (coin unlock) */
@@ -602,23 +600,6 @@
   white-space: pre-line;
   word-break: break-word;
   line-height: 1.4;
-}
-
-.topic-question-action-lock {
-  font-size: 16px;
-  line-height: 1;
-  padding: 4px 6px;
-}
-
-.topic-question-action-lock--free {
-  background-color: var(--color_primary_teal);
-  color: #fff;
-  border-radius: 4px;
-}
-
-.topic-question-action-lock--free:hover {
-  background-color: #006666;
-  color: #fff;
 }
 
 /* Smart Question Creator modal (/question) */
@@ -1043,6 +1024,35 @@ span.mx-3 {
 }
 .topic-question-action-disappear:hover {
   color: green;
+}
+
+/* Already purchased: teal FA icon, transparent button (current style). */
+.topic-question-action-btn.topic-question-action-lock:not(.topic-question-action-lock--coins) {
+  padding: 0 8px;
+  background: transparent;
+}
+
+.topic-question-action-btn.topic-question-action-lock:not(.topic-question-action-lock--coins):hover {
+  background: transparent;
+}
+
+.topic-question-action-btn.topic-question-action-lock:not(.topic-question-action-lock--coins) .fa {
+  color: var(--color_primary_teal);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.topic-question-action-btn.topic-question-action-lock:not(.topic-question-action-lock--coins):hover .fa {
+  color: #006666;
+}
+
+/* Needs coins: teal button + lock emoji (previous style). */
+.topic-question-action-btn.topic-question-action-lock--coins {
+  padding: 0 8px;
+  font-size: 16px;
+  line-height: 1;
+  background-color: transparent;
+  color: #fff;
 }
 
 /* Inline edit: same look as question text/options; only as tall as content; Update/Cancel bottom-right */
