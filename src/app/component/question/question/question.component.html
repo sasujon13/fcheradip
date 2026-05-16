@@ -354,6 +354,12 @@
 
         <!-- Buttons to open question creator: visible when questions are shown (subject or topic selection) -->
         <div class="creator-buttons-row" *ngIf="primarySubject && topicQuestions.length > 0">
+          <button type="button" class="btn-creator btn-unlock-page" (click)="onUnlockPageBarClick($event)"
+            [disabled]="unlockBusy"
+            [class.btn-unlock-page--free]="pageUnlockActionIsFree()"
+            [attr.aria-label]="getPageUnlockBarTitle()">
+            {{ allDisplayedQuestionsRevealed() ? '🔓' : '🔒' }}
+          </button>
           <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
             Question Creator</button>
           <button type="button" class="btn-creator btn-create-question"
@@ -382,6 +388,12 @@
 
         <!-- Buttons to open question creator: visible when questions are shown (subject or topic selection) -->
         <div class="creator-buttons-row" *ngIf="primarySubject && topicQuestions.length > 0">
+          <button type="button" class="btn-creator btn-unlock-page" (click)="onUnlockPageBarClick($event)"
+            [disabled]="unlockBusy"
+            [class.btn-unlock-page--free]="pageUnlockActionIsFree()"
+            [attr.aria-label]="getPageUnlockBarTitle()">
+            {{ allDisplayedQuestionsRevealed() ? '🔓' : '🔒' }}
+          </button>
           <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
             Question Creator</button>
           <button type="button" class="btn-creator btn-create-question"
@@ -461,8 +473,25 @@
             </div>
             <span class="topic-question-subsource" *ngIf="getSubsourceDisplay(item.q)">{{ getSubsourceDisplay(item.q)
               }}</span>
+            <div class="topic-question-extra"
+              *ngIf="isQuestionRevealed(item.q.qid) && hasUnlockableExtraContent(item.q)">
+              <span class="topic-question-answer" *ngIf="hasNonEmptyUnlockField(item.q.answer)">Answer: {{
+                getUnlockAnswerDisplay(item.q) }}</span>
+              <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation)"
+                [innerHTML]="item.q.explanation | formatQuestionMedia | wrapRomanLines"></div>
+              <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation2)"
+                [innerHTML]="item.q.explanation2 | formatQuestionMedia | wrapRomanLines"></div>
+              <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation3)"
+                [innerHTML]="item.q.explanation3 | formatQuestionMedia | wrapRomanLines"></div>
+            </div>
             <div class="topic-question-item-actions" *ngIf="!isEditingItem(item.q.qid)"
               (click)="$event.stopPropagation()">
+              <button type="button" class="topic-question-action-btn topic-question-action-lock"
+                [class.topic-question-action-lock--free]="isQuestionFreeReunlock(item.q.qid)"
+                (click)="toggleQuestionUnlock(item.q, $event)"
+                [title]="getLockButtonTitle(item.q)">
+                {{ isQuestionRevealed(item.q.qid) ? '🔓' : '🔒' }}
+              </button>
               <button type="button" class="topic-question-action-btn" [class.loved]="isLoved(item.q.qid)"
                 (click)="toggleLove(item.q.qid, $event)" title="Like"> <i class="fa fa-heart" aria-hidden="true"></i>
               </button>

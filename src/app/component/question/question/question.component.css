@@ -552,6 +552,75 @@
   box-shadow: 0 4px 12px rgba(0, 128, 128, 0.45);
 }
 
+.creator-buttons-row .btn-unlock-page {
+  min-width: 44px;
+  padding: 7px 14px;
+  font-size: 18px;
+  line-height: 1;
+  background-color: #f5f5f5;
+  color: #333;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.creator-buttons-row .btn-unlock-page:hover:not(:disabled) {
+  background-color: #e8e8e8;
+}
+
+.creator-buttons-row .btn-unlock-page:disabled {
+  opacity: 0.85;
+  cursor: default;
+}
+
+.creator-buttons-row .btn-unlock-page--free {
+  background-color: var(--color_primary_teal);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 128, 128, 0.35);
+}
+
+.creator-buttons-row .btn-unlock-page--free:hover:not(:disabled) {
+  background-color: #006666;
+}
+
+/* Answer & explanation (coin unlock) */
+.topic-question-extra {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+  font-size: 13px;
+  clear: both;
+}
+
+.topic-question-answer {
+  font-weight: 600;
+  color: #1b5e20;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.topic-question-explanation {
+  color: #555;
+  white-space: pre-line;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.topic-question-action-lock {
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+.topic-question-action-lock--free {
+  background-color: var(--color_primary_teal);
+  color: #fff;
+  border-radius: 4px;
+}
+
+.topic-question-action-lock--free:hover {
+  background-color: #006666;
+  color: #fff;
+}
+
 /* Smart Question Creator modal (/question) */
 .smart-creator-modal-backdrop {
   position: fixed;

@@ -14,9 +14,18 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
+import { resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
 import { LoadingService } from '../../../service/loading.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../../service/login-redirect.session';
 import { DisappearedQuestionsService } from '../../../service/disappeared-questions.service';
+import {
+  QuestionUnlockItem,
+  QuestionUnlockService,
+  QUESTION_UNLOCK_DEBIT_CQ,
+  QUESTION_UNLOCK_DEBIT_MCQ,
+} from '../../../service/question-unlock.service';
+import { QuestionUnlockedQidsService } from '../../../service/question-unlocked-qids.service';
+import { TrxUnlockService } from '../../../service/trx-unlock.service';
 import { diffChars } from 'diff';
 
 /** Exam keys aligned with question-creator structured header (BN labels on /question modal). */
@@ -173,6 +182,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   showDisappearAlert = false;
   /** Loved/favourite qids (client-side only). */
   lovedQids: Set<number | string> = new Set();
+  /** Paid unlocks persisted on server (re-unlock never charges again). */
+  purchasedUnlockedQids = new Set<string>();
+  /** Qids currently showing answer/explanation (toggle lock without losing purchase). */
+  revealedUnlockedQids = new Set<string>();
+  unlockBusy = false;
   currentPage: number = 1;
   totalPages: number = 1;
   breadcrumbItems: any[] = [];
@@ -1009,6 +1023,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     private apiService: ApiService,
     private loadingService: LoadingService,
     private disappearedQuestions: DisappearedQuestionsService,
+    private questionUnlock: QuestionUnlockService,
+    private questionUnlockedQids: QuestionUnlockedQidsService,
+    private trxUnlock: TrxUnlockService,
     private elRef: ElementRef<HTMLElement>,
     private cdr: ChangeDetectorRef
   ) { }
@@ -1234,6 +1251,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.loadingService.setTotal(2);
     this.disappearedQuestions.load();
+    this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+    this.loadUnlockedQidsFromServer();
     this.loadQuestionLevels();
     this.loadCheradipSources();
     this.route.params.subscribe(params => {
@@ -1836,6 +1855,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionTypes = new Set();
     this.selectedInstituteType = null;
     this.selectedQuestionIds = new Set();
+    this.loadUnlockedQidsFromServer();
     this.totalQuestionsInDbForSubject = null;
     this.subjectCacheByChapter = {};
     this.topicQuestionsFullCache = [];
@@ -2143,6 +2163,282 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   showEditOptions(q: { type?: unknown } | null | undefined): boolean {
     const type = this.normalizeQuestionTypeLabel(q?.type).toLowerCase();
     return type === 'mcq' || type.includes('বহুনির্বাচনি');
+  }
+
+  isQuestionCreative(q: { type?: unknown } | null | undefined): boolean {
+    const type = this.normalizeQuestionTypeLabel(q?.type).toLowerCase();
+    return type.includes('সৃজনশীল') || type === 'cq';
+  }
+
+  unlockCostForQuestion(q: { type?: unknown } | null | undefined): number {
+    return this.isQuestionCreative(q) ? QUESTION_UNLOCK_DEBIT_CQ : QUESTION_UNLOCK_DEBIT_MCQ;
+  }
+
+  /** Load purchased unlocks from server (and migrate legacy sessionStorage once). */
+  loadUnlockedQidsFromServer(): void {
+    this.questionUnlockedQids.syncFromServer().subscribe({
+      next: (list) => {
+        this.applyPurchasedUnlockedQids(list, true);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.applyPurchasedUnlockedQids(this.questionUnlockedQids.readLegacySessionQids(), true);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private applyPurchasedUnlockedQids(list: string[], revealPurchased: boolean): void {
+    this.purchasedUnlockedQids = new Set(list.map((x) => String(x)));
+    if (revealPurchased) {
+      this.revealedUnlockedQids = new Set(this.purchasedUnlockedQids);
+    }
+  }
+
+  private persistPurchasedUnlockedQids(): void {
+    const list = Array.from(this.purchasedUnlockedQids);
+    this.questionUnlockedQids.persistFullList(list).subscribe({
+      next: (saved) => {
+        this.purchasedUnlockedQids = new Set(saved.map((x) => String(x)));
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private applyUnlockedQidsFromServer(list: string[] | undefined): void {
+    if (!list?.length) return;
+    const purchased = new Set(list.map((x) => String(x)));
+    purchased.forEach((qid) => this.revealedUnlockedQids.add(qid));
+    this.purchasedUnlockedQids = purchased;
+  }
+
+  isQuestionPurchased(qid: number | string | null | undefined): boolean {
+    if (qid == null || qid === '') return false;
+    return this.purchasedUnlockedQids.has(String(qid));
+  }
+
+  isQuestionRevealed(qid: number | string | null | undefined): boolean {
+    if (qid == null || qid === '') return false;
+    return this.revealedUnlockedQids.has(String(qid));
+  }
+
+  /** Lock button teal: already paid, currently hidden — re-show is free. */
+  isQuestionFreeReunlock(qid: number | string | null | undefined): boolean {
+    return this.isQuestionPurchased(qid) && !this.isQuestionRevealed(qid);
+  }
+
+  lockQuestionReveal(qid: number | string, ev: Event): void {
+    ev.stopPropagation();
+    const k = String(qid);
+    if (!this.isQuestionRevealed(k)) return;
+    this.revealedUnlockedQids.delete(k);
+    this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
+    this.cdr.markForCheck();
+  }
+
+  revealQuestionFree(qid: number | string, ev: Event): void {
+    ev.stopPropagation();
+    const k = String(qid);
+    if (!this.isQuestionPurchased(k) || this.isQuestionRevealed(k)) return;
+    this.revealedUnlockedQids.add(k);
+    this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
+    this.cdr.markForCheck();
+  }
+
+  toggleQuestionUnlock(
+    q: { qid?: string | number; type?: unknown },
+    ev: Event
+  ): void {
+    ev.stopPropagation();
+    if (q?.qid == null || this.unlockBusy) return;
+    const k = String(q.qid);
+    if (this.isQuestionRevealed(k)) {
+      this.lockQuestionReveal(k, ev);
+      return;
+    }
+    if (this.isQuestionPurchased(k)) {
+      this.revealQuestionFree(k, ev);
+      return;
+    }
+    this.runQuestionUnlock([{ qid: k, is_cq: this.isQuestionCreative(q) }]);
+  }
+
+  getLockButtonTitle(q: { qid?: string | number; type?: unknown }): string {
+    if (q?.qid == null) return '';
+    const k = String(q.qid);
+    if (this.isQuestionRevealed(k)) return 'Lock (hide answer and explanation)';
+    if (this.isQuestionPurchased(k)) return 'Show answer (already unlocked — no charge)';
+    return `Unlock (${this.unlockCostForQuestion(q)} coins)`;
+  }
+
+  hasNonEmptyUnlockField(v: unknown): boolean {
+    return v != null && String(v).trim() !== '';
+  }
+
+  /** Unlocked answer line: MCQ → option key only (ক/খ/গ/ঘ or a/b/c/d); CQ/other → full text. */
+  getUnlockAnswerDisplay(q: {
+    answer?: unknown;
+    type?: unknown;
+    option_1?: unknown;
+    option_2?: unknown;
+    option_3?: unknown;
+    option_4?: unknown;
+  }): string {
+    if (!this.hasNonEmptyUnlockField(q?.answer)) return '';
+    const isMcq =
+      this.showEditOptions(q) && !!(q?.option_1 || q?.option_2) && !this.isQuestionCreative(q);
+    if (!isMcq) return String(q!.answer).trim();
+    return resolveMcqAnswerLabel(
+      q!.answer,
+      q!,
+      (raw) => this.getOptionDisplayText(raw)
+    );
+  }
+
+  hasUnlockableExtraContent(q: {
+    answer?: unknown;
+    explanation?: unknown;
+    explanation2?: unknown;
+    explanation3?: unknown;
+  }): boolean {
+    return (
+      this.hasNonEmptyUnlockField(q?.answer) ||
+      this.hasNonEmptyUnlockField(q?.explanation) ||
+      this.hasNonEmptyUnlockField(q?.explanation2) ||
+      this.hasNonEmptyUnlockField(q?.explanation3)
+    );
+  }
+
+  allDisplayedQuestionsRevealed(): boolean {
+    const shown = this.getDisplayedQuestions();
+    if (!shown.length) return false;
+    return shown.every((item) => this.isQuestionRevealed(item.q.qid));
+  }
+
+  /** Page lock button teal when every hidden question on the page was already purchased. */
+  pageUnlockActionIsFree(): boolean {
+    const shown = this.getDisplayedQuestions();
+    if (!shown.length || this.allDisplayedQuestionsRevealed()) return false;
+    return shown.every(
+      (item) =>
+        this.isQuestionRevealed(item.q.qid) || this.isQuestionPurchased(item.q.qid)
+    );
+  }
+
+  getPageUnlockBarTitle(): string {
+    if (this.allDisplayedQuestionsRevealed()) {
+      return 'Lock all on this page (hide answers)';
+    }
+    if (this.pageUnlockActionIsFree()) {
+      return 'Show all on this page (already unlocked — no charge)';
+    }
+    return 'Unlock all on this page';
+  }
+
+  onUnlockPageBarClick(ev: Event): void {
+    ev.stopPropagation();
+    if (this.unlockBusy) return;
+    const shown = this.getDisplayedQuestions();
+    if (!shown.length) return;
+
+    if (this.allDisplayedQuestionsRevealed()) {
+      const next = new Set(this.revealedUnlockedQids);
+      shown.forEach((item) => next.delete(String(item.q.qid)));
+      this.revealedUnlockedQids = next;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const toPurchase: QuestionUnlockItem[] = [];
+    const nextRevealed = new Set(this.revealedUnlockedQids);
+    for (const item of shown) {
+      const qid = String(item.q.qid);
+      if (this.isQuestionRevealed(qid)) continue;
+      if (this.isQuestionPurchased(qid)) {
+        nextRevealed.add(qid);
+      } else {
+        toPurchase.push({ qid, is_cq: this.isQuestionCreative(item.q) });
+      }
+    }
+
+    if (toPurchase.length === 0) {
+      this.revealedUnlockedQids = nextRevealed;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.revealedUnlockedQids = nextRevealed;
+    this.runQuestionUnlock(toPurchase);
+  }
+
+  private totalUnlockDebit(items: QuestionUnlockItem[]): number {
+    return items
+      .filter((it) => !this.purchasedUnlockedQids.has(it.qid))
+      .reduce(
+        (sum, it) => sum + (it.is_cq ? QUESTION_UNLOCK_DEBIT_CQ : QUESTION_UNLOCK_DEBIT_MCQ),
+        0
+      );
+  }
+
+  private runQuestionUnlock(items: QuestionUnlockItem[]): void {
+    const chargeable = items.filter((it) => !this.purchasedUnlockedQids.has(it.qid));
+    items.forEach((it) => {
+      if (this.purchasedUnlockedQids.has(it.qid)) {
+        this.revealedUnlockedQids.add(it.qid);
+      }
+    });
+
+    if (chargeable.length === 0) {
+      items.forEach((it) => this.revealedUnlockedQids.add(it.qid));
+      this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const debit = this.totalUnlockDebit(chargeable);
+    const balance = this.trxUnlock.getCachedRemaining();
+    if (debit > balance) {
+      this.successAlertMessage = `Insufficient coins. Need ${debit}, you have ${balance}.`;
+      this.showSuccessAlert = true;
+      return;
+    }
+    this.unlockBusy = true;
+    this.questionUnlock.unlockQuestions(chargeable).subscribe({
+      next: (r) => {
+        this.unlockBusy = false;
+        if (r.success) {
+          if (r.unlockedQids?.length) {
+            this.applyUnlockedQidsFromServer(r.unlockedQids);
+          } else {
+            chargeable.forEach((it) => {
+              this.purchasedUnlockedQids.add(it.qid);
+              this.revealedUnlockedQids.add(it.qid);
+            });
+          }
+          items.forEach((it) => this.revealedUnlockedQids.add(it.qid));
+          this.purchasedUnlockedQids = new Set(this.purchasedUnlockedQids);
+          this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
+          this.persistPurchasedUnlockedQids();
+          if (r.updateBalance) {
+            this.trxUnlock.setCachedRemaining(r.remaining);
+          }
+          this.cdr.markForCheck();
+        } else {
+          if (r.updateBalance) {
+            this.trxUnlock.setCachedRemaining(r.remaining);
+          }
+          this.successAlertMessage = r.detail || 'Unlock failed.';
+          this.showSuccessAlert = true;
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => {
+        this.unlockBusy = false;
+        this.successAlertMessage = 'Unlock failed. Please try again.';
+        this.showSuccessAlert = true;
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   /** Available type options from current question pool (before type filter, after source/year + disappeared filters). */
