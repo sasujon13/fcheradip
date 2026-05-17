@@ -28,6 +28,8 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   selectedSubject = '';
   selectedChapter = '';
   downloadingAllPdf = false;
+  /** Set id while row PDF/DOCX export is in progress (global loader via {@link LoadingService}). */
+  downloadingSetId: number | null = null;
   /** Row IDs selected for bulk delete (subset of currently visible filtered rows when filters change). */
   selectedIds: number[] = [];
   deletingBulk = false;
@@ -109,6 +111,11 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   /** True when the bulk action should read “Delete All” (all visible rows selected). */
   get isBulkDeleteAllLabel(): boolean {
     return this.allFilteredSelected;
+  }
+
+  /** True while any PDF/DOCX/ZIP export is running (show site-wide loader). */
+  get isDownloadBusy(): boolean {
+    return this.downloadingAllPdf || this.downloadingSetId != null;
   }
 
   onSubjectFilterChange(): void {
@@ -426,24 +433,44 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   }
 
   downloadSet(set: CreatedQuestionSet, format: 'pdf' | 'docx'): void {
+    if (this.isDownloadBusy) {
+      return;
+    }
+    this.downloadingSetId = set.id;
+    this.loadingService.beginPdfDocxExport(
+      format,
+      format === 'pdf'
+        ? 'Preparing PDF download! please wait.......'
+        : 'Preparing DOCX download! please wait.......'
+    );
     const items = this.buildAllExportItemsForSet(set, format);
     const ext = format === 'pdf' ? '.pdf' : '.docx';
-    forkJoin(items.map((item) => this.apiService.exportQuestions(item.payload))).subscribe({
-      next: (blobs) => {
-        this.downloadBlobsSequentially(
-          blobs,
-          items.map((item) => `${item.filename}${ext}`)
-        );
-      },
-      error: () => {},
-    });
+    forkJoin(items.map((item) => this.apiService.exportQuestions(item.payload)))
+      .pipe(
+        finalize(() => {
+          this.downloadingSetId = null;
+          this.loadingService.endPdfDocxExport();
+        })
+      )
+      .subscribe({
+        next: (blobs) => {
+          this.downloadBlobsSequentially(
+            blobs,
+            items.map((item) => `${item.filename}${ext}`)
+          );
+        },
+        error: () => {},
+      });
   }
 
   /** Download all filtered sets as a single ZIP (one click, one save prompt). */
   downloadAllPdf(): void {
     const list = this.filteredSets;
-    if (!list.length) return;
+    if (!list.length || this.isDownloadBusy) {
+      return;
+    }
     this.downloadingAllPdf = true;
+    this.loadingService.beginPdfDocxExport('pdf', 'Preparing ZIP download! please wait.......');
     const items = list.flatMap((set) => {
       const exportItems = this.buildAllExportItemsForSet(set, 'pdf');
       return exportItems.map((item) => {
@@ -452,7 +479,10 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
       });
     });
     this.apiService.exportQuestionsBulk(items as Parameters<ApiService['exportQuestionsBulk']>[0]).pipe(
-      finalize(() => { this.downloadingAllPdf = false; })
+      finalize(() => {
+        this.downloadingAllPdf = false;
+        this.loadingService.endPdfDocxExport();
+      })
     ).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);

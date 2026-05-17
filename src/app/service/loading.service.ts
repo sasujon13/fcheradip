@@ -183,7 +183,7 @@ export class LoadingService {
    * Question creator: show export overlay with custom text; same stepped progress as page loads.
    * Clears any normal setTotal progress. Pair with {@link endPdfDocxExport}.
    */
-  beginPdfDocxExport(format: 'both' | 'pdf' | 'docx'): void {
+  beginPdfDocxExport(format: 'both' | 'pdf' | 'docx', messageOverride?: string | null): void {
     this.clearExportProgress();
     this.clearLoadProgressTimer();
     if (this.hideTimeout) {
@@ -201,11 +201,13 @@ export class LoadingService {
     this.exportMode = true;
     this.exportDisplayPercent = FAKE_START_PERCENT;
     this.exportMessage =
-      format === 'both'
-        ? 'Exporting pdf/docx! please wait.......'
-        : format === 'pdf'
-          ? 'Exporting pdf! please wait.......'
-          : 'Exporting docx! please wait.......';
+      messageOverride != null && String(messageOverride).trim()
+        ? String(messageOverride).trim()
+        : format === 'both'
+          ? 'Exporting pdf/docx! please wait.......'
+          : format === 'pdf'
+            ? 'Exporting pdf! please wait.......'
+            : 'Exporting docx! please wait.......';
     this.state$.next(this.getState());
 
     this.scheduleExportProgressTick();
