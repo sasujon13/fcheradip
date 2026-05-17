@@ -28,6 +28,11 @@ import {
 import { LoadingService } from 'src/app/service/loading.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.session';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
+import {
+  buildAnswersExplanationsExportQuestions,
+  buildMcqAnswersOnlyExportQuestions,
+  McqSetLetter,
+} from './question-creator-answer-export';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export const QUESTION_CREATOR_STATE_KEY = 'questionCreatorReturnState';
@@ -8247,6 +8252,143 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     };
   }
 
+  private static readonly MCQ_ANSWER_SHEET_LAYOUT_COLUMNS = 5;
+
+  private orderedMcqBySetForAnswerExport(): Partial<Record<McqSetLetter, any[]>> {
+    const out: Partial<Record<McqSetLetter, any[]>> = {};
+    for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
+      const qids = this.persistedMcqOrderBySet[L];
+      out[L] =
+        qids?.length && this.mcqOrdersFrozen
+          ? this.reorderQuestionsFromQidList(qids)
+          : this.buildQuestionsOrderedForMcqSet(L);
+    }
+    return out;
+  }
+
+  /** Backend paginates answer sheets; do not reuse the question-sheet page plan. */
+  private layoutSettingsForAnswerExport(
+    base: Record<string, unknown>,
+    questions: any[],
+    layoutColumns?: number
+  ): Record<string, unknown> {
+    const serialByIndex: Record<string, number> = {};
+    for (let i = 0; i < questions.length; i++) {
+      serialByIndex[String(i)] = i + 1;
+    }
+    return {
+      ...base,
+      ...(layoutColumns != null ? { layoutColumns } : {}),
+      exportPreviewPagePlan: [],
+      exportPreviewQuestionQids: questions.map((q) => q.qid),
+      previewSerialByIndex: serialByIndex,
+    };
+  }
+
+  private buildMcqAnswersOnlyExportQuestionList(multiMcq: boolean): any[] {
+    const orderedBySet = this.orderedMcqBySetForAnswerExport();
+    return buildMcqAnswersOnlyExportQuestions({
+      multiSet: multiMcq,
+      mcqSetLetters: QuestionCreatorComponent.MCQ_SET_LETTERS,
+      orderedMcqBySet: orderedBySet,
+      singleSetMcqs: this.previewQuestions.filter((q) => this.questionIsMcqType(q)),
+      serialBn: (n) => this.previewQuestionSerialBn(n),
+      formatOption: (r) => this.getOptionDisplayText(r),
+      isMcqType: (q) => this.questionIsMcqType(q as { type?: unknown }),
+    });
+  }
+
+  private buildAnswersExplanationsExportQuestionList(multiMcq: boolean): any[] {
+    const orderedBySet = this.orderedMcqBySetForAnswerExport();
+    return buildAnswersExplanationsExportQuestions({
+      multiSet: multiMcq,
+      mcqSetLetters: QuestionCreatorComponent.MCQ_SET_LETTERS,
+      orderedMcqBySet: orderedBySet,
+      singlePreviewList: this.previewQuestions,
+      formatOption: (r) => this.getOptionDisplayText(r),
+      isCreativeType: (q) => this.questionIsCreativeType(q as { type?: unknown }),
+      isMcqType: (q) => this.questionIsMcqType(q as { type?: unknown }),
+      displayStem: (q) => this.getQuestionDisplayText(q as { question?: unknown; type?: string }),
+    });
+  }
+
+  private answerSheetExportHeader(multiMcq: boolean): string {
+    const base = multiMcq
+      ? this.buildQuestionHeaderForPersist('ক')
+      : this.buildQuestionHeaderForPersist();
+    const title = 'উত্তর ও ব্যাখ্যা';
+    const trimmed = base.trim();
+    return trimmed ? `${title}\n${trimmed}` : title;
+  }
+
+  private mcqAnswerSheetExportHeader(multiMcq: boolean): string {
+    const base = multiMcq
+      ? this.buildQuestionHeaderForPersist('ক')
+      : this.buildQuestionHeaderForPersist();
+    const title = 'উত্তরমালা (বহুনির্বাচনি)';
+    const trimmed = base.trim();
+    return trimmed ? `${title}\n${trimmed}` : title;
+  }
+
+  /** Extra PDF/DOCX: questions + answers/explanations, and MCQ answer-key (5 cols). */
+  private appendPostSaveAnswerSheetExportRequests(
+    requests: ReturnType<ApiService['exportQuestions']>[],
+    downloadNames: string[],
+    opts: {
+      multiMcq: boolean;
+      basePayload: Record<string, unknown>;
+      layoutSettingsForCreate: Record<string, unknown>;
+      toRequest: ('pdf' | 'docx')[];
+    }
+  ): void {
+    const fmts = opts.toRequest;
+    const baseName = this.exportFileNameBase;
+
+    const push = (questions: any[], fname: string, header: string, layout: Record<string, unknown>) => {
+      for (const fmt of fmts) {
+        requests.push(
+          this.apiService.exportQuestions({
+            ...(opts.basePayload as any),
+            layout_settings: layout,
+            questions,
+            questionHeader: header,
+            filename: fname,
+            format: fmt,
+          })
+        );
+        downloadNames.push(fmt === 'pdf' ? `${fname}.pdf` : `${fname}.docx`);
+      }
+    };
+
+    if (this.questions.length > 0) {
+      const withAnswers = this.buildAnswersExplanationsExportQuestionList(opts.multiMcq);
+      if (withAnswers.length > 0) {
+        push(
+          withAnswers,
+          `${baseName}-answers`,
+          this.answerSheetExportHeader(opts.multiMcq),
+          this.layoutSettingsForAnswerExport(opts.layoutSettingsForCreate, withAnswers)
+        );
+      }
+    }
+
+    if (this.selectionHasMcqType()) {
+      const mcqKey = this.buildMcqAnswersOnlyExportQuestionList(opts.multiMcq);
+      if (mcqKey.length > 0) {
+        push(
+          mcqKey,
+          `${baseName}-mcq-answers`,
+          this.mcqAnswerSheetExportHeader(opts.multiMcq),
+          this.layoutSettingsForAnswerExport(
+            opts.layoutSettingsForCreate,
+            mcqKey,
+            QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS
+          )
+        );
+      }
+    }
+  }
+
   save(): void {
     if (!this.apiService.isLoggedIn()) {
       // Preserve full rows for post-login return, so preview isn't forced to rely on immediate API hydration.
@@ -8582,6 +8724,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       await this.waitForLayoutIdle();
     }
 
+    this.appendPostSaveAnswerSheetExportRequests(requests, downloadNames, {
+      multiMcq,
+      basePayload,
+      layoutSettingsForCreate,
+      toRequest,
+    });
+
     let blobs: Blob[];
     try {
       blobs = await firstValueFrom(forkJoin(requests));
@@ -8598,9 +8747,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
 
     const listed = downloadNames.join(', ');
+    const answerNote =
+      this.selectionHasMcqType() || this.questions.length > 0
+        ? ' Includes MCQ answer-key and answers/explanations sheets when applicable.'
+        : '';
     this.saveSuccessMessage = multiMcq
-      ? `Created and downloaded (${setVariants.length} sets × formats): ${listed}. Saved to Created Questions.`
-      : `Created and downloaded: ${listed}. Saved to Created Questions.`;
+      ? `Created and downloaded (${setVariants.length} sets × formats): ${listed}. Saved to Created Questions.${answerNote}`
+      : `Created and downloaded: ${listed}. Saved to Created Questions.${answerNote}`;
     this.cdr.markForCheck();
 
     try {
