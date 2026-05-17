@@ -4,6 +4,13 @@ import { forkJoin } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { ApiService, CreatedQuestionSet } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
+import {
+  buildAnswerSheetExportItems,
+  hasPersistedFourMcqVariants,
+  parseMcqOrderBySet,
+  parseQuestionHeaderByMcqSet,
+  reorderQuestionsByQids,
+} from '../../../shared/question-answer-sheet-export';
 
 @Component({
   selector: 'app-created-questions',
@@ -265,64 +272,6 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     return Boolean(v);
   }
 
-  private parseMcqOrderBySet(raw: unknown): Partial<
-    Record<(typeof CreatedQuestionsComponent.MCQ_SET_LETTERS)[number], (string | number)[]>
-  > {
-    const out: Partial<
-      Record<(typeof CreatedQuestionsComponent.MCQ_SET_LETTERS)[number], (string | number)[]>
-    > = {};
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
-    for (const L of CreatedQuestionsComponent.MCQ_SET_LETTERS) {
-      const arr = (raw as Record<string, unknown>)[L];
-      if (Array.isArray(arr) && arr.length) {
-        out[L] = arr.map((x) => (typeof x === 'number' || typeof x === 'string' ? x : String(x)));
-      }
-    }
-    return out;
-  }
-
-  private parseQuestionHeaderByMcqSet(raw: unknown): Partial<
-    Record<(typeof CreatedQuestionsComponent.MCQ_SET_LETTERS)[number], string>
-  > {
-    const out: Partial<Record<(typeof CreatedQuestionsComponent.MCQ_SET_LETTERS)[number], string>> = {};
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
-    for (const L of CreatedQuestionsComponent.MCQ_SET_LETTERS) {
-      const s = (raw as Record<string, unknown>)[L];
-      if (typeof s === 'string' && s.trim()) out[L] = s;
-    }
-    return out;
-  }
-
-  /** Saved set has a full ক–ঘ question order → re-export four files like the creator. */
-  private hasPersistedFourMcqVariants(ls: Record<string, unknown> | undefined): boolean {
-    if (!ls) return false;
-    const m = this.parseMcqOrderBySet(ls['mcqOrderBySet']);
-    return CreatedQuestionsComponent.MCQ_SET_LETTERS.every(
-      (L) => Array.isArray(m[L]) && (m[L] as (string | number)[]).length > 0
-    );
-  }
-
-  private reorderQuestionsByQids(questions: any[], qids: (string | number)[]): any[] {
-    if (!qids?.length) return questions.slice();
-    const byId = new Map<string | number, any>();
-    for (const q of questions) {
-      if (q?.qid != null) byId.set(q.qid, q);
-    }
-    const seen = new Set<string | number>();
-    const out: any[] = [];
-    for (const id of qids) {
-      const q = byId.get(id);
-      if (q) {
-        out.push(q);
-        seen.add(q.qid);
-      }
-    }
-    for (const q of questions) {
-      if (q?.qid != null && !seen.has(q.qid)) out.push(q);
-    }
-    return out;
-  }
-
   /**
    * Export / download filename stem: saved `name` (same convention as question-creator), spaces → underscores.
    * Falls back to legacy `file_name_base` when `name` is empty.
@@ -342,7 +291,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     const qids = ls['exportPreviewQuestionQids'];
     const questionsOrdered =
       Array.isArray(qids) && qids.length > 0
-        ? this.reorderQuestionsByQids(set.questions, qids as (string | number)[])
+        ? reorderQuestionsByQids(set.questions, qids as (string | number)[])
         : set.questions;
     const orient = this.strFromLayout(ls, 'pageOrientation', 'portrait');
     const pageOrientation = orient === 'landscape' ? 'landscape' : 'portrait';
@@ -398,50 +347,93 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     return out;
   }
 
-  downloadSet(set: CreatedQuestionSet, format: 'pdf' | 'docx'): void {
-    const ls = this.layoutRecord(set);
-    if (ls && this.hasPersistedFourMcqVariants(ls)) {
-      const orderMap = this.parseMcqOrderBySet(ls['mcqOrderBySet']);
-      const headerMap = this.parseQuestionHeaderByMcqSet(ls['questionHeaderByMcqSet']);
-      const base = this.exportPayloadFromSavedSet(set);
-      const letters = CreatedQuestionsComponent.MCQ_SET_LETTERS;
-      const requests = letters.map((L) =>
-        this.apiService.exportQuestions({
-          ...base,
-          questions: this.reorderQuestionsByQids(set.questions, orderMap[L] ?? []),
-          questionHeader: (headerMap[L] || (base['questionHeader'] as string)) as string,
-          filename: `${this.exportFilenameStem(set)}-${L}`,
-          format,
-        } as Parameters<ApiService['exportQuestions']>[0])
-      );
-      forkJoin(requests).subscribe({
-        next: (blobs) => {
-          const ext = format === 'pdf' ? '.pdf' : '.docx';
-          const stem = this.exportFilenameStem(set);
-          blobs.forEach((blob, i) => {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${stem}-${letters[i]}${ext}`;
-            a.click();
-            URL.revokeObjectURL(url);
-          });
-        },
-        error: () => {},
-      });
-      return;
-    }
-
-    const payload = { ...this.exportPayloadFromSavedSet(set), format };
-    this.apiService.exportQuestions(payload as Parameters<ApiService['exportQuestions']>[0]).subscribe({
-      next: (blob) => {
-        const ext = format === 'pdf' ? '.pdf' : '.docx';
-        const url = URL.createObjectURL(blob);
+  private downloadBlobsSequentially(
+    blobs: Blob[],
+    filenames: string[],
+    gapMs = 400
+  ): void {
+    const run = async () => {
+      for (let i = 0; i < blobs.length; i++) {
+        const url = URL.createObjectURL(blobs[i]!);
         const a = document.createElement('a');
         a.href = url;
-        a.download = this.exportFilenameStem(set) + ext;
+        a.download = filenames[i]!;
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        a.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 180_000);
+        if (i < blobs.length - 1) {
+          await new Promise((r) => setTimeout(r, gapMs));
+        }
+      }
+    };
+    void run();
+  }
+
+  /** Question PDF/DOCX items plus `-answers` and `-mcq-answers` (same as Save from question creator). */
+  private buildAllExportItemsForSet(
+    set: CreatedQuestionSet,
+    format: 'pdf' | 'docx'
+  ): Array<{ filename: string; payload: Parameters<ApiService['exportQuestions']>[0] }> {
+    const ls = this.layoutRecord(set) ?? {};
+    const stem = this.exportFilenameStem(set);
+    const base = this.exportPayloadFromSavedSet(set);
+    const items: Array<{ filename: string; payload: Parameters<ApiService['exportQuestions']>[0] }> = [];
+
+    if (hasPersistedFourMcqVariants(ls)) {
+      const orderMap = parseMcqOrderBySet(ls['mcqOrderBySet']);
+      const headerMap = parseQuestionHeaderByMcqSet(ls['questionHeaderByMcqSet']);
+      for (const L of CreatedQuestionsComponent.MCQ_SET_LETTERS) {
+        items.push({
+          filename: `${stem}-${L}`,
+          payload: {
+            ...base,
+            questions: reorderQuestionsByQids(set.questions, orderMap[L] ?? []),
+            questionHeader: (headerMap[L] || (base['questionHeader'] as string)) as string,
+            filename: `${stem}-${L}`,
+            format,
+          } as Parameters<ApiService['exportQuestions']>[0],
+        });
+      }
+    } else {
+      items.push({
+        filename: stem,
+        payload: { ...base, format } as Parameters<ApiService['exportQuestions']>[0],
+      });
+    }
+
+    for (const ans of buildAnswerSheetExportItems({
+      questions: set.questions,
+      questionHeader: set.question_header || '',
+      layoutSettings: ls,
+      filenameStem: stem,
+      format,
+      baseExportPayload: base,
+    })) {
+      items.push({
+        filename: ans.filename,
+        payload: {
+          ...ans.payload,
+          format: ans.format,
+          filename: ans.filename,
+        } as Parameters<ApiService['exportQuestions']>[0],
+      });
+    }
+
+    return items;
+  }
+
+  downloadSet(set: CreatedQuestionSet, format: 'pdf' | 'docx'): void {
+    const items = this.buildAllExportItemsForSet(set, format);
+    const ext = format === 'pdf' ? '.pdf' : '.docx';
+    forkJoin(items.map((item) => this.apiService.exportQuestions(item.payload))).subscribe({
+      next: (blobs) => {
+        this.downloadBlobsSequentially(
+          blobs,
+          items.map((item) => `${item.filename}${ext}`)
+        );
       },
       error: () => {},
     });
@@ -453,19 +445,11 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     if (!list.length) return;
     this.downloadingAllPdf = true;
     const items = list.flatMap((set) => {
-      const ls = this.layoutRecord(set);
-      if (ls && this.hasPersistedFourMcqVariants(ls)) {
-        const orderMap = this.parseMcqOrderBySet(ls['mcqOrderBySet']);
-        const headerMap = this.parseQuestionHeaderByMcqSet(ls['questionHeaderByMcqSet']);
-        const base = this.exportPayloadFromSavedSet(set);
-        return CreatedQuestionsComponent.MCQ_SET_LETTERS.map((L) => ({
-          ...base,
-          questions: this.reorderQuestionsByQids(set.questions, orderMap[L] ?? []),
-          questionHeader: (headerMap[L] || base['questionHeader']) as string,
-          filename: `${this.exportFilenameStem(set)}-${L}`,
-        }));
-      }
-      return [this.exportPayloadFromSavedSet(set)];
+      const exportItems = this.buildAllExportItemsForSet(set, 'pdf');
+      return exportItems.map((item) => {
+        const { format: _f, filename, ...rest } = item.payload;
+        return { ...rest, filename };
+      });
     });
     this.apiService.exportQuestionsBulk(items as Parameters<ApiService['exportQuestionsBulk']>[0]).pipe(
       finalize(() => { this.downloadingAllPdf = false; })

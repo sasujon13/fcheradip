@@ -8571,15 +8571,21 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         headerLineFontSizesPdfMcq?: number[];
       };
     }
-  ): Promise<void> {
+  ): Promise<{
+    answerExplanationsExportLayout?: Record<string, unknown>;
+    mcqAnswerKeyExportLayout?: Record<string, unknown>;
+  }> {
     const fmts = opts.toRequest;
     const baseName = this.exportFileNameBase;
     const split = opts.splitHeaders ?? {};
+    let answerExplanationsExportLayout: Record<string, unknown> | undefined;
+    let mcqAnswerKeyExportLayout: Record<string, unknown> | undefined;
 
     if (this.questions.length > 0) {
       const withAnswers = this.buildAnswersExplanationsExportQuestionList(opts.multiMcq);
       if (withAnswers.length > 0) {
         const layout = await this.layoutSettingsForAnswersExplanationsExportWithAutoFit(withAnswers);
+        answerExplanationsExportLayout = layout;
         for (const fmt of fmts) {
           requests.push(
             this.apiService.exportQuestions(
@@ -8613,6 +8619,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         opts.multiMcq
       );
       if (questions.length > 0) {
+        mcqAnswerKeyExportLayout = layout;
         for (const fmt of fmts) {
           requests.push(
             this.apiService.exportQuestions(
@@ -8628,6 +8635,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         }
       }
     }
+
+    return { answerExplanationsExportLayout, mcqAnswerKeyExportLayout };
   }
 
   save(): void {
@@ -8965,7 +8974,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       await this.waitForLayoutIdle();
     }
 
-    await this.appendPostSaveAnswerSheetExportRequests(requests, downloadNames, {
+    const answerLayouts = await this.appendPostSaveAnswerSheetExportRequests(requests, downloadNames, {
       multiMcq,
       basePayload,
       layoutSettingsForCreate,
@@ -9022,6 +9031,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           layout_settings: {
             ...layoutSettingsForCreate,
             ...persistedExportSplitHeaders,
+            ...(answerLayouts.answerExplanationsExportLayout
+              ? { answerExplanationsExportLayout: answerLayouts.answerExplanationsExportLayout }
+              : {}),
+            ...(answerLayouts.mcqAnswerKeyExportLayout
+              ? { mcqAnswerKeyExportLayout: answerLayouts.mcqAnswerKeyExportLayout }
+              : {}),
           },
         })
       );
