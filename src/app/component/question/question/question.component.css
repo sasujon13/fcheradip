@@ -602,6 +602,11 @@
   line-height: 1.4;
 }
 
+.topic-question-answer-html {
+  display: inline;
+  font-weight: normal;
+}
+
 /* Smart Question Creator modal (/question) */
 .smart-creator-modal-backdrop {
   position: fixed;
@@ -1173,18 +1178,27 @@ span.mx-3 {
   box-sizing: border-box;
 }
 
-/* KaTeX (stem/options): align with BN text baseline and avoid oversized display jumps */
+/* KaTeX (stem/options/answer/explanation): align with BN text baseline */
 .topic-question-text ::ng-deep .katex,
 .topic-question-subpart ::ng-deep .katex,
-.topic-question-opt-html ::ng-deep .katex {
+.topic-question-opt-html ::ng-deep .katex,
+.topic-question-answer-html ::ng-deep .katex,
+.topic-question-explanation ::ng-deep .katex {
   font-size: 1.06em;
 }
 .topic-question-text ::ng-deep .katex-display,
 .topic-question-subpart ::ng-deep .katex-display,
-.topic-question-opt-html ::ng-deep .katex-display {
+.topic-question-opt-html ::ng-deep .katex-display,
+.topic-question-answer-html ::ng-deep .katex-display,
+.topic-question-explanation ::ng-deep .katex-display {
   display: block;
   margin: 0.35em 0;
   text-align: left;
+}
+
+.topic-question-answer-html ::ng-deep .topic-question-line,
+.topic-question-explanation ::ng-deep .topic-question-line {
+  display: block;
 }
 
 /* Lines from wrapRomanLines pipe: block so each line stacks (question text and subparts only). Use ::ng-deep so styles apply to innerHTML-inserted spans. */

@@ -1,7 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { formatMaybeCProgramQuestionText } from './c-program-question-format';
-import { enrichPlainTextWithKatex } from './question-katex-render';
+import { enrichPlainTextWithKatex, normalizeQuestionLatexSource } from './question-katex-render';
 
 /** Roman numeral line pattern: i., ii., iii. or I., II., III. at start of line */
 const ROMAN_LINE = /^\s*(i|ii|iii|I|II|III)\./;
@@ -160,7 +160,9 @@ export class WrapRomanLinesPipe implements PipeTransform {
 
   transform(text: string | null | undefined): SafeHtml {
     if (text == null || text === '') return this.sanitizer.bypassSecurityTrustHtml('');
-    const prepared = formatMaybeCProgramQuestionText(String(text));
+    const prepared = normalizeQuestionLatexSource(
+      formatMaybeCProgramQuestionText(String(text))
+    );
     /** Bangla (etc.) glued to roman clauses `i./ii./iii.` → break line (STEM MCQ stems). */
     const romanBroken = prepared.replace(
       /([\u0980-\u09FF])(iii|ii|i)\.(?!\d)/gi,

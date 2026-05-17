@@ -2275,6 +2275,17 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return v != null && String(v).trim() !== '';
   }
 
+  /** True when answer should use formatQuestionMedia + wrapRomanLines (LaTeX, HTML, media). */
+  answerNeedsRichRender(q: { answer?: unknown } | null | undefined): boolean {
+    const raw = String(q?.answer ?? '').trim();
+    if (!raw) return false;
+    if (/\\boxed\b/.test(raw)) return true;
+    if (/[\\$]/.test(raw)) return true;
+    if (/<\s*(span|img|br|code)\b/i.test(raw)) return true;
+    if (/\bmedia\//i.test(raw)) return true;
+    return false;
+  }
+
   /** Unlocked answer line: MCQ → option key only (ক/খ/গ/ঘ or a/b/c/d); CQ/other → full text. */
   getUnlockAnswerDisplay(q: {
     answer?: unknown;

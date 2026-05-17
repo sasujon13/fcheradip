@@ -10,12 +10,82 @@ export function escapeHtmlPlain(text: string): string {
 function renderTex(tex: string, displayMode: boolean): string {
   const t = tex.trim();
   if (!t) return '';
-  return katex.renderToString(t, {
-    displayMode,
-    throwOnError: false,
-    strict: 'ignore',
-    trust: false,
-  });
+  try {
+    return katex.renderToString(t, {
+      displayMode,
+      throwOnError: false,
+      strict: 'ignore',
+      trust: false,
+    });
+  } catch {
+    return escapeHtmlPlain(tex);
+  }
+}
+
+/**
+ * DB / PDF export quirks: `\\ $$`, `$$\boxed{...}$`, missing closing `$$`, zero-width chars.
+ * Applied before KaTeX so answer/explanation/stem all behave the same on /question.
+ */
+export function normalizeQuestionLatexSource(text: string): string {
+  if (!text) return '';
+  let s = text.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  // Line-break markers before display math (common in CQ explanations).
+  s = s.replace(/\\+\s*\$\$/g, '\n$$');
+  // Single trailing `$` after boxed block: `$$\boxed{...}$` → `$$...$$`
+  s = s.replace(
+    /\$\$(\s*\\boxed\{(?:[^{}]|\{[^{}]*\})*\})\s*\$(?!\$)/g,
+    '$$$1$$'
+  );
+  return closeUnterminatedDisplayMath(s);
+}
+
+/** Index after `\\boxed{...}` when `$$` has no closing pair. */
+function findBoxedGroupEnd(s: string, from: number): number {
+  if (!s.slice(from).trimStart().startsWith('\\boxed{')) {
+    return -1;
+  }
+  const trimmed = from + s.slice(from).length - s.slice(from).trimStart().length;
+  let i = trimmed + 7;
+  let depth = 1;
+  while (i < s.length && depth > 0) {
+    const ch = s[i];
+    if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+    i++;
+  }
+  return depth === 0 ? i : -1;
+}
+
+/** Insert closing `$$` after orphan `$$\boxed{...}` before following Bengali/Latin text. */
+function closeUnterminatedDisplayMath(s: string): string {
+  const out: string[] = [];
+  let i = 0;
+  while (i < s.length) {
+    const open = s.indexOf('$$', i);
+    if (open < 0) {
+      out.push(s.slice(i));
+      break;
+    }
+    out.push(s.slice(i, open));
+    const close = s.indexOf('$$', open + 2);
+    if (close >= 0) {
+      out.push(s.slice(open, close + 2));
+      i = close + 2;
+      continue;
+    }
+    const contentStart = open + 2;
+    const boxedEnd = findBoxedGroupEnd(s, contentStart);
+    if (boxedEnd > contentStart) {
+      out.push('$$');
+      out.push(s.slice(contentStart, boxedEnd));
+      out.push('$$');
+      i = boxedEnd;
+      continue;
+    }
+    out.push(s.slice(open));
+    break;
+  }
+  return out.join('');
 }
 
 /**
@@ -41,6 +111,7 @@ function nextUnescapedInlineDollar(s: string, from: number): number {
  */
 export function enrichPlainTextWithKatex(segment: string): string {
   if (segment == null || segment === '') return '';
+  segment = normalizeQuestionLatexSource(segment);
   if (!/[\\$]/.test(segment)) {
     return escapeHtmlPlain(segment);
   }
@@ -100,13 +171,20 @@ export function enrichPlainTextWithKatex(segment: string): string {
       out += renderTex(segment.slice(open + 2, c), false);
       i = c + 2;
     } else if (kind === '$$') {
-      const c = segment.indexOf('$$', open + 2);
-      if (c < 0) {
+      let c = segment.indexOf('$$', open + 2);
+      let contentEnd = c >= 0 ? c : -1;
+      if (contentEnd < 0) {
+        const boxedEnd = findBoxedGroupEnd(segment, open + 2);
+        if (boxedEnd > open + 2) {
+          contentEnd = boxedEnd;
+        }
+      }
+      if (contentEnd < 0) {
         out += escapeHtmlPlain(segment.slice(open));
         break;
       }
-      out += renderTex(segment.slice(open + 2, c), true);
-      i = c + 2;
+      out += renderTex(segment.slice(open + 2, contentEnd), true);
+      i = c >= 0 ? c + 2 : contentEnd;
     } else {
       const c = nextUnescapedInlineDollar(segment, open + 1);
       if (c < 0) {
