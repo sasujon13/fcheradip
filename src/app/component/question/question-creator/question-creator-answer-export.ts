@@ -50,7 +50,79 @@ function mcqAnswerLabelForExport(
   return resolveMcqAnswerLabel(q.answer, q, formatOption);
 }
 
-/** MCQ answer-key rows; optional four-set blocks (ক → ঘ) on one sheet. */
+export type McqAnswerKeySetBlock = {
+  setLetter: McqSetLetter | null;
+  questions: Record<string, unknown>[];
+};
+
+/** Pack 0..count-1 into `numCols` columns (row-wise: 1,2,3,4,5 then next row). */
+export function packMcqAnswerIndicesIntoColumns(count: number, numCols: number): number[][] {
+  const ncols = Math.max(1, Math.floor(numCols));
+  const cols: number[][] = Array.from({ length: ncols }, () => []);
+  for (let i = 0; i < count; i++) {
+    cols[i % ncols]!.push(i);
+  }
+  return cols.filter((c) => c.length > 0);
+}
+
+function buildMcqAnswerRowsForList(
+  mcqs: unknown[],
+  idPrefix: string,
+  serialBn: (oneBased: number) => string,
+  formatOption: (raw: string) => string,
+  isMcqType: (q: unknown) => boolean
+): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  let n = 0;
+  for (const raw of mcqs) {
+    const q = raw as {
+      answer?: unknown;
+      option_1?: unknown;
+      option_2?: unknown;
+      option_3?: unknown;
+      option_4?: unknown;
+    };
+    if (!isMcqType(q)) continue;
+    n++;
+    const label = mcqAnswerLabelForExport(q, formatOption);
+    out.push(buildMcqAnswerCompactQuestion(serialBn(n), label || '—', `${idPrefix}-${n}`));
+  }
+  return out;
+}
+
+/** One block per set (or single block); serial ১…N restarts in each block. */
+export function buildMcqAnswerKeySetBlocks(opts: {
+  multiSet: boolean;
+  mcqSetLetters: readonly McqSetLetter[];
+  orderedMcqBySet: Partial<Record<McqSetLetter, unknown[]>>;
+  singleSetMcqs: unknown[];
+  serialBn: (oneBased: number) => string;
+  formatOption: (raw: string) => string;
+  isMcqType: (q: unknown) => boolean;
+}): McqAnswerKeySetBlock[] {
+  const blocks: McqAnswerKeySetBlock[] = [];
+  if (opts.multiSet) {
+    for (const L of opts.mcqSetLetters) {
+      const list = opts.orderedMcqBySet[L];
+      const mcqs = Array.isArray(list) ? list.filter((q) => opts.isMcqType(q)) : [];
+      if (!mcqs.length) continue;
+      blocks.push({
+        setLetter: L,
+        questions: buildMcqAnswerRowsForList(mcqs, `set-${L}`, opts.serialBn, opts.formatOption, opts.isMcqType),
+      });
+    }
+    return blocks;
+  }
+  const mcqs = opts.singleSetMcqs.filter((q) => opts.isMcqType(q));
+  if (!mcqs.length) return [];
+  blocks.push({
+    setLetter: null,
+    questions: buildMcqAnswerRowsForList(mcqs, 'set', opts.serialBn, opts.formatOption, opts.isMcqType),
+  });
+  return blocks;
+}
+
+/** Flat list (legacy); multi-set includes inline set banners. */
 export function buildMcqAnswersOnlyExportQuestions(opts: {
   multiSet: boolean;
   mcqSetLetters: readonly McqSetLetter[];
@@ -60,40 +132,61 @@ export function buildMcqAnswersOnlyExportQuestions(opts: {
   formatOption: (raw: string) => string;
   isMcqType: (q: unknown) => boolean;
 }): Record<string, unknown>[] {
+  const blocks = buildMcqAnswerKeySetBlocks(opts);
   const out: Record<string, unknown>[] = [];
-  const pushMcqRows = (mcqs: unknown[], idPrefix: string) => {
-    let n = 0;
-    for (const raw of mcqs) {
-      const q = raw as {
-        answer?: unknown;
-        option_1?: unknown;
-        option_2?: unknown;
-        option_3?: unknown;
-        option_4?: unknown;
-      };
-      if (!opts.isMcqType(q)) continue;
-      n++;
-      const label = mcqAnswerLabelForExport(q, opts.formatOption);
-      out.push(
-        buildMcqAnswerCompactQuestion(opts.serialBn(n), label || '—', `${idPrefix}-${n}`)
-      );
+  for (const block of blocks) {
+    if (block.setLetter != null) {
+      out.push(buildMcqSetBannerQuestion(block.setLetter));
     }
-  };
+    out.push(...block.questions);
+  }
+  return out;
+}
 
-  if (opts.multiSet) {
-    for (const L of opts.mcqSetLetters) {
-      const list = opts.orderedMcqBySet[L];
-      const mcqs = Array.isArray(list) ? list.filter((q) => opts.isMcqType(q)) : [];
-      if (!mcqs.length) continue;
-      out.push(buildMcqSetBannerQuestion(L));
-      pushMcqRows(mcqs, `set-${L}`);
+export type McqAnswerKeyExportPayload = {
+  questions: Record<string, unknown>[];
+  exportPreviewPagePlan: Record<string, unknown>[];
+  previewSerialByIndex: Record<string, number>;
+};
+
+/**
+ * MCQ answer-key: one PDF page per set (when multi-set), 5 columns, set code in page header.
+ */
+export function buildMcqAnswerKeyExportPayload(
+  blocks: McqAnswerKeySetBlock[],
+  layoutColumns: number
+): McqAnswerKeyExportPayload {
+  const questions: Record<string, unknown>[] = [];
+  const exportPreviewPagePlan: Record<string, unknown>[] = [];
+  const previewSerialByIndex: Record<string, number> = {};
+  let offset = 0;
+
+  for (const block of blocks) {
+    const n = block.questions.length;
+    if (n === 0) continue;
+
+    for (let i = 0; i < n; i++) {
+      previewSerialByIndex[String(offset + i)] = i + 1;
     }
-    return out;
+
+    const localCols = packMcqAnswerIndicesIntoColumns(n, layoutColumns);
+    const questionColumnIndexes = localCols.map((col) => col.map((i) => offset + i));
+
+    exportPreviewPagePlan.push({
+      kind: 'mcq',
+      headerVisible: true,
+      headerKind: 'mcq',
+      leadEmpty: false,
+      headerInFirstColumn: false,
+      ...(block.setLetter != null ? { mcqSetLetter: block.setLetter } : {}),
+      questionColumnIndexes,
+    });
+
+    questions.push(...block.questions);
+    offset += n;
   }
 
-  const mcqs = opts.singleSetMcqs.filter((q) => opts.isMcqType(q));
-  pushMcqRows(mcqs, 'set');
-  return out;
+  return { questions, exportPreviewPagePlan, previewSerialByIndex };
 }
 
 /** Full stem + Answer line + explanations (options cleared for export). */

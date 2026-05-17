@@ -30,7 +30,8 @@ import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import {
   buildAnswersExplanationsExportQuestions,
-  buildMcqAnswersOnlyExportQuestions,
+  buildMcqAnswerKeyExportPayload,
+  buildMcqAnswerKeySetBlocks,
   McqSetLetter,
 } from './question-creator-answer-export';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -8266,28 +8267,115 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return out;
   }
 
-  /** Backend paginates answer sheets; do not reuse the question-sheet page plan. */
-  private layoutSettingsForAnswerExport(
+  /** Map preview question index → index in the answers export list (by qid). */
+  private previewIndexToAnswerExportIndex(answerQuestions: any[]): Map<number, number> {
+    const map = new Map<number, number>();
+    const preview = this.previewQuestions;
+    for (let ai = 0; ai < answerQuestions.length; ai++) {
+      const qid = answerQuestions[ai]?.qid;
+      if (qid == null || String(qid).startsWith('mcq-set-hdr') || String(qid).startsWith('mcq-ans-')) {
+        continue;
+      }
+      const pi = preview.findIndex((q) => q.qid === qid);
+      if (pi >= 0) {
+        map.set(pi, ai);
+      }
+    }
+    return map;
+  }
+
+  /**
+   * Reuse question-sheet column/page packing for CQ (and MCQ when single-set) on the answers PDF.
+   * Without this, the backend falls back to a single CSS column for CQ.
+   */
+  private remapExportPreviewPagePlanForAnswerSheet(
+    rawPlan: unknown,
+    previewToAnswer: Map<number, number>,
+    kinds: readonly ('creative' | 'mcq')[]
+  ): Record<string, unknown>[] {
+    if (!Array.isArray(rawPlan)) {
+      return [];
+    }
+    const out: Record<string, unknown>[] = [];
+    for (const pg of rawPlan) {
+      if (!pg || typeof pg !== 'object') {
+        continue;
+      }
+      const row = pg as Record<string, unknown>;
+      const kind = String(row['kind'] || '').toLowerCase();
+      if (!kinds.includes(kind as 'creative' | 'mcq')) {
+        continue;
+      }
+      const remap = (pi: number): number | undefined => previewToAnswer.get(pi);
+      const colsRaw = row['questionColumnIndexes'];
+      const questionColumnIndexes: number[][] = [];
+      if (Array.isArray(colsRaw)) {
+        for (const col of colsRaw) {
+          if (!Array.isArray(col)) {
+            continue;
+          }
+          const mapped: number[] = [];
+          for (const x of col) {
+            const ai = remap(Number(x));
+            if (ai !== undefined) {
+              mapped.push(ai);
+            }
+          }
+          if (mapped.length) {
+            questionColumnIndexes.push(mapped);
+          }
+        }
+      }
+      if (!questionColumnIndexes.length) {
+        continue;
+      }
+      const leadRaw = row['leadBindingIndexes'];
+      const leadBindingIndexes: number[] = [];
+      if (Array.isArray(leadRaw)) {
+        for (const x of leadRaw) {
+          const ai = remap(Number(x));
+          if (ai !== undefined) {
+            leadBindingIndexes.push(ai);
+          }
+        }
+      }
+      out.push({
+        ...row,
+        questionColumnIndexes,
+        ...(leadBindingIndexes.length ? { leadBindingIndexes } : {}),
+      });
+    }
+    return out;
+  }
+
+  /** Answers + explanations PDF: CQ pages use the same 2-column plan as question sheets. */
+  private layoutSettingsForAnswersExplanationsExport(
     base: Record<string, unknown>,
-    questions: any[],
-    layoutColumns?: number
+    answerQuestions: any[],
+    multiMcq: boolean
   ): Record<string, unknown> {
     const serialByIndex: Record<string, number> = {};
-    for (let i = 0; i < questions.length; i++) {
+    for (let i = 0; i < answerQuestions.length; i++) {
       serialByIndex[String(i)] = i + 1;
     }
+    const previewToAnswer = this.previewIndexToAnswerExportIndex(answerQuestions);
+    const planKinds: ('creative' | 'mcq')[] = multiMcq ? ['creative'] : ['creative', 'mcq'];
+    const exportPreviewPagePlan = this.remapExportPreviewPagePlanForAnswerSheet(
+      base['exportPreviewPagePlan'],
+      previewToAnswer,
+      planKinds
+    );
     return {
       ...base,
-      ...(layoutColumns != null ? { layoutColumns } : {}),
-      exportPreviewPagePlan: [],
-      exportPreviewQuestionQids: questions.map((q) => q.qid),
+      exportPreviewPagePlan,
+      exportPreviewQuestionQids: answerQuestions.map((q) => q.qid),
       previewSerialByIndex: serialByIndex,
     };
   }
 
-  private buildMcqAnswersOnlyExportQuestionList(multiMcq: boolean): any[] {
+  private buildMcqAnswerKeySetBlocks(multiMcq: boolean) {
     const orderedBySet = this.orderedMcqBySetForAnswerExport();
-    return buildMcqAnswersOnlyExportQuestions({
+    return buildMcqAnswerKeySetBlocks({
       multiSet: multiMcq,
       mcqSetLetters: QuestionCreatorComponent.MCQ_SET_LETTERS,
       orderedMcqBySet: orderedBySet,
@@ -8296,6 +8384,34 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       formatOption: (r) => this.getOptionDisplayText(r),
       isMcqType: (q) => this.questionIsMcqType(q as { type?: unknown }),
     });
+  }
+
+  /** MCQ answer-key: 5 columns, one page per set, set code on header, serial ১… per set. */
+  private layoutSettingsForMcqAnswerKeyExport(
+    base: Record<string, unknown>,
+    payload: ReturnType<typeof buildMcqAnswerKeyExportPayload>
+  ): Record<string, unknown> {
+    const cols = QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS;
+    return {
+      ...base,
+      layoutColumns: cols,
+      exportPreviewPagePlan: payload.exportPreviewPagePlan,
+      exportPreviewQuestionQids: payload.questions.map((q) => q['qid']),
+      previewSerialByIndex: payload.previewSerialByIndex,
+    };
+  }
+
+  private mergeMcqAnswerKeyIntoExportRoot(
+    basePayload: Record<string, unknown>,
+    layout: Record<string, unknown>,
+    extra: Record<string, unknown>
+  ): Record<string, unknown> {
+    return {
+      ...basePayload,
+      ...extra,
+      layout_settings: layout,
+      layoutColumns: layout['layoutColumns'] ?? QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS,
+    };
   }
 
   private buildAnswersExplanationsExportQuestionList(multiMcq: boolean): any[] {
@@ -8367,24 +8483,36 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           withAnswers,
           `${baseName}-answers`,
           this.answerSheetExportHeader(opts.multiMcq),
-          this.layoutSettingsForAnswerExport(opts.layoutSettingsForCreate, withAnswers)
+          this.layoutSettingsForAnswersExplanationsExport(
+            opts.layoutSettingsForCreate,
+            withAnswers,
+            opts.multiMcq
+          )
         );
       }
     }
 
     if (this.selectionHasMcqType()) {
-      const mcqKey = this.buildMcqAnswersOnlyExportQuestionList(opts.multiMcq);
-      if (mcqKey.length > 0) {
-        push(
-          mcqKey,
-          `${baseName}-mcq-answers`,
-          this.mcqAnswerSheetExportHeader(opts.multiMcq),
-          this.layoutSettingsForAnswerExport(
-            opts.layoutSettingsForCreate,
-            mcqKey,
-            QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS
-          )
-        );
+      const blocks = this.buildMcqAnswerKeySetBlocks(opts.multiMcq);
+      const payload = buildMcqAnswerKeyExportPayload(
+        blocks,
+        QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS
+      );
+      if (payload.questions.length > 0) {
+        const layout = this.layoutSettingsForMcqAnswerKeyExport(opts.layoutSettingsForCreate, payload);
+        for (const fmt of fmts) {
+          requests.push(
+            this.apiService.exportQuestions(
+              this.mergeMcqAnswerKeyIntoExportRoot(opts.basePayload, layout, {
+                questions: payload.questions,
+                questionHeader: this.mcqAnswerSheetExportHeader(opts.multiMcq),
+                filename: `${baseName}-mcq-answers`,
+                format: fmt,
+              }) as any
+            )
+          );
+          downloadNames.push(fmt === 'pdf' ? `${baseName}-mcq-answers.pdf` : `${baseName}-mcq-answers.docx`);
+        }
       }
     }
   }
