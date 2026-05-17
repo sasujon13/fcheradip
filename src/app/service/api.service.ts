@@ -4,6 +4,7 @@ import { catchError, map, tap } from 'rxjs/operators';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { resolveAuthTokenFromResponse } from './auth-response.util';
+import { normalizeQuestionApiResponse } from '../shared/question-api-normalize';
 
 export interface ScraperLibrary {
   loginUrl?: string;
@@ -597,8 +598,10 @@ export class ApiService {
   getQuestions(filters?: any): Observable<any> {
     // If filters are passed, append them to the request parameters
     const params = filters ? { params: filters } : {};
-    
-    return this.http.get(`${this.baseUrl}/questions/`, params);
+
+    return this.http
+      .get(`${this.baseUrl}/questions/`, params)
+      .pipe(map((data) => normalizeQuestionApiResponse(data)));
   }
 
   getSubjects(): Observable<any> {
@@ -848,7 +851,9 @@ export class ApiService {
   getQuestionListByTopic(params: { level_tr: string; class_level: string; subject_tr: string; topic: string; chapter?: string }): Observable<{ questions: any[]; error?: string }> {
     const p: any = { level_tr: params.level_tr || '', class_level: params.class_level || '', subject_tr: params.subject_tr || '', topic: params.topic || '' };
     if (params.chapter) p.chapter = params.chapter;
-    return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/question_list/`, { params: p });
+    return this.http
+      .get<{ questions: any[]; error?: string }>(`${this.baseUrl}/question_list/`, { params: p })
+      .pipe(map((data) => normalizeQuestionApiResponse(data)));
   }
 
   /** Change fingerprint for subject question table (MAX(updated_at), row count). */
@@ -876,11 +881,13 @@ export class ApiService {
     error?: string;
   }> {
     const p = { level_tr: params.level_tr || '', class_level: params.class_level || '', subject_tr: params.subject_tr || '' };
-    return this.http.get<{
-      questions: any[];
-      revision?: { max_updated_at: string | null; row_count: number; has_updated_at: boolean };
-      error?: string;
-    }>(`${this.baseUrl}/question_list/`, { params: p });
+    return this.http
+      .get<{
+        questions: any[];
+        revision?: { max_updated_at: string | null; row_count: number; has_updated_at: boolean };
+        error?: string;
+      }>(`${this.baseUrl}/question_list/`, { params: p })
+      .pipe(map((data) => normalizeQuestionApiResponse(data)));
   }
 
   /** List institutes from cheradip_source (institute_code, institute_name, institute_type) for More Filters. */
@@ -890,7 +897,9 @@ export class ApiService {
 
   // Question CRUD
   getQuestionById(qid: number | string): Observable<any> {
-    return this.http.get(`${this.baseUrl}/questions/${qid}/`);
+    return this.http
+      .get(`${this.baseUrl}/questions/${qid}/`)
+      .pipe(map((data) => normalizeQuestionApiResponse(data)));
   }
 
   createQuestion(question: any): Observable<any> {

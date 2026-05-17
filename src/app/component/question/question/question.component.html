@@ -484,14 +484,9 @@
             <div class="topic-question-extra"
               *ngIf="isQuestionRevealed(item.q.qid) && hasUnlockableExtraContent(item.q)">
               <span class="topic-question-answer" *ngIf="hasNonEmptyUnlockField(item.q.answer)">
-                <ng-container *ngIf="!answerNeedsRichRender(item.q); else answerRich">
-                  Answer: {{ getUnlockAnswerDisplay(item.q) }}
-                </ng-container>
-                <ng-template #answerRich>
-                  <span class="topic-question-answer-label">Answer: </span>
-                  <span class="topic-question-answer-html"
-                    [innerHTML]="item.q.answer | formatQuestionMedia | wrapRomanLines"></span>
-                </ng-template>
+                <span class="topic-question-answer-label">Answer: </span>
+                <span class="topic-question-answer-html"
+                  [innerHTML]="getUnlockAnswerSource(item.q) | formatQuestionMedia | wrapRomanLines"></span>
               </span>
               <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation)"
                 [innerHTML]="item.q.explanation | formatQuestionMedia | wrapRomanLines"></div>

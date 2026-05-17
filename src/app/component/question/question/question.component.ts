@@ -15,6 +15,7 @@ import { forkJoin } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import { resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
+import { normalizeQuestionListFromApi } from '../../../shared/question-api-normalize';
 import { LoadingService } from '../../../service/loading.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../../service/login-redirect.session';
 import { DisappearedQuestionsService } from '../../../service/disappeared-questions.service';
@@ -374,21 +375,25 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private applyUserEditsToQuestions(list: any[]): any[] {
+    if (!list?.length) return list;
     const map = this.loadUserQuestionEditsMap();
-    if (!list?.length || !Object.keys(map).length) return list;
-    return list.map((q) => {
-      if (!q || q.qid == null) return q;
-      const edit = map[String(q.qid)];
-      if (!edit) return q;
-      return {
-        ...q,
-        ...(edit.question !== undefined ? { question: edit.question } : {}),
-        ...(edit.option_1 !== undefined ? { option_1: edit.option_1 } : {}),
-        ...(edit.option_2 !== undefined ? { option_2: edit.option_2 } : {}),
-        ...(edit.option_3 !== undefined ? { option_3: edit.option_3 } : {}),
-        ...(edit.option_4 !== undefined ? { option_4: edit.option_4 } : {})
-      };
-    });
+    const merged =
+      !Object.keys(map).length
+        ? list
+        : list.map((q) => {
+            if (!q || q.qid == null) return q;
+            const edit = map[String(q.qid)];
+            if (!edit) return q;
+            return {
+              ...q,
+              ...(edit.question !== undefined ? { question: edit.question } : {}),
+              ...(edit.option_1 !== undefined ? { option_1: edit.option_1 } : {}),
+              ...(edit.option_2 !== undefined ? { option_2: edit.option_2 } : {}),
+              ...(edit.option_3 !== undefined ? { option_3: edit.option_3 } : {}),
+              ...(edit.option_4 !== undefined ? { option_4: edit.option_4 } : {}),
+            };
+          });
+    return normalizeQuestionListFromApi(merged);
   }
 
   private patchQuestionInMemoryCaches(
@@ -2275,15 +2280,23 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return v != null && String(v).trim() !== '';
   }
 
-  /** True when answer should use formatQuestionMedia + wrapRomanLines (LaTeX, HTML, media). */
-  answerNeedsRichRender(q: { answer?: unknown } | null | undefined): boolean {
-    const raw = String(q?.answer ?? '').trim();
-    if (!raw) return false;
-    if (/\\boxed\b/.test(raw)) return true;
-    if (/[\\$]/.test(raw)) return true;
-    if (/<\s*(span|img|br|code)\b/i.test(raw)) return true;
-    if (/\bmedia\//i.test(raw)) return true;
-    return false;
+  /** Source string for answer [innerHTML] pipes (MCQ label or full stored answer). */
+  getUnlockAnswerSource(q: {
+    answer?: unknown;
+    type?: unknown;
+    option_1?: unknown;
+    option_2?: unknown;
+    option_3?: unknown;
+    option_4?: unknown;
+  }): string {
+    if (!this.hasNonEmptyUnlockField(q?.answer)) return '';
+    const isMcq =
+      this.showEditOptions(q) && !!(q?.option_1 || q?.option_2) && !this.isQuestionCreative(q);
+    const raw = String(q!.answer).trim();
+    if (!isMcq) return raw;
+    const label = resolveMcqAnswerLabel(q!.answer, q!, (r) => this.getOptionDisplayText(r));
+    if (label !== raw || /[\\$]|\\boxed\b|<\s*(span|img|br|code)\b/i.test(raw)) return raw;
+    return label;
   }
 
   /** Unlocked answer line: MCQ → option key only (ক/খ/গ/ঘ or a/b/c/d); CQ/other → full text. */

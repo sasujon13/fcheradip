@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ApiService } from './api.service';
+import { normalizeQuestionRecordFromApi } from '../shared/question-api-normalize';
 
 const DISAPPEARED_LOCAL_KEY = 'cheradip_disappeared_question_ids';
 const SETTINGS_KEY = 'disappeared_question_ids';
@@ -33,9 +34,23 @@ export class DisappearedQuestionsService {
       if (raw) {
         const arr = JSON.parse(raw);
         if (Array.isArray(arr)) {
-          this.items = arr.map((x: any) =>
-            typeof x === 'string' ? { qid: String(x) } : { qid: String(x?.qid ?? ''), question: x.question, option_1: x.option_1, option_2: x.option_2, option_3: x.option_3, option_4: x.option_4, answer: x.answer, explanation: x.explanation, type: x.type }
-          ).filter((it: DisappearedItem) => it.qid);
+          this.items = arr
+            .map((x: any) =>
+              typeof x === 'string'
+                ? { qid: String(x) }
+                : normalizeQuestionRecordFromApi({
+                    qid: String(x?.qid ?? ''),
+                    question: x.question,
+                    option_1: x.option_1,
+                    option_2: x.option_2,
+                    option_3: x.option_3,
+                    option_4: x.option_4,
+                    answer: x.answer,
+                    explanation: x.explanation,
+                    type: x.type,
+                  })
+            )
+            .filter((it: DisappearedItem) => it.qid);
           this.ids = new Set(this.items.map(it => it.qid));
         }
       }
@@ -59,9 +74,23 @@ export class DisappearedQuestionsService {
       next: (res) => {
         const arr = res.settings?.[SETTINGS_KEY];
         if (Array.isArray(arr)) {
-          this.items = arr.map((x: any) =>
-            typeof x === 'string' ? { qid: String(x) } : { qid: String(x?.qid ?? ''), question: x.question, option_1: x.option_1, option_2: x.option_2, option_3: x.option_3, option_4: x.option_4, answer: x.answer, explanation: x.explanation, type: x.type }
-          ).filter((it: DisappearedItem) => it.qid);
+          this.items = arr
+            .map((x: any) =>
+              typeof x === 'string'
+                ? { qid: String(x) }
+                : normalizeQuestionRecordFromApi({
+                    qid: String(x?.qid ?? ''),
+                    question: x.question,
+                    option_1: x.option_1,
+                    option_2: x.option_2,
+                    option_3: x.option_3,
+                    option_4: x.option_4,
+                    answer: x.answer,
+                    explanation: x.explanation,
+                    type: x.type,
+                  })
+            )
+            .filter((it: DisappearedItem) => it.qid);
           this.ids = new Set(this.items.map(it => it.qid));
         }
         this.saveToStorage();
@@ -103,17 +132,19 @@ export class DisappearedQuestionsService {
     if (!s) return;
     if (this.ids.has(s)) return;
     this.ids.add(s);
-    this.items.push({
-      qid: s,
-      question: data.question ?? null,
-      option_1: data.option_1 ?? null,
-      option_2: data.option_2 ?? null,
-      option_3: data.option_3 ?? null,
-      option_4: data.option_4 ?? null,
-      answer: data.answer ?? null,
-      explanation: data.explanation ?? null,
-      type: data.type ?? null
-    });
+    this.items.push(
+      normalizeQuestionRecordFromApi({
+        qid: s,
+        question: data.question ?? null,
+        option_1: data.option_1 ?? null,
+        option_2: data.option_2 ?? null,
+        option_3: data.option_3 ?? null,
+        option_4: data.option_4 ?? null,
+        answer: data.answer ?? null,
+        explanation: data.explanation ?? null,
+        type: data.type ?? null,
+      }) as DisappearedItem
+    );
     this.persist();
   }
 

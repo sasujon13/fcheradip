@@ -28,7 +28,7 @@
             <span class="topic-question-qid topic-question-qid-visible">{{ q.qid }}</span>
           </div>
           <label class="topic-question-label">
-            <span class="topic-question-text" [innerHTML]="q.question | wrapRomanLines"></span>
+            <span class="topic-question-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
           </label>
           <div class="topic-question-options topic-question-options-1row">
             <button
@@ -75,7 +75,7 @@
             <span class="topic-question-qid topic-question-qid-visible">{{ q.qid }}</span>
           </div>
           <label class="topic-question-label">
-            <span class="topic-question-text" [innerHTML]="q.question | wrapRomanLines"></span>
+            <span class="topic-question-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
           </label>
           <div class="topic-question-options topic-question-options-1row">
             <span

@@ -12,17 +12,22 @@
       <div class="topic-question-content">
         <span class="topic-question-qid">{{ item.qid }}</span>
         <label class="topic-question-label">
-          <span class="topic-question-text" *ngIf="item.question" [innerHTML]="item.question | wrapRomanLines"></span>
+          <span class="topic-question-text" *ngIf="item.question"
+            [innerHTML]="item.question | formatQuestionMedia | wrapRomanLines"></span>
         </label>
         <div class="topic-question-options topic-question-options-2row" *ngIf="item.option_1 || item.option_2 || item.option_3 || item.option_4">
-          <span *ngIf="item.option_1" class="topic-question-opt">(ক) <span class="topic-question-opt-html" [innerHTML]="item.option_1 | wrapRomanLines"></span></span>
-          <span *ngIf="item.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html" [innerHTML]="item.option_2 | wrapRomanLines"></span></span>
-          <span *ngIf="item.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html" [innerHTML]="item.option_3 | wrapRomanLines"></span></span>
-          <span *ngIf="item.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html" [innerHTML]="item.option_4 | wrapRomanLines"></span></span>
+          <span *ngIf="item.option_1" class="topic-question-opt">(ক) <span class="topic-question-opt-html" [innerHTML]="item.option_1 | formatQuestionMedia | wrapRomanLines"></span></span>
+          <span *ngIf="item.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html" [innerHTML]="item.option_2 | formatQuestionMedia | wrapRomanLines"></span></span>
+          <span *ngIf="item.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html" [innerHTML]="item.option_3 | formatQuestionMedia | wrapRomanLines"></span></span>
+          <span *ngIf="item.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html" [innerHTML]="item.option_4 | formatQuestionMedia | wrapRomanLines"></span></span>
         </div>
         <div class="topic-question-extra" *ngIf="item.answer || item.explanation">
-          <span class="topic-question-answer" *ngIf="item.answer">Answer: {{ item.answer }}</span>
-          <div class="topic-question-explanation" *ngIf="item.explanation" [innerHTML]="item.explanation | wrapRomanLines"></div>
+          <span class="topic-question-answer" *ngIf="item.answer">
+            <span class="topic-question-answer-label">Answer: </span>
+            <span class="topic-question-answer-html"
+              [innerHTML]="item.answer | formatQuestionMedia | wrapRomanLines"></span>
+          </span>
+          <div class="topic-question-explanation" *ngIf="item.explanation" [innerHTML]="item.explanation | formatQuestionMedia | wrapRomanLines"></div>
         </div>
         <div class="topic-question-item-actions">
           <button type="button" class="topic-question-action-btn btn-live" (click)="live(item.qid)" title="Show this question again">Live</button>
