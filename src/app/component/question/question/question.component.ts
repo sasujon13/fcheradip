@@ -10,8 +10,8 @@ import {
   QueryList,
   ChangeDetectorRef,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom, forkJoin } from 'rxjs';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { firstValueFrom, forkJoin, Subscription } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import { resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
@@ -35,7 +35,7 @@ import {
   QuestionFilterOptionsData,
   setCachedQuestionFilterOptions,
 } from '../../../shared/question-filter-options-cache';
-import { map } from 'rxjs/operators';
+import { filter, map } from 'rxjs/operators';
 import { QUESTION_CREATOR_INCOMING_NAV_KEY } from '../question-creator/question-creator.component';
 
 /** Exam keys aligned with question-creator structured header (BN labels on /question modal). */
@@ -256,6 +256,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   } | null = null;
   /** After subject load from URL matching saved state, run applyRestoreFiltersAndBuild999 instead of default build999. */
   private _restoreChapterTopicAfterSubjectLoad = false;
+  private questionListNavSub: Subscription | null = null;
 
   /** Subject-level cache prefix (revision metadata in localStorage). */
   private readonly SUBJECT_CACHE_PREFIX = 'cheradip_subject_all_';
@@ -326,8 +327,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!sub) {
       return;
     }
-    if (page === 1 && this._pendingFilterState) {
-      this.applyPendingFilterStateSourcesYearsQuestions();
+    if (page === 1) {
+      if (this._pendingFilterState) {
+        this.applyPendingFilterStateSourcesYearsQuestions();
+      } else {
+        this.restoreQuestionSelectionFromStorage();
+      }
     }
     const cacheKey = this.buildQuestionListCacheKey();
     if (cacheKey !== this.questionListCacheKey) {
@@ -368,6 +373,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       onDisplay: (rows) => {
         this.pagedTopicQuestions = rows;
         this.topicQuestionsLoaded = true;
+        this.syncSelectionRowsFromLoadedPages();
         this.cdr.detectChanges();
         setTimeout(() => this.measureOptionsLayouts(), 80);
       },
@@ -962,10 +968,20 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         }
       }
     });
+    this.questionListNavSub = this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe((e) => {
+        const path = (e.urlAfterRedirects || e.url).split('?')[0];
+        if (path === '/question' || (path.startsWith('/question/') && !path.startsWith('/question/create'))) {
+          this.restoreQuestionSelectionFromStorage();
+        }
+      });
   }
 
   ngOnDestroy(): void {
     if (this.dropdownLeaveTimer) clearTimeout(this.dropdownLeaveTimer);
+    this.questionListNavSub?.unsubscribe();
+    this.questionListNavSub = null;
     this.teardownFixedFilterBarResizeObserver();
   }
 
@@ -1049,6 +1065,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
               (stored.years?.length ?? 0) > 0 ||
               (stored.types?.length ?? 0) > 0 ||
               (Array.isArray(stored.questionIds) && stored.questionIds.length > 0) ||
+              (Array.isArray(stored.selectedQuestions) && stored.selectedQuestions.length > 0) ||
               stored.instituteType != null);
           this._pendingFilterState =
             stateMatchesUrl && stored && urlHasSubject ? stored : null;
@@ -1224,13 +1241,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         }
       }
       if (this.primarySubject) {
-        this.loadFilterOptionsFromDb(() => this.loadQuestionsPage(1));
+        this.loadFilterOptionsFromDb(() => {
+          this.loadQuestionsPage(1);
+          this.saveFilterState();
+          this.cdr.detectChanges();
+        });
       } else {
         this._pendingFilterState = null;
+        this.cdr.detectChanges();
       }
       if (this.selectedLevel) this.syncQuestionRouteQueryParams();
-      this.saveFilterState();
-      this.cdr.detectChanges();
     });
   }
 
@@ -1509,8 +1529,20 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedYears = new Set();
     this.selectedQuestionTypes = new Set();
     this.selectedInstituteType = null;
-    this.selectedQuestionIds = new Set();
-    this.selectedQuestionsByQid.clear();
+    const sub = this.primarySubject;
+    const stored = this._pendingFilterState ?? this.loadFilterState();
+    const keepQuestionSelection =
+      this._restoreChapterTopicAfterSubjectLoad ||
+      (!!sub &&
+        !!stored?.subject &&
+        stored.subject === sub.subject_tr &&
+        this.hasStoredQuestionSelection(stored));
+    if (!keepQuestionSelection) {
+      this.selectedQuestionIds = new Set();
+      this.selectedQuestionsByQid.clear();
+    } else if (stored) {
+      this.restoreQuestionSelectionFromSavedState(stored);
+    }
     this.subjectFilterRevisionKey = null;
     this.loadUnlockedQidsFromServer();
     this.totalQuestionsInDbForSubject = null;
@@ -1518,7 +1550,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.pagedTopicQuestions = [];
     this.questionListTotalCount = 0;
     this.topicQuestionsPage = 1;
-    const sub = this.primarySubject;
     this.currentSubject = sub ? sub.subject_tr : '';
     this.currentChapter = '';
     if (sub) {
@@ -2335,21 +2366,67 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.selectedQuestionTypes = new Set(s.types.filter((x) => typeSet.has(x)));
     }
     if (s.instituteType != null && this.instituteTypes.includes(s.instituteType)) this.selectedInstituteType = s.instituteType;
-    if (Array.isArray(s.selectedQuestions) && s.selectedQuestions.length > 0) {
-      for (const q of s.selectedQuestions) {
+    this.restoreQuestionSelectionFromSavedState(s);
+    this._pendingFilterState = null;
+  }
+
+  private hasStoredQuestionSelection(
+    stored: NonNullable<ReturnType<QuestionComponent['loadFilterState']>>
+  ): boolean {
+    return (
+      (Array.isArray(stored.selectedQuestions) && stored.selectedQuestions.length > 0) ||
+      (Array.isArray(stored.questionIds) && stored.questionIds.length > 0)
+    );
+  }
+
+  private savedFiltersMatchCurrent(
+    stored: NonNullable<ReturnType<QuestionComponent['loadFilterState']>>
+  ): boolean {
+    if (stored.level && stored.level !== this.selectedLevel) return false;
+    if (stored.class && this.selectedClass && stored.class !== this.selectedClass) return false;
+    if (stored.group && this.selectedGroup && stored.group !== this.selectedGroup) return false;
+    if (stored.subject && stored.subject !== this.selectedSubjectTr) return false;
+    return true;
+  }
+
+  /** Re-apply checkbox selection from localStorage when filters still match (e.g. back from /question/create). */
+  private restoreQuestionSelectionFromStorage(): void {
+    const stored = this.loadFilterState();
+    if (!stored || !this.hasStoredQuestionSelection(stored)) return;
+    if (!this.savedFiltersMatchCurrent(stored)) return;
+    this.restoreQuestionSelectionFromSavedState(stored);
+  }
+
+  private restoreQuestionSelectionFromSavedState(
+    stored: NonNullable<ReturnType<QuestionComponent['loadFilterState']>>
+  ): void {
+    if (!this.hasStoredQuestionSelection(stored)) return;
+    const ids = new Set<number | string>(this.selectedQuestionIds);
+    if (Array.isArray(stored.selectedQuestions)) {
+      for (const q of stored.selectedQuestions) {
         if (q?.qid == null) continue;
-        this.selectedQuestionIds.add(q.qid);
+        ids.add(this.selectionQidKey(q.qid));
         this.rememberSelectedQuestion(q);
       }
-      this.selectedQuestionIds = new Set(this.selectedQuestionIds);
-    } else if (Array.isArray(s.questionIds) && s.questionIds.length > 0) {
-      this.selectedQuestionIds = new Set(s.questionIds);
-      for (const id of this.selectedQuestionIds) {
+    }
+    if (Array.isArray(stored.questionIds)) {
+      for (const id of stored.questionIds) {
+        ids.add(this.selectionQidKey(id));
         const q = this.findQuestionByQidForSelection(id);
         if (q) this.rememberSelectedQuestion(q);
       }
     }
-    this._pendingFilterState = null;
+    this.selectedQuestionIds = this.normalizeSelectionIdSet(ids);
+  }
+
+  /** Bind cached list rows to the selection map so checkboxes match after paging / navigation. */
+  private syncSelectionRowsFromLoadedPages(): void {
+    if (!this.selectedQuestionIds.size) return;
+    for (const q of this.questionPageCache.allCachedItems()) {
+      if (q?.qid != null && this.selectedQuestionIdsHas(q.qid)) {
+        this.rememberSelectedQuestion(q);
+      }
+    }
   }
 
   private updateSubsourceOptionsFromList(list: any[]): void {
@@ -2982,6 +3059,24 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return String(qid);
   }
 
+  private normalizeSelectionIdSet(source: Iterable<number | string>): Set<number | string> {
+    const next = new Set<number | string>();
+    for (const id of source) {
+      if (id == null || id === '') continue;
+      if (this.disappearedQuestions.isDisappeared(id)) continue;
+      next.add(this.selectionQidKey(id));
+    }
+    return next;
+  }
+
+  private removeSelectedQid(qid: number | string): void {
+    const key = this.selectionQidKey(qid);
+    this.selectedQuestionIds = new Set(
+      [...this.selectedQuestionIds].filter((id) => this.selectionQidKey(id) !== key)
+    );
+    this.forgetSelectedQuestion(qid);
+  }
+
   private selectedQuestionIdsHas(qid: number | string): boolean {
     if (this.selectedQuestionIds.has(qid)) return true;
     const k = this.selectionQidKey(qid);
@@ -3110,15 +3205,14 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   toggleQuestionSelection(qid: number | string, q?: any): void {
-    if (this.selectedQuestionIds.has(qid)) {
-      this.selectedQuestionIds.delete(qid);
-      this.forgetSelectedQuestion(qid);
+    if (this.selectedQuestionIdsHas(qid)) {
+      this.removeSelectedQid(qid);
     } else {
-      this.selectedQuestionIds.add(qid);
+      this.selectedQuestionIds.add(this.selectionQidKey(qid));
       const row = q ?? this.findQuestionByQidForSelection(qid);
       if (row) this.rememberSelectedQuestion(row);
+      this.selectedQuestionIds = this.normalizeSelectionIdSet(this.selectedQuestionIds);
     }
-    this.selectedQuestionIds = new Set(this.selectedQuestionIds);
     this.saveFilterState();
   }
 
@@ -3132,14 +3226,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Sync selection from checkbox (change) so the check icon shows when clicking the box. */
   setQuestionSelection(qid: number | string, checked: boolean, q?: any): void {
     if (checked) {
-      this.selectedQuestionIds.add(qid);
+      this.selectedQuestionIds.add(this.selectionQidKey(qid));
       const row = q ?? this.findQuestionByQidForSelection(qid);
       if (row) this.rememberSelectedQuestion(row);
+      this.selectedQuestionIds = this.normalizeSelectionIdSet(this.selectedQuestionIds);
     } else {
-      this.selectedQuestionIds.delete(qid);
-      this.forgetSelectedQuestion(qid);
+      this.removeSelectedQid(qid);
     }
-    this.selectedQuestionIds = new Set(this.selectedQuestionIds);
     this.saveFilterState();
   }
 
@@ -3157,22 +3250,24 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   toggleSelectAllTopicQuestions(): void {
     const displayed = this.getDisplayedQuestions();
     if (this.allTopicQuestionsSelected) {
-      const toRemove = new Set(displayed.map(item => item.q.qid));
-      this.selectedQuestionIds = new Set([...this.selectedQuestionIds].filter(id => !toRemove.has(id)));
+      const toRemove = new Set(displayed.map((item) => this.selectionQidKey(item.q.qid)));
+      this.selectedQuestionIds = new Set(
+        [...this.selectedQuestionIds].filter((id) => !toRemove.has(this.selectionQidKey(id)))
+      );
       toRemove.forEach((id) => this.forgetSelectedQuestion(id));
     } else {
       displayed.forEach((item) => {
-        this.selectedQuestionIds.add(item.q.qid);
+        this.selectedQuestionIds.add(this.selectionQidKey(item.q.qid));
         this.rememberSelectedQuestion(item.q);
       });
-      this.selectedQuestionIds = new Set(this.selectedQuestionIds);
+      this.selectedQuestionIds = this.normalizeSelectionIdSet(this.selectedQuestionIds);
     }
     this.saveFilterState();
   }
 
   selectAllTopicQuestions(): void {
     const full = this.getTopicQuestionsFilteredSortedCore(true, true);
-    this.selectedQuestionIds = new Set(full.map((q: any) => q.qid));
+    this.selectedQuestionIds = this.normalizeSelectionIdSet(full.map((q: any) => q.qid));
     full.forEach((q: any) => this.rememberSelectedQuestion(q));
     this.saveFilterState();
   }
@@ -3185,7 +3280,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** Total selected count (all pages); shown on Create Question button only. */
   get selectedCount(): number {
-    return this.selectedQuestionIds?.size ?? 0;
+    this.pruneSelectedQuestionsCache();
+    let n = 0;
+    for (const id of this.selectedQuestionIds) {
+      if (!this.disappearedQuestions.isDisappeared(id)) n++;
+    }
+    return n;
   }
 
   /** Selected count on current page only; shown in header "X Selected of ...". */
