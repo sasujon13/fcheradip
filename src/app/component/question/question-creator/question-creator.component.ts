@@ -6822,17 +6822,127 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Landscape + multi-column: header in first question column (not full width above).
+   * True when every সৃজনশীল layout row sits on one sheet (CQ-only one-pager, merged CQ+MCQ sheet, or
+   * mixed mode with a single creative-only sheet holding all CQ rows).
+   */
+  private creativeQuestionsAllFitOnOneSheetPage(pages?: PreviewPage[]): { ok: boolean; pageIndex: number } {
+    const pageList = pages ?? this.paginatedPages;
+    const creativeTotal = this.previewCreativeBlockQuestionCount();
+    if (creativeTotal <= 0) {
+      return { ok: false, pageIndex: -1 };
+    }
+    if (
+      this.mixedTypesSinglePageMergedHeader ||
+      (pageList.length === 1 && this.selectionHasBothHeaderTypes())
+    ) {
+      if (pageList.length !== 1) {
+        return { ok: false, pageIndex: -1 };
+      }
+      const page = pageList[0]!;
+      const idxSet = new Set(page.items.map((it) => it.index));
+      for (let j = 0; j < creativeTotal; j++) {
+        if (!idxSet.has(j)) {
+          return { ok: false, pageIndex: -1 };
+        }
+      }
+      return { ok: true, pageIndex: 0 };
+    }
+    let creativeOnlyPageIndex = -1;
+    let creativeOnlyPageCount = 0;
+    for (let i = 0; i < pageList.length; i++) {
+      const page = pageList[i];
+      if (!page?.items?.length) {
+        continue;
+      }
+      let hasCreative = false;
+      let hasMcq = false;
+      for (const it of page.items) {
+        if (this.questionIsCreativeType(it.q)) {
+          hasCreative = true;
+        } else if (this.questionIsMcqType(it.q)) {
+          hasMcq = true;
+        }
+      }
+      if (!hasCreative) {
+        continue;
+      }
+      if (hasMcq) {
+        return { ok: false, pageIndex: -1 };
+      }
+      creativeOnlyPageCount++;
+      creativeOnlyPageIndex = i;
+    }
+    if (creativeOnlyPageCount !== 1) {
+      return { ok: false, pageIndex: -1 };
+    }
+    const page = pageList[creativeOnlyPageIndex]!;
+    const idxSet = new Set(page.items.map((it) => it.index));
+    for (let j = 0; j < creativeTotal; j++) {
+      if (!idxSet.has(j)) {
+        return { ok: false, pageIndex: -1 };
+      }
+    }
+    return { ok: true, pageIndex: creativeOnlyPageIndex };
+  }
+
+  /**
+   * Multi-column sheet: header in first question column (not full width above).
+   * Portrait: when all CQ fit on one sheet. Landscape: all multi-column sheets (except lead-empty).
    * When {@link landscapeLeadEmptyFirstColumnForSheetPage} applies, that column is the second grid column.
    */
-  headerInFirstColumnLandscape(pageIndex: number): boolean {
+  headerInFirstColumnLandscape(pageIndex: number, pages?: PreviewPage[]): boolean {
     if (this.layoutColumnsForSheetPage(pageIndex) <= 1) {
       return false;
+    }
+    if (!this.paperHeaderVisibleForSheetPage(pageIndex, pages)) {
+      return false;
+    }
+    if (this.landscapeLeadEmptyFirstColumnForSheetPage(pageIndex)) {
+      return false;
+    }
+    const fit = this.creativeQuestionsAllFitOnOneSheetPage(pages);
+    if (fit.ok && fit.pageIndex === pageIndex) {
+      return true;
     }
     if (!this.landscapeSheetPageForPreview(pageIndex)) {
       return false;
     }
-    return !this.landscapeLeadEmptyFirstColumnForSheetPage(pageIndex);
+    return true;
+  }
+
+  /** Pagination: reserve header height in column 1 only (column-major fill down col1, then col2). */
+  private paginationHeaderInFirstColumn(
+    sheetPageIndex: number,
+    startQ: number,
+    cols: number,
+    headerPx: number,
+    creativeCount: number,
+    breakAtMixedBoundary: boolean,
+    heights: number[],
+    questionList: any[],
+    pageInnerH: number
+  ): boolean {
+    if (cols <= 1 || headerPx <= 0 || startQ > 0) {
+      return false;
+    }
+    if (this.leadEmptyFirstPageActive && sheetPageIndex === 0) {
+      return false;
+    }
+    if (!this.paperHeaderVisibleForSheetPage(sheetPageIndex)) {
+      return false;
+    }
+    if (breakAtMixedBoundary && startQ >= creativeCount) {
+      return false;
+    }
+    if (this.landscapeSheetPageForPreview(sheetPageIndex) && !this.landscapeLeadEmptyFirstColumnForSheetPage(sheetPageIndex)) {
+      return true;
+    }
+    if (!this.selectionHasCreativeType()) {
+      return false;
+    }
+    const packEnd = breakAtMixedBoundary ? creativeCount : questionList.length;
+    const trial = this.packQuestionsColumnMajor(heights, questionList, 0, pageInnerH, cols, packEnd);
+    return trial.nextQ >= packEnd;
   }
 
   /** Grid: one empty track + N question tracks (content shifts right by one column on page 1). */
@@ -8069,7 +8179,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     startQ: number,
     cap: number,
     cols: number,
-    stopBeforeIndexExclusive?: number
+    stopBeforeIndexExclusive?: number,
+    firstColumnTopReservePx = 0
   ): {
     flatItems: PreviewPageItem[];
     columnStacks: PreviewPageItem[][];
@@ -8083,6 +8194,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
     const colItems: PreviewPageItem[][] = Array.from({ length: cols }, () => []);
     const colHeights: number[] = Array(cols).fill(0);
+    if (firstColumnTopReservePx > 0) {
+      colHeights[0] = firstColumnTopReservePx;
+    }
     let q = startQ;
     let pageHasOversized = false;
     let c = 0;
@@ -8166,10 +8280,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     while (q < n) {
       const pageInnerH = this.paginationInnerHeightPx(q, questionList);
       const cols = Math.max(1, Math.floor(this.layoutColumnsForPaginationPass(sheetPageIndex, q)));
-      const capRaw = pageInnerH - headerBudgetForPage(q, sheetPageIndex);
+      const headerPx = headerBudgetForPage(q, sheetPageIndex);
+      const headerInFirstCol = this.paginationHeaderInFirstColumn(
+        sheetPageIndex,
+        q,
+        cols,
+        headerPx,
+        creativeCount,
+        breakAtMixedBoundary,
+        heights,
+        questionList,
+        pageInnerH
+      );
+      const capRaw = pageInnerH - (headerInFirstCol ? 0 : headerPx);
       const cap = Math.max(1, capRaw);
       const mixedBoundary = breakAtMixedBoundary && q < creativeCount ? creativeCount : n;
-      const packed = this.packQuestionsColumnMajor(heights, questionList, q, cap, cols, mixedBoundary);
+      const packed = this.packQuestionsColumnMajor(
+        heights,
+        questionList,
+        q,
+        cap,
+        cols,
+        mixedBoundary,
+        headerInFirstCol ? headerPx : 0
+      );
       if (packed.flatItems.length === 0) {
         break;
       }
