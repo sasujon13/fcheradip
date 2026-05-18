@@ -5,6 +5,7 @@ import { enrichPlainTextWithKatex, normalizeQuestionLatexSource } from './questi
 import {
   buildRomanMcqPackHtml,
   chooseRomanMcqPackLines,
+  normalizeRomanMcqSource,
   RomanMarker,
   RomanMcqLayoutContext,
   splitHtmlAtRomanMarkers,
@@ -170,8 +171,8 @@ export class WrapRomanLinesPipe implements PipeTransform {
   transform(text: string | null | undefined, layoutCtx?: unknown): SafeHtml {
     if (text == null || text === '') return this.sanitizer.bypassSecurityTrustHtml('');
     const ctx = resolveLayoutContext(layoutCtx);
-    const prepared = normalizeQuestionLatexSource(
-      formatMaybeCProgramQuestionText(String(text))
+    const prepared = normalizeRomanMcqSource(
+      normalizeQuestionLatexSource(formatMaybeCProgramQuestionText(String(text)))
     );
     const glued = prepared.replace(
       /([\u0980-\u09FF])(iii|ii|i)\.(?!\d)/gi,

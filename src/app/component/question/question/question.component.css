@@ -1221,9 +1221,10 @@ span.mx-3 {
 .topic-question-text ::ng-deep .roman-mcq-pack-line .topic-question-roman-line,
 .topic-question-subpart ::ng-deep .roman-mcq-pack-line .topic-question-roman-line,
 .topic-question-opt-html ::ng-deep .roman-mcq-pack-line .topic-question-roman-line {
-  display: inline;
+  display: inline !important;
   padding-left: var(--preview-q-roman-indent, 0.7143em);
   text-indent: calc(0px - var(--preview-q-roman-indent, 0.7143em));
+  white-space: normal;
 }
 
 /* Whitelisted <img>: sizing from QuestionRichImgObserveDirective (innerHTML) */

@@ -16,6 +16,17 @@ export function measurePlainTextWidthPx(
   text: string,
   font = '13px "Noto Sans Bengali", "Segoe UI", sans-serif'
 ): number {
+  if (typeof document !== 'undefined') {
+    const el = document.createElement('div');
+    el.style.cssText =
+      'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:nowrap;font:' +
+      font;
+    el.textContent = text;
+    document.body.appendChild(el);
+    const w = el.getBoundingClientRect().width;
+    document.body.removeChild(el);
+    if (w > 0) return w;
+  }
   const ctx = getCanvasContext();
   if (!ctx) return text.length * 7;
   ctx.font = font;
