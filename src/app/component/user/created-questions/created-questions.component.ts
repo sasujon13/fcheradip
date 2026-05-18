@@ -5,10 +5,12 @@ import { finalize } from 'rxjs/operators';
 import { ApiService, CreatedQuestionSet } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import {
+  attachExportMcqOptionsColumnsToQuestions,
   buildAnswerSheetExportItems,
   hasPersistedFourMcqVariants,
   parseMcqOrderBySet,
   parseQuestionHeaderByMcqSet,
+  PreviewMcqOptionsLayout,
   reorderQuestionsByQids,
 } from '../../../shared/question-answer-sheet-export';
 
@@ -292,6 +294,20 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     return fb || 'questions';
   }
 
+  private attachMcqOptionsForSavedExport(
+    rows: unknown[],
+    set: CreatedQuestionSet,
+    ls: Record<string, unknown>
+  ): Record<string, unknown>[] {
+    const layoutByQid = (ls['previewOptionsLayoutByQid'] ?? {}) as Record<string, PreviewMcqOptionsLayout>;
+    return attachExportMcqOptionsColumnsToQuestions(rows as Record<string, unknown>[], {
+      layoutByQid,
+      manualOverride: this.boolFromLayout(ls, 'optionsColumnsManualOverride', false),
+      optionsColumns: this.intClampedLayout(ls, 'optionsColumns', 2, 1, 5),
+      canonicalQuestions: set.questions,
+    });
+  }
+
   /** Same top-level export fields + full `layout_settings` as Save in question-creator (serials, fonts, page plan, MCQ order). */
   private exportPayloadFromSavedSet(set: CreatedQuestionSet): Record<string, unknown> {
     const ls = this.layoutRecord(set) ?? {};
@@ -310,7 +326,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     const splitCreative = ls['exportQuestionHeaderCreative'];
     const splitMcq = ls['exportQuestionHeaderMcq'];
     const out: Record<string, unknown> = {
-      questions: questionsOrdered,
+      questions: this.attachMcqOptionsForSavedExport(questionsOrdered, set, ls),
       questionHeader: set.question_header || '',
       filename: this.exportFilenameStem(set),
       layout_settings: ls,
@@ -339,6 +355,16 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
       layoutColumnGapPx: this.intClampedLayout(ls, 'layoutColumnGapPx', 14, 1, 100),
       showColumnDivider: this.boolFromLayout(ls, 'showColumnDivider', true),
       optionsColumns: this.intClampedLayout(ls, 'optionsColumns', 2, 1, 5),
+      optionsColumnsManualOverride: this.boolFromLayout(ls, 'optionsColumnsManualOverride', false),
+      ...(ls['previewOptionsLayoutByQid'] && typeof ls['previewOptionsLayoutByQid'] === 'object'
+        ? { previewOptionsLayoutByQid: ls['previewOptionsLayoutByQid'] }
+        : {}),
+      ...(ls['previewSerialByIndex'] && typeof ls['previewSerialByIndex'] === 'object'
+        ? { previewSerialByIndex: ls['previewSerialByIndex'] }
+        : {}),
+      ...(Array.isArray(ls['exportPreviewPagePlan']) && ls['exportPreviewPagePlan'].length > 0
+        ? { exportPreviewPagePlan: ls['exportPreviewPagePlan'] }
+        : {}),
       pageSections: this.intClampedLayout(ls, 'pageSections', 1, 1, 10),
       sectionGapPx: this.intClampedLayout(ls, 'sectionGapPx', 24, 1, 100),
       headerLineFontSizes,
@@ -397,7 +423,11 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
           filename: `${stem}-${L}`,
           payload: {
             ...base,
-            questions: reorderQuestionsByQids(set.questions, orderMap[L] ?? []),
+            questions: this.attachMcqOptionsForSavedExport(
+              reorderQuestionsByQids(set.questions, orderMap[L] ?? []),
+              set,
+              ls
+            ),
             questionHeader: (headerMap[L] || (base['questionHeader'] as string)) as string,
             filename: `${stem}-${L}`,
             format,

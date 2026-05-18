@@ -34,6 +34,7 @@ import {
   questionSaveDebitTotal,
 } from 'src/app/service/question-unlock.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
+import { attachExportMcqOptionsColumnsToQuestions } from '../../../shared/question-answer-sheet-export';
 import {
   buildAnswerLayoutMeasureRows,
   buildAnswersExplanationsExportQuestions,
@@ -3202,6 +3203,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private expandQuestionsIntoLayoutSegments(questions: any[]): any[] {
     return buildPreviewLayoutMeasureRows(questions, this.layoutSegmentSplitOpts());
+  }
+
+  /** Per-question MCQ option grid columns for PDF/DOCX (matches preview measure / stepper). */
+  private attachMcqOptionsColumnsForExport(rows: any[], canonicalQuestions: any[]): any[] {
+    return attachExportMcqOptionsColumnsToQuestions(rows as Record<string, unknown>[], {
+      layoutByQid: this.previewOptionsLayoutByQid,
+      manualOverride: this.optionsColumnsManualOverride,
+      optionsColumns: this.optionsColumns,
+      canonicalQuestions,
+    }) as any[];
   }
 
   /** Same display rules as the /question list (`QuestionComponent.getQuestionDisplayText`). */
@@ -8664,6 +8675,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         : {}),
       /** Same order as PDF export (`previewQuestions`); draft `questions` may differ. */
       exportPreviewQuestionQids: this.layoutMeasureQuestions.map((q) => q.qid),
+      previewOptionsLayoutByQid: { ...this.previewOptionsLayoutByQid },
+      optionsColumnsManualOverride: this.optionsColumnsManualOverride,
     };
   }
 
@@ -8712,6 +8725,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       'layoutColumnGapPx',
       'showColumnDivider',
       'optionsColumns',
+      'optionsColumnsManualOverride',
+      'previewOptionsLayoutByQid',
+      'previewSerialByIndex',
+      'exportPreviewQuestionQids',
+      'exportPreviewPagePlan',
       'pageSections',
       'sectionGapPx',
     ] as const;
@@ -9027,23 +9045,35 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>
     > = {};
     let layoutSettingsForCreate: Record<string, unknown>;
+    const syncMcqOptionsLayoutMeasure = async (): Promise<void> => {
+      if (!this.selectionHasMcqType()) return;
+      this.previewOptionsLayoutStale = true;
+      this.cdr.detectChanges();
+      await new Promise<void>((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => r()))
+      );
+      this.runPreviewOptionsLayoutMeasurePass();
+    };
     if (multiMcq) {
       const prevLetter = this.selectedMcqSetLetter;
       for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
         this.selectedMcqSetLetter = L;
         this.onPreviewLayoutChange({ suppressAutoFit: true });
         await this.waitForLayoutIdle();
+        await syncMcqOptionsLayoutMeasure();
         perSetLayout[L] = this.buildLayoutSettingsForPersist();
       }
       this.selectedMcqSetLetter = prevLetter;
       this.onPreviewLayoutChange({ suppressAutoFit: true });
       await this.waitForLayoutIdle();
+      await syncMcqOptionsLayoutMeasure();
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     } else {
       if (this.selectionHasMcqType() && this.selectedMcqSetLetter != null) {
         this.onPreviewLayoutChange({ suppressAutoFit: true });
         await this.waitForLayoutIdle();
       }
+      await syncMcqOptionsLayoutMeasure();
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     }
 
@@ -9074,6 +9104,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       layoutColumnGapPx: this.layoutColumnGapPx,
       showColumnDivider: this.showColumnDivider,
       optionsColumns: this.optionsColumns,
+      optionsColumnsManualOverride: this.optionsColumnsManualOverride,
+      previewOptionsLayoutByQid: { ...this.previewOptionsLayoutByQid },
       pageSections: this.pageSections,
       sectionGapPx: this.sectionGapPx,
       headerLineFontSizes: [...this.headerLineFontSizes],
@@ -9115,10 +9147,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           : this.canonicalPreviewQuestions;
       const segmentRows = this.expandQuestionsIntoLayoutSegments(canonicalForFile);
       const exportQids = layoutSettingsForCreate['exportPreviewQuestionQids'];
-      const questionsForFile =
+      const orderedSegmentRows =
         Array.isArray(exportQids) && exportQids.length
           ? this.reorderListFromQidList(segmentRows, exportQids as (string | number)[])
           : segmentRows;
+      const questionsForFile = this.attachMcqOptionsColumnsForExport(
+        orderedSegmentRows,
+        canonicalForFile
+      );
 
       // Export-only: per-kind MCQ/CQ header strings (+ line fonts). Mixed uses both kinds;
       // structured MCQ-only uses the same MCQ split builder as mixed.

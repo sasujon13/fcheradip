@@ -5,9 +5,66 @@ import {
   buildAnswersExplanationsExportQuestions,
   buildMcqAnswerKeyExportPayload,
   buildMcqAnswerKeySetBlocks,
+  LAYOUT_SEG_QID_PREFIX,
   McqSetLetter,
   packMcqAnswerIndicesIntoColumns,
 } from '../component/question/question-creator/question-creator-answer-export';
+
+export type PreviewMcqOptionsLayout = '1row' | '2row' | '4row';
+
+export function optionsColumnsFromMcqLayout(layout: PreviewMcqOptionsLayout): number {
+  if (layout === '1row') return 4;
+  if (layout === '4row') return 1;
+  return 2;
+}
+
+export function mcqOptionsLayoutKeyForExport(
+  q: { qid?: unknown; answerSheetParentIndex?: number },
+  canonicalQuestions?: { qid?: unknown }[]
+): string | null {
+  const raw = q?.qid != null ? String(q.qid) : '';
+  if (raw.startsWith(LAYOUT_SEG_QID_PREFIX)) {
+    const base = raw.slice(LAYOUT_SEG_QID_PREFIX.length);
+    const m = /^(.*)-(\d+)$/.exec(base);
+    if (m) return m[1]!;
+    const parent = q.answerSheetParentIndex;
+    if (parent != null && canonicalQuestions && parent >= 0 && parent < canonicalQuestions.length) {
+      const pq = canonicalQuestions[parent];
+      if (pq?.qid != null) return String(pq.qid);
+    }
+    return base;
+  }
+  return raw || null;
+}
+
+/** Stamp per-row grid column count so PDF/DOCX match preview (manual stepper or measured 1row/2row/4row). */
+export function attachExportMcqOptionsColumnsToQuestions(
+  rows: Record<string, unknown>[],
+  opts: {
+    layoutByQid: Record<string, PreviewMcqOptionsLayout>;
+    manualOverride: boolean;
+    optionsColumns: number;
+    canonicalQuestions?: { qid?: unknown }[];
+  }
+): Record<string, unknown>[] {
+  const manualCols = Math.max(1, Math.min(4, Math.floor(Number(opts.optionsColumns)) || 2));
+  return rows.map((row) => {
+    if (!questionIsMcqType(row)) return row;
+    if (!row['option_1'] && !row['option_2']) return row;
+    let cols: number;
+    if (opts.manualOverride) {
+      cols = manualCols;
+    } else {
+      const key = mcqOptionsLayoutKeyForExport(row, opts.canonicalQuestions);
+      const layout =
+        (key && opts.layoutByQid[key]) ||
+        (key && opts.layoutByQid[String(key)]) ||
+        ('2row' as PreviewMcqOptionsLayout);
+      cols = optionsColumnsFromMcqLayout(layout);
+    }
+    return { ...row, exportMcqOptionsColumns: cols };
+  });
+}
 
 export const MCQ_SET_LETTERS = ['ক', 'খ', 'গ', 'ঘ'] as const;
 export const MCQ_ANSWER_SHEET_LAYOUT_COLUMNS = 5;
@@ -372,6 +429,11 @@ export function mergeExportPayloadWithLayoutSettings(
     'layoutColumnGapPx',
     'showColumnDivider',
     'optionsColumns',
+    'optionsColumnsManualOverride',
+    'previewOptionsLayoutByQid',
+    'previewSerialByIndex',
+    'exportPreviewQuestionQids',
+    'exportPreviewPagePlan',
     'pageSections',
     'sectionGapPx',
   ] as const;
