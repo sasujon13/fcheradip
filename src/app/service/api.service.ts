@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { catchError, map, tap } from 'rxjs/operators';
 import { BehaviorSubject, Observable, of } from 'rxjs';
@@ -854,6 +854,49 @@ export class ApiService {
     return this.http
       .get<{ questions: any[]; error?: string }>(`${this.baseUrl}/question_list/`, { params: p })
       .pipe(map((data) => normalizeQuestionApiResponse(data)));
+  }
+
+  /** Paginated question list (NTRCA-style: one page from server, default 30 rows). */
+  getQuestionListPaged(params: {
+    level_tr: string;
+    class_level: string;
+    subject_tr: string;
+    page?: number;
+    page_size?: number;
+    topics?: string[];
+    chapters?: string[];
+    sources?: string[];
+    years?: string[];
+    types?: string[];
+  }): Observable<{
+    questions: any[];
+    count: number;
+    page: number;
+    page_size: number;
+    revision?: { max_updated_at: string | null; row_count: number; has_updated_at: boolean };
+    error?: string;
+  }> {
+    let httpParams = new HttpParams()
+      .set('level_tr', params.level_tr || '')
+      .set('class_level', params.class_level || '')
+      .set('subject_tr', params.subject_tr || '')
+      .set('page', String(params.page ?? 1))
+      .set('page_size', String(params.page_size ?? 30));
+    (params.topics || []).forEach((t) => { httpParams = httpParams.append('topic', t); });
+    (params.chapters || []).forEach((c) => { httpParams = httpParams.append('chapter', c); });
+    (params.sources || []).forEach((s) => { httpParams = httpParams.append('source', s); });
+    (params.years || []).forEach((y) => { httpParams = httpParams.append('year', y); });
+    (params.types || []).forEach((t) => { httpParams = httpParams.append('type', t); });
+    return this.http
+      .get<{
+        questions: any[];
+        count: number;
+        page: number;
+        page_size: number;
+        revision?: { max_updated_at: string | null; row_count: number; has_updated_at: boolean };
+        error?: string;
+      }>(`${this.baseUrl}/question_list/`, { params: httpParams })
+      .pipe(map((data) => normalizeQuestionApiResponse(data) as any));
   }
 
   /** Change fingerprint for subject question table (MAX(updated_at), row count). */

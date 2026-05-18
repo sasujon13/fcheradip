@@ -150,8 +150,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   private _topicQuestionsLegacy: any[] = [];
   /** Questions for selected topic (from HSC subject table); user can select which to use. */
   get topicQuestions(): any[] {
-    if (this.topicQuestionsFullCache.length > 0) return this.getTopicQuestionsFilteredSorted();
-    return this._topicQuestionsLegacy;
+    return this.pagedTopicQuestions;
   }
   topicQuestionsLoaded = false;
   /** More Filters: parsed Source (e.g. ChB) and Year (e.g. 18); two-column filter. */
@@ -230,75 +229,36 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** After subject load from URL matching saved state, run applyRestoreFiltersAndBuild999 instead of default build999. */
   private _restoreChapterTopicAfterSubjectLoad = false;
 
-  /** 999-question cache: prefix for localStorage keys (filter-dependent). */
-  private readonly Q999_CACHE_PREFIX = 'cheradip_q999_';
-  /** Subject-level cache prefix: all questions for a subject (for fast total y and reuse). */
+  /** Subject-level cache prefix (revision metadata in localStorage). */
   private readonly SUBJECT_CACHE_PREFIX = 'cheradip_subject_all_';
   /** User's pending-edit overlays (plain text) until admin approves and DB revision refreshes cache. */
   private readonly USER_QUESTION_EDITS_PREFIX = 'cheradip_user_q_edits_';
-  /** Chunk size for storing full subject question list in localStorage. */
-  private readonly SUBJECT_LIST_CHUNK_SIZE = 500;
-  private readonly Q999_PAGE_SIZE = 30;
-  private readonly Q999_CHUNK_SIZE = 100;
-  private readonly Q999_MAX = 999;
   /** Total questions in DB for current subject (y). Set from API when available; otherwise null → show "?". */
   totalQuestionsInDbForSubject: number | null = null;
-  /** Cache in retrieval order; filled from localStorage in chunks. */
-  private topicQuestionsFullCache: any[] = [];
-  /** How many items from cache we have loaded so far (100, 200, ... up to 999). */
-  private topicQuestionsLoadedCount = 0;
-  /** Total count stored in cache (from meta); used for pagination and loading next chunks. */
-  private topicQuestionsCacheTotal = 0;
-  /** Current page of topic-questions list (1-based). */
+  /** Questions per page (NTRCA lists use 100; question browse uses 30). */
+  readonly questionListPageSize = 30;
+  /** Current API page rows only — not the full subject list. */
+  private pagedTopicQuestions: any[] = [];
+  /** Server total for current filter set. */
+  questionListTotalCount = 0;
   topicQuestionsPage = 1;
-  /** Shown once when user reaches last page with 999 questions. */
-  private _hasShown999LimitAlert = false;
-  /** In-memory subject cache: chapterId -> topicId -> questions[]. Filled when subject is loaded (API or localStorage). */
-  private subjectCacheByChapter: { [chapterId: string]: { [topicId: string]: any[] } } = {};
+  questionsListLoading = false;
 
-  /** x = number of questions currently retrieved (capped at 999). */
   get retrievedCount(): number {
-    if (this.topicQuestionsFullCache.length > 0 && this.topicQuestionsCacheTotal > 0)
-      return Math.min(this.Q999_MAX, this.topicQuestionsCacheTotal);
-    return Math.min(this.Q999_MAX, this._topicQuestionsLegacy?.length ?? 0);
+    return this.questionListTotalCount;
   }
 
-  /** Actual number of questions in current selection. When more filters (source/year) applied, returns filtered count; else returns full count from subject cache (not capped at 999). Shown as middle number in "X Selected of Y of Total Z". User can navigate through up to 999 loaded questions. */
+  /** Middle number in "X Selected of Y of Total Z". */
   get totalQuestionsInCurrentSelection(): number {
-    if (
-      this.selectedSources.size > 0 ||
-      this.selectedYears.size > 0 ||
-      this.selectedQuestionTypes.size > 0
-    ) {
-      const filtered = this.getTopicQuestionsFilteredSorted();
-      return filtered.length;
+    if (this.questionListTotalCount > 0) {
+      return this.questionListTotalCount;
     }
-    if (Object.keys(this.subjectCacheByChapter).length > 0) {
-      const chapterIds = this.selectedChapterIds.size > 0
-        ? Array.from(this.selectedChapterIds).filter(id => this.subjectCacheByChapter[id])
-        : Object.keys(this.subjectCacheByChapter);
-      if (chapterIds.length === 0) return this.totalQuestionsInDbForSubject ?? 0;
-      const seen = new Set<number | string>();
-      chapterIds.forEach(chapterId => {
-        const topicsMap = this.subjectCacheByChapter[chapterId] || {};
-        const topicIds = this.selectedTopicIds.size > 0
-          ? Object.keys(topicsMap).filter(tid => Array.from(this.selectedTopicIds).some(id => id == tid))
-          : Object.keys(topicsMap);
-        topicIds.forEach(topicId => {
-          (topicsMap[topicId] || []).forEach((q: any) => { if (q?.qid != null) seen.add(q.qid); });
-        });
-      });
-      return seen.size;
-    }
-    if (this.totalQuestionsInDbForSubject != null) return this.totalQuestionsInDbForSubject;
-    const filtered = this.getTopicQuestionsFilteredSorted();
-    return filtered.length;
+    return this.totalQuestionsInDbForSubject ?? 0;
   }
 
   /** Total pages for topic questions (30 per page). Based on filtered list so pagination reflects current filters. */
   get topicQuestionsTotalPages(): number {
-    const list = this.getTopicQuestionsFilteredSorted();
-    return Math.max(1, Math.ceil(list.length / this.Q999_PAGE_SIZE));
+    return Math.max(1, Math.ceil(this.questionListTotalCount / this.questionListPageSize));
   }
 
   /** Current page clamped to valid range (1..totalPages) so filters reducing pages don't show empty or "Page 5 of 2". */
@@ -307,16 +267,82 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return Math.min(Math.max(1, this.topicQuestionsPage), total);
   }
 
-  /** Build localStorage key for 999 cache from current filter state. */
-  private buildQ999CacheKey(): string {
+  /** Load one page from the API (NTRCA vacant5-style pagination). */
+  loadQuestionsPage(page: number): void {
     const sub = this.primarySubject;
-    if (!sub) return '';
-    const ch = Array.from(this.selectedChapterIds).sort().join(',');
-    const top = Array.from(this.selectedTopicIds).sort().join(',');
-    return `${this.Q999_CACHE_PREFIX}${sub.level_tr}_${sub.class_level}_${sub.subject_tr}_ch${ch}_top${top}`;
+    if (!sub) {
+      return;
+    }
+    if (page === 1 && this._pendingFilterState) {
+      this.applyPendingFilterStateSourcesYearsQuestions();
+    }
+    const topics =
+      this.selectedTopicIds.size > 0
+        ? Array.from(this.selectedTopicIds).map(
+            (id) => this.topics.find((t) => t.id == id)?.name ?? String(id)
+          )
+        : undefined;
+    const chapters =
+      this.selectedChapterIds.size > 0
+        ? Array.from(this.selectedChapterIds).map(
+            (id) => this.chapters.find((c) => c.id == id)?.name ?? String(id)
+          )
+        : undefined;
+    this.questionsListLoading = true;
+    this.topicQuestionsLoaded = false;
+    this.topicQuestionsPage = page;
+    this.apiService
+      .getQuestionListPaged({
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr,
+        page,
+        page_size: this.questionListPageSize,
+        topics,
+        chapters,
+        sources: Array.from(this.selectedSources),
+        years: Array.from(this.selectedYears),
+        types: Array.from(this.selectedQuestionTypes),
+      })
+      .subscribe({
+        next: (res) => {
+          let rows = this.applyUserEditsToQuestions(res.questions || []);
+          rows = rows.filter((q) => !this.disappearedQuestions.isDisappeared(q?.qid));
+          this.pagedTopicQuestions = rows;
+          this.questionListTotalCount = res.count ?? rows.length;
+          if (res.revision?.row_count != null) {
+            this.totalQuestionsInDbForSubject = res.revision.row_count;
+          }
+          this.mergeSubsourceOptionsFromPage(rows);
+          this.topicQuestionsLoaded = true;
+          this.questionsListLoading = false;
+          this.cdr.detectChanges();
+          setTimeout(() => this.measureOptionsLayouts(), 80);
+        },
+        error: () => {
+          this.pagedTopicQuestions = [];
+          this.questionListTotalCount = 0;
+          this.topicQuestionsLoaded = true;
+          this.questionsListLoading = false;
+          this.cdr.detectChanges();
+        },
+      });
   }
 
-  /** Build localStorage key for subject-level cache (all questions for subject). */
+  private mergeSubsourceOptionsFromPage(list: any[]): void {
+    const sourceSet = new Set(this.subsourceSources);
+    const yearSet = new Set(this.subsourceYears);
+    (list || []).forEach((q: any) => {
+      this.parseSubsourceTokens(q.subsource).forEach((t) => {
+        sourceSet.add(t.source);
+        yearSet.add(t.year);
+      });
+    });
+    this.subsourceSources = Array.from(sourceSet).sort();
+    this.subsourceYears = Array.from(yearSet).sort((a, b) => a.localeCompare(b));
+  }
+
+  /** Build localStorage key for subject-level revision metadata. */
   private buildSubjectCacheKey(): string {
     const sub = this.primarySubject;
     if (!sub) return '';
@@ -401,131 +427,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
   ): void {
     const matchQid = (q: any) => q?.qid != null && q.qid == qid;
-    this.topicQuestionsFullCache = this.topicQuestionsFullCache.map((q) =>
+    this.pagedTopicQuestions = this.pagedTopicQuestions.map((q) =>
       matchQid(q) ? { ...q, ...patch } : q
     );
-    Object.keys(this.subjectCacheByChapter).forEach((chapterId) => {
-      const topics = this.subjectCacheByChapter[chapterId] || {};
-      Object.keys(topics).forEach((topicId) => {
-        topics[topicId] = (topics[topicId] || []).map((q: any) =>
-          matchQid(q) ? { ...q, ...patch } : q
-        );
-      });
-    });
-    this.patchQuestionInSubjectListStorage(qid, patch);
-    this.patchQuestionInQ999ListStorage(qid, patch);
-  }
-
-  private patchQuestionInSubjectListStorage(
-    qid: number | string,
-    patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
-  ): void {
-    const keyBase = this.buildSubjectCacheKey();
-    if (!keyBase) return;
-    try {
-      const metaStr = localStorage.getItem(`${keyBase}_list_meta`);
-      const meta = metaStr ? JSON.parse(metaStr) : null;
-      if (!meta?.chunkCount) return;
-      const matchQid = (q: any) => q?.qid != null && q.qid == qid;
-      for (let i = 0; i < meta.chunkCount; i++) {
-        const chunkKey = `${keyBase}_list_chunk_${i}`;
-        const str = localStorage.getItem(chunkKey);
-        if (!str) continue;
-        const chunk = JSON.parse(str);
-        if (!Array.isArray(chunk)) continue;
-        let changed = false;
-        const next = chunk.map((q: any) => {
-          if (!matchQid(q)) return q;
-          changed = true;
-          return { ...q, ...patch };
-        });
-        if (changed) localStorage.setItem(chunkKey, JSON.stringify(next));
-      }
-    } catch (_) {}
-  }
-
-  private patchQuestionInQ999ListStorage(
-    qid: number | string,
-    patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
-  ): void {
-    const keyBase = this.buildQ999CacheKey();
-    if (!keyBase) return;
-    try {
-      const metaStr = localStorage.getItem(`${keyBase}_meta`);
-      const meta = metaStr ? JSON.parse(metaStr) : null;
-      const total = meta?.total ?? 0;
-      if (total <= 0) return;
-      const matchQid = (q: any) => q?.qid != null && q.qid == qid;
-      const chunkCount = Math.ceil(total / this.Q999_CHUNK_SIZE);
-      for (let i = 0; i < chunkCount; i++) {
-        const chunkKey = `${keyBase}_chunk_${i}`;
-        const str = localStorage.getItem(chunkKey);
-        if (!str) continue;
-        const chunk = JSON.parse(str);
-        if (!Array.isArray(chunk)) continue;
-        let changed = false;
-        const next = chunk.map((q: any) => {
-          if (!matchQid(q)) return q;
-          changed = true;
-          return { ...q, ...patch };
-        });
-        if (changed) localStorage.setItem(chunkKey, JSON.stringify(next));
-      }
-    } catch (_) {}
-  }
-
-  /**
-   * Try to load full subject cache from localStorage. Prefers flat list format (_list_meta + _list_chunk_*), then by-chapter format.
-   * Returns true if loaded and subjectCacheByChapter/topics/total set.
-   */
-  private tryLoadSubjectCacheFromStorage(): boolean {
-    const sub = this.primarySubject;
-    if (!sub || !this.chapters?.length) return false;
-    const keyBase = this.buildSubjectCacheKey();
-    if (!keyBase) return false;
-    try {
-      const listMetaStr = localStorage.getItem(`${keyBase}_list_meta`);
-      const listMeta = listMetaStr ? JSON.parse(listMetaStr) : null;
-      if (listMeta && typeof listMeta.total === 'number' && listMeta.total >= 0) {
-        const chunks: any[] = [];
-        const chunkCount = listMeta.chunkCount ?? Math.ceil(listMeta.total / this.SUBJECT_LIST_CHUNK_SIZE);
-        for (let i = 0; i < chunkCount; i++) {
-          const str = localStorage.getItem(`${keyBase}_list_chunk_${i}`);
-          const chunk = str ? JSON.parse(str) : null;
-          if (Array.isArray(chunk)) chunks.push(...chunk);
-        }
-        if (chunks.length > 0) {
-          const { byChapter, topics } = this.buildByChapterFromFlatList(chunks);
-          this.subjectCacheByChapter = byChapter;
-          this.topics = topics;
-          this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-          this.applyTopicsFromSubjectCache();
-          return true;
-        }
-      }
-      const metaStr = localStorage.getItem(`${keyBase}_meta`);
-      const meta = metaStr ? JSON.parse(metaStr) : null;
-      if (!meta?.chapterIds?.length) return false;
-      const byChapter: { [chapterId: string]: { [topicId: string]: any[] } } = {};
-      for (const chId of meta.chapterIds as string[]) {
-        const chStr = localStorage.getItem(`${keyBase}_ch_${chId}`);
-        const chData = chStr ? JSON.parse(chStr) : null;
-        if (!chData?.topics) continue;
-        byChapter[chId] = chData.topics;
-      }
-      const seenQids = new Set<number | string>();
-      Object.values(byChapter).forEach(topics => {
-        Object.values(topics).forEach((arr: any[]) => {
-          (arr || []).forEach((q: any) => { if (q?.qid != null) seenQids.add(q.qid); });
-        });
-      });
-      this.subjectCacheByChapter = byChapter;
-      this.totalQuestionsInDbForSubject = seenQids.size;
-      this.applyTopicsFromSubjectCache();
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   /** Get chapter id for a question (match by id, no, or name). Requires this.chapters to be set. */
@@ -568,13 +472,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /** chapter_no from first question in subject cache bucket (for ordering when this.chapters not synced). */
+  /** chapter_no from chapter list (for ordering). */
   private getChapterSortKeyFromCache(chId: string): string {
-    const tm = this.subjectCacheByChapter[chId];
-    if (!tm) return chId;
-    const fk = Object.keys(tm)[0];
-    const firstQ = fk ? (tm[fk] || [])[0] : null;
-    if (firstQ?.chapter_no != null && String(firstQ.chapter_no).trim() !== '') return String(firstQ.chapter_no);
+    const ch = this.chapters?.find((c) => c.id == chId);
+    if (ch?.chapter_no != null && String(ch.chapter_no).trim() !== '') return String(ch.chapter_no);
     return chId;
   }
 
@@ -688,53 +589,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return { byChapter, topics };
   }
 
-  /** Set this.chapters from subject cache keys so chapter list = data (same source as filtering). Ordered by chapter_no. */
-  private setChaptersFromSubjectCache(): void {
-    const cache = this.subjectCacheByChapter;
-    const keys = Object.keys(cache);
-    if (keys.length === 0) return;
-    this.chapters = keys.map(chId => {
-      const topicsMap = cache[chId] || {};
-      const firstTopicKey = Object.keys(topicsMap)[0];
-      const firstQ = firstTopicKey ? (topicsMap[firstTopicKey] || [])[0] : null;
-      const name = firstQ?.chapter_name ?? firstQ?.chapter ?? chId;
-      const chapterNo = firstQ?.chapter_no != null ? String(firstQ.chapter_no) : chId;
-      return { id: chId, name: name != null ? String(name) : chId, chapter_no: chapterNo || null };
-    });
-    this.sortChaptersByNo(this.chapters);
-  }
+  /** No-op: chapters come from {@link ApiService.getQuestionChapters}. */
+  private setChaptersFromSubjectCache(): void {}
 
-  /**
-   * Set this.topics from subjectCacheByChapter for selected chapters (or all).
-   * With multiple chapters: chapter_no ascending, then topic_no ascending within each chapter.
-   */
-  private applyTopicsFromSubjectCache(): void {
-    const rawIds =
-      this.selectedChapterIds.size > 0
-        ? Array.from(this.selectedChapterIds)
-        : Object.keys(this.subjectCacheByChapter);
-    const chapterIds = this.orderChapterIdsForTopics(rawIds);
-    const seen = new Set<string>();
-    const result: Array<{ id: string; name: string; topic_no?: string | null }> = [];
-    chapterIds.forEach(chId => {
-      const topicsMap = this.subjectCacheByChapter[chId];
-      if (!topicsMap) return;
-      const rows: Array<{ id: string; name: string; topic_no?: string | null }> = [];
-      Object.keys(topicsMap).forEach(topicId => {
-        const qList = topicsMap[topicId] || [];
-        const firstQ = qList[0];
-        const name = firstQ?.topic_name ?? topicId;
-        const topicNo = this.pickBestTopicNo(qList.map((q: any) => ({ topic_no: q?.topic_no })));
-        rows.push({ id: topicId, name, topic_no: topicNo ?? undefined });
-      });
-      this.sortTopicsByNo(rows);
-      for (const row of rows) {
-        if (seen.has(row.id)) continue;
-        seen.add(row.id);
-        result.push(row);
-      }
-    });
-    this.topics = result;
+  /** Refresh topic dropdown from API for selected chapters. */
+  private applyTopicsFromSubjectCache(onDone?: () => void): void {
+    this.loadTopics(onDone);
   }
 
   /** Read DB revision stored alongside subject cache (flat list or by-chapter meta). */
@@ -766,26 +626,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       cached.dbRowCount === server.row_count;
   }
 
-  private q999CacheMatchesSubjectRevision(meta: { dbMaxUpdatedAt?: string | null; dbRowCount?: number } | null): boolean {
-    const rev = this.getSubjectCacheRevisionFromStorage();
-    if (!rev || !meta) return false;
-    return (meta.dbMaxUpdatedAt ?? '') === (rev.dbMaxUpdatedAt ?? '') &&
-      meta.dbRowCount === rev.dbRowCount;
-  }
-
-  /** After by-chapter fallback cache write, store DB revision from lightweight API. */
-  private stampSubjectCacheRevisionFromApi(): void {
-    const sub = this.primarySubject;
-    if (!sub) return;
-    this.apiService.getQuestionSubjectRevision({
-      level_tr: sub.level_tr,
-      class_level: sub.class_level,
-      subject_tr: sub.subject_tr
-    }).subscribe({
-      next: (rev) => this.patchSubjectCacheRevisionInStorage(rev)
-    });
-  }
-
   private patchSubjectCacheRevisionInStorage(revision: { max_updated_at: string | null; row_count: number }): void {
     const keyBase = this.buildSubjectCacheKey();
     if (!keyBase) return;
@@ -801,225 +641,25 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  /**
-   * Load full subject cache: use localStorage when DB revision matches; otherwise refetch and update storage.
-   */
-  private loadSubjectFullCache(onDone?: () => void): void {
-    const sub = this.primarySubject;
-    if (!sub || !this.chapters?.length) {
-      onDone?.();
-      return;
-    }
-    const cachedRev = this.getSubjectCacheRevisionFromStorage();
-    this.apiService.getQuestionSubjectRevision({
-      level_tr: sub.level_tr,
-      class_level: sub.class_level,
-      subject_tr: sub.subject_tr
-    }).subscribe({
-      next: (serverRev) => {
-        if (cachedRev && this.isSubjectCacheRevisionCurrent(cachedRev, serverRev) && this.tryLoadSubjectCacheFromStorage()) {
-          this.build999AndLoadFromCache();
-          this.cdr.detectChanges();
-          onDone?.();
-          return;
-        }
-        this.fetchSubjectListAndUpdateCache(serverRev, onDone);
-      },
-      error: () => {
-        if (this.tryLoadSubjectCacheFromStorage()) {
-          this.build999AndLoadFromCache();
-          this.cdr.detectChanges();
-          onDone?.();
-        } else {
-          this.loadSubjectFullCacheFallbackPerTopic(onDone);
-        }
-      }
-    });
-  }
-
-  private fetchSubjectListAndUpdateCache(
-    serverRev: { max_updated_at: string | null; row_count: number; has_updated_at: boolean },
-    onDone?: () => void
-  ): void {
+  /** Load DB revision + topic list only (questions load per page via {@link loadQuestionsPage}). */
+  private loadSubjectMetadata(onDone?: () => void): void {
     const sub = this.primarySubject;
     if (!sub) {
       onDone?.();
       return;
     }
-    this.apiService.getQuestionListBySubject({
+    this.apiService.getQuestionSubjectRevision({
       level_tr: sub.level_tr,
       class_level: sub.class_level,
-      subject_tr: sub.subject_tr
+      subject_tr: sub.subject_tr,
     }).subscribe({
-      next: (res) => {
-        const questions = (res.questions || []) as any[];
-        const revision = res.revision ?? serverRev;
-        if (questions.length === 0) {
-          this.loadSubjectFullCacheFallbackPerTopic(onDone);
-          return;
-        }
-        const { byChapter, topics } = this.buildByChapterFromFlatList(questions);
-        this.subjectCacheByChapter = byChapter;
-        this.topics = topics;
-        this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-        this.clearUserQuestionEditsForSubject();
-        this.saveSubjectListToStorage(questions, revision);
-        this.applyTopicsFromSubjectCache();
-        this.build999AndLoadFromCache(true);
-        this.cdr.detectChanges();
-        onDone?.();
+      next: (rev) => {
+        this.totalQuestionsInDbForSubject = rev.row_count ?? null;
+        this.patchSubjectCacheRevisionInStorage(rev);
+        this.loadTopics(() => onDone?.());
       },
-      error: () => this.loadSubjectFullCacheFallbackPerTopic(onDone)
+      error: () => this.loadTopics(() => onDone?.()),
     });
-  }
-
-  /** Fallback: fetch per chapter/topic when question_list (subject only) is not available or fails. */
-  private loadSubjectFullCacheFallbackPerTopic(onDone?: () => void): void {
-    const sub = this.primarySubject;
-    if (!sub || !this.chapters?.length) {
-      onDone?.();
-      return;
-    }
-    const byChapter: { [chapterId: string]: { [topicId: string]: any[] } } = {};
-    const topicListByChapter: { [chapterId: string]: Array<{ id: string; name: string }> } = {};
-    let pendingTopics = this.chapters.length;
-    this.chapters.forEach(ch => {
-      const chapterId = ch.id;
-      const chapterName = ch.name ?? chapterId;
-      this.apiService.getQuestionTopics({
-        level_tr: sub.level_tr,
-        class_level: sub.class_level,
-        subject_tr: sub.subject_tr,
-        chapter: chapterName
-      }).subscribe({
-        next: (res) => {
-          const topicList = (res.topics || []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name || t.id }));
-          topicListByChapter[chapterId] = topicList;
-          byChapter[chapterId] = {};
-          topicList.forEach((t: { id: string; name: string }) => { byChapter[chapterId][t.id] = []; });
-          pendingTopics--;
-          if (pendingTopics === 0) {
-            const topicCount = Object.values(topicListByChapter).reduce((s, arr) => s + arr.length, 0);
-            if (topicCount === 0) {
-              this.subjectCacheByChapter = byChapter;
-              this.topics = [];
-              this.totalQuestionsInDbForSubject = 0;
-              this.saveSubjectCacheToStorage(byChapter, 0);
-              this.stampSubjectCacheRevisionFromApi();
-              this.build999AndLoadFromCache();
-              this.cdr.detectChanges();
-              onDone?.();
-              return;
-            }
-            let pendingQuestions = 0;
-            const onQuestionBatch = () => {
-              pendingQuestions--;
-              if (pendingQuestions === 0) {
-                const total = this.countUniqueQidsInByChapter(byChapter);
-                this.subjectCacheByChapter = byChapter;
-                this.totalQuestionsInDbForSubject = total;
-                this.saveSubjectCacheToStorage(byChapter, total);
-                this.stampSubjectCacheRevisionFromApi();
-                this.applyTopicsFromSubjectCache();
-                this.build999AndLoadFromCache();
-                this.cdr.detectChanges();
-                onDone?.();
-              }
-            };
-            this.chapters.forEach(c => {
-              const chId = c.id;
-              const chName = c.name ?? chId;
-              (topicListByChapter[chId] || []).forEach((t: { id: string; name: string }) => {
-                pendingQuestions++;
-                this.apiService.getQuestionListByTopic({
-                  level_tr: sub.level_tr,
-                  class_level: sub.class_level,
-                  subject_tr: sub.subject_tr,
-                  chapter: chName,
-                  topic: t.name || t.id
-                }).subscribe({
-                  next: (res) => {
-                    const list = (res.questions || []) as any[];
-                    if (byChapter[chId] && byChapter[chId][t.id]) byChapter[chId][t.id] = list;
-                    onQuestionBatch();
-                  },
-                  error: () => onQuestionBatch()
-                });
-              });
-            });
-            if (pendingQuestions === 0) onQuestionBatch();
-          }
-        },
-        error: () => {
-          pendingTopics--;
-          if (pendingTopics === 0) {
-            this.subjectCacheByChapter = byChapter;
-            this.applyTopicsFromSubjectCache();
-            this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-            this.build999AndLoadFromCache();
-            this.cdr.detectChanges();
-            onDone?.();
-          }
-        }
-      });
-    });
-  }
-
-  private countUniqueQidsInByChapter(byChapter: { [chapterId: string]: { [topicId: string]: any[] } }): number {
-    const set = new Set<number | string>();
-    Object.values(byChapter).forEach(topics => {
-      Object.values(topics).forEach((arr: any[]) => {
-        (arr || []).forEach((q: any) => { if (q?.qid != null) set.add(q.qid); });
-      });
-    });
-    return set.size;
-  }
-
-  private saveSubjectCacheToStorage(
-    byChapter: { [chapterId: string]: { [topicId: string]: any[] } },
-    total: number,
-    revision?: { max_updated_at: string | null; row_count: number }
-  ): void {
-    const keyBase = this.buildSubjectCacheKey();
-    if (!keyBase) return;
-    try {
-      const chapterIds = Object.keys(byChapter);
-      const meta: Record<string, unknown> = { total, updatedAt: Date.now(), chapterIds };
-      if (revision) {
-        meta['dbMaxUpdatedAt'] = revision.max_updated_at ?? null;
-        meta['dbRowCount'] = revision.row_count;
-      }
-      localStorage.setItem(`${keyBase}_meta`, JSON.stringify(meta));
-      chapterIds.forEach(chId => {
-        localStorage.setItem(`${keyBase}_ch_${chId}`, JSON.stringify({ topics: byChapter[chId] }));
-      });
-    } catch (_) {}
-  }
-
-  /** Save flat question list to localStorage (chunked). Returns false if storage fails (e.g. quota). */
-  private saveSubjectListToStorage(
-    questions: any[],
-    revision?: { max_updated_at: string | null; row_count: number }
-  ): boolean {
-    const keyBase = this.buildSubjectCacheKey();
-    if (!keyBase || !Array.isArray(questions)) return false;
-    try {
-      const chunkCount = Math.ceil(questions.length / this.SUBJECT_LIST_CHUNK_SIZE) || 1;
-      localStorage.setItem(`${keyBase}_list_meta`, JSON.stringify({
-        total: questions.length,
-        updatedAt: Date.now(),
-        chunkCount,
-        dbMaxUpdatedAt: revision?.max_updated_at ?? null,
-        dbRowCount: revision?.row_count ?? questions.length
-      }));
-      for (let i = 0; i < chunkCount; i++) {
-        const chunk = questions.slice(i * this.SUBJECT_LIST_CHUNK_SIZE, (i + 1) * this.SUBJECT_LIST_CHUNK_SIZE);
-        localStorage.setItem(`${keyBase}_list_chunk_${i}`, JSON.stringify(chunk));
-      }
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   constructor(
@@ -1489,43 +1129,19 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topics = [];
     this.selectedChapterIds = new Set();
     this.selectedTopicIds = new Set();
-    this._topicQuestionsLegacy = [];
+    this.pagedTopicQuestions = [];
     this.subsourceSources = [];
     this.subsourceYears = [];
     this.selectedSources = new Set();
     this.selectedYears = new Set();
-    const chapters$ = this.apiService.getQuestionChapters({ level_tr: sub.level_tr, class_level: sub.class_level, subject_tr: sub.subject_tr });
-    const questions$ = this.apiService.getQuestionListBySubject({ level_tr: sub.level_tr, class_level: sub.class_level, subject_tr: sub.subject_tr });
-    forkJoin({ chapters: chapters$, questions: questions$ }).subscribe({
-      next: (res) => {
-        const ch = res.chapters;
-        const questions = (res.questions?.questions ?? []) as any[];
-        if (questions.length === 0) {
-          this.chapters = Array.isArray(ch) ? ch : (ch?.chapters ?? []);
-          this.sortChaptersByNo(this.chapters);
-          this.loadSubjectFullCacheFallbackPerTopic(() => this.applyRestoreFiltersAndBuild999());
-          return;
-        }
-        const { byChapter, topics } = this.buildByChapterFromFlatList(questions);
-        this.subjectCacheByChapter = byChapter;
-        this.setChaptersFromSubjectCache();
-        this.topics = topics;
-        this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-        this.saveSubjectListToStorage(questions, res.questions?.revision);
-        this.applyRestoreFiltersAndBuild999();
+    this.apiService.getQuestionChapters({ level_tr: sub.level_tr, class_level: sub.class_level, subject_tr: sub.subject_tr }).subscribe({
+      next: (r) => {
+        const ch = (r as any).chapters ?? r;
+        this.chapters = Array.isArray(ch) ? ch : [];
+        this.sortChaptersByNo(this.chapters);
+        this.loadSubjectMetadata(() => this.applyRestoreFiltersAndBuild999());
       },
-      error: () => {
-        this.chapters = [];
-        this.apiService.getQuestionChapters({ level_tr: sub.level_tr, class_level: sub.class_level, subject_tr: sub.subject_tr }).subscribe({
-          next: (r) => {
-            const ch = (r as any).chapters ?? r;
-            this.chapters = Array.isArray(ch) ? ch : [];
-            this.sortChaptersByNo(this.chapters);
-            this.loadSubjectFullCache(() => this.applyRestoreFiltersAndBuild999());
-          },
-          error: () => { this._pendingFilterState = null; }
-        });
-      }
+      error: () => { this._pendingFilterState = null; }
     });
   }
 
@@ -1533,12 +1149,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
    * Restore chapter and topic from saved state. Always reads chapter/topic from localStorage (single source of truth) so no duplicate/cleared in-memory state can block restore.
    */
   private applyRestoreFiltersAndBuild999(): void {
-    const s = this._pendingFilterState;
-    const cache = this.subjectCacheByChapter;
-    if (Object.keys(cache).length > 0) {
-      this.setChaptersFromSubjectCache();
-    }
-    // Always read chapter/topic from localStorage so we don't rely on _pendingFilterState (may be null or cleared)
     const stored = this.loadFilterState();
     const rawCh = stored?.chapterIds ?? (stored as any)?.chapter_ids;
     const rawTop = stored?.topicIds ?? (stored as any)?.topic_ids;
@@ -1559,30 +1169,26 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     const firstChId = Array.from(this.selectedChapterIds)[0];
     this.currentChapter = this.chapters?.find(c => c.id == firstChId)?.name
-      ?? (cache[firstChId] && Object.values(cache[firstChId])[0]?.[0]?.chapter_name)
       ?? (firstChId != null ? String(firstChId) : '');
 
-    this.applyTopicsFromSubjectCache();
-
-    if (savedTopIds.length > 0 && this.topics?.length) {
-      const matched = this.topics.filter(t => savedTopIds.some(sid => looseMatch(sid, t.id)));
-      if (matched.length > 0) {
-        this.selectedTopicIds = new Set(matched.map(t => (t.id != null ? String(t.id) : '')).filter(Boolean));
-      } else {
-        this.applyChapterTopicSelectionManually(this.topics, savedTopIds, false);
+    this.applyTopicsFromSubjectCache(() => {
+      if (savedTopIds.length > 0 && this.topics?.length) {
+        const matched = this.topics.filter(t => savedTopIds.some(sid => looseMatch(sid, t.id)));
+        if (matched.length > 0) {
+          this.selectedTopicIds = new Set(matched.map(t => (t.id != null ? String(t.id) : '')).filter(Boolean));
+        } else {
+          this.applyChapterTopicSelectionManually(this.topics, savedTopIds, false);
+        }
       }
-    }
-
-    const hasSubjectCache = Object.keys(cache).length > 0;
-    if (this.primarySubject && hasSubjectCache) {
-      this.build999AndLoadFromCache();
-    } else {
-      this._pendingFilterState = null;
-    }
-    if (this.topicQuestionsFullCache.length > 0) this.topicQuestionsLoaded = true;
-    if (this.selectedLevel) this.syncQuestionRouteQueryParams();
-    this.saveFilterState();
-    this.cdr.detectChanges();
+      if (this.primarySubject) {
+        this.loadQuestionsPage(1);
+      } else {
+        this._pendingFilterState = null;
+      }
+      if (this.selectedLevel) this.syncQuestionRouteQueryParams();
+      this.saveFilterState();
+      this.cdr.detectChanges();
+    });
   }
 
   /** Manually add to chapter or topic selection: for each saved id, if any list item matches (== or normalized string), add that item's id to the Set. */
@@ -1862,92 +1468,38 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionIds = new Set();
     this.loadUnlockedQidsFromServer();
     this.totalQuestionsInDbForSubject = null;
-    this.subjectCacheByChapter = {};
-    this.topicQuestionsFullCache = [];
-    this.topicQuestionsLoadedCount = 0;
-    this.topicQuestionsCacheTotal = 0;
+    this.pagedTopicQuestions = [];
+    this.questionListTotalCount = 0;
     this.topicQuestionsPage = 1;
-    this._hasShown999LimitAlert = false;
     const sub = this.primarySubject;
     this.currentSubject = sub ? sub.subject_tr : '';
     this.currentChapter = '';
     if (sub) {
       this.loadingService.setTotal(1);
-      const chapters$ = this.apiService.getQuestionChapters({
+      this.apiService.getQuestionChapters({
         level_tr: sub.level_tr,
         class_level: sub.class_level,
         subject_tr: sub.subject_tr
-      });
-      const questions$ = this.apiService.getQuestionListBySubject({
-        level_tr: sub.level_tr,
-        class_level: sub.class_level,
-        subject_tr: sub.subject_tr
-      });
-      forkJoin({ chapters: chapters$, questions: questions$ }).subscribe({
-        next: (res) => {
-          const questions = (res.questions?.questions ?? []) as any[];
-          if (questions.length === 0) {
-            this.chapters = res.chapters?.chapters ?? [];
-            this.sortChaptersByNo(this.chapters);
-            this.loadSubjectFullCacheFallbackPerTopic(() => {
-              this.setChaptersFromSubjectCache();
-              if (this._restoreChapterTopicAfterSubjectLoad) {
-                this._restoreChapterTopicAfterSubjectLoad = false;
-                if (!this._pendingFilterState) this._pendingFilterState = this.loadFilterState();
-                this.applyRestoreFiltersAndBuild999();
-              } else {
-                this.cdr.detectChanges();
-              }
-              this.loadingService.completeOne();
-            });
-            return;
-          }
-          const { byChapter, topics } = this.buildByChapterFromFlatList(questions);
-          this.subjectCacheByChapter = byChapter;
-          this.setChaptersFromSubjectCache();
-          this.topics = topics;
-          this.totalQuestionsInDbForSubject = this.countUniqueQidsInByChapter(byChapter);
-          this.saveSubjectListToStorage(questions, res.questions?.revision);
-          const useRestore = this._restoreChapterTopicAfterSubjectLoad;
-          if (useRestore) {
-            this._restoreChapterTopicAfterSubjectLoad = false;
-            if (!this._pendingFilterState) this._pendingFilterState = this.loadFilterState();
-            this.applyRestoreFiltersAndBuild999();
-          } else {
-            this.applyTopicsFromSubjectCache();
-            this.build999AndLoadFromCache();
-          }
-          this.cdr.detectChanges();
-          this.loadingService.completeOne();
+      }).subscribe({
+        next: (r) => {
+          this.chapters = (r as any).chapters ?? [];
+          this.sortChaptersByNo(this.chapters);
+          this.loadSubjectMetadata(() => {
+            if (this._restoreChapterTopicAfterSubjectLoad) {
+              this._restoreChapterTopicAfterSubjectLoad = false;
+              if (!this._pendingFilterState) this._pendingFilterState = this.loadFilterState();
+              this.applyRestoreFiltersAndBuild999();
+            } else {
+              this.applyTopicsFromSubjectCache(() => this.loadQuestionsPage(1));
+            }
+            this.cdr.detectChanges();
+            this.loadingService.completeOne();
+          });
         },
         error: () => {
-          this.chapters = [];
-          this.apiService.getQuestionChapters({
-            level_tr: sub.level_tr,
-            class_level: sub.class_level,
-            subject_tr: sub.subject_tr
-          }).subscribe({
-            next: (r) => {
-              this.chapters = (r as any).chapters ?? [];
-              this.sortChaptersByNo(this.chapters);
-              this.loadSubjectFullCache(() => {
-                this.setChaptersFromSubjectCache();
-                if (this._restoreChapterTopicAfterSubjectLoad) {
-                  this._restoreChapterTopicAfterSubjectLoad = false;
-                  if (!this._pendingFilterState) this._pendingFilterState = this.loadFilterState();
-                  this.applyRestoreFiltersAndBuild999();
-                } else {
-                  this.cdr.detectChanges();
-                }
-                this.loadingService.completeOne();
-              });
-            },
-            error: () => {
-              this._restoreChapterTopicAfterSubjectLoad = false;
-              this.cdr.detectChanges();
-              this.loadingService.completeOne();
-            }
-          });
+          this._restoreChapterTopicAfterSubjectLoad = false;
+          this.cdr.detectChanges();
+          this.loadingService.completeOne();
         }
       });
     }
@@ -2084,7 +1636,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topics = [];
     this.selectedTopicIds = new Set();
     this.topicDropdownOpen = false;
-    this._topicQuestionsLegacy = [];
+    this.pagedTopicQuestions = [];
+    this.questionListTotalCount = 0;
     this.subsourceSources = [];
     this.subsourceYears = [];
     this.selectedSources = new Set();
@@ -2093,23 +1646,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const firstCh = this.chapters.find(c => this.isChapterSelected(c));
     this.currentChapter = firstCh ? firstCh.name : '';
     this.loadingService.setTotal(1);
-    if (Object.keys(this.subjectCacheByChapter).length > 0) {
-      this.applyTopicsFromSubjectCache();
-      this.build999AndLoadFromCache();
+    this.applyTopicsFromSubjectCache(() => {
+      this.loadQuestionsPage(1);
       this.cdr.detectChanges();
       this.loadingService.completeOne();
-    } else {
-      this.loadSubjectFullCache(() => {
-        if (Object.keys(this.subjectCacheByChapter).length > 0) {
-          this.applyTopicsFromSubjectCache();
-          this.build999AndLoadFromCache();
-        } else {
-          this.loadTopics();
-        }
-        this.cdr.detectChanges();
-        this.loadingService.completeOne();
-      });
-    }
+    });
     this.saveFilterState();
   }
 
@@ -2517,6 +2058,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   private onQuestionTypeSelectionChange(): void {
     this.topicQuestionsPage = 1;
     this.saveFilterState();
+    if (this.primarySubject) {
+      this.loadQuestionsPage(1);
+    }
   }
 
   onTopicSelectAllToggle(): void {
@@ -2552,9 +2096,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private onTopicSelectionChange(): void {
-    this._topicQuestionsLegacy = [];
-    this.topicQuestionsFullCache = [];
-    this.topicQuestionsLoadedCount = 0;
+    this.pagedTopicQuestions = [];
+    this.questionListTotalCount = 0;
     this.topicQuestionsPage = 1;
     this.subsourceSources = [];
     this.subsourceYears = [];
@@ -2563,17 +2106,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionTypes = new Set();
     this.typeDropdownOpen = false;
     this.topicQuestionsLoaded = false;
-    const hasSubjectCache = Object.keys(this.subjectCacheByChapter).length > 0;
-    if (this.primarySubject && (this.selectedTopicIds.size > 0 || hasSubjectCache)) {
-      this.build999AndLoadFromCache();
+    if (this.primarySubject) {
+      this.loadQuestionsPage(1);
     } else {
-      this._topicQuestionsLegacy = [];
-      this.topicQuestionsFullCache = [];
-      this.topicQuestionsLoadedCount = 0;
-      this.subsourceSources = [];
-      this.subsourceYears = [];
-      this.selectedSources = new Set();
-      this.selectedYears = new Set();
       this.topicQuestionsLoaded = true;
     }
     this.saveFilterState();
@@ -2640,298 +2175,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /** Build 999 list, save to localStorage, then load first chunk; or load from cache if present. */
-  private build999AndLoadFromCache(skipLocalQ999Cache = false): void {
-    const sub = this.primarySubject;
-    if (!sub) return;
-    const hasTopicSelection = this.selectedTopicIds.size > 0;
-    const hasSubjectCache = Object.keys(this.subjectCacheByChapter).length > 0;
-    if (!hasTopicSelection && !hasSubjectCache) return;
-    this.topicQuestionsLoaded = false;
-    const keyBase = this.buildQ999CacheKey();
-    if (!skipLocalQ999Cache && keyBase) {
-      try {
-        const metaStr = localStorage.getItem(`${keyBase}_meta`);
-        const meta = metaStr ? JSON.parse(metaStr) : null;
-        const total = meta?.total ?? 0;
-        if (total > 0 && this.q999CacheMatchesSubjectRevision(meta)) {
-          const allChunks: any[] = [];
-          const chunkCount = Math.ceil(total / this.Q999_CHUNK_SIZE);
-          for (let i = 0; i < chunkCount; i++) {
-            const str = localStorage.getItem(`${keyBase}_chunk_${i}`);
-            const chunk = str ? JSON.parse(str) : null;
-            if (Array.isArray(chunk)) allChunks.push(...chunk);
-            else break;
-          }
-          if (allChunks.length > 0) {
-            this.topicQuestionsFullCache = this.applyUserEditsToQuestions(allChunks);
-            this.topicQuestionsLoadedCount = allChunks.length;
-            this.topicQuestionsCacheTotal = total;
-            this.updateSubsourceOptionsFromList(this.topicQuestionsFullCache);
-            this.applyPendingFilterStateSourcesYearsQuestions();
-            this.topicQuestionsPage = 1;
-            this.topicQuestionsLoaded = true;
-            this.cdr.detectChanges();
-            setTimeout(() => this.measureOptionsLayouts(), 80);
-            return;
-          }
-        }
-      } catch (_) {}
-    }
-    this.topicQuestionsFullCache = [];
-    this.topicQuestionsLoadedCount = 0;
-    if (Object.keys(this.subjectCacheByChapter).length > 0) {
-      this.build999FromSubjectCache();
-    } else {
-      this.load999WithDistribution();
-    }
-  }
-
-  /**
-   * Build the 999 list from in-memory subject cache: filter by selected chapters/topics, then apply
-   * distribution (split across chapters → topics; within topic prefer largest subsource then qid; rebalance to 999).
-   * No API calls. Saves result to 999 cache and displays.
-   */
-  private build999FromSubjectCache(): void {
-    const list = this.compute999FromSubjectCache();
-    if (list.length > 0) {
-      this.finish999AndSave(list);
-    } else {
-      this.load999WithDistribution();
-    }
-  }
-
-  /**
-   * Distribution: chapters (equal split) → topics (equal split) → within topic by subsource then qid.
-   * If a chapter has more topics than its quota, pick one question per topic serially by qid until quota used.
-   * Rebalance so total is up to 999 when possible. Returns list in retrieval order (no final sort).
-   */
-  private compute999FromSubjectCache(): any[] {
-    const chapterIds = this.selectedChapterIds.size > 0
-      ? Array.from(this.selectedChapterIds).filter(id => this.subjectCacheByChapter[id])
-      : Object.keys(this.subjectCacheByChapter);
-    if (chapterIds.length === 0) return [];
-
-    type TopicEntry = { chapterId: string; topicId: string; questions: any[] };
-    const entries: TopicEntry[] = [];
-    chapterIds.forEach(chapterId => {
-      const topicsMap = this.subjectCacheByChapter[chapterId] || {};
-      const topicIds = this.selectedTopicIds.size > 0
-        ? Object.keys(topicsMap).filter(tid => Array.from(this.selectedTopicIds).some(id => id == tid))
-        : Object.keys(topicsMap);
-      topicIds.forEach(topicId => {
-        const questions = (topicsMap[topicId] || []).slice();
-        if (questions.length === 0) return;
-        const sorted = questions.sort((a: any, b: any) => {
-          const ta = this.parseSubsourceTokens(a.subsource);
-          const tb = this.parseSubsourceTokens(b.subsource);
-          const maxYearA = ta.length ? Math.max(...ta.map(t => parseInt(t.year, 10) || 0)) : 0;
-          const maxYearB = tb.length ? Math.max(...tb.map(t => parseInt(t.year, 10) || 0)) : 0;
-          if (maxYearB !== maxYearA) return maxYearB - maxYearA;
-          const na = a.qid != null ? Number(a.qid) : NaN;
-          const nb = b.qid != null ? Number(b.qid) : NaN;
-          if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na;
-          return 0;
-        });
-        entries.push({ chapterId, topicId, questions: sorted });
-      });
-    });
-    if (entries.length === 0) return [];
-
-    const totalAvailable = entries.reduce((s, e) => s + e.questions.length, 0);
-    const target = Math.min(this.Q999_MAX, totalAvailable);
-    if (target <= 0) return [];
-
-    const nChapters = chapterIds.length;
-    const perChapterBase = Math.floor(target / nChapters);
-    const remainderCh = target % nChapters;
-    const chapterQuotas: { [chapterId: string]: number } = {};
-    chapterIds.forEach((chId, i) => {
-      chapterQuotas[chId] = perChapterBase + (i < remainderCh ? 1 : 0);
-    });
-
-    const topicQuotas: { key: string; quota: number }[] = [];
-    chapterIds.forEach(chapterId => {
-      const chapterEntries = entries.filter(e => e.chapterId === chapterId);
-      const quota = chapterQuotas[chapterId] || 0;
-      if (chapterEntries.length === 0) return;
-      const perTopicBase = Math.floor(quota / chapterEntries.length);
-      const rem = quota % chapterEntries.length;
-      chapterEntries.forEach((e, i) => {
-        topicQuotas.push({ key: `${e.chapterId}\t${e.topicId}`, quota: perTopicBase + (i < rem ? 1 : 0) });
-      });
-    });
-
-    const seenQids = new Set<number | string>();
-    const entryByKey = new Map<string, TopicEntry>();
-    entries.forEach(e => { entryByKey.set(`${e.chapterId}\t${e.topicId}`, e); });
-
-    const result: any[] = [];
-    const usedByKey: { [key: string]: number } = {};
-
-    function takeFromTopic(entry: TopicEntry, count: number): any[] {
-      const key = `${entry.chapterId}\t${entry.topicId}`;
-      const start = usedByKey[key] || 0;
-      const out: any[] = [];
-      for (let i = 0; i < entry.questions.length && out.length < count; i++) {
-        const q = entry.questions[start + i];
-        if (!q || seenQids.has(q.qid)) continue;
-        seenQids.add(q.qid);
-        out.push(q);
-      }
-      usedByKey[key] = start + out.length;
-      return out;
-    }
-
-    chapterIds.forEach(chapterId => {
-      const chapterEntries = entries.filter(e => e.chapterId === chapterId);
-      const chapterQuota = chapterQuotas[chapterId] || 0;
-      const topicQuotaList = chapterEntries.map(e => ({
-        entry: e,
-        quota: topicQuotas.find(tq => tq.key === `${e.chapterId}\t${e.topicId}`)?.quota ?? 0
-      }));
-      const hasZeroQuota = topicQuotaList.some(t => t.quota === 0);
-      if (hasZeroQuota && chapterQuota > 0) {
-        const topicOrder = chapterEntries.slice().sort((a, b) => {
-          const qa = a.questions[0]?.qid;
-          const qb = b.questions[0]?.qid;
-          const na = qa != null ? Number(qa) : NaN;
-          const nb = qb != null ? Number(qb) : NaN;
-          return !Number.isNaN(na) && !Number.isNaN(nb) ? na - nb : 0;
-        });
-        let taken = 0;
-        let round = 0;
-        while (taken < chapterQuota) {
-          let added = 0;
-          for (const e of topicOrder) {
-            if (taken >= chapterQuota) break;
-            const key = `${e.chapterId}\t${e.topicId}`;
-            const used = usedByKey[key] || 0;
-            if (used >= e.questions.length) continue;
-            const q = e.questions[used];
-            if (q && !seenQids.has(q.qid)) {
-              seenQids.add(q.qid);
-              result.push(q);
-              usedByKey[key] = used + 1;
-              taken++;
-              added++;
-            }
-          }
-          if (added === 0) break;
-          round++;
-        }
-      } else {
-        topicQuotaList.forEach(({ entry, quota }) => {
-          result.push(...takeFromTopic(entry, quota));
-        });
-      }
-    });
-
-    if (result.length < target && result.length < totalAvailable) {
-      const shortfall = target - result.length;
-      const remaining = entries.flatMap(e => e.questions.filter(q => !seenQids.has(q.qid)));
-      remaining.sort((a: any, b: any) => {
-        const ta = this.parseSubsourceTokens(a.subsource);
-        const tb = this.parseSubsourceTokens(b.subsource);
-        const maxYearA = ta.length ? Math.max(...ta.map(t => parseInt(t.year, 10) || 0)) : 0;
-        const maxYearB = tb.length ? Math.max(...tb.map(t => parseInt(t.year, 10) || 0)) : 0;
-        if (maxYearB !== maxYearA) return maxYearB - maxYearA;
-        const na = a.qid != null ? Number(a.qid) : NaN;
-        const nb = b.qid != null ? Number(b.qid) : NaN;
-        return (!Number.isNaN(na) && !Number.isNaN(nb)) ? nb - na : 0;
-      });
-      for (let i = 0; i < shortfall && i < remaining.length; i++) {
-        const q = remaining[i];
-        if (q && !seenQids.has(q.qid)) {
-          seenQids.add(q.qid);
-          result.push(q);
-        }
-      }
-    }
-    return result.slice(0, this.Q999_MAX);
-  }
-
-  private load999WithDistribution(): void {
-    const sub = this.primarySubject;
-    if (!sub || !this.selectedTopicIds.size) return;
-    const chapterParam = this.selectedChapterIds.size === 1
-      ? (this.chapters.find(c => this.selectedChapterIds.has(c.id))?.name)
-      : undefined;
-    const topicIds = Array.from(this.selectedTopicIds);
-    const perTopic = Math.max(1, Math.floor(this.Q999_MAX / topicIds.length));
-    const all: any[] = [];
-    const seenIds = new Set<number | string>();
-    let pending = topicIds.length;
-    topicIds.forEach(topicId => {
-      const topicName = this.topics.find(t => t.id === topicId)?.name ?? topicId;
-      this.apiService.getQuestionListByTopic({
-        level_tr: sub.level_tr,
-        class_level: sub.class_level,
-        subject_tr: sub.subject_tr,
-        chapter: chapterParam || undefined,
-        topic: topicName
-      }).subscribe({
-        next: (res) => {
-          const raw = (res.questions || []) as any[];
-          const bySubsource = [...raw].sort((a: any, b: any) => {
-            const ta = this.parseSubsourceTokens(a.subsource);
-            const tb = this.parseSubsourceTokens(b.subsource);
-            const maxYearA = ta.length ? Math.max(...ta.map(t => parseInt(t.year, 10) || 0)) : 0;
-            const maxYearB = tb.length ? Math.max(...tb.map(t => parseInt(t.year, 10) || 0)) : 0;
-            if (maxYearB !== maxYearA) return maxYearB - maxYearA;
-            const na = a.qid != null ? Number(a.qid) : NaN;
-            const nb = b.qid != null ? Number(b.qid) : NaN;
-            if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na;
-            return 0;
-          });
-          for (const q of bySubsource) {
-            if (all.length >= this.Q999_MAX) break;
-            const qid = q.qid;
-            if (qid != null && !seenIds.has(qid)) {
-              seenIds.add(qid);
-              all.push(q);
-              if (all.length >= this.Q999_MAX) break;
-            }
-          }
-          pending--;
-          if (pending === 0) this.finish999AndSave(all);
-        },
-        error: () => {
-          pending--;
-          if (pending === 0) this.finish999AndSave(all);
-        }
-      });
-    });
-  }
-
-  private finish999AndSave(all: any[]): void {
-    const slice = all.slice(0, this.Q999_MAX);
-    this.topicQuestionsFullCache = this.applyUserEditsToQuestions(slice.slice());
-    this.topicQuestionsLoadedCount = slice.length;
-    this.topicQuestionsCacheTotal = slice.length;
-    this._hasShown999LimitAlert = false;
-    const keyBase = this.buildQ999CacheKey();
-    if (keyBase) {
-      try {
-        for (let i = 0; i < slice.length; i += this.Q999_CHUNK_SIZE) {
-          const chunk = slice.slice(i, i + this.Q999_CHUNK_SIZE);
-          localStorage.setItem(`${keyBase}_chunk_${i / this.Q999_CHUNK_SIZE}`, JSON.stringify(chunk));
-        }
-        const subjectRev = this.getSubjectCacheRevisionFromStorage();
-        localStorage.setItem(`${keyBase}_meta`, JSON.stringify({
-          total: slice.length,
-          dbMaxUpdatedAt: subjectRev?.dbMaxUpdatedAt ?? null,
-          dbRowCount: subjectRev?.dbRowCount ?? 0
-        }));
-      } catch (_) {}
-    }
-    this.updateSubsourceOptionsFromList(slice);
-    this.applyPendingFilterStateSourcesYearsQuestions();
-    this.topicQuestionsLoaded = true;
-    this.cdr.detectChanges();
-    setTimeout(() => this.measureOptionsLayouts(), 80);
-  }
-
   /** Apply saved sources, years, instituteType and questionIds from _pendingFilterState; then clear it. Call after list/subsource options are ready. */
   private applyPendingFilterStateSourcesYearsQuestions(): void {
     const s = this._pendingFilterState;
@@ -2963,114 +2206,19 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedYears = new Set([...this.selectedYears].filter(x => yearSet.has(x)));
   }
 
-  /** Load more chunks from localStorage when current page requires indices beyond loadedCount. */
-  private ensureChunksLoadedForCurrentPage(): void {
-    if (this.topicQuestionsCacheTotal <= 0 || this.topicQuestionsFullCache.length === 0) return;
-    const keyBase = this.buildQ999CacheKey();
-    if (!keyBase) return;
-    const requiredEnd = this.topicQuestionsPage * this.Q999_PAGE_SIZE;
-    while (this.topicQuestionsLoadedCount < requiredEnd && this.topicQuestionsLoadedCount < this.topicQuestionsCacheTotal) {
-      const chunkIndex = Math.floor(this.topicQuestionsLoadedCount / this.Q999_CHUNK_SIZE);
-      try {
-        const str = localStorage.getItem(`${keyBase}_chunk_${chunkIndex}`);
-        const chunk = str ? JSON.parse(str) : null;
-        if (Array.isArray(chunk) && chunk.length > 0) {
-          this.topicQuestionsFullCache = this.topicQuestionsFullCache.concat(chunk);
-          this.topicQuestionsLoadedCount = Math.min(this.topicQuestionsFullCache.length, this.topicQuestionsCacheTotal);
-          this.updateSubsourceOptionsFromList(this.topicQuestionsFullCache);
-        } else break;
-      } catch (_) {
-        break;
-      }
-    }
-  }
-
   onTopicQuestionsPageChange(page: number): void {
-    this.topicQuestionsPage = page;
-    this.ensureChunksLoadedForCurrentPage();
-    const totalPages = this.topicQuestionsTotalPages;
-    if (page >= totalPages && this.topicQuestionsCacheTotal >= this.Q999_MAX && !this._hasShown999LimitAlert) {
-      this._hasShown999LimitAlert = true;
-      if (typeof window !== 'undefined' && window.alert) {
-        window.alert('You have reached the end of the first 999 questions. Apply filters to narrow results or view different chapters/topics.');
-      }
+    this.loadQuestionsPage(page);
+    if (typeof window !== 'undefined') {
+      setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }), 80);
     }
-    this.cdr.detectChanges();
-    setTimeout(() => {
-      this.measureOptionsLayouts();
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-      }
-    }, 80);
   }
 
-  /** True when we are on the last page of the 999 cache and there may be more questions beyond 999. */
   get showApplyFilterMessage(): boolean {
-    if (this.topicQuestionsFullCache.length === 0 || this.topicQuestionsCacheTotal < this.Q999_MAX) return false;
-    return this.topicQuestionsPage >= this.topicQuestionsTotalPages;
+    return false;
   }
 
   private loadQuestionsByTopics(): void {
-    const sub = this.primarySubject;
-    if (!sub || !this.selectedTopicIds.size) return;
-    this.topicQuestionsLoaded = false;
-    const all: any[] = [];
-    const seenIds = new Set<number>();
-    let pending = this.selectedTopicIds.size;
-    const chapterParam = this.selectedChapterIds.size === 1
-      ? (this.chapters.find(c => this.selectedChapterIds.has(c.id))?.name)
-      : undefined;
-    this.selectedTopicIds.forEach(topicId => {
-      const topicName = this.topics.find(t => t.id === topicId)?.name ?? topicId;
-      this.apiService.getQuestionListByTopic({
-        level_tr: sub.level_tr,
-        class_level: sub.class_level,
-        subject_tr: sub.subject_tr,
-        chapter: chapterParam || undefined,
-        topic: topicName
-      }).subscribe({
-        next: (res) => {
-          (res.questions || []).forEach((q: any) => {
-            if (all.length >= 999) return;
-            const qid = q.qid;
-            if (qid != null && !seenIds.has(qid)) {
-              seenIds.add(qid);
-              all.push(q);
-            }
-          });
-          pending--;
-          if (pending === 0) {
-            const slice = all.slice(0, 999);
-            this._topicQuestionsLegacy = slice.sort((a: any, b: any) => {
-              const na = a.qid != null ? Number(a.qid) : NaN;
-              const nb = b.qid != null ? Number(b.qid) : NaN;
-              if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
-              return String(a.qid ?? '').localeCompare(String(b.qid ?? ''));
-            });
-            this.updateSubsourceOptions();
-            this.applyPendingFilterStateSourcesYearsQuestions();
-            this.topicQuestionsLoaded = true;
-            setTimeout(() => this.measureOptionsLayouts(), 80);
-          }
-        },
-        error: () => {
-          pending--;
-          if (pending === 0) {
-            const slice = all.slice(0, 999);
-            this._topicQuestionsLegacy = slice.sort((a: any, b: any) => {
-              const na = a.qid != null ? Number(a.qid) : NaN;
-              const nb = b.qid != null ? Number(b.qid) : NaN;
-              if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
-              return String(a.qid ?? '').localeCompare(String(b.qid ?? ''));
-            });
-            this.updateSubsourceOptions();
-            this._pendingFilterState = null;
-            this.topicQuestionsLoaded = true;
-            setTimeout(() => this.measureOptionsLayouts(), 80);
-          }
-        }
-      });
-    });
+    this.loadQuestionsPage(1);
   }
 
   /** Parse subsource string into tokens { source, year } e.g. "BB'17", "CB'16" -> [{source:'BB',year:'17'},{source:'CB',year:'16'}]. */
@@ -3127,6 +2275,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.cdr.detectChanges();
     this.showDisappearAlert = true;
     this.cdr.detectChanges();
+    if (this.primarySubject) {
+      this.loadQuestionsPage(this.effectiveTopicQuestionsPage);
+    }
   }
 
   /** Loose equality so number vs string qid still matches (e.g. 123 and "123"). */
@@ -3376,20 +2527,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       !applyTypeFilter || this.selectedQuestionTypes.size === 0
         ? arr
         : arr.filter((q: any) => this.selectedQuestionTypes.has(this.normalizeQuestionTypeLabel(q?.type)));
-    if (this.topicQuestionsFullCache.length > 0) {
-      const raw = useFullSubjectCache
-        ? [...this.topicQuestionsFullCache]
-        : this.topicQuestionsFullCache.slice(0, this.topicQuestionsLoadedCount);
-      const sorted = [...raw].sort((a: any, b: any) => {
-        const na = a.qid != null ? Number(a.qid) : NaN;
-        const nb = b.qid != null ? Number(b.qid) : NaN;
-        if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
-        return String(a.qid ?? '').localeCompare(String(b.qid ?? ''));
-      });
-      const bySourceYear = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
-        ? sorted
-        : sorted.filter((q: any) => this.questionMatchesSourceYear(q));
-      return this.applyUserEditsToQuestions(filterDisappeared(filterByType(bySourceYear)));
+    if (this.pagedTopicQuestions.length > 0) {
+      return filterDisappeared(filterByType(this.pagedTopicQuestions));
     }
     const list = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
       ? this.topicQuestions
@@ -3401,13 +2540,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.getTopicQuestionsFilteredSortedCore(true);
   }
 
-  /** Displayed list: current page (30 items) from filtered+sorted list, with fullIndex for layout. */
+  /** Displayed list: current API page (30 items) with fullIndex for layout. */
   getDisplayedQuestions(): { q: any; fullIndex: number }[] {
-    const list = this.getTopicQuestionsFilteredSorted();
-    const page = this.effectiveTopicQuestionsPage;
-    const start = (page - 1) * this.Q999_PAGE_SIZE;
-    const pageList = list.slice(start, start + this.Q999_PAGE_SIZE);
-    return pageList.map((q: any, i: number) => ({ q, fullIndex: start + i }));
+    const start = (this.effectiveTopicQuestionsPage - 1) * this.questionListPageSize;
+    return this.pagedTopicQuestions.map((q: any, i: number) => ({ q, fullIndex: start + i }));
   }
 
   get allSourcesSelected(): boolean {
@@ -3445,7 +2581,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (next.has(source)) next.delete(source);
     else next.add(source);
     this.selectedSources = next;
+    this.topicQuestionsPage = 1;
     this.saveFilterState();
+    if (this.primarySubject) this.loadQuestionsPage(1);
   }
 
   onYearToggle(year: string): void {
@@ -3453,13 +2591,17 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (next.has(year)) next.delete(year);
     else next.add(year);
     this.selectedYears = next;
+    this.topicQuestionsPage = 1;
     this.saveFilterState();
+    if (this.primarySubject) this.loadQuestionsPage(1);
   }
 
   clearSubsourceSelection(): void {
     this.selectedSources = new Set();
     this.selectedYears = new Set();
+    this.topicQuestionsPage = 1;
     this.saveFilterState();
+    if (this.primarySubject) this.loadQuestionsPage(1);
   }
 
   /** Select All / Unselect All for the whole More Filters (both Source and Year columns). */
@@ -3566,7 +2708,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /** Max questions shown (no navigating past this). */
-  readonly maxTopicQuestionsShown = 999;
+  readonly maxTopicQuestionsShown = Number.MAX_SAFE_INTEGER;
 
   /** Serial number for loaded questions list: 001, 002, ... 999. */
   formatSl(index: number): string {
@@ -3745,10 +2887,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   get selectedQuestionsForCreate(): any[] {
     const ids = this.selectedQuestionIds;
     if (!ids?.size) return [];
-    const source =
-      this.topicQuestionsFullCache.length > 0
-        ? this.topicQuestionsFullCache
-        : this._topicQuestionsLegacy || [];
+    const source = this.pagedTopicQuestions.length > 0
+      ? this.pagedTopicQuestions
+      : this._topicQuestionsLegacy || [];
     const out: any[] = [];
     const seen = new Set<number | string>();
     for (const q of source) {

@@ -535,8 +535,6 @@
           [disabled]="effectiveTopicQuestionsPage >= topicQuestionsTotalPages">Next</button>
       </div>
 
-      <p *ngIf="showApplyFilterMessage" class="apply-filter-message">You have reached the end of the first 999
-        questions. Apply filters to retrieve more questions.</p>
     </div>
     <p *ngIf="selectedTopicIds.size > 0 && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode"
       class="no-topic-questions">No questions found for selected topic(s).</p>
