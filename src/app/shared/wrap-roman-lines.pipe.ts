@@ -5,7 +5,9 @@ import { enrichPlainTextWithKatex, normalizeQuestionLatexSource } from './questi
 import {
   buildRomanMcqPackHtml,
   chooseRomanMcqPackLines,
+  normalizeMcqNicherText,
   normalizeRomanMcqSource,
+  romanSegmentBodyToDisplayHtml,
   RomanMarker,
   RomanMcqLayoutContext,
   splitHtmlAtRomanMarkers,
@@ -155,7 +157,7 @@ function formatHtmlFragment(fragment: string): string {
 
 function formatRomanSegment(marker: RomanMarker, bodyHtml: string): string {
   const body = bodyHtml.trim();
-  const inner = body ? formatHtmlFragment(body) : '';
+  const inner = body ? formatHtmlFragment(romanSegmentBodyToDisplayHtml(body)) : '';
   return inner ? `${marker}. ${inner}` : `${marker}.`;
 }
 
@@ -174,7 +176,8 @@ export class WrapRomanLinesPipe implements PipeTransform {
     const prepared = normalizeRomanMcqSource(
       normalizeQuestionLatexSource(formatMaybeCProgramQuestionText(String(text)))
     );
-    const glued = prepared.replace(
+    const nicherReady = normalizeMcqNicherText(prepared);
+    const glued = nicherReady.replace(
       /([\u0980-\u09FF])(iii|ii|i)\.(?!\d)/gi,
       (_match, script: string, roman: string) => `${script}<br />${roman}.`
     );
@@ -195,7 +198,10 @@ export class WrapRomanLinesPipe implements PipeTransform {
       return this.sanitizer.bypassSecurityTrustHtml(html);
     }
 
-    const lines = glued.split(/\r?\n/);
+    const lines = glued
+      .split(/(?:\r?\n|<br\s*\/?>)/i)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
     const parts = lines.map((line) => {
       if (/^\s*<span class="q-code-block"[^>]*><code>[\s\S]*<\/code><\/span>\s*$/i.test(line)) {
         return line.trim();

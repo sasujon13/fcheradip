@@ -1227,6 +1227,13 @@ span.mx-3 {
   white-space: normal;
 }
 
+.topic-question-text ::ng-deep .roman-mcq-after-iii,
+.topic-question-subpart ::ng-deep .roman-mcq-after-iii,
+.topic-question-opt-html ::ng-deep .roman-mcq-after-iii {
+  display: block;
+  margin-top: 0.25em;
+}
+
 /* Whitelisted <img>: sizing from QuestionRichImgObserveDirective (innerHTML) */
 .topic-question-text ::ng-deep img,
 .topic-question-subpart ::ng-deep img {
