@@ -76,10 +76,10 @@
             !optionsColumnsManualOverride && !previewOptionsMeasureMode && previewOptionsLayoutForQ(q) === '4row'
           "
         >
-          <span *ngIf="q.option_1" class="preview-q-opt">(ক) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines"></span></span>
-          <span *ngIf="q.option_2" class="preview-q-opt">(খ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines"></span></span>
-          <span *ngIf="q.option_3" class="preview-q-opt">(গ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines"></span></span>
-          <span *ngIf="q.option_4" class="preview-q-opt">(ঘ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines"></span></span>
+          <span *ngIf="q.option_1" class="preview-q-opt">(ক) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          <span *ngIf="q.option_2" class="preview-q-opt">(খ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          <span *ngIf="q.option_3" class="preview-q-opt">(গ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          <span *ngIf="q.option_4" class="preview-q-opt">(ঘ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
         </div>
       </div>
     </ng-container>

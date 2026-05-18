@@ -1215,6 +1215,20 @@
   box-sizing: border-box;
 }
 
+/* MCQ i./ii./iii. packed layout (see roman-mcq-pack.ts). */
+.preview-q-text ::ng-deep .roman-mcq-pack-line,
+.preview-q-subpart ::ng-deep .roman-mcq-pack-line,
+.preview-q-opt-html ::ng-deep .roman-mcq-pack-line {
+  display: block;
+}
+.preview-q-text ::ng-deep .roman-mcq-pack-line .topic-question-roman-line,
+.preview-q-subpart ::ng-deep .roman-mcq-pack-line .topic-question-roman-line,
+.preview-q-opt-html ::ng-deep .roman-mcq-pack-line .topic-question-roman-line {
+  display: inline;
+  padding-left: var(--preview-q-roman-indent, 0.7143em);
+  text-indent: calc(0px - var(--preview-q-roman-indent, 0.7143em));
+}
+
 /* সৃজনশীল lines starting with (ক)/(খ)/(গ)/(ঘ): inset = 2×preview font − 2px via `--preview-q-bn-paren-inset`. */
 .preview-q-text ::ng-deep .topic-question-line.topic-question-bn-paren-line {
   display: block;

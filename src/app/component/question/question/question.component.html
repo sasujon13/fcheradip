@@ -450,13 +450,13 @@
                 [class.topic-question-options-4row]="optionsLayouts[item.fullIndex] === '4row'"
                 *ngIf="item.q.option_1 || item.q.option_2">
                 <span *ngIf="item.q.option_1" class="topic-question-opt">(ক) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_1) | formatQuestionMedia | wrapRomanLines"></span></span>
-                <span *ngIf="item.q.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_2) | formatQuestionMedia | wrapRomanLines"></span></span>
-                <span *ngIf="item.q.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_3) | formatQuestionMedia | wrapRomanLines"></span></span>
-                <span *ngIf="item.q.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_4) | formatQuestionMedia | wrapRomanLines"></span></span>
+                    [innerHTML]="getOptionDisplayText(item.q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+                  <span *ngIf="item.q.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html"
+                    [innerHTML]="getOptionDisplayText(item.q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+                  <span *ngIf="item.q.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html"
+                    [innerHTML]="getOptionDisplayText(item.q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+                  <span *ngIf="item.q.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html"
+                    [innerHTML]="getOptionDisplayText(item.q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
               </div>
             </ng-container>
             <div class="topic-question-edit" *ngIf="isEditingItem(item.q.qid)" (click)="$event.stopPropagation()">

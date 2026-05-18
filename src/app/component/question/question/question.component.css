@@ -1212,6 +1212,20 @@ span.mx-3 {
   padding-left: 10px;
 }
 
+/* MCQ i./ii./iii. packed lines (wrapRomanLines + roman-mcq-pack) */
+.topic-question-text ::ng-deep .roman-mcq-pack-line,
+.topic-question-subpart ::ng-deep .roman-mcq-pack-line,
+.topic-question-opt-html ::ng-deep .roman-mcq-pack-line {
+  display: block;
+}
+.topic-question-text ::ng-deep .roman-mcq-pack-line .topic-question-roman-line,
+.topic-question-subpart ::ng-deep .roman-mcq-pack-line .topic-question-roman-line,
+.topic-question-opt-html ::ng-deep .roman-mcq-pack-line .topic-question-roman-line {
+  display: inline;
+  padding-left: var(--preview-q-roman-indent, 0.7143em);
+  text-indent: calc(0px - var(--preview-q-roman-indent, 0.7143em));
+}
+
 /* Whitelisted <img>: sizing from QuestionRichImgObserveDirective (innerHTML) */
 .topic-question-text ::ng-deep img,
 .topic-question-subpart ::ng-deep img {

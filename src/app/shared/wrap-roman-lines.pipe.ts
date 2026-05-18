@@ -2,6 +2,18 @@ import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { formatMaybeCProgramQuestionText } from './c-program-question-format';
 import { enrichPlainTextWithKatex, normalizeQuestionLatexSource } from './question-katex-render';
+import {
+  buildRomanMcqPackHtml,
+  chooseRomanMcqPackLines,
+  RomanMarker,
+  RomanMcqLayoutContext,
+  splitHtmlAtRomanMarkers,
+} from './roman-mcq-pack';
+import {
+  detectMcqOptionFont,
+  measurePlainTextWidthPx,
+  resolveRomanMcqMaxWidthPx,
+} from './roman-mcq-measure';
 
 /** Roman numeral line pattern: i., ii., iii. or I., II., III. at start of line */
 const ROMAN_LINE = /^\s*(i|ii|iii|I|II|III)\./;
@@ -32,9 +44,9 @@ function decodeHtmlEntities(text: string): string {
 }
 
 function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  const el = document.createElement('div');
+  el.textContent = text;
+  return el.innerHTML;
 }
 
 function escapeAttr(s: string): string {
@@ -45,14 +57,6 @@ function escapeAttr(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
-/**
- * Allowed image URLs for whitelisted <img>:
- * - http(s)://
- * - protocol-relative //host/...
- * - same-site absolute paths starting with /
- * - data:image for common raster/svg types (base64 only)
- * - relative paths without a scheme (e.g. media/foo.jpg — same origin as the app)
- */
 function isSafeImageSrc(src: string): boolean {
   const s = src.trim();
   if (!s) return false;
@@ -65,7 +69,6 @@ function isSafeImageSrc(src: string): boolean {
   if (/^https?:\/\//i.test(s)) return true;
   if (s.startsWith('//')) return true;
   if (s.startsWith('/')) return true;
-  // Reject any other scheme: (e.g. data:text/html) before allowing relative URLs
   if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return false;
   return true;
 }
@@ -89,7 +92,6 @@ function extractImgNumericAttr(tag: string, name: 'width' | 'height'): string | 
   return m ? m[1] : null;
 }
 
-/** class="..." if it only uses safe characters (no quotes / event handlers). */
 function extractImgClass(tag: string): string | null {
   const quoted = /\bclass\s*=\s*["']([^"']*)["']/i.exec(tag);
   if (!quoted) return null;
@@ -98,15 +100,11 @@ function extractImgClass(tag: string): string | null {
   return /^[a-zA-Z0-9_\s-]+$/.test(c) ? c : null;
 }
 
-/** formatQuestionMedia: stem-only URL when captioned filename 404s */
 function extractDataQMediaFallback(tag: string): string | null {
   const quoted = /\bdata-q-media-fallback\s*=\s*["']([^"']*)["']/i.exec(tag);
   return quoted ? quoted[1].trim() : null;
 }
 
-/**
- * Emit a minimal <img> with only safe attributes. Returns null if src is missing or not allowed.
- */
 function sanitizeWhitelistedImgTag(rawTag: string): string | null {
   const src = extractImgSrc(rawTag);
   if (!src || !isSafeImageSrc(src)) return null;
@@ -126,10 +124,6 @@ function sanitizeWhitelistedImgTag(rawTag: string): string | null {
   return out;
 }
 
-/**
- * Escape HTML for display, but preserve <img> tags that pass whitelist (safe src + rebuilt tag)
- * and self-closing <br /> from formatQuestionMedia (line breaks around images).
- */
 function escapeHtmlPreserveImages(line: string): string {
   const parts: string[] = [];
   let lastIndex = 0;
@@ -154,21 +148,53 @@ function escapeHtmlPreserveImages(line: string): string {
   return parts.join('');
 }
 
+function formatHtmlFragment(fragment: string): string {
+  return escapeHtmlPreserveImages(decodeHtmlEntities(fragment));
+}
+
+function formatRomanSegment(marker: RomanMarker, bodyHtml: string): string {
+  const body = bodyHtml.trim();
+  const inner = body ? formatHtmlFragment(body) : '';
+  return inner ? `${marker}. ${inner}` : `${marker}.`;
+}
+
+function resolveLayoutContext(arg: unknown): RomanMcqLayoutContext {
+  if (arg === 'option' || arg === 'stem' || arg === 'export') return arg;
+  return 'stem';
+}
+
 @Pipe({ name: 'wrapRomanLines' })
 export class WrapRomanLinesPipe implements PipeTransform {
   constructor(private sanitizer: DomSanitizer) {}
 
-  transform(text: string | null | undefined): SafeHtml {
+  transform(text: string | null | undefined, layoutCtx?: unknown): SafeHtml {
     if (text == null || text === '') return this.sanitizer.bypassSecurityTrustHtml('');
+    const ctx = resolveLayoutContext(layoutCtx);
     const prepared = normalizeQuestionLatexSource(
       formatMaybeCProgramQuestionText(String(text))
     );
-    /** Bangla (etc.) glued to roman clauses `i./ii./iii.` → break line (STEM MCQ stems). */
-    const romanBroken = prepared.replace(
+    const glued = prepared.replace(
       /([\u0980-\u09FF])(iii|ii|i)\.(?!\d)/gi,
-      (_match, script: string, roman: string) => `${script}<br />${roman}.`,
+      (_match, script: string, roman: string) => `${script}<br />${roman}.`
     );
-    const lines = romanBroken.split(/\r?\n/);
+
+    const parsed = splitHtmlAtRomanMarkers(glued);
+    if (parsed && parsed.segments.length >= 2) {
+      const maxW = resolveRomanMcqMaxWidthPx(ctx);
+      const font = detectMcqOptionFont();
+      const packLines = chooseRomanMcqPackLines(parsed.segments, maxW, (plain) =>
+        measurePlainTextWidthPx(plain, font)
+      );
+      const html = buildRomanMcqPackHtml(
+        parsed,
+        packLines,
+        formatHtmlFragment,
+        formatRomanSegment
+      );
+      return this.sanitizer.bypassSecurityTrustHtml(html);
+    }
+
+    const lines = glued.split(/\r?\n/);
     const parts = lines.map((line) => {
       if (/^\s*<span class="q-code-block"[^>]*><code>[\s\S]*<\/code><\/span>\s*$/i.test(line)) {
         return line.trim();
