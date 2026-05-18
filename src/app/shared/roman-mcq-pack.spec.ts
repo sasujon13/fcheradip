@@ -1,71 +1,141 @@
 import {
-  collapseEmbeddedNicherLineWraps,
-  normalizeGluedNicherQuestionLine,
+  findEmbeddedKeywordLineSplit,
+  findPostIiiTailKeyword,
+  isKeywordEmbeddedInWord,
+  normalizeMcqTailText,
+  POST_III_TAIL_KEYWORDS,
   splitPostIiiFollowTail,
-  splitHtmlAtRomanMarkers,
 } from './roman-mcq-pack';
 
-describe('normalizeGluedNicherQuestionLine', () => {
-  it('rewrites বাণিজ্যেনিচের + newline + কোনটি into বাণিজ্যে + newline + নিচের কোনটি', () => {
-    expect(normalizeGluedNicherQuestionLine('বাণিজ্যেনিচের\nকোনটি সঠিক?')).toBe(
-      'বাণিজ্যে\nনিচের কোনটি সঠিক?'
-    );
+/** Arbitrary Bengali syllables (not a vocabulary list) — only for building test strings. */
+function bengaliStem(length: number): string {
+  const consonants = ['\u0995', '\u09A4', '\u09B8', '\u09AA', '\u09A6'];
+  const vowels = ['\u09BE', '\u09BF', '\u09C7', '\u09C1'];
+  let s = '';
+  for (let i = 0; i < length; i++) {
+    s += consonants[i % consonants.length] + vowels[i % vowels.length];
+  }
+  return s;
+}
+
+/** Any stem + keyword glued inside one word (optional extra ন before keyword). */
+function wordWithEmbeddedKeyword(stem: string, keyword: string, extraN = false): string {
+  return extraN ? `${stem}\u09A8${keyword}` : `${stem}${keyword}`;
+}
+
+describe('isKeywordEmbeddedInWord', () => {
+  it('detects each tail keyword inside any Bengali word', () => {
+    const stem = bengaliStem(3);
+    for (const keyword of POST_III_TAIL_KEYWORDS) {
+      const w = wordWithEmbeddedKeyword(stem, keyword);
+      const i = w.indexOf(keyword);
+      expect(isKeywordEmbeddedInWord(w, i)).toBe(true);
+    }
   });
 
-  it('supports <br> between glued word and কোনটি', () => {
-    expect(normalizeGluedNicherQuestionLine('বাণিজ্যেনিচের<br>কোনটি সঠিক?')).toBe(
-      'বাণিজ্যে\nনিচের কোনটি সঠিক?'
-    );
+  it('is false when keyword is standalone at line start', () => {
+    for (const keyword of POST_III_TAIL_KEYWORDS) {
+      expect(isKeywordEmbeddedInWord(`${keyword} ${bengaliStem(2)}`, 0)).toBe(false);
+    }
   });
 });
 
-describe('collapseEmbeddedNicherLineWraps', () => {
-  it('joins প্রিন্ট and নিচের across a line break inside one word', () => {
-    expect(collapseEmbeddedNicherLineWraps('ফিঙ্গার প্রিন্ট\nনিচের')).toBe('ফিঙ্গার প্রিন্টনিচের');
+describe('findEmbeddedKeywordLineSplit', () => {
+  it('splits embedded keyword + line break + any following text', () => {
+    const stem = bengaliStem(4);
+    const keyword = POST_III_TAIL_KEYWORDS[0];
+    const follow = bengaliStem(2);
+    const hit = findEmbeddedKeywordLineSplit(
+      `${wordWithEmbeddedKeyword(stem, keyword)}\n${follow}`,
+      keyword
+    );
+    expect(hit?.clause).toBe(stem);
+    expect(hit?.tail).toBe(`${keyword} ${follow}`);
   });
 
-  it('keeps a real নিচের উদ্দীপক tail line', () => {
-    expect(collapseEmbeddedNicherLineWraps('clause\nনিচের উদ্দীপক')).toBe('clause\nনিচের উদ্দীপক');
+  it('uses কোনটি when নিচের is absent', () => {
+    const stem = bengaliStem(3);
+    const keyword = POST_III_TAIL_KEYWORDS[1];
+    const follow = bengaliStem(2);
+    const hit = findEmbeddedKeywordLineSplit(
+      `${wordWithEmbeddedKeyword(stem, keyword)}\n${follow}`,
+      keyword
+    );
+    expect(hit?.clause).toBe(stem);
+    expect(hit?.tail).toBe(`${keyword} ${follow}`);
+  });
+
+  it('uses সঠিক when নিচের and কোনটি are absent', () => {
+    const stem = bengaliStem(3);
+    const keyword = POST_III_TAIL_KEYWORDS[2];
+    const follow = bengaliStem(1);
+    const hit = findEmbeddedKeywordLineSplit(
+      `${wordWithEmbeddedKeyword(stem, keyword)}\n${follow}`,
+      keyword
+    );
+    expect(hit?.clause).toBe(stem);
+    expect(hit?.tail).toBe(`${keyword} ${follow}`);
+  });
+});
+
+describe('normalizeMcqTailText', () => {
+  it('splits any embedded নিচের before generic following line', () => {
+    const stem = bengaliStem(4);
+    const keyword = POST_III_TAIL_KEYWORDS[0];
+    const follow = bengaliStem(3);
+    const glued = wordWithEmbeddedKeyword(stem, keyword, /\u09A8$/.test(stem));
+    const out = normalizeMcqTailText(`${glued}\n${follow}`);
+    expect(out).toBe(`${stem}\n${keyword} ${follow}`);
+  });
+
+  it('splits embedded কোনটি when নিচের is not in the string', () => {
+    const stem = bengaliStem(3);
+    const keyword = POST_III_TAIL_KEYWORDS[1];
+    const follow = bengaliStem(2);
+    const out = normalizeMcqTailText(`${wordWithEmbeddedKeyword(stem, keyword)}\n${follow}`);
+    expect(out).toBe(`${stem}\n${keyword} ${follow}`);
   });
 });
 
 describe('splitPostIiiFollowTail', () => {
-  it('splits when the next line starts with standalone নিচের', () => {
-    const r = splitPostIiiFollowTail('clause one\nনিচের উদ্দীপক');
-    expect(r.clause).toBe('clause one');
-    expect(r.tail).toBe('নিচের উদ্দীপক');
+  it('tries নিচের first (embedded), then কোনটি, then সঠিক', () => {
+    const stem = bengaliStem(4);
+    const nicher = POST_III_TAIL_KEYWORDS[0];
+    const r = splitPostIiiFollowTail(
+      `${wordWithEmbeddedKeyword(stem, nicher)}\n${POST_III_TAIL_KEYWORDS[1]} ${bengaliStem(1)}`
+    );
+    expect(r.clause).toBe(stem);
+    expect(r.tail.startsWith(nicher)).toBe(true);
   });
 
-  it('after normalization, splits iii tail for বাণিজ্যেনিচের then কোনটি', () => {
-    const r = splitPostIiiFollowTail('বাণিজ্যেনিচের\nকোনটি সঠিক?');
-    expect(r.clause).toBe('বাণিজ্যে');
-    expect(r.tail).toBe('নিচের কোনটি সঠিক?');
+  it('uses কোনটি when নিচের is not found', () => {
+    const stem = bengaliStem(4);
+    const keyword = POST_III_TAIL_KEYWORDS[1];
+    const follow = bengaliStem(1);
+    const r = splitPostIiiFollowTail(`${wordWithEmbeddedKeyword(stem, keyword)}\n${follow}`);
+    expect(r.clause).toBe(stem);
+    expect(r.tail).toBe(`${keyword} ${follow}`);
   });
 
-  it('after collapse+normalize, splits প্রিন্ট line-wrap then কোনটি', () => {
-    const r = splitPostIiiFollowTail('ফিঙ্গার প্রিন্ট\nনিচের\nকোনটি সঠিক?');
-    expect(r.clause).toContain('প্রিন্ট');
-    expect(r.tail).toContain('নিচের');
-    expect(r.tail).toContain('কোনটি');
-  });
-
-  it('does not split নিচের inside বাণিজ্যেনিচের on one line without question tail', () => {
-    const r = splitPostIiiFollowTail('বাণিজ্যেনিচের');
-    expect(r.tail).toBe('');
-  });
-
-  it('uses standalone নিচের on the same line when present', () => {
-    const r = splitPostIiiFollowTail('clause text নিচের উদ্দীপক');
-    expect(r.clause).toBe('clause text');
-    expect(r.tail).toBe('নিচের উদ্দীপক');
+  it('uses সঠিক when নিচের and কোনটি are not found', () => {
+    const stem = bengaliStem(3);
+    const keyword = POST_III_TAIL_KEYWORDS[2];
+    const follow = bengaliStem(1);
+    const r = splitPostIiiFollowTail(`${wordWithEmbeddedKeyword(stem, keyword)}\n${follow}`);
+    expect(r.clause).toBe(stem);
+    expect(r.tail).toBe(`${keyword} ${follow}`);
   });
 });
 
-describe('splitHtmlAtRomanMarkers', () => {
-  it('detects post-iii tail from <br> when নিচের is standalone', () => {
-    const html = 'i. one ii. two iii. three<br>নিচের উদ্দীপক';
-    const parsed = splitHtmlAtRomanMarkers(html);
-    expect(parsed?.afterIiiTail).toContain('নিচের');
-    expect(parsed?.segments.find((s) => s.marker === 'iii')?.body ?? '').not.toContain('নিচের');
+describe('findPostIiiTailKeyword', () => {
+  it('returns first matching tail keyword in priority order', () => {
+    expect(findPostIiiTailKeyword(`${POST_III_TAIL_KEYWORDS[0]} ${bengaliStem(1)}`)).toBe(
+      POST_III_TAIL_KEYWORDS[0]
+    );
+    const stem = bengaliStem(2);
+    const keyword = POST_III_TAIL_KEYWORDS[1];
+    expect(
+      findPostIiiTailKeyword(`${wordWithEmbeddedKeyword(stem, keyword)}\n${bengaliStem(1)}`)
+    ).toBe(keyword);
   });
 });

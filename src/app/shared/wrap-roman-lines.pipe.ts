@@ -183,7 +183,7 @@ export class WrapRomanLinesPipe implements PipeTransform {
     );
 
     const parsed = splitHtmlAtRomanMarkers(glued);
-    if (parsed && parsed.segments.length >= 2) {
+    if (parsed && parsed.segments.length >= 1) {
       const maxW = resolveRomanMcqMaxWidthPx(ctx);
       const font = detectMcqOptionFont();
       const packLines = chooseRomanMcqPackLines(parsed.segments, maxW, (plain) =>
@@ -198,8 +198,8 @@ export class WrapRomanLinesPipe implements PipeTransform {
       return this.sanitizer.bypassSecurityTrustHtml(html);
     }
 
-    const lines = glued
-      .split(/(?:\r?\n|<br\s*\/?>)/i)
+    const lines = nicherReady
+      .split(/\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
     const parts = lines.map((line) => {

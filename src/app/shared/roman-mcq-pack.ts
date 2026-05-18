@@ -16,10 +16,11 @@ export interface RomanMcqParse {
   afterIiiTail?: string;
 }
 
-/** Line after iii. often starts with one of these (API puts it on the next line). */
-const POST_III_TAIL_STARTERS = ['নিচের', 'কোনটি', 'সঠিক'] as const;
+/** MCQ tail keywords after iii. — tried in this order (embedded in any word, then standalone). */
+export const POST_III_TAIL_KEYWORDS = ['নিচের', 'কোনটি', 'সঠিক'] as const;
+export type PostIiiTailKeyword = (typeof POST_III_TAIL_KEYWORDS)[number];
 
-/** Do not match starters inside a longer Bengali word (e.g. বাণিজ্যেনিচের). */
+/** Do not match tail keywords inside a longer Bengali word (…letters + নিচের/কোনটি/সঠিক). */
 const BN_LETTER_LOOKBEHIND = '(?<![' + '\\u0980-\\u09FF' + '])';
 
 function escapeRegexLiteral(s: string): string {
@@ -48,60 +49,111 @@ const PACK_ATTEMPTS: RomanMarker[][][] = [
   [['i'], ['ii'], ['iii']],
 ];
 
-/** After line break, MCQ continuation often starts with one of these. */
-const GLUED_NICHER_TAIL_START = '(?:কোনটি|সঠিক)';
-/** `<br>`, newline, or both (API/export often use `<br>` only). */
-const LINE_BREAK = '(?:\\s*(?:<br\\s*\\/?>|[\\r\\n]+)\\s*)+';
-const SPACE_OR_BREAK = '(?:\\s+|' + LINE_BREAK + ')';
+/** First tail keyword (tests / callers). */
+export const NICHER_WORD: PostIiiTailKeyword = POST_III_TAIL_KEYWORDS[0];
+
+const LINE_BREAK_START = /^(?:\s*(?:<br\s*\/?>|[\r\n]+)\s*)/i;
 
 /**
- * Turn `বাণিজ্যেনিচের\\nকোনটি…` / `…<br>কোনটি…` into `বাণিজ্যে\\nনিচের কোনটি…`
- * and `ফিঙ্গার প্রিন্টনিচের\\nকোনটি…` into `ফিঙ্গার প্রিন্ট\\nনিচের কোনটি…`.
+ * Keyword is inside a longer Bengali word when a Bengali letter comes immediately before it.
  */
-export function normalizeGluedNicherQuestionLine(text: string): string {
+export function isKeywordEmbeddedInWord(text: string, keywordIndex: number): boolean {
+  if (keywordIndex <= 0) return false;
+  return /[\u0980-\u09FF]$/u.test(text.slice(keywordIndex - 1, keywordIndex));
+}
+
+/** @deprecated Use {@link isKeywordEmbeddedInWord}. */
+export const isNicherEmbeddedInWord = isKeywordEmbeddedInWord;
+
+function restStartsWithStandaloneTailKeyword(rest: string): boolean {
+  const t = trimPostIiiTailLead(rest);
+  return POST_III_TAIL_KEYWORDS.some((w) => hasStandaloneTailKeyword(t, w));
+}
+
+/** True when text after the keyword is only a soft line-wrap (no tail content yet). */
+function isKeywordSoftWrapOnly(afterKeyword: string): boolean {
+  const br = LINE_BREAK_START.exec(afterKeyword);
+  if (br) return !afterKeyword.slice(br[0].length).trim();
+  const sp = /^(\s+)(\S[\s\S]*)/.exec(afterKeyword);
+  if (sp) return !sp[2].trim();
+  return !trimPostIiiTailLead(afterKeyword);
+}
+
+/**
+ * Split before `keyword` when it is glued inside any Bengali word and the stem continues
+ * on the next line or the same line (any following text).
+ */
+export function findEmbeddedKeywordLineSplit(
+  text: string,
+  keyword: string
+): { clause: string; tail: string; splitAt: number } | null {
+  const src = String(text ?? '');
+  const kwLen = keyword.length;
+  const re = new RegExp(escapeRegexLiteral(keyword), 'giu');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    const idx = m.index;
+    if (!isKeywordEmbeddedInWord(src, idx)) continue;
+
+    const after = src.slice(idx + kwLen);
+    const br = LINE_BREAK_START.exec(after);
+    if (br) {
+      const tailBody = after.slice(br[0].length).trim();
+      if (!tailBody) continue;
+      if (isKeywordSoftWrapOnly(after)) continue;
+      const clause = src.slice(0, idx).trimEnd();
+      if (!clause) continue;
+      return { clause, tail: `${keyword} ${tailBody}`, splitAt: idx };
+    }
+
+    const sp = /^(\s+)(\S[\s\S]*)/.exec(after);
+    if (sp) {
+      const tailBody = sp[2].trim();
+      if (!tailBody || new RegExp(`^${escapeRegexLiteral(keyword)}`, 'iu').test(tailBody)) continue;
+      if (isKeywordSoftWrapOnly(after)) continue;
+      const clause = src.slice(0, idx).trimEnd();
+      if (!clause) continue;
+      return { clause, tail: `${keyword} ${tailBody}`, splitAt: idx };
+    }
+  }
+  return null;
+}
+
+/** @deprecated Use {@link findEmbeddedKeywordLineSplit} with {@link NICHER_WORD}. */
+export function findEmbeddedNicherLineSplit(text: string) {
+  return findEmbeddedKeywordLineSplit(text, NICHER_WORD);
+}
+
+/** Split glued …[any word] + keyword for each tail keyword (priority order). */
+export function normalizeGluedMcqQuestionLine(text: string): string {
   let s = String(text ?? '');
-  let prev = '';
-  while (prev !== s) {
-    prev = s;
-    // …ন + নিচের + break + tail
-    s = s.replace(
-      new RegExp(
-        `([\\u0980-\\u09FF]+)(ন)(নিচের)${LINE_BREAK}(${GLUED_NICHER_TAIL_START}[\\s\\S]*)`,
-        'gi'
-      ),
-      '$1\nনিচের $4'
-    );
-    // …X + নিচের + break + tail
-    s = s.replace(
-      new RegExp(
-        `([\\u0980-\\u09FF]+)(নিচের)${LINE_BREAK}(${GLUED_NICHER_TAIL_START}[\\s\\S]*)`,
-        'gi'
-      ),
-      '$1\nনিচের $3'
-    );
-    // Same line: …নিচের কোনটি…
-    s = s.replace(
-      new RegExp(
-        `([\\u0980-\\u09FF]+)(ন)(নিচের)\\s+(${GLUED_NICHER_TAIL_START}[\\s\\S]*)`,
-        'gi'
-      ),
-      '$1\nনিচের $4'
-    );
-    s = s.replace(
-      new RegExp(
-        `([\\u0980-\\u09FF]+)(নিচের)\\s+(${GLUED_NICHER_TAIL_START}[\\s\\S]*)`,
-        'gi'
-      ),
-      '$1\nনিচের $3'
-    );
+  for (let guard = 0; guard < 32; guard++) {
+    let changed = false;
+    for (const keyword of POST_III_TAIL_KEYWORDS) {
+      const hit = findEmbeddedKeywordLineSplit(s, keyword);
+      if (!hit) continue;
+      s = s.slice(0, hit.splitAt) + '\n' + hit.tail;
+      changed = true;
+      break;
+    }
+    if (!changed) break;
   }
   return s;
 }
 
-/** Normalize glued নিচের first; only then join false soft-wraps (never before কোনটি/সঠিক tail). */
-export function normalizeMcqNicherText(text: string): string {
-  return collapseEmbeddedNicherLineWraps(normalizeGluedNicherQuestionLine(String(text ?? '')));
+/** @deprecated Use {@link normalizeGluedMcqQuestionLine}. */
+export const normalizeGluedNicherQuestionLine = normalizeGluedMcqQuestionLine;
+
+/** Normalize glued tail keywords; then join false soft-wraps inside one Bengali word. */
+export function normalizeMcqTailText(text: string): string {
+  const unified = String(text ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/<br\s*\/?>/gi, '\n');
+  return collapseEmbeddedKeywordLineWraps(normalizeGluedMcqQuestionLine(unified));
 }
+
+/** @deprecated Use {@link normalizeMcqTailText}. */
+export const normalizeMcqNicherText = normalizeMcqTailText;
 
 function collapseThenNormalizeNicher(text: string): string {
   return normalizeMcqNicherText(text);
@@ -118,49 +170,32 @@ function trimPostIiiTailLead(tail: string): string {
   return tail.replace(/^[\n\r]+/, '').replace(/^<br\s*\/?>/i, '').trim();
 }
 
-/** MCQ tail lines usually continue with one of these right after standalone নিচের. */
-const NICHER_TAIL_PHRASE_RE =
-  /^\s*(?:উদ্দীপক|উদ্দীপকের|কোন|তথ্য|সূচ|দেখ|বর্ণ|তালিক|টেক্সট|চিত্র|ছক|টেবিল|মানচিত্র|সমীকরণ|বাক্য|অংশ|বিষয়|চার্ট|গ্রাফ|ছবি|চিত্রটি|উদাহরণ|বাক্যের|প্রশ্ন)/i;
-
 function hasStandaloneTailKeyword(text: string, word: string): boolean {
   const re = new RegExp(postIiiTailStarterPattern(word), 'i');
   return re.test(text);
 }
 
-function startsWithStandaloneTailKeyword(text: string): (typeof POST_III_TAIL_STARTERS)[number] | null {
-  const t = trimPostIiiTailLead(text);
-  for (const word of POST_III_TAIL_STARTERS) {
-    if (hasStandaloneTailKeyword(t, word)) return word;
-  }
-  return null;
-}
-
-/** True when newline is only wrapping “…প্রিন্ট / নিচের” inside one word, not “নিচের কোনটি …”. */
-function isNicherLineContinuation(before: string, after: string): boolean {
-  const b = before.trimEnd();
-  const a = trimPostIiiTailLead(after);
-  if (!/[\u0980-\u09FF]$/.test(b)) return false;
-  const m = /^নিচের/i.exec(a);
-  if (!m) return false;
-  const rest = a.slice(m[0].length).trimStart();
-  if (!rest) return true;
-  if (new RegExp(`^${GLUED_NICHER_TAIL_START}`, 'i').test(rest)) return false;
-  if (NICHER_TAIL_PHRASE_RE.test(rest)) return false;
-  return true;
-}
-
 /**
  * Join soft line breaks inside one Bengali word (…প্রিন্ট\\nনিচের → …প্রিন্টনিচের).
- * Keeps real “নিচের উদ্দীপক …” tail lines intact.
+ * Keeps real tail lines when any text (or another tail keyword) follows.
  */
-export function collapseEmbeddedNicherLineWraps(text: string): string {
-  const re = /([\u0980-\u09FF])(?:<br\s*\/?>|[\r\n]+)\s*নিচের/gi;
-  return String(text ?? '').replace(re, (full, letter: string, offset: number, src: string) => {
-    const rest = src.slice(offset + full.length);
-    if (NICHER_TAIL_PHRASE_RE.test(rest)) return full;
-    return letter + 'নিচের';
-  });
+export function collapseEmbeddedKeywordLineWraps(text: string): string {
+  let s = String(text ?? '');
+  for (const keyword of POST_III_TAIL_KEYWORDS) {
+    const esc = escapeRegexLiteral(keyword);
+    const re = new RegExp(`([\\u0980-\\u09FF])(?:<br\\s*\\/?>|[\\r\\n]+)\\s*${esc}`, 'giu');
+    s = s.replace(re, (full, letter: string, offset: number, src: string) => {
+      const rest = src.slice(offset + full.length);
+      if (trimPostIiiTailLead(rest)) return full;
+      if (restStartsWithStandaloneTailKeyword(rest)) return full;
+      return letter + keyword;
+    });
+  }
+  return s;
 }
+
+/** @deprecated Use {@link collapseEmbeddedKeywordLineWraps}. */
+export const collapseEmbeddedNicherLineWraps = collapseEmbeddedKeywordLineWraps;
 
 function collectLineBreaks(src: string): { index: number; len: number }[] {
   const breaks: { index: number; len: number }[] = [];
@@ -177,16 +212,20 @@ function collectLineBreaks(src: string): { index: number; len: number }[] {
   return breaks;
 }
 
-/** Line break is a valid tail boundary only when the next line starts with a standalone keyword. */
-function splitAtValidLineBreakAfterIii(body: string): { clause: string; tail: string } | null {
+/** Line break before a standalone tail keyword on the next line. */
+function splitAtValidLineBreakAfterKeyword(
+  body: string,
+  keyword: string
+): { clause: string; tail: string } | null {
   const src = String(body ?? '');
   for (const br of collectLineBreaks(src)) {
     const before = src.slice(0, br.index);
     const after = src.slice(br.index + br.len);
-    if (isNicherLineContinuation(before, after)) continue;
-    if (!startsWithStandaloneTailKeyword(after)) continue;
+    const lead = trimPostIiiTailLead(after);
+    if (!hasStandaloneTailKeyword(lead, keyword)) continue;
+    if (isKeywordSoftWrapOnly(after)) continue;
     const clause = before.trim();
-    const tail = trimPostIiiTailLead(after);
+    const tail = lead;
     if (!clause || !tail) continue;
     return { clause, tail };
   }
@@ -210,27 +249,40 @@ function splitAtPostIiiKeyword(
 }
 
 /**
- * Split content after iii. onto its own line.
- * 1) Collapse soft প্রিন্ট\\nনিচের wraps, then normalize বাণিজ্যেনিচের\\nকোনটি → বাণিজ্যে\\nনিচের কোনটি
- * 2) Line break if the next line starts with standalone নিচের/কোনটি/সঠিক
- * 3) Else standalone keyword search: নিচের → কোনটি → সঠিক
+ * After iii. (or i./ii.) body: for each tail keyword in order (নিচের → কোনটি → সঠিক),
+ * try embedded-in-word split, then line-break + standalone, then same-line standalone.
  */
 export function splitPostIiiFollowTail(body: string): { clause: string; tail: string } {
   const src = collapseThenNormalizeNicher(String(body ?? ''));
   if (!src.trim()) return { clause: '', tail: '' };
 
-  const byLine = splitAtValidLineBreakAfterIii(src);
-  if (byLine) return byLine;
+  for (const keyword of POST_III_TAIL_KEYWORDS) {
+    const embedded = findEmbeddedKeywordLineSplit(src, keyword);
+    if (embedded) return { clause: embedded.clause, tail: embedded.tail };
 
-  for (const word of POST_III_TAIL_STARTERS) {
-    const byKeyword = splitAtPostIiiKeyword(src, word);
-    if (byKeyword) return byKeyword;
+    const byLine = splitAtValidLineBreakAfterKeyword(src, keyword);
+    if (byLine) return byLine;
+
+    const standalone = splitAtPostIiiKeyword(src, keyword);
+    if (standalone) return standalone;
   }
 
   return { clause: src, tail: '' };
 }
 
-/** Split embedded …নিচের + tail; iii uses separate after-iii block, i/ii keep \\n in body. */
+/** Which tail keyword matched first ({@link POST_III_TAIL_KEYWORDS} order), or null. */
+export function findPostIiiTailKeyword(text: string): PostIiiTailKeyword | null {
+  const { tail } = splitPostIiiFollowTail(text);
+  if (!tail) return null;
+  for (const keyword of POST_III_TAIL_KEYWORDS) {
+    if (hasStandaloneTailKeyword(tail, keyword) || tail.startsWith(keyword)) {
+      return keyword;
+    }
+  }
+  return null;
+}
+
+/** Split at tail keyword; iii uses separate after-iii block, i/ii keep \\n in body. */
 function applyNicherSplitsToSegments(parsed: RomanMcqParse): RomanMcqParse {
   let afterIiiTail: string | undefined;
   const segments = parsed.segments.map((seg) => {
@@ -239,10 +291,10 @@ function applyNicherSplitsToSegments(parsed: RomanMcqParse): RomanMcqParse {
     if (!tail) return { ...seg, body: src };
     if (seg.marker === 'iii') {
       afterIiiTail = tail;
-      return { ...seg, body: compactRomanSegmentBody(clause, false) };
+      return { ...seg, body: clause };
     }
     const merged = clause ? `${clause}\n${tail}` : tail;
-    return { ...seg, body: compactRomanSegmentBody(merged, false) };
+    return { ...seg, body: merged };
   });
   return afterIiiTail ? { ...parsed, segments, afterIiiTail } : { ...parsed, segments };
 }
@@ -395,7 +447,7 @@ export function buildRomanMcqPackHtml(
     const inner = group
       .map((mk) => {
         const raw = byMarker.get(mk) ?? '';
-        const body = compactRomanSegmentBody(raw, inlinePack);
+        const body = inlinePack ? compactRomanSegmentBody(raw, true) : raw;
         return `<span class="topic-question-line topic-question-roman-line">${formatRoman(mk, body)}</span>`;
       })
       .join(' ');
@@ -430,44 +482,27 @@ function _collectRomanHitsOutsideTags(src: string): { marker: RomanMarker; index
   return hits;
 }
 
-/** Re-apply নিচের splits using HTML slices (plain text drops `<br>`). */
-function refreshAfterIiiTailFromHtml(parsed: RomanMcqParse, normalizedHtml: string): RomanMcqParse {
-  const hits = _collectRomanHitsOutsideTags(normalizedHtml);
-  if (!hits.length) return parsed;
-
-  const prefix = normalizedHtml.slice(0, hits[0]!.index).trimEnd();
-  const segments: RomanMcqSegment[] = hits.map((h, i) => {
-    const start = h.index + h.len;
-    const end = i + 1 < hits.length ? hits[i + 1]!.index : normalizedHtml.length;
-    return { marker: h.marker, body: normalizedHtml.slice(start, end).trim() };
-  });
-  return applyNicherSplitsToSegments({ prefix, segments });
-}
-
 /** Split source HTML at roman markers (markers only matched in plain text, not inside tags). */
 export function splitHtmlAtRomanMarkers(html: string): RomanMcqParse | null {
-  const normalized = normalizeRomanMcqSource(html);
-  const src = normalizeMcqNicherText(normalized);
+  const src = normalizeMcqNicherText(normalizeRomanMcqSource(html));
   const hits = _collectRomanHitsOutsideTags(src);
-  if (hits.length < 2) {
-    const plain = stripHtmlToPlain(src);
-    const parsed = parseRomanMcqContent(plain);
-    if (!parsed) return null;
-    if (!hits.length) return parsed;
-    return refreshAfterIiiTailFromHtml(parsed, src);
+
+  if (hits.length >= 1) {
+    const prefix = src.slice(0, hits[0]!.index).trimEnd();
+    const segments: RomanMcqSegment[] = [];
+    for (let i = 0; i < hits.length; i++) {
+      const start = hits[i]!.index + hits[i]!.len;
+      const end = i + 1 < hits.length ? hits[i + 1]!.index : src.length;
+      segments.push({
+        marker: hits[i]!.marker,
+        body: src.slice(start, end).trim(),
+      });
+    }
+    return applyNicherSplitsToSegments({ prefix, segments });
   }
 
-  const prefix = src.slice(0, hits[0]!.index).trimEnd();
-  const segments: RomanMcqSegment[] = [];
-  for (let i = 0; i < hits.length; i++) {
-    const start = hits[i]!.index + hits[i]!.len;
-    const end = i + 1 < hits.length ? hits[i + 1]!.index : src.length;
-    segments.push({
-      marker: hits[i]!.marker,
-      body: src.slice(start, end).trim(),
-    });
-  }
-  return applyNicherSplitsToSegments({ prefix, segments });
+  const plain = stripHtmlToPlain(src);
+  return parseRomanMcqContent(plain);
 }
 
 function _insideHtmlTag(html: string, index: number): boolean {
