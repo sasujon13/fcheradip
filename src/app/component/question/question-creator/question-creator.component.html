@@ -3,7 +3,7 @@
   appQuestionRichImgHost
   [appQuestionRichImgFontTrigger]="previewRichImgFontTriggerKey"
 >
-  <!-- Match /question: justified stem, (ক)–(ঘ) options, 1/2/4-row grid from measured wraps -->
+  <!-- Match /question: justified stem, (ক)–(ঘ) options, 4-col or 2-col grid from measured wraps -->
   <ng-template #previewQuestionBlock let-q="q" let-sl="sl" let-idx="idx">
     <ng-container *ngIf="q.answerSheetSegmentKind === 'part'; else answerSegTailOrFull">
       <div class="preview-q-content">

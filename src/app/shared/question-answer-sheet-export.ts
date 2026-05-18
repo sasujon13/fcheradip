@@ -14,7 +14,6 @@ export type PreviewMcqOptionsLayout = '1row' | '2row' | '4row';
 
 export function optionsColumnsFromMcqLayout(layout: PreviewMcqOptionsLayout): number {
   if (layout === '1row') return 4;
-  if (layout === '4row') return 1;
   return 2;
 }
 

@@ -482,7 +482,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly LAYOUT_COLUMNS_MIN = 1;
   private static readonly LAYOUT_COLUMNS_MAX = 10;
   /** MCQ options grid column count in sheet preview. */
-  private static readonly OPTIONS_COLUMNS_MIN = 1;
+  private static readonly OPTIONS_COLUMNS_MIN = 2;
   private static readonly OPTIONS_COLUMNS_MAX = 5;
   private static readonly LAYOUT_GAP_MIN_PX = 1;
   private static readonly LAYOUT_GAP_MAX_PX = 100;
@@ -3433,13 +3433,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private optionsColumnsFromLayout(layout: PreviewMcqOptionsLayout): number {
     if (layout === '1row') return 4;
-    if (layout === '4row') return 1;
     return 2;
   }
 
+  /** Pick the tightest grid among measured questions (never single-column / 4row). */
   private worstOptionsLayout(layouts: PreviewMcqOptionsLayout[]): PreviewMcqOptionsLayout {
-    if (layouts.some((l) => l === '4row')) return '4row';
-    if (layouts.some((l) => l === '2row')) return '2row';
+    if (layouts.some((l) => l === '2row' || l === '4row')) return '2row';
     return '1row';
   }
 
@@ -3459,7 +3458,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   previewOptionsLayoutForQ(q: { qid?: unknown; answerSheetParentIndex?: number; type?: unknown }): PreviewMcqOptionsLayout {
     const key = this.mcqOptionsLayoutKey(q);
     if (key && this.previewOptionsLayoutByQid[key]) {
-      return this.previewOptionsLayoutByQid[key]!;
+      const layout = this.previewOptionsLayoutByQid[key]!;
+      return layout === '4row' ? '2row' : layout;
     }
     return '2row';
   }
@@ -3509,8 +3509,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Measure MCQ option wraps in the hidden rail (4-column pass), assign 1row/2row/4row per question,
-   * and sync global `optionsColumns` (4 / 2 / 1) for export. Returns true when layout should rerun.
+   * Measure MCQ option wraps in the hidden rail (4-column pass), assign 1row (4 cols) or 2row (2 cols) per question,
+   * and sync global `optionsColumns` for export. Returns true when layout should rerun.
    */
   private runPreviewOptionsLayoutMeasurePass(): boolean {
     if (this.optionsColumnsManualOverride) {
@@ -3549,8 +3549,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       } else {
         const wrapCount = this.optionContentWrappedCount(cont);
         if (wrapCount === 0) layout = '1row';
-        else if (wrapCount <= 2) layout = '2row';
-        else layout = '4row';
+        else layout = '2row';
       }
       if (nextMap[key] !== layout) {
         nextMap[key] = layout;

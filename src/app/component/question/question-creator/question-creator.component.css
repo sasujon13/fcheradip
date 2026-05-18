@@ -1367,18 +1367,14 @@
   -moz-column-break-inside: avoid;
 }
 
-/* Same wrap rules as `/question` topic list: 4 / 2 / 1 columns from measured option height. */
+/* MCQ options: 4 columns when all fit (1row), else 2 columns (2row). Legacy 4row class → 2 cols. */
 .preview-q-options.preview-q-options-1row {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.preview-q-options.preview-q-options-2row {
-  grid-template-columns: 1fr 1fr;
-}
-
+.preview-q-options.preview-q-options-2row,
 .preview-q-options.preview-q-options-4row {
-  grid-template-columns: 1fr;
-  gap: var(--preview-q-opt-row-gap, 0.2857em);
+  grid-template-columns: 1fr 1fr;
 }
 
 .preview-q-options .preview-q-opt {
