@@ -40,8 +40,11 @@ import {
   buildMcqAnswerKeyExportPayload,
   buildMcqAnswerKeySetBlocks,
   buildPreviewLayoutMeasureRows,
+  LAYOUT_SEG_QID_PREFIX,
   McqSetLetter,
 } from './question-creator-answer-export';
+
+export type PreviewMcqOptionsLayout = '1row' | '2row' | '4row';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export const QUESTION_CREATOR_STATE_KEY = 'questionCreatorReturnState';
@@ -447,6 +450,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** MCQ option rows: grid columns (1–5), stepper in sidebar. */
   optionsColumns = 2;
 
+  /** Per-question MCQ option grid (same rules as `/question` list). */
+  previewOptionsLayoutByQid: Record<string, PreviewMcqOptionsLayout> = {};
+  /** While measuring wraps, force 4-column (1row) layout on all MCQ option grids. */
+  previewOptionsMeasureMode = false;
+  /**
+   * User adjusted Options Column stepper — skip auto 4/2/1 fitting until Reset / Auto Fit or fresh navigation.
+   */
+  optionsColumnsManualOverride = false;
+  private previewOptionsLayoutStale = true;
+  private optionsLayoutMeasureTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** Unitless line-height for sheet header preview lines (PDF header uses separate pipeline). */
   previewHeaderLineHeight = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
 
@@ -847,6 +861,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.questions = state.questions as any[];
       this.context = (state.context || {}) as QuestionCreatorContext;
       this.syncQuestionListFilterTypesFromNavigation(state.questionTypes);
+      this.clearManualOptionsColumnsOverride();
       this.mergeLayoutFromLocalStorage();
       restored = true;
       this.creatorRestoredDraftOnce = true;
@@ -1033,6 +1048,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Smart Question Creator: full auto-fit (same as first-three exams, any exam name), then {@link save}. */
   private async runAutoFitThenSave(): Promise<void> {
     try {
+      this.clearManualOptionsColumnsOverride();
       // Bypass exam whitelist for the upcoming layout chain only (paired with clear after pagination in runLayout).
       this.previewAutoFitForceOneLayoutChain = true;
       // Run layout with auto-fit enabled and without one-shot suppress — Smart path should mutate then settle.
@@ -1087,7 +1103,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   ngAfterViewInit(): void {
     const hadTrustedRestore = this.creatorTrustedHeaderRestored;
     setTimeout(() => this.loadingService.completeOne(), 0);
-    this.measureBlocks.changes.subscribe(() => this.scheduleLayout());
+    this.measureBlocks.changes.subscribe(() => {
+      this.markPreviewOptionsLayoutStale();
+      this.scheduleLayout();
+      this.scheduleMeasurePreviewOptionsLayouts();
+    });
     const stage = this.previewStage?.nativeElement;
     if (typeof ResizeObserver !== 'undefined' && stage) {
       this.previewStageResizeObserver = new ResizeObserver(() => this.updatePreviewFitScale());
@@ -1113,7 +1133,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.syncHeaderFontSizesToLineCount();
     }
     this.syncPreviewAutoFitSuppressWithExamType();
+    this.markPreviewOptionsLayoutStale();
     this.scheduleLayout();
+    this.scheduleMeasurePreviewOptionsLayouts();
     queueMicrotask(() => this.updatePreviewFitScale());
     this.schedulePersistCreatorStateToLocalStorage();
   }
@@ -1128,6 +1150,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.remotePersistTimer != null) {
       clearTimeout(this.remotePersistTimer);
       this.remotePersistTimer = null;
+    }
+    if (this.optionsLayoutMeasureTimer != null) {
+      clearTimeout(this.optionsLayoutMeasureTimer);
+      this.optionsLayoutMeasureTimer = null;
     }
     if (this.headerLineFontToastTimer != null) {
       clearTimeout(this.headerLineFontToastTimer);
@@ -1769,7 +1795,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       }
     }
     this.syncHeaderFontSizesToLineCount();
+    this.markPreviewOptionsLayoutStale();
     this.scheduleLayout();
+    this.scheduleMeasurePreviewOptionsLayouts();
     queueMicrotask(() => this.updatePreviewFitScale());
     this.cdr.markForCheck();
   }
@@ -3379,7 +3407,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return formatMaybeCProgramQuestionText(raw);
   }
 
-  /** Grid columns for MCQ options in preview + measure rail (repeat N). */
+  /** Grid columns for MCQ options when stepper overrides measured per-question layouts. */
   get previewOptionsGridStyle(): Record<string, string> {
     const n = Math.max(
       QuestionCreatorComponent.OPTIONS_COLUMNS_MIN,
@@ -3388,6 +3416,151 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return {
       gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
     };
+  }
+
+  private optionsColumnsFromLayout(layout: PreviewMcqOptionsLayout): number {
+    if (layout === '1row') return 4;
+    if (layout === '4row') return 1;
+    return 2;
+  }
+
+  private worstOptionsLayout(layouts: PreviewMcqOptionsLayout[]): PreviewMcqOptionsLayout {
+    if (layouts.some((l) => l === '4row')) return '4row';
+    if (layouts.some((l) => l === '2row')) return '2row';
+    return '1row';
+  }
+
+  private mcqOptionsLayoutKey(q: { qid?: unknown; answerSheetParentIndex?: number; type?: unknown }): string | null {
+    if (!this.questionIsMcqType(q)) return null;
+    const raw = q?.qid != null ? String(q.qid) : '';
+    if (raw.startsWith(LAYOUT_SEG_QID_PREFIX)) {
+      const parent = q.answerSheetParentIndex;
+      if (parent != null && parent >= 0 && parent < this.canonicalPreviewQuestions.length) {
+        const pq = this.canonicalPreviewQuestions[parent];
+        if (pq?.qid != null) return String(pq.qid);
+      }
+    }
+    return raw || null;
+  }
+
+  previewOptionsLayoutForQ(q: { qid?: unknown; answerSheetParentIndex?: number; type?: unknown }): PreviewMcqOptionsLayout {
+    const key = this.mcqOptionsLayoutKey(q);
+    if (key && this.previewOptionsLayoutByQid[key]) {
+      return this.previewOptionsLayoutByQid[key]!;
+    }
+    return '2row';
+  }
+
+  /** How many MCQ options in the container have wrapped to multiple lines (4-col measure pass). */
+  private optionContentWrappedCount(container: HTMLElement): number {
+    const opts = container.querySelectorAll<HTMLElement>('.preview-q-opt');
+    let count = 0;
+    for (let i = 0; i < opts.length; i++) {
+      const el = opts[i];
+      const style = getComputedStyle(el);
+      const lh = parseFloat(style.lineHeight);
+      const fs = parseFloat(style.fontSize);
+      const singleLineH = isNaN(lh) || lh <= 0 ? fs * 1.2 : lh;
+      if (el.offsetHeight > singleLineH * 1.25) count++;
+    }
+    return count;
+  }
+
+  private markPreviewOptionsLayoutStale(): void {
+    if (this.optionsColumnsManualOverride) return;
+    this.previewOptionsLayoutStale = true;
+  }
+
+  private armManualOptionsColumnsOverride(): void {
+    this.optionsColumnsManualOverride = true;
+    this.previewOptionsLayoutStale = false;
+  }
+
+  private clearManualOptionsColumnsOverride(): void {
+    this.optionsColumnsManualOverride = false;
+    this.markPreviewOptionsLayoutStale();
+  }
+
+  scheduleMeasurePreviewOptionsLayouts(): void {
+    if (this.optionsColumnsManualOverride) return;
+    if (this.optionsLayoutMeasureTimer != null) {
+      clearTimeout(this.optionsLayoutMeasureTimer);
+    }
+    this.optionsLayoutMeasureTimer = setTimeout(() => {
+      this.optionsLayoutMeasureTimer = null;
+      if (this.runPreviewOptionsLayoutMeasurePass()) {
+        this.scheduleLayout();
+      }
+    }, 80);
+  }
+
+  /**
+   * Measure MCQ option wraps in the hidden rail (4-column pass), assign 1row/2row/4row per question,
+   * and sync global `optionsColumns` (4 / 2 / 1) for export. Returns true when layout should rerun.
+   */
+  private runPreviewOptionsLayoutMeasurePass(): boolean {
+    if (this.optionsColumnsManualOverride) {
+      this.previewOptionsLayoutStale = false;
+      return false;
+    }
+    if (!this.previewOptionsLayoutStale) return false;
+    const hasMcq = this.canonicalPreviewQuestions.some((q) => this.questionIsMcqType(q));
+    if (!hasMcq) {
+      this.previewOptionsLayoutStale = false;
+      return false;
+    }
+    const pq = this.layoutMeasureQuestions;
+    const blocks = this.measureBlocks?.toArray() ?? [];
+    if (!pq.length || blocks.length !== pq.length) {
+      return false;
+    }
+
+    this.previewOptionsMeasureMode = true;
+    this.cdr.detectChanges();
+
+    const nextMap: Record<string, PreviewMcqOptionsLayout> = { ...this.previewOptionsLayoutByQid };
+    let mapChanged = false;
+
+    for (let i = 0; i < blocks.length; i++) {
+      const q = pq[i];
+      if (!q || !this.questionIsMcqType(q)) continue;
+      const key = this.mcqOptionsLayoutKey(q);
+      if (!key) continue;
+      const cont = blocks[i]!.nativeElement.querySelector<HTMLElement>('.preview-q-options');
+      if (!cont) continue;
+      const optEls = cont.querySelectorAll<HTMLElement>('.preview-q-opt');
+      let layout: PreviewMcqOptionsLayout = '2row';
+      if (optEls.length <= 1) {
+        layout = '1row';
+      } else {
+        const wrapCount = this.optionContentWrappedCount(cont);
+        if (wrapCount === 0) layout = '1row';
+        else if (wrapCount <= 2) layout = '2row';
+        else layout = '4row';
+      }
+      if (nextMap[key] !== layout) {
+        nextMap[key] = layout;
+        mapChanged = true;
+      }
+    }
+
+    this.previewOptionsMeasureMode = false;
+    this.previewOptionsLayoutByQid = nextMap;
+    this.previewOptionsLayoutStale = false;
+
+    const layouts = Object.values(nextMap);
+    const worst = layouts.length ? this.worstOptionsLayout(layouts) : '2row';
+    const cols = this.optionsColumnsFromLayout(worst);
+    let colsChanged = false;
+    if (cols !== this.optionsColumns) {
+      this.optionsColumns = cols;
+      colsChanged = true;
+    }
+
+    if (mapChanged || colsChanged) {
+      this.cdr.markForCheck();
+    }
+    return mapChanged || colsChanged;
   }
 
   onMcqSetLetterChange(): void {
@@ -5316,6 +5489,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.layoutColumnGapPx = 12;
     this.showColumnDivider = false;
     this.optionsColumns = 2;
+    this.previewOptionsLayoutByQid = {};
+    this.previewOptionsMeasureMode = false;
+    this.clearManualOptionsColumnsOverride();
     this.previewHeaderLineHeight = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
     this.previewQuestionsLineHeight = QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT;
     this.previewQuestionsLineHeightCreative = this.previewQuestionsLineHeight;
@@ -5353,6 +5529,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   onPreviewLayoutChange(options?: { suppressAutoFit?: boolean }): void {
     // Caller passes `false` only when the next pagination should be allowed to auto-adjust (see JSDoc above).
     const suppress = options?.suppressAutoFit ?? true;
+    this.markPreviewOptionsLayoutStale();
     // Bumped on every preview-affecting UI change so font grow/revert logic can correlate attempts (MCQ/CQ).
     this.previewLayoutChangeSeq++;
     this.resetAutoFitBaselineCalibration();
@@ -6512,12 +6689,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   decOptionsColumns(): void {
     if (this.optionsColumns <= QuestionCreatorComponent.OPTIONS_COLUMNS_MIN) return;
     this.optionsColumns--;
+    this.armManualOptionsColumnsOverride();
     this.onPreviewLayoutChange();
   }
 
   incOptionsColumns(): void {
     if (this.optionsColumns >= QuestionCreatorComponent.OPTIONS_COLUMNS_MAX) return;
     this.optionsColumns++;
+    this.armManualOptionsColumnsOverride();
     this.onPreviewLayoutChange();
   }
 
@@ -6533,6 +6712,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (c !== this.optionsColumns) {
       this.optionsColumns = c;
     }
+    this.armManualOptionsColumnsOverride();
     this.onPreviewLayoutChange();
   }
 
@@ -6546,6 +6726,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         Math.min(QuestionCreatorComponent.OPTIONS_COLUMNS_MAX, n)
       );
     }
+    this.armManualOptionsColumnsOverride();
     this.onPreviewLayoutChange();
   }
 
@@ -7528,6 +7709,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (this.leadEmptyFirstPageActive) {
           this.applyLeadEmptyMoveLastPageColumnToFirstBinding(candidatePages);
         }
+        if (this.runPreviewOptionsLayoutMeasurePass()) {
+          return;
+        }
         // --- Auto-fit gate: only “first three” exam types auto-adjust unless Smart/Reset sets previewAutoFitForceOneLayoutChain.
         const examAllowsAutoFit = this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey);
         // Default: skip all mutation helpers below when exam name is not in the auto-fit whitelist.
@@ -7545,6 +7729,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         // (0) ramp to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
         // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps only (7) header LH no-op.
         if (!suppressAutoFit) {
+          this.markPreviewOptionsLayoutStale();
+          if (this.runPreviewOptionsLayoutMeasurePass()) {
+            return;
+          }
           if (this.maybeRevertAutoFitExpandIfInvalid(candidatePages)) {
             return;
           }

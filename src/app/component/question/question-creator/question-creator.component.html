@@ -65,7 +65,16 @@
         <div
           class="preview-q-options"
           *ngIf="q.option_1 || q.option_2"
-          [ngStyle]="previewOptionsGridStyle"
+          [ngStyle]="optionsColumnsManualOverride ? previewOptionsGridStyle : null"
+          [class.preview-q-options-1row]="
+            !optionsColumnsManualOverride && (previewOptionsMeasureMode || previewOptionsLayoutForQ(q) === '1row')
+          "
+          [class.preview-q-options-2row]="
+            !optionsColumnsManualOverride && !previewOptionsMeasureMode && previewOptionsLayoutForQ(q) === '2row'
+          "
+          [class.preview-q-options-4row]="
+            !optionsColumnsManualOverride && !previewOptionsMeasureMode && previewOptionsLayoutForQ(q) === '4row'
+          "
         >
           <span *ngIf="q.option_1" class="preview-q-opt">(ক) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines"></span></span>
           <span *ngIf="q.option_2" class="preview-q-opt">(খ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines"></span></span>

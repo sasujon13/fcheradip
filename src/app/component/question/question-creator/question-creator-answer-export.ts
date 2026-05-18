@@ -305,6 +305,8 @@ export type LayoutSegmentSplitOpts = {
   qidPrefix: string;
   /** When true, split `\\n\\n` blocks after the stem into tail segments (answers sheet). */
   includeAnswerTails: boolean;
+  /** MCQ option rows as separate segments (answers sheet); main sheet keeps options with the stem. */
+  splitMcqOptions?: boolean;
   /** Main sheet: stem from display text; answers sheet uses raw `question` when omitted. */
   displayStem?: (q: unknown) => string;
 };
@@ -402,22 +404,49 @@ export function splitQuestionIntoLayoutSegments(
   } else {
     const struct = opts.parseStructure({ question: stemBlock, type: qType });
     const introText = struct.intro.trim() || stemBlock.trim();
-    if (introText) {
-      pushSeg(introText, 'intro', false);
-    }
-    if (!opts.includeAnswerTails) {
-      for (const part of struct.parts ?? []) {
-        if (part.trim()) {
-          pushSeg(part, 'part', rows.length > 0);
+    const hasMcqOptions = MCQ_OPTION_SEGMENTS.some(({ key }) => {
+      const ov = q[key];
+      return ov != null && String(ov).trim() !== '';
+    });
+
+    if (opts.splitMcqOptions === false) {
+      // Main sheet: one block per question with stem + (ক)–(ঘ) options intact for preview/export grid.
+      if (introText || hasMcqOptions) {
+        rows.push({
+          ...q,
+          qid: `${opts.qidPrefix}${qidBase}-${seg}`,
+          question: introText || stemBlock.trim() || ' ',
+          answerSheetContinuation: false,
+          answerSheetParentIndex: parentIndex,
+          answerSheetSegmentKind: 'intro',
+        });
+        seg++;
+      }
+      if (!opts.includeAnswerTails) {
+        for (const part of struct.parts ?? []) {
+          if (part.trim()) {
+            pushSeg(part, 'part', rows.length > 0);
+          }
         }
       }
-    }
-    for (const { key, label } of MCQ_OPTION_SEGMENTS) {
-      const ov = q[key];
-      if (ov == null || String(ov).trim() === '') continue;
-      const txt = opts.formatOption(String(ov).trim());
-      if (txt.trim()) {
-        pushSeg(`(${label}) ${txt}`, 'option', rows.length > 0);
+    } else {
+      if (introText) {
+        pushSeg(introText, 'intro', false);
+      }
+      if (!opts.includeAnswerTails) {
+        for (const part of struct.parts ?? []) {
+          if (part.trim()) {
+            pushSeg(part, 'part', rows.length > 0);
+          }
+        }
+      }
+      for (const { key, label } of MCQ_OPTION_SEGMENTS) {
+        const ov = q[key];
+        if (ov == null || String(ov).trim() === '') continue;
+        const txt = opts.formatOption(String(ov).trim());
+        if (txt.trim()) {
+          pushSeg(`(${label}) ${txt}`, 'option', rows.length > 0);
+        }
       }
     }
   }
@@ -483,6 +512,7 @@ export function buildPreviewLayoutMeasureRows(
         ...opts,
         qidPrefix: LAYOUT_SEG_QID_PREFIX,
         includeAnswerTails: false,
+        splitMcqOptions: false,
       })
     );
   }
