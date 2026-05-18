@@ -197,7 +197,7 @@
           *ngFor="let line of mcqHeaderLowerLines(); let j = index; trackBy: trackMcqHeaderLowerLine"
           class="preview-header-line preview-header-line--after-mcq-grid"
           [class.preview-header-line--sq-notice]="mcqHeaderLowerLineIsSqNoticeRow(j)"
-          [ngStyle]="headerPreviewLineTypoStyle(mcqHeaderLowerLineFontIndex(j))"
+          [ngStyle]="headerPreviewLineTypoStyle(mcqHeaderLowerLineFontIndex(j), line)"
         >
           <span class="preview-header-line-html" [innerHTML]="headerLinePreviewInnerHtml(line)"></span>
         </div>
@@ -210,13 +210,13 @@
                 class="preview-header-line"
                 [class.preview-header-line--1]="ti === 0"
                 [class.preview-header-line--2]="ti > 0"
-                [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti))"
+                [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti), line)"
               >
                 {{ creativeSqSplitLineFirst(line) }}
               </div>
               <div
                 class="preview-header-line preview-header-line--2"
-                [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti))"
+                [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti), line)"
               >
                 {{ creativeSqSplitLineSecond(line) }}
               </div>
@@ -227,7 +227,7 @@
               [class.preview-header-line--1]="ti === 0"
               [class.preview-header-line--2]="ti > 0"
               [class.preview-header-line--meta]="ti === 2"
-              [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti))"
+              [ngStyle]="headerPreviewLineTypoStyle(creativeTopLineFontIndex(ti), line)"
             >
               <span
                 *ngIf="(line || '').trim().length > 0"
@@ -244,7 +244,7 @@
                 <div
                   *ngIf="creativeHeaderBandLeftLines().length > 0"
                   class="preview-header-line preview-header-line--2"
-                  [ngStyle]="headerPreviewLineTypoStyle(creativeBandFirstLineFontIndex())"
+                  [ngStyle]="headerPreviewLineTypoStyle(creativeBandFirstLineFontIndex(), creativeHeaderBandLeftLines()[0])"
                 >
                   <span
                     class="preview-header-line-html"
@@ -269,7 +269,7 @@
               "
               class="preview-header-line preview-header-line--2 preview-header-creative-band-tail-line"
               [class.preview-header-line--sq-notice]="mixedSqNoticeLinesEligible() && bj === 0"
-              [ngStyle]="headerPreviewLineTypoStyle(creativeBandTailFontBase() + bj)"
+              [ngStyle]="headerPreviewLineTypoStyle(creativeBandTailFontBase() + bj, bandLine)"
             >
               <span class="preview-header-line-html" [innerHTML]="headerLinePreviewInnerHtml(bandLine)"></span>
             </div>

@@ -2301,7 +2301,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /**
    * Lines shown in the sheet header: split on newline (`\n` / `\r\n`).
    * One row per segment (including blank lines). Typography: line 1 = 1st stepper,
-   * line 2 = 2nd stepper, lines 3–5 = 1em (body), line 6+ = 12px.
+   * line 2 = 2nd stepper, lines 3–5 = 1em (body), line 6+ = 12px except `[দ্রষ্টব্য : …]` @ 10px.
    */
   get headerPreviewLines(): string[] {
     const raw = (this.questionHeader || '').replace(/\r\n/g, '\n');
@@ -5129,12 +5129,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const mixed = this.selectionHasBothHeaderTypes();
 
     const line = i < lines.length ? (lines[i] ?? '') : '';
-    if (this.isHeaderLineBanglaDristobyoNotice(line)) return 10;
+    if (this.isHeaderLineBanglaDristobyoNotice(line)) {
+      return QuestionCreatorComponent.HEADER_MIXED_SQ_NOTICE_FONT_DEFAULT_PX;
+    }
 
     if (i === 0) return 18;
-    if (mixed && i >= n - 2) return 10;
-    if (!mixed && i === n - 1) return 10;
-    return 12;
+    if (mixed && i >= n - 2) return QuestionCreatorComponent.HEADER_MIXED_SQ_NOTICE_FONT_DEFAULT_PX;
+    if (!mixed && i === n - 1) return QuestionCreatorComponent.HEADER_MIXED_SQ_NOTICE_FONT_DEFAULT_PX;
+    return QuestionCreatorComponent.HEADER_LINE_REST_FONT_DEFAULT_PX;
   }
 
   /**
@@ -5223,6 +5225,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         v === QuestionCreatorComponent.HEADER_CREATIVE_SQ_META_COMBINED_FONT_DEFAULT_PX
       ) {
         /** Stale 14px from creative-only rule or persist — MCQ-only line 4 is ICT @ 21px. */
+        useDefault = true;
+      }
+      if (
+        !useDefault &&
+        this.isHeaderLineBanglaDristobyoNotice(line) &&
+        Math.round(v) === QuestionCreatorComponent.HEADER_LINE_REST_FONT_DEFAULT_PX
+      ) {
+        /** Legacy default was 12px on notice rows — re-seed to 10px. */
         useDefault = true;
       }
       a[i] = this.clampHeaderLineFontPx(useDefault ? this.defaultHeaderFontPxForLineFromContent(i) : v);
@@ -7604,13 +7614,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.magnifierScaleMultiplier * this.previewFitScale;
   }
 
-  /** Font size + line-height for header line index `i` (0-based). */
-  headerPreviewLineTypoStyle(i: number): Record<string, string> {
+  /**
+   * Font size + line-height for header line index `i` (filtered-editor index; same slot as sidebar ±).
+   * Optional `lineHint` is unused for sizing — kept for call-site clarity where band rows map by index.
+   */
+  headerPreviewLineTypoStyle(i: number, _lineHint?: string): Record<string, string> {
     const lh = String(this.previewHeaderLineHeight);
-    const px = this.headerLineFontSizes[i];
-    const effective = this.clampHeaderLineFontPx(
-      px != null && Number.isFinite(px) ? px : this.defaultHeaderFontPxForLineFromContent(i)
-    );
+    const effective = this.headerLineFontPxForEditorLine(i);
     return { fontSize: `${effective}px`, lineHeight: lh };
   }
 
