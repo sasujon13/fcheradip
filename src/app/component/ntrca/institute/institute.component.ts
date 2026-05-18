@@ -2,8 +2,14 @@ import { Component, OnInit, AfterViewInit, OnDestroy, Renderer2, HostListener } 
 import { ApiService } from 'src/app/service/api.service';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { debounceTime, Subject } from 'rxjs';
+import { debounceTime, of, Subject } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
+import {
+  createNtrcaPagedCache,
+  NTRCA_PAGE_SIZE,
+} from 'src/app/shared/ntrca-paged-window';
+import { syncPagedWindowCache } from 'src/app/shared/paged-window-cache';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
@@ -39,7 +45,10 @@ export class InstituteComponent implements OnInit, OnDestroy {
   previous: string | null = null;
 
   pageIndex: number = 1;
-  pageSize: number = 100;
+  pageSize: number = NTRCA_PAGE_SIZE;
+  /** Sliding window: current ± 1 pages (max 300 institutes at 100/page). */
+  private readonly institutePageCache = createNtrcaPagedCache<any>();
+  private instituteListCacheKey = '';
 
   /** When current search returned no results, we show last shown results and this message. */
   lastShownMessage: string | null = null;
@@ -249,28 +258,68 @@ export class InstituteComponent implements OnInit, OnDestroy {
   //   });
   // }
 
-  loadInstitutes(page: number = 1, searchTerm?: string) {
-    let params = this.buildFilterParams();
-
-    if (searchTerm && searchTerm.trim() !== '') {
-      params = params.set('q', searchTerm.trim());
-    }
-    params = params.set('page', page.toString());
-    this.http.get<any>(`${this.baseUrl}`, { params }).subscribe((res) => {
-      this.handleInstitutesResponse(res, page);
+  private buildInstitutesCacheKey(): string {
+    return JSON.stringify({
+      types: [...this.selectedTypes].sort(),
+      divisions: [...this.selectedDivisions].sort(),
+      districts: [...this.selectedDistricts].sort(),
+      thanas: [...this.selectedThanas].sort(),
+      q: (this.searchTerm || '').trim(),
     });
   }
 
-  handleInstitutesResponse(res: any, page: number) {
-    let results = res?.results ?? [];
-    let count = res?.count ?? 0;
+  loadInstitutes(page: number = 1, searchTerm?: string) {
+    if (searchTerm !== undefined) {
+      this.searchTerm = searchTerm;
+    }
+    const cacheKey = this.buildInstitutesCacheKey();
+    if (cacheKey !== this.instituteListCacheKey) {
+      this.institutePageCache.clear();
+      this.instituteListCacheKey = cacheKey;
+    }
+    this.pageIndex = page;
+
+    syncPagedWindowCache({
+      cache: this.institutePageCache,
+      currentPage: page,
+      fetchPage: (p) => this.fetchInstitutePage(p),
+      onDisplay: (items) => {
+        this.applyInstitutePageDisplay(items, page);
+      },
+      onMeta: (meta) => {
+        if (!this.lastShownMessage) {
+          this.totalInstitutes = meta.totalCount;
+        }
+        this.updateInstitutePaginationLinks(page, meta.totalPages);
+      },
+    });
+  }
+
+  private fetchInstitutePage(page: number) {
+    let params = this.buildFilterParams();
+    const q = (this.searchTerm || '').trim();
+    if (q) {
+      params = params.set('q', q);
+    }
+    params = params.set('page', String(page));
+    return this.http.get<any>(`${this.baseUrl}`, { params }).pipe(
+      map((res) => {
+        let results = res?.results ?? [];
+        const serverCount = res?.count ?? 0;
+        if (results.length > 0) {
+          results = this.applyEiinPriority(results, this.searchTerm);
+          this.lastInstitutes.setLastShown(this.searchTerm, results);
+        }
+        return { items: results, totalCount: serverCount };
+      }),
+      catchError(() => of({ items: [] as any[], totalCount: 0 }))
+    );
+  }
+
+  private applyInstitutePageDisplay(results: any[], page: number): void {
     if (results.length > 0) {
-      results = this.applyEiinPriority(results, this.searchTerm);
-      count = results.length;
-      this.lastInstitutes.setLastShown(this.searchTerm, results);
-      this.lastShownMessage = null;
       this.dataSource = results;
-      this.totalInstitutes = count;
+      this.lastShownMessage = null;
     } else {
       const last = this.lastInstitutes.getLastShown();
       if (last && last.results.length > 0) {
@@ -283,11 +332,13 @@ export class InstituteComponent implements OnInit, OnDestroy {
         this.lastShownMessage = null;
       }
     }
-    this.pageSize = this.dataSource.length;
     this.pageIndex = page;
-    this.pageSize = 100;
-    this.next = res?.next ?? null;
-    this.previous = res?.previous ?? null;
+    this.pageSize = NTRCA_PAGE_SIZE;
+  }
+
+  private updateInstitutePaginationLinks(page: number, totalPages: number): void {
+    this.previous = page > 1 ? 'prev' : null;
+    this.next = page < totalPages ? 'next' : null;
   }
 
 
