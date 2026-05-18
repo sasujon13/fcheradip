@@ -2,6 +2,22 @@ import { resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
 
 export type McqSetLetter = 'ক' | 'খ' | 'গ' | 'ঘ';
 
+/** Prefix for answers-sheet layout/export rows split from one logical question. */
+export const ANSWER_SHEET_SEG_QID_PREFIX = 'ans-seg-';
+
+/** Prefix for main question-sheet layout/export segment rows. */
+export const LAYOUT_SEG_QID_PREFIX = 'layout-seg-';
+
+export type AnswerSheetSegmentKind = 'intro' | 'part' | 'option' | 'tail';
+
+export type AnswerSheetMeasureRow = Record<string, unknown> & {
+  answerSheetContinuation?: boolean;
+  answerSheetParentIndex?: number;
+  answerSheetSegmentKind?: AnswerSheetSegmentKind;
+  answerSheetPartIndex?: number;
+  answerSheetPartCount?: number;
+};
+
 export function hasNonEmptyField(v: unknown): boolean {
   return v != null && String(v).trim() !== '';
 }
@@ -272,5 +288,203 @@ export function buildAnswersExplanationsExportQuestions(opts: {
   }
 
   out.push(...others);
+  return out;
+}
+
+const MCQ_OPTION_SEGMENTS: { key: 'option_1' | 'option_2' | 'option_3' | 'option_4'; label: string }[] = [
+  { key: 'option_1', label: 'ক' },
+  { key: 'option_2', label: 'খ' },
+  { key: 'option_3', label: 'গ' },
+  { key: 'option_4', label: 'ঘ' },
+];
+
+export type LayoutSegmentSplitOpts = {
+  isCreativeType: (q: unknown) => boolean;
+  parseStructure: (q: { question?: unknown; type?: string }) => { intro: string; parts: string[] };
+  formatOption: (raw: string) => string;
+  qidPrefix: string;
+  /** When true, split `\\n\\n` blocks after the stem into tail segments (answers sheet). */
+  includeAnswerTails: boolean;
+  /** Main sheet: stem from display text; answers sheet uses raw `question` when omitted. */
+  displayStem?: (q: unknown) => string;
+};
+
+function questionTypeLabel(q: Record<string, unknown>): string | undefined {
+  const t = q['type'];
+  if (t == null) return undefined;
+  return String(t);
+}
+
+/**
+ * Split one question into measure/export blocks (intro, CQ parts, MCQ options, optional answer tails)
+ * so pagination can pack columns without large gaps from indivisible whole questions.
+ */
+export function splitQuestionIntoLayoutSegments(
+  q: Record<string, unknown>,
+  parentIndex: number,
+  opts: LayoutSegmentSplitOpts
+): AnswerSheetMeasureRow[] {
+  const qidBase = q['qid'] != null ? String(q['qid']) : String(parentIndex);
+  if (String(qidBase).startsWith('mcq-set-hdr')) {
+    return [{ ...q } as AnswerSheetMeasureRow];
+  }
+
+  const rawFull = opts.displayStem
+    ? String(opts.displayStem(q) ?? '').trim()
+    : String(q['question'] ?? '').trim();
+
+  if (!rawFull) {
+    return [
+      {
+        ...q,
+        qid: `${opts.qidPrefix}${qidBase}-0`,
+        question: ' ',
+        option_1: '',
+        option_2: '',
+        option_3: '',
+        option_4: '',
+        answerSheetContinuation: false,
+        answerSheetParentIndex: parentIndex,
+        answerSheetSegmentKind: 'intro',
+      },
+    ];
+  }
+
+  let stemBlock = rawFull;
+  let tailBlocks: string[] = [];
+  if (opts.includeAnswerTails) {
+    const blocks = rawFull.split(/\n\n+/).map((s) => s.trim()).filter(Boolean);
+    stemBlock = blocks[0] ?? '';
+    tailBlocks = blocks.slice(1);
+  }
+
+  const rows: AnswerSheetMeasureRow[] = [];
+  let seg = 0;
+  const qType = questionTypeLabel(q);
+
+  const pushSeg = (
+    content: string,
+    kind: AnswerSheetSegmentKind,
+    continuation: boolean,
+    extra?: Partial<AnswerSheetMeasureRow>
+  ) => {
+    const t = content.trim();
+    if (!t) return;
+    rows.push({
+      ...q,
+      ...extra,
+      qid: `${opts.qidPrefix}${qidBase}-${seg}`,
+      question: t,
+      option_1: '',
+      option_2: '',
+      option_3: '',
+      option_4: '',
+      answerSheetContinuation: continuation,
+      answerSheetParentIndex: parentIndex,
+      answerSheetSegmentKind: kind,
+    });
+    seg++;
+  };
+
+  if (opts.isCreativeType(q)) {
+    const struct = opts.parseStructure({ question: stemBlock, type: qType });
+    if (struct.intro.trim()) {
+      pushSeg(struct.intro, 'intro', false);
+    }
+    const parts = struct.parts ?? [];
+    const pc = parts.length;
+    parts.forEach((part, pi) => {
+      pushSeg(part, 'part', rows.length > 0, {
+        answerSheetPartIndex: pi,
+        answerSheetPartCount: pc,
+      });
+    });
+  } else {
+    const struct = opts.parseStructure({ question: stemBlock, type: qType });
+    const introText = struct.intro.trim() || stemBlock.trim();
+    if (introText) {
+      pushSeg(introText, 'intro', false);
+    }
+    if (!opts.includeAnswerTails) {
+      for (const part of struct.parts ?? []) {
+        if (part.trim()) {
+          pushSeg(part, 'part', rows.length > 0);
+        }
+      }
+    }
+    for (const { key, label } of MCQ_OPTION_SEGMENTS) {
+      const ov = q[key];
+      if (ov == null || String(ov).trim() === '') continue;
+      const txt = opts.formatOption(String(ov).trim());
+      if (txt.trim()) {
+        pushSeg(`(${label}) ${txt}`, 'option', rows.length > 0);
+      }
+    }
+  }
+
+  for (const tail of tailBlocks) {
+    pushSeg(tail, 'tail', true);
+  }
+
+  if (!rows.length) {
+    rows.push({
+      ...q,
+      qid: `${opts.qidPrefix}${qidBase}-0`,
+      question: rawFull,
+      option_1: '',
+      option_2: '',
+      option_3: '',
+      option_4: '',
+      answerSheetContinuation: false,
+      answerSheetParentIndex: parentIndex,
+      answerSheetSegmentKind: 'intro',
+    });
+  }
+
+  return rows;
+}
+
+/** Answers/explanations: intro, parts, options, answer tails. */
+export function splitAnswerExportQuestionIntoMeasureRows(
+  q: Record<string, unknown>,
+  parentIndex: number,
+  opts: Omit<LayoutSegmentSplitOpts, 'qidPrefix' | 'includeAnswerTails' | 'displayStem'>
+): AnswerSheetMeasureRow[] {
+  return splitQuestionIntoLayoutSegments(q, parentIndex, {
+    ...opts,
+    qidPrefix: ANSWER_SHEET_SEG_QID_PREFIX,
+    includeAnswerTails: true,
+  });
+}
+
+/** Expand answers/explanations list into layout/export rows (one block per part/option/tail). */
+export function buildAnswerLayoutMeasureRows(
+  answerQuestions: unknown[],
+  opts: Omit<LayoutSegmentSplitOpts, 'qidPrefix' | 'includeAnswerTails' | 'displayStem'>
+): AnswerSheetMeasureRow[] {
+  const out: AnswerSheetMeasureRow[] = [];
+  for (let i = 0; i < answerQuestions.length; i++) {
+    const q = answerQuestions[i] as Record<string, unknown>;
+    out.push(...splitAnswerExportQuestionIntoMeasureRows(q, i, opts));
+  }
+  return out;
+}
+
+/** Main question sheet: intro, CQ parts, and MCQ options as separate layout blocks. */
+export function buildPreviewLayoutMeasureRows(
+  questions: unknown[],
+  opts: Omit<LayoutSegmentSplitOpts, 'qidPrefix' | 'includeAnswerTails'>
+): AnswerSheetMeasureRow[] {
+  const out: AnswerSheetMeasureRow[] = [];
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i] as Record<string, unknown>;
+    out.push(
+      ...splitQuestionIntoLayoutSegments(q, i, {
+        ...opts,
+        qidPrefix: LAYOUT_SEG_QID_PREFIX,
+        includeAnswerTails: false,
+      })
+    );
+  }
   return out;
 }

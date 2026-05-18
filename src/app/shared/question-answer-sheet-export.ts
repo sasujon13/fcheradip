@@ -1,9 +1,12 @@
 import { formatMaybeCProgramQuestionText } from './c-program-question-format';
 import {
+  ANSWER_SHEET_SEG_QID_PREFIX,
+  buildAnswerLayoutMeasureRows,
   buildAnswersExplanationsExportQuestions,
   buildMcqAnswerKeyExportPayload,
   buildMcqAnswerKeySetBlocks,
   McqSetLetter,
+  packMcqAnswerIndicesIntoColumns,
 } from '../component/question/question-creator/question-creator-answer-export';
 
 export const MCQ_SET_LETTERS = ['ক', 'খ', 'গ', 'ঘ'] as const;
@@ -97,6 +100,22 @@ export function reorderQuestionsByQids(questions: any[], qids: (string | number)
 
 function formatOption(raw: string): string {
   return formatMaybeCProgramQuestionText(raw);
+}
+
+function parseAnswerSheetQuestionStructure(q: {
+  question?: unknown;
+  type?: string;
+}): { intro: string; parts: string[] } {
+  const full = String(q?.question ?? '').trim();
+  if (!full) return { intro: '', parts: [] };
+  const type = (q?.type ?? '').toString().trim();
+  if (type !== 'সৃজনশীল প্রশ্ন') return { intro: full, parts: [] };
+  const lines = full
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (lines.length <= 1) return { intro: full, parts: [] };
+  return { intro: lines[0] ?? '', parts: lines.slice(1) };
 }
 
 function getQuestionDisplayText(q: { question?: unknown; type?: string }): string {
@@ -198,7 +217,12 @@ function previewIndexToAnswerExportIndex(
   const map = new Map<number, number>();
   for (let ai = 0; ai < answerQuestions.length; ai++) {
     const qid = answerQuestions[ai]?.qid;
-    if (qid == null || String(qid).startsWith('mcq-set-hdr') || String(qid).startsWith('mcq-ans-')) {
+    if (
+      qid == null ||
+      String(qid).startsWith('mcq-set-hdr') ||
+      String(qid).startsWith('mcq-ans-') ||
+      String(qid).startsWith(ANSWER_SHEET_SEG_QID_PREFIX)
+    ) {
       continue;
     }
     const pi = previewList.findIndex((q) => q.qid === qid);
@@ -255,22 +279,46 @@ function fallbackAnswersExplanationsLayout(
   base: Record<string, unknown>,
   answerQuestions: any[],
   previewList: any[],
-  multiMcq: boolean
+  multiMcq: boolean,
+  exportQuestions: any[]
 ): Record<string, unknown> {
   const serialByIndex: Record<string, number> = {};
-  for (let i = 0; i < answerQuestions.length; i++) {
-    serialByIndex[String(i)] = i + 1;
+  for (let i = 0; i < exportQuestions.length; i++) {
+    const row = exportQuestions[i] as { answerSheetParentIndex?: number; answerSheetContinuation?: boolean };
+    const p = row.answerSheetParentIndex;
+    if (row.answerSheetContinuation && p != null) {
+      serialByIndex[String(i)] = serialByIndex[String(i - 1)] ?? p + 1;
+    } else if (p != null) {
+      serialByIndex[String(i)] = p + 1;
+    } else {
+      serialByIndex[String(i)] = i + 1;
+    }
   }
-  const previewToAnswer = previewIndexToAnswerExportIndex(answerQuestions, previewList);
+  const cols = Math.max(1, Math.floor(Number(base['layoutColumns']) || 1));
+  const localCols = packMcqAnswerIndicesIntoColumns(exportQuestions.length, cols);
+  const questionColumnIndexes = localCols.map((col) => col.map((i) => i));
   const planKinds: ('creative' | 'mcq')[] = multiMcq ? ['creative'] : ['creative', 'mcq'];
+  const kind = planKinds.includes('creative') ? 'creative' : 'mcq';
+  const previewToAnswer = previewIndexToAnswerExportIndex(answerQuestions, previewList);
+  const remapped =
+    remapExportPreviewPagePlanForAnswerSheet(base['exportPreviewPagePlan'], previewToAnswer, planKinds);
+  const exportPreviewPagePlan =
+    remapped.length > 0
+      ? remapped
+      : [
+          {
+            kind,
+            headerVisible: true,
+            headerKind: kind,
+            leadEmpty: false,
+            headerInFirstColumn: false,
+            questionColumnIndexes,
+          },
+        ];
   return {
     ...base,
-    exportPreviewPagePlan: remapExportPreviewPagePlanForAnswerSheet(
-      base['exportPreviewPagePlan'],
-      previewToAnswer,
-      planKinds
-    ),
-    exportPreviewQuestionQids: answerQuestions.map((q) => q.qid),
+    exportPreviewPagePlan,
+    exportPreviewQuestionQids: exportQuestions.map((q) => q.qid),
     previewSerialByIndex: serialByIndex,
   };
 }
@@ -374,11 +422,22 @@ export function buildAnswerSheetExportItems(args: {
   });
 
   if (withAnswers.length > 0) {
+    const exportQuestions = buildAnswerLayoutMeasureRows(withAnswers, {
+      isCreativeType: (q) => questionIsCreativeType(q as { type?: unknown }),
+      parseStructure: parseAnswerSheetQuestionStructure,
+      formatOption,
+    });
     const persisted = ls[ANSWER_EXPLANATIONS_LAYOUT_KEY];
     const layout =
       persisted && typeof persisted === 'object' && !Array.isArray(persisted)
         ? { ...(persisted as Record<string, unknown>) }
-        : fallbackAnswersExplanationsLayout(ls, withAnswers, previewList, multiMcq);
+        : fallbackAnswersExplanationsLayout(ls, withAnswers, previewList, multiMcq, exportQuestions);
+
+    const qids = layout['exportPreviewQuestionQids'];
+    const questionsForExport =
+      Array.isArray(qids) && qids.length
+        ? (reorderQuestionsByQids(exportQuestions, qids as (string | number)[]) as typeof exportQuestions)
+        : exportQuestions;
 
     const answersHeader = headerWithTitle(
       multiMcq && headerBySet['ক'] ? headerBySet['ক']! : questionHeader,
@@ -389,7 +448,7 @@ export function buildAnswerSheetExportItems(args: {
       filename: `${filenameStem}-answers`,
       format,
       payload: mergeExportPayloadWithLayoutSettings(baseExportPayload, layout, {
-        questions: withAnswers,
+        questions: questionsForExport,
         questionHeader: answersHeader,
         ...(split.questionHeaderCreative ? { questionHeaderCreative: split.questionHeaderCreative } : {}),
         ...(split.questionHeaderMcq ? { questionHeaderMcq: split.questionHeaderMcq } : {}),

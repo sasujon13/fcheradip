@@ -35,9 +35,11 @@ import {
 } from 'src/app/service/question-unlock.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import {
+  buildAnswerLayoutMeasureRows,
   buildAnswersExplanationsExportQuestions,
   buildMcqAnswerKeyExportPayload,
   buildMcqAnswerKeySetBlocks,
+  buildPreviewLayoutMeasureRows,
   McqSetLetter,
 } from './question-creator-answer-export';
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -380,6 +382,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Measure rail + pagination while building answer-sheet exports (does not change saved questions). */
   private answerExportQuestionsOverride: any[] | null = null;
+  /** Answers-sheet auto-fit: one measure block per intro/part/option/tail (not whole questions). */
+  private answerExportMeasureRows: any[] | null = null;
 
   /**
    * Per-kind auto-fit grow/revert (MCQ and CQ are independent when both appear in the selection).
@@ -3123,11 +3127,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.selectionHasCreativeType()) {
       return 0;
     }
-    return this.previewQuestions.filter((q) => this.questionIsCreativeType(q)).length;
+    return this.canonicalPreviewQuestions.filter((q) => this.questionIsCreativeType(q)).length;
   }
 
   /** Sheet preview / pagination: canonical order until a set is chosen; then shuffled or frozen saved order. */
-  get previewQuestions(): any[] {
+  get canonicalPreviewQuestions(): any[] {
     if (this.answerExportQuestionsOverride != null) {
       return this.answerExportQuestionsOverride;
     }
@@ -3143,6 +3147,31 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const others = base.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q));
     // Mixed mode order: সৃজনশীল first, then বহুনির্বাচনি.
     return [...creative, ...mcq, ...others];
+  }
+
+  get previewQuestions(): any[] {
+    return this.canonicalPreviewQuestions;
+  }
+
+  /** Measure rail + pagination: one block per stem/part/option (and answer tails on answers sheet). */
+  get layoutMeasureQuestions(): any[] {
+    if (this.answerExportMeasureRows != null) {
+      return this.answerExportMeasureRows;
+    }
+    return buildPreviewLayoutMeasureRows(this.canonicalPreviewQuestions, this.layoutSegmentSplitOpts());
+  }
+
+  private layoutSegmentSplitOpts() {
+    return {
+      isCreativeType: (q: unknown) => this.questionIsCreativeType(q as { type?: unknown }),
+      parseStructure: (q: { question?: unknown; type?: string }) => this.getQuestionDisplayStructure(q),
+      formatOption: (r: string) => this.getOptionDisplayText(r),
+      displayStem: (q: unknown) => this.getQuestionDisplayText(q as { question?: unknown; type?: string }),
+    };
+  }
+
+  private expandQuestionsIntoLayoutSegments(questions: any[]): any[] {
+    return buildPreviewLayoutMeasureRows(questions, this.layoutSegmentSplitOpts());
   }
 
   /** Same display rules as the /question list (`QuestionComponent.getQuestionDisplayText`). */
@@ -3244,6 +3273,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * other types keep the global position (১…N in sheet order).
    */
   previewQuestionDisplaySerialOneBased(listIndex: number, q: { type?: unknown }): number {
+    const parentIdx = (q as { answerSheetParentIndex?: number })?.answerSheetParentIndex;
+    if (parentIdx != null) {
+      const parents = this.answerExportQuestionsOverride ?? this.canonicalPreviewQuestions;
+      if (parentIdx >= 0 && parentIdx < parents.length) {
+        return this.previewQuestionDisplaySerialOneBased(
+          parentIdx,
+          parents[parentIdx] as { type?: unknown }
+        );
+      }
+    }
     const list = this.previewQuestions;
     if (listIndex < 0 || listIndex >= list.length) return Math.max(1, listIndex + 1);
     const isCreative = this.questionIsCreativeType(q);
@@ -3362,6 +3401,31 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.persistedMcqOrderBySet = {};
     this.questionHeaderByMcqSet = {};
     this.mcqOrdersFrozen = false;
+  }
+
+  /** Reorder an arbitrary row list (e.g. layout segments) by stored qids. */
+  reorderListFromQidList<T extends { qid?: string | number }>(
+    items: T[],
+    qids: (string | number)[] | undefined | null
+  ): T[] {
+    if (!qids?.length) return items.slice();
+    const byId = new Map<string | number, T>();
+    for (const q of items) {
+      if (q?.qid != null) byId.set(q.qid, q);
+    }
+    const seen = new Set<string | number>();
+    const out: T[] = [];
+    for (const id of qids) {
+      const q = byId.get(id);
+      if (q) {
+        out.push(q);
+        seen.add(q.qid!);
+      }
+    }
+    for (const q of items) {
+      if (q?.qid != null && !seen.has(q.qid)) out.push(q);
+    }
+    return out;
   }
 
   /** Rebuild full list from stored qids (redownload / frozen preview). */
@@ -6423,6 +6487,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return false;
   }
 
+  columnMeasureWidthPxForLayoutRow(layoutIndex: number, q: { type?: unknown; answerSheetParentIndex?: number }): number {
+    const parentIdx = q?.answerSheetParentIndex;
+    if (parentIdx != null && parentIdx >= 0) {
+      return this.columnMeasureWidthPxForQuestionIndex(parentIdx);
+    }
+    return this.columnMeasureWidthPxForQuestionIndex(layoutIndex);
+  }
+
   columnMeasureWidthPxForQuestionIndex(i: number): number {
     const creativeLayout = this.measureUsesCreativeColumnLayoutForPreviewIndex(i);
     const baseInnerW = this.contentInnerWidthPxForKind(creativeLayout ? 'creative' : 'mcq');
@@ -7148,6 +7220,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Margin below a preview block; matches column packing gaps after {@link questionList} indices. */
   questionBlockMarginBottomPx(q: { type?: unknown } | null | undefined): number {
+    if ((q as { answerSheetContinuation?: boolean })?.answerSheetContinuation) {
+      return Math.max(1, Math.round(this.questionsPadding / 2));
+    }
     return this.questionIsCreativeType(q ?? {}) ? this.questionsGapCreative : this.questionsGap;
   }
 
@@ -7245,6 +7320,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private captureAnswerAutoFitSnapshot(): {
     answerExportQuestionsOverride: any[] | null;
+    answerExportMeasureRows: any[] | null;
     layoutColumns: number;
     previewQuestionsFontPx: number;
     previewQuestionsFontPxCreative: number;
@@ -7265,6 +7341,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   } {
     return {
       answerExportQuestionsOverride: this.answerExportQuestionsOverride,
+      answerExportMeasureRows: this.answerExportMeasureRows,
       layoutColumns: this.layoutColumns,
       previewQuestionsFontPx: this.previewQuestionsFontPx,
       previewQuestionsFontPxCreative: this.previewQuestionsFontPxCreative,
@@ -7287,6 +7364,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private restoreAnswerAutoFitSnapshot(snap: ReturnType<QuestionCreatorComponent['captureAnswerAutoFitSnapshot']>): void {
     this.answerExportQuestionsOverride = snap.answerExportQuestionsOverride;
+    this.answerExportMeasureRows = snap.answerExportMeasureRows;
     this.layoutColumns = snap.layoutColumns;
     this.previewQuestionsFontPx = snap.previewQuestionsFontPx;
     this.previewQuestionsFontPxCreative = snap.previewQuestionsFontPxCreative;
@@ -7314,14 +7392,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     opts?: { layoutColumns?: number }
   ): Promise<Record<string, unknown>> {
     const snap = this.captureAnswerAutoFitSnapshot();
+    const measureRows = buildAnswerLayoutMeasureRows(questions, this.layoutSegmentSplitOpts());
     try {
       this.answerExportQuestionsOverride = questions;
+      this.answerExportMeasureRows = measureRows;
       if (opts?.layoutColumns != null) {
         this.layoutColumns = opts.layoutColumns;
       }
       this.previewAutoFitForceOneLayoutChain = true;
       this.cdr.detectChanges();
-      await this.waitForMeasureRailReady(questions.length);
+      await this.waitForMeasureRailReady(measureRows.length);
       this.onPreviewLayoutChange({ suppressAutoFit: false });
       try {
         await this.waitForLayoutIdle(25000);
@@ -7365,7 +7445,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
 
-    const pq = this.previewQuestions;
+    const pq = this.layoutMeasureQuestions;
     const blocks = this.measureBlocks?.toArray() ?? [];
     if (pq.length > 0 && blocks.length !== pq.length) {
       setTimeout(() => this.scheduleLayout(), 32);
@@ -8311,9 +8391,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private buildLayoutSettingsForPersist(opts?: { stripHeaderState?: boolean }): Record<string, unknown> {
     const previewSerialByIndex: Record<string, number> = {};
-    for (let i = 0; i < this.previewQuestions.length; i++) {
-      const serial = this.previewQuestionDisplaySerialOneBased(i, this.previewQuestions[i]!);
-      previewSerialByIndex[String(i)] = serial;
+    const measureRows = this.layoutMeasureQuestions;
+    for (let i = 0; i < measureRows.length; i++) {
+      const q = measureRows[i]!;
+      previewSerialByIndex[String(i)] = this.previewQuestionDisplaySerialOneBased(i, q);
     }
     const exportPreviewPagePlan =
       this.pageSections <= 1
@@ -8389,7 +8470,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         ? { questionHeaderByMcqSet: { ...this.questionHeaderByMcqSet } }
         : {}),
       /** Same order as PDF export (`previewQuestions`); draft `questions` may differ. */
-      exportPreviewQuestionQids: this.previewQuestions.map((q) => q.qid),
+      exportPreviewQuestionQids: this.layoutMeasureQuestions.map((q) => q.qid),
     };
   }
 
@@ -8450,14 +8531,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return out;
   }
 
-  /** Answers + explanations: auto-fit in measure rail, then export (questions sheet unchanged). */
-  private async layoutSettingsForAnswersExplanationsExportWithAutoFit(
-    answerQuestions: any[]
-  ): Promise<Record<string, unknown>> {
+  /** Answers + explanations: auto-fit per intro/part/option/tail block; export uses same split rows. */
+  private async layoutSettingsForAnswersExplanationsExportWithAutoFit(answerQuestions: any[]): Promise<{
+    layout: Record<string, unknown>;
+    exportQuestions: any[];
+  }> {
+    const exportQuestions = buildAnswerLayoutMeasureRows(answerQuestions, this.layoutSegmentSplitOpts());
     const layout = await this.runAnswerExportLayoutPass(answerQuestions);
     return {
-      ...layout,
-      exportPreviewQuestionQids: answerQuestions.map((q) => q.qid),
+      layout: {
+        ...layout,
+        exportPreviewQuestionQids: exportQuestions.map((q) => q['qid']),
+      },
+      exportQuestions,
     };
   }
 
@@ -8555,13 +8641,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.questions.length > 0) {
       const withAnswers = this.buildAnswersExplanationsExportQuestionList(opts.multiMcq);
       if (withAnswers.length > 0) {
-        const layout = await this.layoutSettingsForAnswersExplanationsExportWithAutoFit(withAnswers);
+        const { layout, exportQuestions } =
+          await this.layoutSettingsForAnswersExplanationsExportWithAutoFit(withAnswers);
         answerExplanationsExportLayout = layout;
         for (const fmt of fmts) {
           requests.push(
             this.apiService.exportQuestions(
               this.mergeExportPayloadWithLayoutSettings(opts.basePayload, layout, {
-                questions: withAnswers,
+                questions: exportQuestions,
                 questionHeader: this.answerSheetExportHeader(opts.multiMcq),
                 ...(split.questionHeaderCreative
                   ? { questionHeaderCreative: split.questionHeaderCreative }
@@ -8829,10 +8916,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         setLetter != null
           ? (this.questionHeaderByMcqSet[setLetter] ?? this.buildQuestionHeaderForPersist(setLetter))
           : this.buildQuestionHeaderForPersist();
-      const questionsForFile =
+      const canonicalForFile =
         setLetter != null
           ? this.reorderQuestionsFromQidList(this.persistedMcqOrderBySet[setLetter])
-          : this.previewQuestions;
+          : this.canonicalPreviewQuestions;
+      const segmentRows = this.expandQuestionsIntoLayoutSegments(canonicalForFile);
+      const exportQids = layoutSettingsForCreate['exportPreviewQuestionQids'];
+      const questionsForFile =
+        Array.isArray(exportQids) && exportQids.length
+          ? this.reorderListFromQidList(segmentRows, exportQids as (string | number)[])
+          : segmentRows;
 
       // Export-only: per-kind MCQ/CQ header strings (+ line fonts). Mixed uses both kinds;
       // structured MCQ-only uses the same MCQ split builder as mixed.

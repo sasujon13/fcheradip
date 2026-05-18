@@ -5,18 +5,43 @@
 >
   <!-- Match /question: justified stem, (ক)–(ঘ) options, 1/2/4-row grid from measured wraps -->
   <ng-template #previewQuestionBlock let-q="q" let-sl="sl" let-idx="idx">
+    <ng-container *ngIf="q.answerSheetSegmentKind === 'part'; else answerSegTailOrFull">
+      <div class="preview-q-content">
+        <div
+          class="preview-q-subpart-wrap"
+          [class.preview-q-subpart-wrap--has-marks]="
+            creativeSubpartMarkBn(q.answerSheetPartCount, q.answerSheetPartIndex)
+          "
+        >
+          <div class="preview-q-subpart" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></div>
+          <span
+            class="preview-q-subpart-marks"
+            *ngIf="creativeSubpartMarkBn(q.answerSheetPartCount, q.answerSheetPartIndex) as mk"
+            >{{ mk }}</span
+          >
+        </div>
+      </div>
+    </ng-container>
+    <ng-template #answerSegTailOrFull>
+      <ng-container *ngIf="q.answerSheetSegmentKind === 'tail'; else answerSegFullBlock">
+        <div class="preview-q-content">
+          <span class="preview-q-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
+        </div>
+      </ng-container>
+    </ng-template>
+    <ng-template #answerSegFullBlock>
     <ng-container *ngIf="getQuestionDisplayStructure(q) as struct">
       <div class="preview-q-content">
         <label class="preview-q-label">
           <ng-container *ngIf="struct.parts.length === 0">
-            <strong class="preview-q-index">{{ previewQuestionSerialBn(sl) }}।</strong><span
+            <strong class="preview-q-index" *ngIf="!q.answerSheetContinuation">{{ previewQuestionSerialBn(sl) }}।</strong><span
               class="preview-q-text"
               [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"
             ></span>
           </ng-container>
           <ng-container *ngIf="struct.parts.length > 0">
             <!-- Same DOM as PDF export: number is sibling before q-stem-with-parts, not inside it. -->
-            <strong class="preview-q-index">{{ previewQuestionSerialBn(sl) }}।</strong>
+            <strong class="preview-q-index" *ngIf="!q.answerSheetContinuation">{{ previewQuestionSerialBn(sl) }}।</strong>
             <span class="preview-q-stem-with-parts"
               ><span
                 class="preview-q-text preview-q-intro"
@@ -49,6 +74,7 @@
         </div>
       </div>
     </ng-container>
+    </ng-template>
   </ng-template>
 
   <ng-template #paperQuestionHeader let-pi="pi">
@@ -1293,9 +1319,9 @@
       <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: measureRailMcqHeaderSheetPi() }"></ng-container>
     </div>
     <div
-      *ngFor="let q of previewQuestions; let i = index; trackBy: trackPreviewQuestion"
+      *ngFor="let q of layoutMeasureQuestions; let i = index; trackBy: trackPreviewQuestion"
       class="preview-measure-slot"
-      [style.maxWidth.px]="columnMeasureWidthPxForQuestionIndex(i)"
+      [style.maxWidth.px]="columnMeasureWidthPxForLayoutRow(i, q)"
     >
       <div
         #measureBlock
