@@ -331,52 +331,146 @@ function remapExportPreviewPagePlanForAnswerSheet(
   return out;
 }
 
-function fallbackAnswersExplanationsLayout(
-  base: Record<string, unknown>,
-  answerQuestions: any[],
-  previewList: any[],
-  multiMcq: boolean,
-  exportQuestions: any[]
-): Record<string, unknown> {
+/** Same CQ/MCQ numbering as question-creator preview (১…N per kind). */
+export function answerSheetParentQuestionSerialOneBased(
+  parentQuestions: unknown[],
+  parentIndex: number,
+  isCreativeType: (q: unknown) => boolean,
+  isMcqType: (q: unknown) => boolean
+): number {
+  if (parentIndex < 0 || parentIndex >= parentQuestions.length) {
+    return Math.max(1, parentIndex + 1);
+  }
+  const q = parentQuestions[parentIndex];
+  const isCreative = isCreativeType(q);
+  const isMcq = !isCreative && isMcqType(q);
+  if (!isCreative && !isMcq) {
+    return parentIndex + 1;
+  }
+  let prior = 0;
+  for (let i = 0; i < parentIndex; i++) {
+    const qi = parentQuestions[i];
+    if (isCreative) {
+      if (isCreativeType(qi)) prior++;
+    } else if (isMcqType(qi)) {
+      prior++;
+    }
+  }
+  return prior + 1;
+}
+
+function buildAnswerExportSerialByIndex(
+  exportQuestions: any[],
+  parentQuestions: unknown[],
+  isCreativeType: (q: unknown) => boolean,
+  isMcqType: (q: unknown) => boolean
+): Record<string, number> {
   const serialByIndex: Record<string, number> = {};
   for (let i = 0; i < exportQuestions.length; i++) {
     const row = exportQuestions[i] as { answerSheetParentIndex?: number; answerSheetContinuation?: boolean };
     const p = row.answerSheetParentIndex;
     if (row.answerSheetContinuation && p != null) {
-      serialByIndex[String(i)] = serialByIndex[String(i - 1)] ?? p + 1;
+      serialByIndex[String(i)] = serialByIndex[String(i - 1)] ?? answerSheetParentQuestionSerialOneBased(
+        parentQuestions,
+        p,
+        isCreativeType,
+        isMcqType
+      );
     } else if (p != null) {
-      serialByIndex[String(i)] = p + 1;
+      serialByIndex[String(i)] = answerSheetParentQuestionSerialOneBased(
+        parentQuestions,
+        p,
+        isCreativeType,
+        isMcqType
+      );
     } else {
       serialByIndex[String(i)] = i + 1;
     }
   }
-  const cols = Math.max(1, Math.floor(Number(base['layoutColumns']) || 1));
-  const localCols = packMcqAnswerIndicesIntoColumns(exportQuestions.length, cols);
-  const questionColumnIndexes = localCols.map((col) => col.map((i) => i));
-  const planKinds: ('creative' | 'mcq')[] = multiMcq ? ['creative'] : ['creative', 'mcq'];
-  const kind = planKinds.includes('creative') ? 'creative' : 'mcq';
-  const previewToAnswer = previewIndexToAnswerExportIndex(answerQuestions, previewList);
-  const remapped =
-    remapExportPreviewPagePlanForAnswerSheet(base['exportPreviewPagePlan'], previewToAnswer, planKinds);
-  const exportPreviewPagePlan =
-    remapped.length > 0
-      ? remapped
-      : [
-          {
-            kind,
-            headerVisible: true,
-            headerKind: kind,
-            leadEmpty: false,
-            headerInFirstColumn: false,
-            questionColumnIndexes,
-          },
-        ];
+  return serialByIndex;
+}
+
+/**
+ * Answers/explanations sheet: one column per page, CQ rows then MCQ rows (matches export pool by kind).
+ */
+export function buildSequentialAnswersExplanationsExportLayout(
+  base: Record<string, unknown>,
+  _multiMcq: boolean,
+  exportQuestions: any[],
+  parentQuestions: unknown[],
+  isCreativeType: (q: unknown) => boolean,
+  isMcqType: (q: unknown) => boolean
+): Record<string, unknown> {
+  const creativeIdx: number[] = [];
+  const mcqIdx: number[] = [];
+  for (let i = 0; i < exportQuestions.length; i++) {
+    const q = exportQuestions[i] as Record<string, unknown>;
+    const qid = String(q['qid'] ?? '');
+    if (qid.startsWith('mcq-set-hdr')) {
+      mcqIdx.push(i);
+      continue;
+    }
+    if (isCreativeType(q)) {
+      creativeIdx.push(i);
+    } else if (isMcqType(q)) {
+      mcqIdx.push(i);
+    } else {
+      creativeIdx.push(i);
+    }
+  }
+
+  const exportPreviewPagePlan: Record<string, unknown>[] = [];
+  if (creativeIdx.length) {
+    exportPreviewPagePlan.push({
+      kind: 'creative',
+      headerVisible: exportPreviewPagePlan.length === 0,
+      headerKind: 'creative',
+      leadEmpty: false,
+      headerInFirstColumn: false,
+      questionColumnIndexes: [creativeIdx],
+    });
+  }
+  if (mcqIdx.length) {
+    exportPreviewPagePlan.push({
+      kind: 'mcq',
+      headerVisible: exportPreviewPagePlan.length === 0,
+      headerKind: 'mcq',
+      leadEmpty: false,
+      headerInFirstColumn: false,
+      questionColumnIndexes: [mcqIdx],
+    });
+  }
+
   return {
     ...base,
+    layoutColumns: 1,
+    pageSections: 1,
     exportPreviewPagePlan,
-    exportPreviewQuestionQids: exportQuestions.map((q) => q.qid),
-    previewSerialByIndex: serialByIndex,
+    exportPreviewQuestionQids: exportQuestions.map((q) => q['qid']),
+    previewSerialByIndex: buildAnswerExportSerialByIndex(
+      exportQuestions,
+      parentQuestions,
+      isCreativeType,
+      isMcqType
+    ),
   };
+}
+
+function fallbackAnswersExplanationsLayout(
+  base: Record<string, unknown>,
+  answerQuestions: any[],
+  _previewList: any[],
+  multiMcq: boolean,
+  exportQuestions: any[]
+): Record<string, unknown> {
+  return buildSequentialAnswersExplanationsExportLayout(
+    base,
+    multiMcq,
+    exportQuestions,
+    answerQuestions,
+    (q) => questionIsCreativeType(q as { type?: unknown }),
+    (q) => questionIsMcqType(q as { type?: unknown })
+  );
 }
 
 function fallbackMcqAnswerKeyLayout(

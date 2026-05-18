@@ -34,7 +34,11 @@ import {
   questionSaveDebitTotal,
 } from 'src/app/service/question-unlock.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
-import { attachExportMcqOptionsColumnsToQuestions } from '../../../shared/question-answer-sheet-export';
+import {
+  answerSheetParentQuestionSerialOneBased,
+  attachExportMcqOptionsColumnsToQuestions,
+  buildSequentialAnswersExplanationsExportLayout,
+} from '../../../shared/question-answer-sheet-export';
 import {
   buildAnswerLayoutMeasureRows,
   buildAnswersExplanationsExportQuestions,
@@ -387,10 +391,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private previewAutoFitForceOneLayoutChain = false;
 
-  /** Measure rail + pagination while building answer-sheet exports (does not change saved questions). */
-  private answerExportQuestionsOverride: any[] | null = null;
-  /** Answers-sheet auto-fit: one measure block per intro/part/option/tail (not whole questions). */
-  private answerExportMeasureRows: any[] | null = null;
+  /** True while Save/export is measuring layout — hide question auto-fit overlay; question preview must not mutate. */
+  private saveExportLayoutBusy = false;
 
   /**
    * Per-kind auto-fit grow/revert (MCQ and CQ are independent when both appear in the selection).
@@ -688,8 +690,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Full-screen blocking overlay: {@link resetAutoFitOverlayVisible} during Reset, **or** (first-three exam and
    * layout queued/in flight). Uses exam whitelist + `layoutTimer` / `layoutPassInFlight`, not {@link previewAutoFitSuppressNextLayoutRun}
    * directly — any multi-pass `scheduleLayout` chain shows the same “busy” chrome for first-three users.
+   * Hidden during Save/export layout and answers-sheet auto-fit (export loading overlay is used instead).
    */
   get autoFitBlockingOverlayVisible(): boolean {
+    if (this.saveExportLayoutBusy) {
+      return this.resetAutoFitOverlayVisible;
+    }
     return (
       this.resetAutoFitOverlayVisible ||
       (this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey) &&
@@ -3365,9 +3371,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Sheet preview / pagination: canonical order until a set is chosen; then shuffled or frozen saved order. */
   get canonicalPreviewQuestions(): any[] {
-    if (this.answerExportQuestionsOverride != null) {
-      return this.answerExportQuestionsOverride;
-    }
     const base =
       !this.selectionHasMcqType() || this.selectedMcqSetLetter == null
         ? this.questions
@@ -3388,9 +3391,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Measure rail + pagination: one block per stem/part/option (and answer tails on answers sheet). */
   get layoutMeasureQuestions(): any[] {
-    if (this.answerExportMeasureRows != null) {
-      return this.answerExportMeasureRows;
-    }
     return buildPreviewLayoutMeasureRows(this.canonicalPreviewQuestions, this.layoutSegmentSplitOpts());
   }
 
@@ -3517,12 +3517,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   previewQuestionDisplaySerialOneBased(listIndex: number, q: { type?: unknown }): number {
     const parentIdx = (q as { answerSheetParentIndex?: number })?.answerSheetParentIndex;
-    if (parentIdx != null) {
-      const parents = this.answerExportQuestionsOverride ?? this.canonicalPreviewQuestions;
-      if (parentIdx >= 0 && parentIdx < parents.length) {
-        return this.previewQuestionDisplaySerialOneBased(
+    if (parentIdx != null && parentIdx >= 0) {
+      const parents = this.canonicalPreviewQuestions;
+      if (parentIdx < parents.length) {
+        return answerSheetParentQuestionSerialOneBased(
+          parents,
           parentIdx,
-          parents[parentIdx] as { type?: unknown }
+          (x) => this.questionIsCreativeType(x as { type?: unknown }),
+          (x) => this.questionIsMcqType(x as { type?: unknown })
         );
       }
     }
@@ -7701,135 +7703,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     throw new Error('Layout did not settle in time');
   }
 
-  private async waitForMeasureRailReady(questionCount: number, timeoutMs = 20000): Promise<void> {
-    if (questionCount <= 0) {
-      return;
-    }
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      this.cdr.detectChanges();
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      );
-      const blocks = this.measureBlocks?.toArray() ?? [];
-      if (blocks.length === questionCount) {
-        const heights = blocks.map((ref) => {
-          const el = ref.nativeElement;
-          return Math.max(el.offsetHeight || 0, el.scrollHeight || 0, el.getBoundingClientRect().height || 0);
-        });
-        if (heights.every((h) => h > 0)) {
-          return;
-        }
-      }
-      await new Promise<void>((r) => setTimeout(r, 32));
-    }
-    throw new Error('Measure rail did not render answer rows in time');
-  }
-
-  private captureAnswerAutoFitSnapshot(): {
-    answerExportQuestionsOverride: any[] | null;
-    answerExportMeasureRows: any[] | null;
-    layoutColumns: number;
-    previewQuestionsFontPx: number;
-    previewQuestionsFontPxCreative: number;
-    previewQuestionsFontPxMcq: number;
-    questionsGap: number;
-    questionsGapCreative: number;
-    questionsPadding: number;
-    previewQuestionsLineHeight: number;
-    previewQuestionsLineHeightCreative: number;
-    previewQuestionsLineHeightMcq: number;
-    previewHeaderLineHeight: number;
-    previewAutoFitForceOneLayoutChain: boolean;
-    autoFitBaselineSheetBudgetMcq: number | null;
-    autoFitBaselineSheetBudgetCq: number | null;
-    autoFitBaselineBudgetsCaptured: boolean;
-    autoFitMcqBudgetUsesTotalPages: boolean;
-    autoFitCqBudgetUsesTotalPages: boolean;
-  } {
-    return {
-      answerExportQuestionsOverride: this.answerExportQuestionsOverride,
-      answerExportMeasureRows: this.answerExportMeasureRows,
-      layoutColumns: this.layoutColumns,
-      previewQuestionsFontPx: this.previewQuestionsFontPx,
-      previewQuestionsFontPxCreative: this.previewQuestionsFontPxCreative,
-      previewQuestionsFontPxMcq: this.previewQuestionsFontPxMcq,
-      questionsGap: this.questionsGap,
-      questionsGapCreative: this.questionsGapCreative,
-      questionsPadding: this.questionsPadding,
-      previewQuestionsLineHeight: this.previewQuestionsLineHeight,
-      previewQuestionsLineHeightCreative: this.previewQuestionsLineHeightCreative,
-      previewQuestionsLineHeightMcq: this.previewQuestionsLineHeightMcq,
-      previewHeaderLineHeight: this.previewHeaderLineHeight,
-      previewAutoFitForceOneLayoutChain: this.previewAutoFitForceOneLayoutChain,
-      autoFitBaselineSheetBudgetMcq: this.autoFitBaselineSheetBudgetMcq,
-      autoFitBaselineSheetBudgetCq: this.autoFitBaselineSheetBudgetCq,
-      autoFitBaselineBudgetsCaptured: this.autoFitBaselineBudgetsCaptured,
-      autoFitMcqBudgetUsesTotalPages: this.autoFitMcqBudgetUsesTotalPages,
-      autoFitCqBudgetUsesTotalPages: this.autoFitCqBudgetUsesTotalPages,
-    };
-  }
-
-  private restoreAnswerAutoFitSnapshot(snap: ReturnType<QuestionCreatorComponent['captureAnswerAutoFitSnapshot']>): void {
-    this.answerExportQuestionsOverride = snap.answerExportQuestionsOverride;
-    this.answerExportMeasureRows = snap.answerExportMeasureRows;
-    this.layoutColumns = snap.layoutColumns;
-    this.previewQuestionsFontPx = snap.previewQuestionsFontPx;
-    this.previewQuestionsFontPxCreative = snap.previewQuestionsFontPxCreative;
-    this.previewQuestionsFontPxMcq = snap.previewQuestionsFontPxMcq;
-    this.questionsGap = snap.questionsGap;
-    this.questionsGapCreative = snap.questionsGapCreative;
-    this.questionsPadding = snap.questionsPadding;
-    this.previewQuestionsLineHeight = snap.previewQuestionsLineHeight;
-    this.previewQuestionsLineHeightCreative = snap.previewQuestionsLineHeightCreative;
-    this.previewQuestionsLineHeightMcq = snap.previewQuestionsLineHeightMcq;
-    this.previewHeaderLineHeight = snap.previewHeaderLineHeight;
-    this.previewAutoFitForceOneLayoutChain = snap.previewAutoFitForceOneLayoutChain;
-    this.autoFitBaselineSheetBudgetMcq = snap.autoFitBaselineSheetBudgetMcq;
-    this.autoFitBaselineSheetBudgetCq = snap.autoFitBaselineSheetBudgetCq;
-    this.autoFitBaselineBudgetsCaptured = snap.autoFitBaselineBudgetsCaptured;
-    this.autoFitMcqBudgetUsesTotalPages = snap.autoFitMcqBudgetUsesTotalPages;
-    this.autoFitCqBudgetUsesTotalPages = snap.autoFitCqBudgetUsesTotalPages;
-  }
-
-  /**
-   * Run full preview auto-fit on answer rows only; restore question preview afterward.
-   */
-  private async runAnswerExportLayoutPass(
-    questions: any[],
-    opts?: { layoutColumns?: number }
-  ): Promise<Record<string, unknown>> {
-    const snap = this.captureAnswerAutoFitSnapshot();
-    const measureRows = buildAnswerLayoutMeasureRows(questions, this.layoutSegmentSplitOpts());
-    try {
-      this.answerExportQuestionsOverride = questions;
-      this.answerExportMeasureRows = measureRows;
-      if (opts?.layoutColumns != null) {
-        this.layoutColumns = opts.layoutColumns;
-      }
-      this.previewAutoFitForceOneLayoutChain = true;
-      this.cdr.detectChanges();
-      await this.waitForMeasureRailReady(measureRows.length);
-      this.onPreviewLayoutChange({ suppressAutoFit: false });
-      try {
-        await this.waitForLayoutIdle(25000);
-      } catch {
-        if (!this.paginatedPages.length) {
-          throw new Error('Answer layout did not settle');
-        }
-      }
-      return this.buildLayoutSettingsForPersist();
-    } finally {
-      this.restoreAnswerAutoFitSnapshot(snap);
-      this.onPreviewLayoutChange({ suppressAutoFit: true });
-      try {
-        await this.waitForLayoutIdle(15000);
-      } catch {
-        /* question preview restore */
-      }
-    }
-  }
-
   /** Same full-screen overlay as page load; export uses timed progress + custom message. */
   private endExportLoadingOverlay(): void {
     this.loadingService.endPdfDocxExport();
@@ -8955,20 +8828,22 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return out;
   }
 
-  /** Answers + explanations: auto-fit per intro/part/option/tail block; export uses same split rows. */
-  private async layoutSettingsForAnswersExplanationsExportWithAutoFit(answerQuestions: any[]): Promise<{
-    layout: Record<string, unknown>;
-    exportQuestions: any[];
-  }> {
+  /** Answers + explanations: one column, measure rows in order (no preview auto-fit). */
+  private layoutSettingsForAnswersExplanationsExport(
+    answerQuestions: any[],
+    baseLayout: Record<string, unknown>,
+    multiMcq: boolean
+  ): { layout: Record<string, unknown>; exportQuestions: any[] } {
     const exportQuestions = buildAnswerLayoutMeasureRows(answerQuestions, this.layoutSegmentSplitOpts());
-    const layout = await this.runAnswerExportLayoutPass(answerQuestions);
-    return {
-      layout: {
-        ...layout,
-        exportPreviewQuestionQids: exportQuestions.map((q) => q['qid']),
-      },
+    const layout = buildSequentialAnswersExplanationsExportLayout(
+      baseLayout,
+      multiMcq,
       exportQuestions,
-    };
+      answerQuestions,
+      (x) => this.questionIsCreativeType(x as { type?: unknown }),
+      (x) => this.questionIsMcqType(x as { type?: unknown })
+    );
+    return { layout, exportQuestions };
   }
 
   private buildMcqAnswerKeySetBlocks(multiMcq: boolean) {
@@ -9036,7 +8911,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return trimmed ? `${title}\n${trimmed}` : title;
   }
 
-  /** Extra PDF/DOCX: answers/explanations auto-fit; MCQ answer-key uses fixed grid; question sheets unchanged. */
+  /** Extra PDF/DOCX: answers/explanations sequential layout; MCQ answer-key uses fixed grid; question sheets unchanged. */
   private async appendPostSaveAnswerSheetExportRequests(
     requests: ReturnType<ApiService['exportQuestions']>[],
     downloadNames: string[],
@@ -9065,8 +8940,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.questions.length > 0) {
       const withAnswers = this.buildAnswersExplanationsExportQuestionList(opts.multiMcq);
       if (withAnswers.length > 0) {
-        const { layout, exportQuestions } =
-          await this.layoutSettingsForAnswersExplanationsExportWithAutoFit(withAnswers);
+        const { layout, exportQuestions } = this.layoutSettingsForAnswersExplanationsExport(
+          withAnswers,
+          opts.layoutSettingsForCreate,
+          opts.multiMcq
+        );
         answerExplanationsExportLayout = layout;
         for (const fmt of fmts) {
           requests.push(
@@ -9233,6 +9111,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private async runDoSaveExportFlow(format: ExportFormat): Promise<void> {
+    this.saveExportLayoutBusy = true;
+    try {
+      await this.runDoSaveExportFlowCore(format);
+    } finally {
+      this.saveExportLayoutBusy = false;
+    }
+  }
+
+  private async runDoSaveExportFlowCore(format: ExportFormat): Promise<void> {
     const toRequest: ('pdf' | 'docx')[] = [];
     if (format === 'both' || format === 'pdf') toRequest.push('pdf');
     if (format === 'both' || format === 'docx') toRequest.push('docx');
@@ -9282,10 +9169,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       await syncMcqOptionsLayoutMeasure();
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     } else {
-      if (this.selectionHasMcqType() && this.selectedMcqSetLetter != null) {
-        this.onPreviewLayoutChange({ suppressAutoFit: true });
-        await this.waitForLayoutIdle();
-      }
+      this.onPreviewLayoutChange({ suppressAutoFit: true });
+      await this.waitForLayoutIdle();
       await syncMcqOptionsLayoutMeasure();
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     }
