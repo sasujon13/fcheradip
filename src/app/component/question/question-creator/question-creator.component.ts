@@ -460,6 +460,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   optionsColumnsManualOverride = false;
   private previewOptionsLayoutStale = true;
   private optionsLayoutMeasureTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Next layout pass only remeasures option grids — do not re-run sheet auto-fit (Working Download pipeline). */
+  private optionsLayoutRelayoutPending = false;
 
   /** Unitless line-height for sheet header preview lines (PDF header uses separate pipeline). */
   previewHeaderLineHeight = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
@@ -3489,6 +3491,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.optionsLayoutMeasureTimer = setTimeout(() => {
       this.optionsLayoutMeasureTimer = null;
       if (this.runPreviewOptionsLayoutMeasurePass()) {
+        this.optionsLayoutRelayoutPending = true;
         this.scheduleLayout();
       }
     }, 80);
@@ -7709,13 +7712,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (this.leadEmptyFirstPageActive) {
           this.applyLeadEmptyMoveLastPageColumnToFirstBinding(candidatePages);
         }
-        if (this.runPreviewOptionsLayoutMeasurePass()) {
-          return;
-        }
         // --- Auto-fit gate: only “first three” exam types auto-adjust unless Smart/Reset sets previewAutoFitForceOneLayoutChain.
+        // Same order as commit 7d752c6 (“Working Download”); segment pagination + options grid are layered on top.
         const examAllowsAutoFit = this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey);
         // Default: skip all mutation helpers below when exam name is not in the auto-fit whitelist.
         let suppressAutoFit = !examAllowsAutoFit;
+        if (this.optionsLayoutRelayoutPending && !this.previewAutoFitForceOneLayoutChain) {
+          // Options column pass changed grid only — keep sheet fonts/gaps from Working Download auto-fit.
+          this.optionsLayoutRelayoutPending = false;
+          suppressAutoFit = true;
+        }
         if (examAllowsAutoFit && this.previewAutoFitSuppressNextLayoutRun) {
           // Manual onPreviewLayoutChange() sets this so one layout pass uses current fonts without auto mutations.
           suppressAutoFit = true;
@@ -7729,10 +7735,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         // (0) ramp to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
         // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps only (7) header LH no-op.
         if (!suppressAutoFit) {
-          this.markPreviewOptionsLayoutStale();
-          if (this.runPreviewOptionsLayoutMeasurePass()) {
-            return;
-          }
           if (this.maybeRevertAutoFitExpandIfInvalid(candidatePages)) {
             return;
           }
@@ -7780,6 +7782,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             this.clearResetAutoFitProgressTimer();
             this.resetAutoFitOverlayPercent = 100;
             this.cdr.markForCheck();
+          }
+          if (this.layoutDidCommitPaginatedPages) {
+            this.scheduleMeasurePreviewOptionsLayouts();
           }
           this.layoutPassInFlight = false;
         }
