@@ -385,9 +385,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * When `true`, {@link runLayout} sets `suppressAutoFit = false` for that pass even if the exam is **not** one of the
-   * first three — i.e. the full auto-fit pipeline runs like a first-three exam. Set by {@link resetCreatorSettings}
-   * (`forceAutoFit`) and {@link runAutoFitThenSave}; cleared after `paginatedPages` is assigned for that chain, or on
-   * layout timeout / error paths so non–first-three exams do not keep mutating forever.
+   * first three — i.e. the full auto-fit pipeline runs like a first-three exam. Set by {@link runForcedPreviewAutoFit}
+   * / {@link runAutoFitThenSave}; cleared after `paginatedPages` is assigned for that chain, or on layout timeout /
+   * error paths so non–first-three exams do not keep mutating forever.
    */
   private previewAutoFitForceOneLayoutChain = false;
 
@@ -1035,19 +1035,43 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     void this.runAutoFitThenSave();
   }
 
-  /** Smart Question Creator: full auto-fit (same as first-three exams, any exam name), then {@link save}. */
-  private async runAutoFitThenSave(): Promise<void> {
+  /**
+   * Full preview auto-fit for any exam name (same pipeline as first-three exams). Shared by Smart and Reset.
+   * Ends with the same MCQ options measure + relayout pass as {@link runDoSaveExportFlowCore} (Smart runs that via save).
+   */
+  private async runForcedPreviewAutoFit(): Promise<void> {
     try {
       this.clearManualOptionsColumnsOverride();
-      // Bypass exam whitelist for the upcoming layout chain only (paired with clear after pagination in runLayout).
       this.previewAutoFitForceOneLayoutChain = true;
-      // Run layout with auto-fit enabled and without one-shot suppress — Smart path should mutate then settle.
       this.onPreviewLayoutChange({ suppressAutoFit: false });
       await this.waitForLayoutIdle();
+      await this.syncMcqOptionsLayoutAfterAutoFit();
     } catch {
-      /* layout did not settle in time — still attempt save; clear gate for later layouts */
       this.previewAutoFitForceOneLayoutChain = false;
     }
+  }
+
+  /** Match save/export prep: remeasure MCQ option grids, relayout once, wait until idle. */
+  private async syncMcqOptionsLayoutAfterAutoFit(): Promise<void> {
+    if (!this.selectionHasMcqType()) {
+      return;
+    }
+    this.previewOptionsLayoutStale = true;
+    this.cdr.detectChanges();
+    await new Promise<void>((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => r()))
+    );
+    if (!this.runPreviewOptionsLayoutMeasurePass()) {
+      return;
+    }
+    this.optionsLayoutRelayoutPending = true;
+    this.scheduleLayout();
+    await this.waitForLayoutIdle();
+  }
+
+  /** Smart Question Creator: {@link runForcedPreviewAutoFit}, then {@link save}. */
+  private async runAutoFitThenSave(): Promise<void> {
+    await this.runForcedPreviewAutoFit();
     this.save();
   }
 
@@ -5567,11 +5591,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.cdr.markForCheck();
     this.scheduleResetAutoFitProgressTick();
     try {
-      this.resetCreatorSettings({ forceAutoFit: true });
+      this.resetCreatorSettings();
+      this.syncPageOrientationForQTypeFilter();
+      this.schedulePersistCreatorStateToLocalStorage();
       await this.waitForLayoutIdle();
+      await this.runForcedPreviewAutoFit();
     } catch {
-      /* layout timeout — still hide overlay; drop forced auto-fit so later layouts stay exam-gated */
-      // Prevent `previewAutoFitForceOneLayoutChain` from staying true if reset never reached a stable paginatedPages.
       this.previewAutoFitForceOneLayoutChain = false;
     }
     this.clearResetAutoFitProgressTimer();
@@ -5635,16 +5660,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Restore layout/header defaults. Pass `{ skipReload: true }` to avoid `window.location.reload()` (default for the Reset Setting button).
    * Pass `{ skipReload: false }` only if a full reload is explicitly required after remote sync.
    * `skipRemotePersist`: first-visit flow sets the local “reset done” flag then persists remote once.
-   * `forceAutoFit`: Reset Settings button — run the same auto-fit chain as first-three exams even for other exam names.
+   * Reset-button auto-fit runs {@link runForcedPreviewAutoFit} after this (same as Smart Question Creator).
    */
-  resetCreatorSettings(options?: { skipReload?: boolean; skipRemotePersist?: boolean; forceAutoFit?: boolean }): void {
+  resetCreatorSettings(options?: { skipReload?: boolean; skipRemotePersist?: boolean }): void {
     /** Default true: avoid full page reload; pass `{ skipReload: false }` to reload after remote sync (legacy). */
     const skipReload = options?.skipReload !== false;
     const skipRemotePersist = !!options?.skipRemotePersist;
-    if (options?.forceAutoFit) {
-      // Reset button: next layout(s) may run full auto-fit even for non–first-three exam names until chain completes.
-      this.previewAutoFitForceOneLayoutChain = true;
-    }
     if (this.remotePersistTimer != null) {
       clearTimeout(this.remotePersistTimer);
       this.remotePersistTimer = null;
@@ -5657,7 +5678,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.questionHeader = '';
     if (!this.headerUseLegacyQuestionHeader) {
       this.rebuildQuestionHeader();
-      this.onPreviewLayoutChange({ suppressAutoFit: false });
+      // Measure rebuilt header at factory defaults only; forced auto-fit runs after reset (Reset button / Smart).
+      this.onPreviewLayoutChange();
     } else {
       this.syncHeaderFontSizesToLineCount();
     }
@@ -8605,7 +8627,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.schedulePersistCreatorStateToLocalStorage();
     this.cdr.markForCheck();
     if (this.questions.length === 0) {
-      this.onPreviewLayoutChange({ suppressAutoFit: false });
+      void this.runForcedPreviewAutoFit();
       return;
     }
     void this.runAutoFitThenSave();
@@ -9155,13 +9177,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     > = {};
     let layoutSettingsForCreate: Record<string, unknown>;
     const syncMcqOptionsLayoutMeasure = async (): Promise<void> => {
-      if (!this.selectionHasMcqType()) return;
-      this.previewOptionsLayoutStale = true;
-      this.cdr.detectChanges();
-      await new Promise<void>((r) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => r()))
-      );
-      this.runPreviewOptionsLayoutMeasurePass();
+      await this.syncMcqOptionsLayoutAfterAutoFit();
     };
     if (multiMcq) {
       const prevLetter = this.selectedMcqSetLetter;
