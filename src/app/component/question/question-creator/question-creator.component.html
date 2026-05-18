@@ -1317,7 +1317,7 @@
     [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
     aria-hidden="true"
   >
-    <div #measureHeader class="preview-header preview-measure-header" *ngIf="questionHeader?.trim() && paperHeaderVisibleForSheetPage(0)">
+    <div #measureHeader class="preview-header preview-measure-header" *ngIf="questionHeader?.trim() && measureCreativeHeaderRailVisible()">
       <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: 0 }"></ng-container>
     </div>
     <div

@@ -50,6 +50,9 @@ import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export const QUESTION_CREATOR_STATE_KEY = 'questionCreatorReturnState';
 
+/** Handoff from `/question` → `/question/create` when router state is missing (reload / some navigations). */
+export const QUESTION_CREATOR_INCOMING_NAV_KEY = 'questionCreatorIncomingSelection';
+
 /** Full creator draft + page layout; survives tab reload (localStorage). */
 export const QUESTION_CREATOR_LOCAL_STORAGE_KEY = 'questionCreatorLocalState';
 
@@ -826,24 +829,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.apiService.isLoggedIn()) {
       this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
     }
-    const state = history.state as {
-      questions?: unknown[];
-      context?: Record<string, unknown>;
-      /** From /question Type filter — merged into filter localStorage so Back restores checkboxes. */
-      questionTypes?: string[];
-      /** From `/question` smart creator navigation: force Regular + run Save after init. */
-      smartCreator?: boolean;
-      /** From `/question` Smart Question Creator modal: EIIN, exam name key, MCQ set letter. */
-      smartCreatorHeader?: {
-        eiin?: string;
-        examTypeKey?: string;
-        mcqSetLetter?: string | null;
-      };
-    } | null;
     let restored = false;
 
+    const incomingNav = this.readIncomingNavigationFromQuestionList();
+    if (incomingNav) {
+      this.applyIncomingNavigationFromQuestionList(incomingNav);
+      restored = true;
+      this.creatorRestoredDraftOnce = true;
+    }
+
     const sessionRaw = sessionStorage.getItem(QUESTION_CREATOR_STATE_KEY);
-    if (sessionRaw) {
+    if (!restored && sessionRaw) {
       try {
         const parsed = JSON.parse(sessionRaw) as Record<string, unknown>;
         if (this.isRestorableCreatorPayload(parsed) && this.sessionReturnPayloadHasDraft(parsed)) {
@@ -853,21 +849,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.creatorRestoredDraftOnce = true;
         }
       } catch (_) {}
-    }
-
-    if (
-      !restored &&
-      state?.questions &&
-      Array.isArray(state.questions) &&
-      state.questions.length > 0
-    ) {
-      this.questions = state.questions as any[];
-      this.context = (state.context || {}) as QuestionCreatorContext;
-      this.syncQuestionListFilterTypesFromNavigation(state.questionTypes);
-      this.clearManualOptionsColumnsOverride();
-      this.mergeLayoutFromLocalStorage();
-      restored = true;
-      this.creatorRestoredDraftOnce = true;
     }
 
     if (!restored) {
@@ -1122,13 +1103,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.ensureMcqTextareaSixUpperLines();
         this.runHeaderTextareaSyncs();
         this.syncHeaderFontSizesToLineCount();
-      } else if (
-        this.questions.length > 0 &&
-        !this.selectionHasBothHeaderTypes() &&
-        this.paperSubjectMetaLinesEligible()
-      ) {
-        /** Stale mixed header from localStorage: same header path as Reset (clear + rebuild + syncs). */
-        this.normalizeStructuredHeaderForSingleQuestionTypeSelection();
+      } else if (this.questions.length > 0 && this.paperSubjectMetaLinesEligible()) {
+        this.initializeStructuredHeaderForCurrentSelection();
       } else {
         this.rebuildQuestionHeader();
       }
@@ -1189,7 +1165,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Page layout + header from a stored object (session, localStorage, or merge). */
   private applyLayoutAndHeaderFromParsed(
     parsed: Record<string, unknown>,
-    opts?: { trustSavedHeader?: boolean }
+    opts?: { trustSavedHeader?: boolean; layoutOnly?: boolean }
   ): void {
     const qhParsed = parsed['questionHeader'];
     const ps = parsed['pageSize'];
@@ -1421,6 +1397,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.questionHeaderByMcqSet = {};
     }
 
+    if (opts?.layoutOnly) {
+      return;
+    }
+
     /**
      * Header per-line font sizes are deliberately NOT restored from the persisted payload
      * (see {@link buildPersistPayload} / {@link buildRemoteCustomerSettingsPayload} — they no
@@ -1574,12 +1554,129 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return checked === 0;
   }
 
-  /** Post-login / pre-token session blob: v2 always restores layout; v1 needs non-empty `questions`. */
+  /** Post-login / pre-token session blob: must include questions or qids (layout-only v2 is not a draft). */
   private sessionReturnPayloadHasDraft(parsed: Record<string, unknown>): boolean {
     const v = this.getPersistPayloadVersion(parsed);
-    if (v >= QUESTION_CREATOR_PAYLOAD_VERSION) return true;
     const qs = parsed['questions'];
-    return Array.isArray(qs) && qs.length > 0;
+    if (Array.isArray(qs) && qs.length > 0) return true;
+    if (v >= QUESTION_CREATOR_PAYLOAD_VERSION) {
+      const qids = parsed['questionQids'];
+      return Array.isArray(qids) && qids.length > 0;
+    }
+    return false;
+  }
+
+  /** Rows chosen on `/question` — must win over stale session/local drafts. */
+  private readIncomingNavigationFromQuestionList(): {
+    questions: any[];
+    context?: QuestionCreatorContext;
+    questionTypes?: string[];
+    smartCreator?: boolean;
+    smartCreatorHeader?: {
+      eiin?: string;
+      examTypeKey?: string;
+      mcqSetLetter?: string | null;
+    };
+  } | null {
+    const st = history.state as Record<string, unknown> | null;
+    const fromState = this.parseIncomingCreatorNavPayload(st);
+    if (fromState) return fromState;
+    try {
+      const raw = sessionStorage.getItem(QUESTION_CREATOR_INCOMING_NAV_KEY);
+      if (!raw) return null;
+      sessionStorage.removeItem(QUESTION_CREATOR_INCOMING_NAV_KEY);
+      return this.parseIncomingCreatorNavPayload(JSON.parse(raw) as Record<string, unknown>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  private parseIncomingCreatorNavPayload(
+    payload: Record<string, unknown> | null | undefined
+  ): {
+    questions: any[];
+    context?: QuestionCreatorContext;
+    questionTypes?: string[];
+    smartCreator?: boolean;
+    smartCreatorHeader?: {
+      eiin?: string;
+      examTypeKey?: string;
+      mcqSetLetter?: string | null;
+    };
+  } | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    const qs = payload['questions'];
+    if (!Array.isArray(qs) || qs.length === 0) return null;
+    const out: {
+      questions: any[];
+      context?: QuestionCreatorContext;
+      questionTypes?: string[];
+      smartCreator?: boolean;
+      smartCreatorHeader?: {
+        eiin?: string;
+        examTypeKey?: string;
+        mcqSetLetter?: string | null;
+      };
+    } = { questions: qs as any[] };
+    const ctx = payload['context'];
+    if (ctx && typeof ctx === 'object' && !Array.isArray(ctx)) {
+      out.context = ctx as QuestionCreatorContext;
+    }
+    const types = payload['questionTypes'];
+    if (Array.isArray(types)) {
+      out.questionTypes = types.filter((x): x is string => typeof x === 'string');
+    }
+    if (payload['smartCreator'] === true) {
+      out.smartCreator = true;
+    }
+    const hdr = payload['smartCreatorHeader'];
+    if (hdr && typeof hdr === 'object' && !Array.isArray(hdr)) {
+      out.smartCreatorHeader = hdr as {
+        eiin?: string;
+        examTypeKey?: string;
+        mcqSetLetter?: string | null;
+      };
+    }
+    return out;
+  }
+
+  private applyIncomingNavigationFromQuestionList(
+    incoming: NonNullable<ReturnType<QuestionCreatorComponent['readIncomingNavigationFromQuestionList']>>
+  ): void {
+    this.questions = incoming.questions;
+    if (incoming.context) {
+      this.context = incoming.context;
+    }
+    this.syncQuestionListFilterTypesFromNavigation(incoming.questionTypes);
+    this.clearManualOptionsColumnsOverride();
+    this.mergeLayoutFromLocalStorage();
+    this.initializeStructuredHeaderForCurrentSelection();
+    if (incoming.smartCreator) {
+      try {
+        const prev = history.state;
+        const next =
+          typeof prev === 'object' && prev !== null && !Array.isArray(prev)
+            ? {
+                ...(prev as object),
+                smartCreator: true,
+                smartCreatorHeader: incoming.smartCreatorHeader,
+                context: incoming.context ?? (prev as { context?: unknown }).context,
+              }
+            : {
+                smartCreator: true,
+                smartCreatorHeader: incoming.smartCreatorHeader,
+                context: incoming.context,
+              };
+        history.replaceState(next, '', window.location.href);
+      } catch (_) {
+        /* history API */
+      }
+    }
+    try {
+      sessionStorage.removeItem(QUESTION_CREATOR_STATE_KEY);
+    } catch (_) {
+      /* quota */
+    }
   }
 
   private hydrateQuestionsFromQids(qids: (string | number)[]): void {
@@ -1824,7 +1921,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const raw = localStorage.getItem(QUESTION_CREATOR_LOCAL_STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      this.applyLayoutAndHeaderFromParsed(parsed);
+      this.applyLayoutAndHeaderFromParsed(parsed, { layoutOnly: true });
     } catch (_) {}
   }
 
@@ -2034,6 +2131,70 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     this.questionHeader = merged.join('\n');
     this.onPreviewLayoutChange({ suppressAutoFit: false });
+  }
+
+  /**
+   * CQ + MCQ: build the unified 7-line header (and sq notices when eligible). Called after
+   * navigation from `/question` — {@link mergeLayoutFromLocalStorage} must not rebuild the header.
+   */
+  private normalizeStructuredHeaderForMixedSelection(): void {
+    if (!this.paperSubjectMetaLinesEligible() || this.headerUseLegacyQuestionHeader) {
+      return;
+    }
+    if (!this.selectionHasBothHeaderTypes() || this.questions.length === 0) {
+      return;
+    }
+    let mixedSqCreativeNotice = '';
+    let mixedSqMcqNotice = '';
+    const prevLines = this.getHeaderEditorLinesRaw();
+    if (prevLines.length >= QuestionCreatorComponent.MIXED_HEADER_UNIFIED_SQ_NOTICE_LINES) {
+      mixedSqCreativeNotice = (prevLines[7] ?? '').trimEnd();
+      mixedSqMcqNotice = (prevLines[8] ?? '').trimEnd();
+    }
+    this.questionHeader = '';
+    this.headerManualEditSinceRebuild = false;
+    this.rebuildQuestionHeader();
+    this.runHeaderTextareaSyncs();
+    this.ensureMixedExpandedHeaderEditorLines();
+    if (mixedSqCreativeNotice || mixedSqMcqNotice) {
+      const merged = this.getHeaderEditorLinesRaw().slice();
+      const min = this.mixedUnifiedHeaderTextareaMinLines();
+      while (merged.length < min) {
+        merged.push('');
+      }
+      if (mixedSqCreativeNotice) {
+        merged[7] = mixedSqCreativeNotice;
+      }
+      if (mixedSqMcqNotice) {
+        merged[8] = mixedSqMcqNotice;
+      }
+      this.questionHeader = merged.join('\n');
+    }
+    this.syncHeaderFontSizesToLineCount();
+    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.cdr.markForCheck();
+  }
+
+  /** After questions are known: seed structured header for mixed, single-type, or generic rebuild. */
+  private initializeStructuredHeaderForCurrentSelection(): void {
+    if (this.headerUseLegacyQuestionHeader || !this.paperSubjectMetaLinesEligible()) {
+      return;
+    }
+    if (this.questions.length === 0) {
+      return;
+    }
+    if (this.creatorTrustedHeaderRestored) {
+      this.runHeaderTextareaSyncs();
+      this.syncHeaderFontSizesToLineCount();
+      return;
+    }
+    if (this.selectionHasBothHeaderTypes()) {
+      this.normalizeStructuredHeaderForMixedSelection();
+      return;
+    }
+    if (!this.selectionHasBothHeaderTypes()) {
+      this.normalizeStructuredHeaderForSingleQuestionTypeSelection();
+    }
   }
 
   /**
@@ -2316,9 +2477,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (lines.length < 2) {
       return false;
     }
-    /** Only institute + exam from rebuild: let syncMcqSqMetaMixed / syncCreativeSubjectLabel fill rows 2–6. */
     if (lines.length <= 2) {
-      return false;
+      return true;
     }
     if (this.mixedHeaderEditorNeedsNineLineToSixMigration(lines)) {
       return false;
@@ -2446,10 +2606,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     const raw = (this.questionHeader || '').replace(/\r\n/g, '\n');
+    let lines = raw.split('\n').map((s) => s.trimEnd());
+    if (lines.length > 0 && lines.length < QuestionCreatorComponent.MIXED_HEADER_UNIFIED_MIN_LINES) {
+      const expanded = this.normalizeMixedExpandedSevenLineHeader([
+        lines[0] ?? '',
+        lines[1] ?? '',
+        lines[2] ?? '',
+        lines[3] ?? '',
+        lines[4] ?? '',
+        lines[5] ?? '',
+        lines[6] ?? '',
+      ]);
+      this.questionHeader = expanded.join('\n');
+      return;
+    }
     if (raw.trim() === '') {
       return;
     }
-    let lines = raw.split('\n').map((s) => s.trimEnd());
     if (this.mixedHeaderRepairShiftedCoreRowsMissingMcq(lines)) {
       this.questionHeader = lines.join('\n');
       const again = (this.questionHeader || '').replace(/\r\n/g, '\n');
@@ -3104,12 +3277,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
              * preserves wrong slots when the first build ran before sq / subject_name were set. For CQ-only
              * or MCQ-only, full clear + sync matches Reset and fixes textarea rows + font steps.
              */
-            if (
-              this.questions.length > 0 &&
-              !this.selectionHasBothHeaderTypes() &&
-              this.paperSubjectMetaLinesEligible()
-            ) {
-              this.normalizeStructuredHeaderForSingleQuestionTypeSelection();
+            if (this.questions.length > 0 && this.paperSubjectMetaLinesEligible()) {
+              this.initializeStructuredHeaderForCurrentSelection();
             } else {
               this.rebuildQuestionHeader();
             }
@@ -3151,14 +3320,47 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * In mixed mode, all সৃজনশীল questions are listed first; this is that count (and the 0-based index
-   * where বহুনির্বাচনি starts in `previewQuestions`).
+   * In mixed mode, সৃজনশীল layout rows come first; this is their count and the 0-based index where
+   * বহুনির্বাচনি starts in {@link layoutMeasureQuestions} / paginated `PreviewPageItem.index`
+   * (must match pagination `creativeCount`, not canonical question count).
    */
   previewCreativeBlockQuestionCount(): number {
     if (!this.selectionHasCreativeType()) {
       return 0;
     }
-    return this.canonicalPreviewQuestions.filter((q) => this.questionIsCreativeType(q)).length;
+    return this.layoutMeasureQuestions.filter((q) => this.questionIsCreativeType(q)).length;
+  }
+
+  /** First sheet that contains any সৃজনশীল layout row (CQ header). */
+  private firstCreativeHeaderSheetPageIndex(pages?: PreviewPage[]): number {
+    const pageList = pages ?? this.paginatedPages;
+    const c = this.previewCreativeBlockQuestionCount();
+    for (let i = 0; i < pageList.length; i++) {
+      const page = pageList[i];
+      if (!page?.items?.length) {
+        continue;
+      }
+      if (Math.min(...page.items.map((it) => it.index)) < c) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  /** First sheet that contains any বহুনির্বাচনি layout row (MCQ header + code grid). */
+  private firstMcqHeaderSheetPageIndex(pages?: PreviewPage[]): number {
+    const pageList = pages ?? this.paginatedPages;
+    const c = this.previewCreativeBlockQuestionCount();
+    for (let i = 0; i < pageList.length; i++) {
+      const page = pageList[i];
+      if (!page?.items?.length) {
+        continue;
+      }
+      if (Math.max(...page.items.map((it) => it.index)) >= c) {
+        return i;
+      }
+    }
+    return pageList.length > 1 ? 1 : 0;
   }
 
   /** Sheet preview / pagination: canonical order until a set is chosen; then shuffled or frozen saved order. */
@@ -3722,19 +3924,27 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return pi === 0 ? 'creative' : 'mcq';
     }
     const minI = Math.min(...page.items.map((it) => it.index));
-    return minI >= c ? 'mcq' : 'creative';
+    const maxI = Math.max(...page.items.map((it) => it.index));
+    if (minI >= c) {
+      return 'mcq';
+    }
+    if (maxI < c) {
+      return 'creative';
+    }
+    return pageIndex === this.firstMcqHeaderSheetPageIndex(pageList) ? 'mcq' : 'creative';
   }
 
   /** Header block visible on this paginated sheet (0-based page index). */
-  paperHeaderVisibleForSheetPage(pageIndex: number): boolean {
+  paperHeaderVisibleForSheetPage(pageIndex: number, pages?: PreviewPage[]): boolean {
     if (!(this.questionHeader || '').trim()) return false;
     if (this.headerUseLegacyQuestionHeader) return pageIndex === 0;
     if (!this.paperSubjectMetaLinesEligible()) return pageIndex === 0;
-    if (this.selectionHasBothHeaderTypes() && this.mixedTypesSinglePageMergedHeader) {
-      return pageIndex === 0;
-    }
+    const pageList = pages ?? this.paginatedPages;
     if (this.selectionHasBothHeaderTypes()) {
-      const page = this.paginatedPages[pageIndex];
+      if (this.mixedTypesSinglePageMergedHeader || pageList.length <= 1) {
+        return pageIndex === 0;
+      }
+      const page = pageList[pageIndex];
       const c = this.previewCreativeBlockQuestionCount();
       if (!page?.items?.length) {
         return pageIndex === 0;
@@ -3743,14 +3953,26 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const minI = Math.min(...idxs);
       const maxI = Math.max(...idxs);
       if (maxI < c) {
-        return pageIndex === 0;
+        return pageIndex === this.firstCreativeHeaderSheetPageIndex(pageList);
       }
       if (minI >= c) {
-        return minI === c;
+        return pageIndex === this.firstMcqHeaderSheetPageIndex(pageList);
       }
-      return false;
+      return (
+        pageIndex === this.firstCreativeHeaderSheetPageIndex(pageList) ||
+        pageIndex === this.firstMcqHeaderSheetPageIndex(pageList)
+      );
     }
     return pageIndex === 0;
+  }
+
+  /** Off-screen CQ header rail: measure whenever mixed selection may show a header on sheet 0. */
+  measureCreativeHeaderRailVisible(): boolean {
+    if (!(this.questionHeader || '').trim()) return false;
+    if (!this.paperSubjectMetaLinesEligible()) return true;
+    if (!this.selectionHasBothHeaderTypes()) return true;
+    if (this.mixedTypesSinglePageMergedHeader || this.paginatedPages.length <= 1) return true;
+    return this.paperHeaderVisibleForSheetPage(this.firstCreativeHeaderSheetPageIndex());
   }
 
   paperHeaderLine3Text(pageIndex?: number | null): string {
@@ -6633,15 +6855,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.selectionHasBothHeaderTypes() || this.mixedTypesSinglePageMergedHeader) {
       return 0;
     }
-    const pages = this.paginatedPages;
-    if (pages?.length) {
-      for (let i = 0; i < pages.length; i++) {
-        if (this.sheetPreviewKindKey(i, pages) === 'mcq' && this.paperHeaderVisibleForSheetPage(i)) {
-          return i;
-        }
-      }
-    }
-    return 1;
+    return this.firstMcqHeaderSheetPageIndex();
   }
 
   /** Content width for one column when using `cols` columns (same gap as preview). */
@@ -7686,7 +7900,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           return;
         }
         const headerCreativePx =
-          this.questionHeader?.trim() && this.measureHeader && this.paperHeaderVisibleForSheetPage(0)
+          this.questionHeader?.trim() && this.measureHeader && this.measureCreativeHeaderRailVisible()
             ? this.measureHeader.nativeElement.offsetHeight
             : 0;
         const headerMcqPx =

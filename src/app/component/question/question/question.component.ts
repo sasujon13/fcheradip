@@ -36,6 +36,7 @@ import {
   setCachedQuestionFilterOptions,
 } from '../../../shared/question-filter-options-cache';
 import { map } from 'rxjs/operators';
+import { QUESTION_CREATOR_INCOMING_NAV_KEY } from '../question-creator/question-creator.component';
 
 /** Exam keys aligned with question-creator structured header (BN labels on /question modal). */
 const SMART_CREATOR_EXAM_OPTIONS: ReadonlyArray<{ key: string; label: string }> = [
@@ -181,6 +182,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Set of question id (from topicQuestions) that user has selected. */
   /** Set of question qid (from topicQuestions). */
   selectedQuestionIds: Set<number | string> = new Set();
+  /** Full row per selected qid — survives page changes (sliding list cache keeps only ±1 pages). */
+  private selectedQuestionsByQid = new Map<number | string, any>();
   /** Qid currently in inline-edit mode (change icon). */
   editingQid: number | string | null = null;
   /** Inline-edit form values (question text, option_1..4). */
@@ -1493,6 +1496,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionTypes = new Set();
     this.selectedInstituteType = null;
     this.selectedQuestionIds = new Set();
+    this.selectedQuestionsByQid.clear();
     this.subjectFilterRevisionKey = null;
     this.loadUnlockedQidsFromServer();
     this.totalQuestionsInDbForSubject = null;
@@ -1600,6 +1604,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionTypes = new Set();
     this.selectedInstituteType = null;
     this.selectedQuestionIds = new Set();
+    this.selectedQuestionsByQid.clear();
     this.subjectFilterRevisionKey = null;
     this.levelDropdownOpen = false;
     this.classDropdownOpen = false;
@@ -2313,8 +2318,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.selectedQuestionTypes = new Set(s.types.filter((x) => typeSet.has(x)));
     }
     if (s.instituteType != null && this.instituteTypes.includes(s.instituteType)) this.selectedInstituteType = s.instituteType;
-    if (Array.isArray(s.questionIds) && s.questionIds.length > 0)
+    if (Array.isArray(s.questionIds) && s.questionIds.length > 0) {
       this.selectedQuestionIds = new Set(s.questionIds);
+      for (const id of this.selectedQuestionIds) {
+        const q = this.findQuestionByQidForSelection(id);
+        if (q) this.rememberSelectedQuestion(q);
+      }
+    }
     this._pendingFilterState = null;
   }
 
@@ -2396,6 +2406,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.disappearedQuestions.add(qid);
     }
     this.selectedQuestionIds.delete(qid);
+    this.forgetSelectedQuestion(qid);
     if (this.editingQid === qid) this.editingQid = null;
     this.showDisappearAlert = false;
     this.disappearAlertMessage = 'Question hidden. Restore it from Disappeared Questions.';
@@ -2655,7 +2666,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         ? arr
         : arr.filter((q: any) => this.selectedQuestionTypes.has(this.normalizeQuestionTypeLabel(q?.type)));
     if (this.pagedTopicQuestions.length > 0) {
-      return filterDisappeared(filterByType(this.pagedTopicQuestions));
+      const pool = useFullSubjectCache
+        ? this.questionPageCache.allCachedItems()
+        : this.pagedTopicQuestions;
+      return filterDisappeared(filterByType(pool));
     }
     const list = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
       ? this.topicQuestions
@@ -2940,29 +2954,70 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return formatMaybeCProgramQuestionText(raw);
   }
 
-  toggleQuestionSelection(qid: number | string): void {
+  private rememberSelectedQuestion(q: any): void {
+    if (q?.qid != null) {
+      this.selectedQuestionsByQid.set(q.qid, q);
+    }
+  }
+
+  private forgetSelectedQuestion(qid: number | string): void {
+    this.selectedQuestionsByQid.delete(qid);
+  }
+
+  private pruneSelectedQuestionsCache(): void {
+    for (const id of Array.from(this.selectedQuestionsByQid.keys())) {
+      if (!this.selectedQuestionIds.has(id)) {
+        this.selectedQuestionsByQid.delete(id);
+      }
+    }
+  }
+
+  /** Resolve qid → row from selection cache, sliding page cache, and legacy list. */
+  private findQuestionByQidForSelection(qid: number | string): any | null {
+    const cached = this.selectedQuestionsByQid.get(qid);
+    if (cached) return cached;
+    const pools = [
+      ...this.questionPageCache.allCachedItems(),
+      ...this.pagedTopicQuestions,
+      ...(this._topicQuestionsLegacy || []),
+    ];
+    for (const q of pools) {
+      if (q?.qid != null && q.qid == qid) {
+        return q;
+      }
+    }
+    return null;
+  }
+
+  toggleQuestionSelection(qid: number | string, q?: any): void {
     if (this.selectedQuestionIds.has(qid)) {
       this.selectedQuestionIds.delete(qid);
+      this.forgetSelectedQuestion(qid);
     } else {
       this.selectedQuestionIds.add(qid);
+      const row = q ?? this.findQuestionByQidForSelection(qid);
+      if (row) this.rememberSelectedQuestion(row);
     }
     this.selectedQuestionIds = new Set(this.selectedQuestionIds);
     this.saveFilterState();
   }
 
   /** Row click: toggle selection when clicking anywhere except the checkbox (checkbox (change) handles itself). */
-  onQuestionRowClick(event: MouseEvent, qid: number | string): void {
+  onQuestionRowClick(event: MouseEvent, qid: number | string, q?: any): void {
     const target = event.target as HTMLElement;
     if (target.closest('input[type="checkbox"]')) return;
-    this.toggleQuestionSelection(qid);
+    this.toggleQuestionSelection(qid, q);
   }
 
   /** Sync selection from checkbox (change) so the check icon shows when clicking the box. */
-  setQuestionSelection(qid: number | string, checked: boolean): void {
+  setQuestionSelection(qid: number | string, checked: boolean, q?: any): void {
     if (checked) {
       this.selectedQuestionIds.add(qid);
+      const row = q ?? this.findQuestionByQidForSelection(qid);
+      if (row) this.rememberSelectedQuestion(row);
     } else {
       this.selectedQuestionIds.delete(qid);
+      this.forgetSelectedQuestion(qid);
     }
     this.selectedQuestionIds = new Set(this.selectedQuestionIds);
     this.saveFilterState();
@@ -2984,8 +3039,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.allTopicQuestionsSelected) {
       const toRemove = new Set(displayed.map(item => item.q.qid));
       this.selectedQuestionIds = new Set([...this.selectedQuestionIds].filter(id => !toRemove.has(id)));
+      toRemove.forEach((id) => this.forgetSelectedQuestion(id));
     } else {
-      displayed.forEach(item => this.selectedQuestionIds.add(item.q.qid));
+      displayed.forEach((item) => {
+        this.selectedQuestionIds.add(item.q.qid);
+        this.rememberSelectedQuestion(item.q);
+      });
       this.selectedQuestionIds = new Set(this.selectedQuestionIds);
     }
     this.saveFilterState();
@@ -2994,11 +3053,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   selectAllTopicQuestions(): void {
     const full = this.getTopicQuestionsFilteredSortedCore(true, true);
     this.selectedQuestionIds = new Set(full.map((q: any) => q.qid));
+    full.forEach((q: any) => this.rememberSelectedQuestion(q));
     this.saveFilterState();
   }
 
   clearTopicQuestionSelection(): void {
     this.selectedQuestionIds = new Set();
+    this.selectedQuestionsByQid.clear();
     this.saveFilterState();
   }
 
@@ -3014,21 +3075,19 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
-   * Checkbox-selected questions for the creator: resolved from the full subject cache (or legacy list),
-   * by qid only — does not re-apply the Type dropdown, source/year, or list pagination filters.
+   * Checkbox-selected questions for the creator: resolved by qid from the selection cache and
+   * any loaded list pages — not limited to the current 30-row page (see caching fix regression).
    */
   get selectedQuestionsForCreate(): any[] {
     const ids = this.selectedQuestionIds;
     if (!ids?.size) return [];
-    const source = this.pagedTopicQuestions.length > 0
-      ? this.pagedTopicQuestions
-      : this._topicQuestionsLegacy || [];
+    this.pruneSelectedQuestionsCache();
     const out: any[] = [];
     const seen = new Set<number | string>();
-    for (const q of source) {
-      const id = q?.qid;
-      if (id == null || !ids.has(id) || this.disappearedQuestions.isDisappeared(id)) continue;
-      if (seen.has(id)) continue;
+    for (const id of ids) {
+      if (this.disappearedQuestions.isDisappeared(id) || seen.has(id)) continue;
+      const q = this.findQuestionByQidForSelection(id);
+      if (!q) continue;
       seen.add(id);
       out.push(q);
     }
@@ -3046,6 +3105,15 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     // TODO: open live chat widget or navigate to chat
   }
 
+  /** Persist handoff payload when router navigation state is dropped (reload / some browsers). */
+  private stashCreatorIncomingNavigation(payload: Record<string, unknown>): void {
+    try {
+      sessionStorage.setItem(QUESTION_CREATOR_INCOMING_NAV_KEY, JSON.stringify(payload));
+    } catch (_) {
+      /* quota / private mode */
+    }
+  }
+
   /** Navigate to create page with selected questions (click on "Create Question (N Selected)"). */
   goToCreateQuestion(): void {
     const questions = this.selectedQuestionsForCreate;
@@ -3055,23 +3123,23 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const firstTopic = this.selectedTopicIds.size ? (this.topics.find(t => this.selectedTopicIds.has(t.id))?.name ?? '') : '';
     const questionTypes =
       this.selectedQuestionTypes.size > 0 ? Array.from(this.selectedQuestionTypes) : undefined;
-    this.router.navigate(['/question/create'], {
-      state: {
-        questions,
-        questionTypes,
-        context: {
-          level_tr: this.selectedLevel,
-          class_level: this.selectedClass,
-          group: this.selectedGroup || undefined,
-          subject_tr: sub?.subject_tr,
-          subject_code: sub?.subject_code,
-          ...(sub?.sq === 25 || sub?.sq === 30 ? { sq: sub.sq } : {}),
-          ...this.subjectMetaForCreateContext(sub ?? null),
-          chapter: this.currentChapter,
-          topic: firstTopic
-        }
-      }
-    });
+    const payload = {
+      questions,
+      questionTypes,
+      context: {
+        level_tr: this.selectedLevel,
+        class_level: this.selectedClass,
+        group: this.selectedGroup || undefined,
+        subject_tr: sub?.subject_tr,
+        subject_code: sub?.subject_code,
+        ...(sub?.sq === 25 || sub?.sq === 30 ? { sq: sub.sq } : {}),
+        ...this.subjectMetaForCreateContext(sub ?? null),
+        chapter: this.currentChapter,
+        topic: firstTopic,
+      },
+    };
+    this.stashCreatorIncomingNavigation(payload);
+    this.router.navigate(['/question/create'], { state: payload });
   }
 
   loadQuestionForEdit(qid: number | string): void {
@@ -3217,31 +3285,31 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const questionTypes =
       this.selectedQuestionTypes.size > 0 ? Array.from(this.selectedQuestionTypes) : undefined;
     const eiin = (this.smartCreatorModalEiin ?? '').trim() || '000000';
-    this.router.navigate(['/question/create'], {
-      state: {
-        smartCreator: true,
-        questions,
-        questionTypes,
-        smartCreatorHeader: {
-          eiin,
-          examTypeKey: this.smartCreatorModalExamKey,
-          mcqSetLetter: this.smartCreatorModalSelectionHasMcq() ? this.smartCreatorModalSetLetter : null,
-        },
-        context: sub
-          ? {
-              level_tr: this.selectedLevel,
-              class_level: this.selectedClass,
-              group: this.selectedGroup || undefined,
-              subject_tr: sub.subject_tr,
-              subject_code: sub.subject_code,
-              ...(sub.sq === 25 || sub.sq === 30 ? { sq: sub.sq } : {}),
-              ...this.subjectMetaForCreateContext(sub),
-              chapter: this.currentChapter,
-              topic: firstTopic,
-            }
-          : undefined,
+    const payload = {
+      smartCreator: true,
+      questions,
+      questionTypes,
+      smartCreatorHeader: {
+        eiin,
+        examTypeKey: this.smartCreatorModalExamKey,
+        mcqSetLetter: this.smartCreatorModalSelectionHasMcq() ? this.smartCreatorModalSetLetter : null,
       },
-    });
+      context: sub
+        ? {
+            level_tr: this.selectedLevel,
+            class_level: this.selectedClass,
+            group: this.selectedGroup || undefined,
+            subject_tr: sub.subject_tr,
+            subject_code: sub.subject_code,
+            ...(sub.sq === 25 || sub.sq === 30 ? { sq: sub.sq } : {}),
+            ...this.subjectMetaForCreateContext(sub),
+            chapter: this.currentChapter,
+            topic: firstTopic,
+          }
+        : undefined,
+    };
+    this.stashCreatorIncomingNavigation(payload);
+    this.router.navigate(['/question/create'], { state: payload });
   }
 
   onCreateQuestion(): void {

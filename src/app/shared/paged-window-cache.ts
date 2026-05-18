@@ -83,6 +83,16 @@ export class PagedWindowCache<T> {
       (p) => !this.has(p)
     );
   }
+
+  /** All items currently held in the sliding window (up to maxPages × pageSize). */
+  allCachedItems(): T[] {
+    const pages = Array.from(this.byPage.keys()).sort((a, b) => a - b);
+    const out: T[] = [];
+    for (const p of pages) {
+      out.push(...(this.byPage.get(p) ?? []));
+    }
+    return out;
+  }
 }
 
 export interface SyncPagedWindowOptions<T> {

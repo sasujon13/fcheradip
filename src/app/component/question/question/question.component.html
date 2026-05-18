@@ -415,11 +415,11 @@
           class="topic-question-item" [attr.data-full-index]="item.fullIndex"
           [class.topic-question-item-selected]="isQuestionSelected(item.q.qid)"
           [class.topic-question-item-editing]="isEditingItem(item.q.qid)"
-          (click)="onQuestionRowClick($event, item.q.qid)">
+          (click)="onQuestionRowClick($event, item.q.qid, item.q)">
           <div class="topic-question-sl-col">
             <span class="topic-question-sl">{{ formatSl(item.fullIndex) }}</span>
             <input type="checkbox" [checked]="isQuestionSelected(item.q.qid)"
-              (click)="$event.stopPropagation(); toggleQuestionSelection(item.q.qid)" />
+              (click)="$event.stopPropagation(); toggleQuestionSelection(item.q.qid, item.q)" />
           </div>
           <div class="topic-question-content">
             <div class="topic-question-top-badges">
@@ -427,7 +427,7 @@
             </div>
             <ng-container *ngIf="!isEditingItem(item.q.qid)">
               <label class="topic-question-label"
-                (click)="onQuestionRowClick($event, item.q.qid); $event.preventDefault(); $event.stopPropagation()">
+                (click)="onQuestionRowClick($event, item.q.qid, item.q); $event.preventDefault(); $event.stopPropagation()">
                 <ng-container *ngIf="getQuestionDisplayStructure(item.q) as struct">
                   <span class="topic-question-text" *ngIf="struct.parts.length === 0"
                     [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"></span>
