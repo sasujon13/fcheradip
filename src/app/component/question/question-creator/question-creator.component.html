@@ -34,14 +34,14 @@
       <div class="preview-q-content">
         <label class="preview-q-label">
           <ng-container *ngIf="struct.parts.length === 0">
-            <strong class="preview-q-index" *ngIf="!q.answerSheetContinuation">{{ previewQuestionSerialBn(sl) }}।</strong><span
+            <strong class="preview-q-index" *ngIf="previewQuestionShowsIndex(q)">{{ previewQuestionSerialBn(sl) }}।</strong><span
               class="preview-q-text"
               [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"
             ></span>
           </ng-container>
           <ng-container *ngIf="struct.parts.length > 0">
             <!-- Same DOM as PDF export: number is sibling before q-stem-with-parts, not inside it. -->
-            <strong class="preview-q-index" *ngIf="!q.answerSheetContinuation">{{ previewQuestionSerialBn(sl) }}।</strong>
+            <strong class="preview-q-index" *ngIf="previewQuestionShowsIndex(q)">{{ previewQuestionSerialBn(sl) }}।</strong>
             <span class="preview-q-stem-with-parts"
               ><span
                 class="preview-q-text preview-q-intro"

@@ -71,12 +71,22 @@ export type McqAnswerKeySetBlock = {
   questions: Record<string, unknown>[];
 };
 
-/** Pack 0..count-1 into `numCols` columns (row-wise: 1,2,3,4,5 then next row). */
+/**
+ * Pack 0..count-1 into `numCols` columns, filling **down each column first** (serials ১–৫ in
+ * column 1, ৬–১০ in column 2, …) — matches question-sheet column-major packing and PDF export.
+ */
 export function packMcqAnswerIndicesIntoColumns(count: number, numCols: number): number[][] {
   const ncols = Math.max(1, Math.floor(numCols));
   const cols: number[][] = Array.from({ length: ncols }, () => []);
+  if (count <= 0) {
+    return [];
+  }
+  const rowsPerCol = Math.ceil(count / ncols);
   for (let i = 0; i < count; i++) {
-    cols[i % ncols]!.push(i);
+    const col = Math.floor(i / rowsPerCol);
+    if (col < ncols) {
+      cols[col]!.push(i);
+    }
   }
   return cols.filter((c) => c.length > 0);
 }
@@ -410,24 +420,19 @@ export function splitQuestionIntoLayoutSegments(
     });
 
     if (opts.splitMcqOptions === false) {
-      // Main sheet: one block per question with stem + (ক)–(ঘ) options intact for preview/export grid.
-      if (introText || hasMcqOptions) {
+      // Main sheet: one block per question with full stem + (ক)–(ঘ) options intact for preview/export grid.
+      // Do not split MCQ stems into `part` rows — those rows omit the question serial in preview/PDF.
+      const stem = stemBlock.trim() || introText || ' ';
+      if (stem.trim() || hasMcqOptions) {
         rows.push({
           ...q,
           qid: `${opts.qidPrefix}${qidBase}-${seg}`,
-          question: introText || stemBlock.trim() || ' ',
+          question: stem,
           answerSheetContinuation: false,
           answerSheetParentIndex: parentIndex,
           answerSheetSegmentKind: 'intro',
         });
         seg++;
-      }
-      if (!opts.includeAnswerTails) {
-        for (const part of struct.parts ?? []) {
-          if (part.trim()) {
-            pushSeg(part, 'part', rows.length > 0);
-          }
-        }
       }
     } else {
       if (introText) {

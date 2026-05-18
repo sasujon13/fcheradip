@@ -3507,8 +3507,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Preview serial with Bengali digits (e.g. ১, ১০) for stem prefix. */
   previewQuestionSerialBn(oneBasedSerial: number): string {
-    const n = Math.max(0, Math.floor(Number(oneBasedSerial) || 0));
+    const n = Math.max(1, Math.floor(Number(oneBasedSerial) || 0));
     return QuestionCreatorComponent.toBengaliDigits(String(n));
+  }
+
+  /** Question index prefix on preview/PDF — only on the main stem row, not part/option/tail continuations. */
+  previewQuestionShowsIndex(q: { answerSheetContinuation?: boolean; answerSheetSegmentKind?: string }): boolean {
+    if (q?.answerSheetContinuation) {
+      return false;
+    }
+    const kind = (q?.answerSheetSegmentKind ?? '').trim();
+    return kind !== 'part' && kind !== 'option' && kind !== 'tail';
   }
 
   /**
