@@ -36,6 +36,7 @@ import {
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import {
   buildAnswersExplanationsExportQuestions,
+  buildMcqAnswerKeyExportPayload,
   buildMcqAnswerKeySetBlocks,
   McqSetLetter,
 } from './question-creator-answer-export';
@@ -8474,63 +8475,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * MCQ answer-key: auto-fit per set (5 cols), separate pages, set code in header, serial ১… per set.
+   * MCQ answer-key: fixed 5-column grid per set (no measure-rail auto-fit); serial ১… restarts per set.
    */
-  private async layoutSettingsForMcqAnswerKeyWithAutoFit(
+  private layoutSettingsForMcqAnswerKeyExport(
     blocks: ReturnType<QuestionCreatorComponent['buildMcqAnswerKeySetBlocks']>,
-    multiMcq: boolean
-  ): Promise<{ layout: Record<string, unknown>; questions: any[] }> {
+    baseLayout: Record<string, unknown>
+  ): { layout: Record<string, unknown>; questions: any[] } {
     const cols = QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS;
-    const allQuestions: any[] = [];
-    const allPlan: Record<string, unknown>[] = [];
-    const previewSerialByIndex: Record<string, number> = {};
-    let offset = 0;
-    let lastLayout: Record<string, unknown> = {};
-
-    for (const block of blocks) {
-      if (!block.questions.length) {
-        continue;
-      }
-      lastLayout = await this.runAnswerExportLayoutPass(block.questions, { layoutColumns: cols });
-      const plan = lastLayout['exportPreviewPagePlan'];
-      const serial = lastLayout['previewSerialByIndex'] as Record<string, number> | undefined;
-      if (Array.isArray(plan)) {
-        for (const pg of plan) {
-          if (!pg || typeof pg !== 'object') {
-            continue;
-          }
-          const row = { ...(pg as Record<string, unknown>) };
-          if (multiMcq && block.setLetter != null) {
-            row['mcqSetLetter'] = block.setLetter;
-          }
-          const colsIdx = row['questionColumnIndexes'];
-          if (Array.isArray(colsIdx)) {
-            row['questionColumnIndexes'] = colsIdx.map((col) =>
-              Array.isArray(col) ? col.map((i) => offset + Number(i)) : []
-            );
-          }
-          const lead = row['leadBindingIndexes'];
-          if (Array.isArray(lead)) {
-            row['leadBindingIndexes'] = lead.map((i) => offset + Number(i));
-          }
-          allPlan.push(row);
-        }
-      }
-      for (let i = 0; i < block.questions.length; i++) {
-        previewSerialByIndex[String(offset + i)] = i + 1;
-      }
-      allQuestions.push(...block.questions);
-      offset += block.questions.length;
-    }
-
-    const layout = {
-      ...lastLayout,
+    const payload = buildMcqAnswerKeyExportPayload(blocks, cols);
+    const layout: Record<string, unknown> = {
+      ...baseLayout,
       layoutColumns: cols,
-      exportPreviewPagePlan: allPlan,
-      exportPreviewQuestionQids: allQuestions.map((q) => q['qid']),
-      previewSerialByIndex,
+      pageSections: 1,
+      exportPreviewPagePlan: payload.exportPreviewPagePlan,
+      exportPreviewQuestionQids: payload.questions.map((q) => q['qid']),
+      previewSerialByIndex: payload.previewSerialByIndex,
     };
-    return { layout, questions: allQuestions };
+    return { layout, questions: payload.questions };
   }
 
   private buildAnswersExplanationsExportQuestionList(multiMcq: boolean): any[] {
@@ -8565,7 +8526,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return trimmed ? `${title}\n${trimmed}` : title;
   }
 
-  /** Extra PDF/DOCX: answers auto-fit only; question sheets use layout from save flow as-is. */
+  /** Extra PDF/DOCX: answers/explanations auto-fit; MCQ answer-key uses fixed grid; question sheets unchanged. */
   private async appendPostSaveAnswerSheetExportRequests(
     requests: ReturnType<ApiService['exportQuestions']>[],
     downloadNames: string[],
@@ -8624,9 +8585,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     if (this.selectionHasMcqType()) {
       const blocks = this.buildMcqAnswerKeySetBlocks(opts.multiMcq);
-      const { layout, questions } = await this.layoutSettingsForMcqAnswerKeyWithAutoFit(
+      const { layout, questions } = this.layoutSettingsForMcqAnswerKeyExport(
         blocks,
-        opts.multiMcq
+        opts.layoutSettingsForCreate
       );
       if (questions.length > 0) {
         mcqAnswerKeyExportLayout = layout;

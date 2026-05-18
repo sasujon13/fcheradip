@@ -6,7 +6,7 @@ export function hasNonEmptyField(v: unknown): boolean {
   return v != null && String(v).trim() !== '';
 }
 
-/** Compact MCQ answer row: serial + option key only (ক/খ/গ/ঘ or a/b/c/d). */
+/** Compact MCQ answer row: serial + option key (ক/খ/গ/ঘ); export must not add a second serial. */
 export function buildMcqAnswerCompactQuestion(
   serialBn: string,
   label: string,
@@ -15,7 +15,7 @@ export function buildMcqAnswerCompactQuestion(
   return {
     qid: `mcq-ans-${qidSuffix}`,
     type: 'বহুনির্বাচনি',
-    question: `${serialBn}। ${label}`,
+    question: `${serialBn}। ${label || '—'}`,
     option_1: '',
     option_2: '',
     option_3: '',
