@@ -27,6 +27,12 @@ import {
 } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.session';
+import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
+import {
+  QUESTION_SAVE_DEBIT_CQ,
+  QUESTION_SAVE_DEBIT_OTHER,
+  questionSaveDebitTotal,
+} from 'src/app/service/question-unlock.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import {
   buildAnswersExplanationsExportQuestions,
@@ -786,6 +792,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     private router: Router,
     private apiService: ApiService,
     private loadingService: LoadingService,
+    private trxUnlock: TrxUnlockService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone
   ) {}
@@ -794,6 +801,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.creatorBootstrapPending = true;
     this.questionQidsHydrationInFlight = false;
     this.loadingService.setTotal(1);
+    if (this.apiService.isLoggedIn()) {
+      this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+    }
     const state = history.state as {
       questions?: unknown[];
       context?: Record<string, unknown>;
@@ -8639,6 +8649,49 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return { answerExplanationsExportLayout, mcqAnswerKeyExportLayout };
   }
 
+  /** Coins required to save the current question set (CQ ×100, other ×25). */
+  get questionSaveCoinCost(): number {
+    return questionSaveDebitTotal(this.questions);
+  }
+
+  get coinBalanceDisplay(): number {
+    return this.trxUnlock.getCachedRemaining();
+  }
+
+  private assertSufficientCoinsForSave(): boolean {
+    const debit = this.questionSaveCoinCost;
+    if (debit <= 0) {
+      return true;
+    }
+    const balance = this.trxUnlock.getCachedRemaining();
+    if (debit <= balance) {
+      return true;
+    }
+    this.saveSuccessMessage = `Insufficient coins. Need ${debit}, you have ${balance}. (CQ ×${QUESTION_SAVE_DEBIT_CQ}, other ×${QUESTION_SAVE_DEBIT_OTHER} per question)`;
+    this.cdr.markForCheck();
+    return false;
+  }
+
+  private applySaveCoinDebitFromResponse(created: { debited?: number; remaining?: number } | null | undefined): void {
+    if (created && typeof created.remaining === 'number' && Number.isFinite(created.remaining)) {
+      this.trxUnlock.setCachedRemaining(created.remaining);
+    } else if (typeof created?.debited === 'number' && created.debited > 0) {
+      const next = Math.max(0, this.trxUnlock.getCachedRemaining() - created.debited);
+      this.trxUnlock.setCachedRemaining(next);
+    }
+  }
+
+  private createSetSaveErrorMessage(err: unknown): string {
+    const body = (err as { error?: { detail?: string; error?: string; required?: number; remaining?: number } })?.error;
+    if (body && typeof body.detail === 'string' && body.detail.trim()) {
+      return body.detail.trim();
+    }
+    if (body && typeof body.error === 'string' && body.error.trim()) {
+      return body.error.trim();
+    }
+    return 'Files downloaded but saving the set failed. You can try Save again or open Created Questions.';
+  }
+
   save(): void {
     if (!this.apiService.isLoggedIn()) {
       // Preserve full rows for post-login return, so preview isn't forced to rely on immediate API hydration.
@@ -8650,6 +8703,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       localStorage.setItem('returnUrl', '/question/create');
       sessionStorage.setItem(SESSION_LOGIN_USE_STORED_RETURN, '1');
       this.router.navigate(['/login']);
+      return;
+    }
+    if (!this.assertSufficientCoinsForSave()) {
       return;
     }
 
@@ -8684,6 +8740,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private async doSaveAsync(format: ExportFormat): Promise<void> {
+    if (!this.assertSufficientCoinsForSave()) {
+      return;
+    }
     this.saving = true;
     this.saveSuccessMessage = '';
     this.loadingService.beginPdfDocxExport(format);
@@ -9040,6 +9099,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           },
         })
       );
+      this.applySaveCoinDebitFromResponse(created);
       this.commitExamSerialAfterSave();
       try {
         if (created?.id != null) {
@@ -9052,9 +9112,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.ngZone.run(() => {
         void this.router.navigate(['/created-questions'], { queryParams: { highlight: highlightId } });
       });
-    } catch {
-      this.saveSuccessMessage =
-        'Files downloaded but saving the set failed. You can try Save again or open Created Questions.';
+    } catch (err) {
+      this.saveSuccessMessage = this.createSetSaveErrorMessage(err);
       this.cdr.markForCheck();
     }
   }

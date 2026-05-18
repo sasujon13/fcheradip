@@ -27,6 +27,10 @@ export interface CreatedQuestionSet {
   created_at?: string;
   /** Saved layout from question creator (page size, margins, columns, gap, divider, etc.). */
   layout_settings?: Record<string, unknown>;
+  /** Coins debited on create (question creator save). */
+  debited?: number;
+  /** ``customer.settings.balance`` after save. */
+  remaining?: number;
 }
 
 /**

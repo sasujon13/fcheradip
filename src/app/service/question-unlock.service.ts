@@ -9,6 +9,23 @@ import { TrxUnlockService } from './trx-unlock.service';
 export const QUESTION_UNLOCK_DEBIT_MCQ = 10;
 export const QUESTION_UNLOCK_DEBIT_CQ = 50;
 
+/** Question creator save (/question/create); keep aligned with backend ``QUESTION_SAVE_DEBIT_*``. */
+export const QUESTION_SAVE_DEBIT_OTHER = 25;
+export const QUESTION_SAVE_DEBIT_CQ = 100;
+
+export function isQuestionCreativeTypeForSave(type: unknown): boolean {
+  const t = (type ?? '').toString().trim();
+  return !!t && (t === 'সৃজনশীল' || t.includes('সৃজনশীল') || t.toLowerCase() === 'cq');
+}
+
+export function questionSaveDebitTotal(questions: Array<{ type?: unknown }>): number {
+  return questions.reduce(
+    (sum, q) =>
+      sum + (isQuestionCreativeTypeForSave(q?.type) ? QUESTION_SAVE_DEBIT_CQ : QUESTION_SAVE_DEBIT_OTHER),
+    0
+  );
+}
+
 export interface QuestionUnlockItem {
   qid: string;
   is_cq: boolean;
