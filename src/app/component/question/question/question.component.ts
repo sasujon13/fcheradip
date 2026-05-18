@@ -29,6 +29,12 @@ import { QuestionUnlockedQidsService } from '../../../service/question-unlocked-
 import { TrxUnlockService } from '../../../service/trx-unlock.service';
 import { diffChars } from 'diff';
 import { PagedWindowCache, syncPagedWindowCache } from '../../../shared/paged-window-cache';
+import {
+  buildQuestionFilterOptionsCacheKey,
+  getCachedQuestionFilterOptions,
+  QuestionFilterOptionsData,
+  setCachedQuestionFilterOptions,
+} from '../../../shared/question-filter-options-cache';
 import { map } from 'rxjs/operators';
 
 /** Exam keys aligned with question-creator structured header (BN labels on /question modal). */
@@ -158,6 +164,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** More Filters: parsed Source (e.g. ChB) and Year (e.g. 18); two-column filter. */
   subsourceSources: string[] = [];
   subsourceYears: string[] = [];
+  /** Type labels for More Filters — from DB (question_filter_options), not loaded pages. */
+  filterOptionTypes: string[] = [];
+  private subjectFilterRevisionKey: string | null = null;
   selectedSources: Set<string> = new Set();
   selectedYears: Set<string> = new Set();
   moreFiltersOpen = false;
@@ -309,18 +318,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.questionListCacheKey = cacheKey;
     }
     this.topicQuestionsPage = page;
-    const topics =
-      this.selectedTopicIds.size > 0
-        ? Array.from(this.selectedTopicIds).map(
-            (id) => this.topics.find((t) => t.id == id)?.name ?? String(id)
-          )
-        : undefined;
-    const chapters =
-      this.selectedChapterIds.size > 0
-        ? Array.from(this.selectedChapterIds).map(
-            (id) => this.chapters.find((c) => c.id == id)?.name ?? String(id)
-          )
-        : undefined;
+    const topics = this.topicQueryValues();
+    const chapters = this.chapterQueryValues();
 
     syncPagedWindowCache({
       cache: this.questionPageCache,
@@ -352,7 +351,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       onDisplay: (rows) => {
         this.pagedTopicQuestions = rows;
         this.topicQuestionsLoaded = true;
-        this.mergeSubsourceOptionsFromPage(rows);
         this.cdr.detectChanges();
         setTimeout(() => this.measureOptionsLayouts(), 80);
       },
@@ -367,19 +365,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cdr.detectChanges();
       },
     });
-  }
-
-  private mergeSubsourceOptionsFromPage(list: any[]): void {
-    const sourceSet = new Set(this.subsourceSources);
-    const yearSet = new Set(this.subsourceYears);
-    (list || []).forEach((q: any) => {
-      this.parseSubsourceTokens(q.subsource).forEach((t) => {
-        sourceSet.add(t.source);
-        yearSet.add(t.year);
-      });
-    });
-    this.subsourceSources = Array.from(sourceSet).sort();
-    this.subsourceYears = Array.from(yearSet).sort((a, b) => a.localeCompare(b));
   }
 
   /** Build localStorage key for subject-level revision metadata. */
@@ -695,10 +680,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }).subscribe({
       next: (rev) => {
         this.totalQuestionsInDbForSubject = rev.row_count ?? null;
+        this.subjectFilterRevisionKey = `${rev.max_updated_at ?? ''}|${rev.row_count ?? 0}`;
         this.patchSubjectCacheRevisionInStorage(rev);
-        this.loadTopics(() => onDone?.());
+        this.loadTopics(() => this.loadFilterOptionsFromDb(() => onDone?.()));
       },
-      error: () => this.loadTopics(() => onDone?.()),
+      error: () => this.loadTopics(() => this.loadFilterOptionsFromDb(() => onDone?.())),
     });
   }
 
@@ -1221,7 +1207,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         }
       }
       if (this.primarySubject) {
-        this.loadQuestionsPage(1);
+        this.loadFilterOptionsFromDb(() => this.loadQuestionsPage(1));
       } else {
         this._pendingFilterState = null;
       }
@@ -1501,11 +1487,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicQuestionsLoaded = false;
     this.subsourceSources = [];
     this.subsourceYears = [];
+    this.filterOptionTypes = [];
     this.selectedSources = new Set();
     this.selectedYears = new Set();
     this.selectedQuestionTypes = new Set();
     this.selectedInstituteType = null;
     this.selectedQuestionIds = new Set();
+    this.subjectFilterRevisionKey = null;
     this.loadUnlockedQidsFromServer();
     this.totalQuestionsInDbForSubject = null;
     this.invalidateQuestionPageCache();
@@ -1606,11 +1594,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicQuestionsLoaded = false;
     this.subsourceSources = [];
     this.subsourceYears = [];
+    this.filterOptionTypes = [];
     this.selectedSources = new Set();
     this.selectedYears = new Set();
     this.selectedQuestionTypes = new Set();
     this.selectedInstituteType = null;
     this.selectedQuestionIds = new Set();
+    this.subjectFilterRevisionKey = null;
     this.levelDropdownOpen = false;
     this.classDropdownOpen = false;
     this.groupDropdownOpen = false;
@@ -1680,8 +1670,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicDropdownOpen = false;
     this.pagedTopicQuestions = [];
     this.questionListTotalCount = 0;
-    this.subsourceSources = [];
-    this.subsourceYears = [];
     this.selectedSources = new Set();
     this.selectedYears = new Set();
     this.selectedQuestionTypes = new Set();
@@ -1689,9 +1677,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.currentChapter = firstCh ? firstCh.name : '';
     this.loadingService.setTotal(1);
     this.applyTopicsFromSubjectCache(() => {
-      this.loadQuestionsPage(1);
-      this.cdr.detectChanges();
-      this.loadingService.completeOne();
+      this.loadFilterOptionsFromDb(() => {
+        this.loadQuestionsPage(1);
+        this.cdr.detectChanges();
+        this.loadingService.completeOne();
+      });
     });
     this.saveFilterState();
   }
@@ -2054,12 +2044,106 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  /** Available type options from current question pool (before type filter, after source/year + disappeared filters). */
+  /** Type options for filter dropdown (from DB via {@link loadFilterOptionsFromDb}). */
   get availableQuestionTypes(): string[] {
-    const list = this.getTopicQuestionsFilteredSortedCore(false, true);
-    const out = new Set<string>();
-    list.forEach((q: any) => out.add(this.normalizeQuestionTypeLabel(q?.type)));
-    return Array.from(out).sort((a, b) => a.localeCompare(b));
+    return this.filterOptionTypes;
+  }
+
+  /** Chapter filter values for API: both chapter_no (id) and chapter title (name). */
+  private chapterQueryValues(): string[] | undefined {
+    if (this.selectedChapterIds.size === 0) return undefined;
+    const values = new Set<string>();
+    for (const id of this.selectedChapterIds) {
+      const c = this.chapters.find((ch) => ch.id == id);
+      if (c?.id != null && String(c.id).trim()) values.add(String(c.id).trim());
+      if (c?.name != null && String(c.name).trim()) values.add(String(c.name).trim());
+      if (!c && id != null && String(id).trim()) values.add(String(id).trim());
+    }
+    return values.size ? Array.from(values) : undefined;
+  }
+
+  private filterOptionsChapterParams(): string[] | undefined {
+    return this.chapterQueryValues();
+  }
+
+  /** Topic filter values for API (topic column matches topic name / id). */
+  private topicQueryValues(): string[] | undefined {
+    if (this.selectedTopicIds.size === 0) return undefined;
+    const values = new Set<string>();
+    for (const id of this.selectedTopicIds) {
+      const t = this.topics.find((tp) => tp.id == id);
+      if (t?.id != null && String(t.id).trim()) values.add(String(t.id).trim());
+      if (t?.name != null && String(t.name).trim()) values.add(String(t.name).trim());
+      if (!t && id != null && String(id).trim()) values.add(String(id).trim());
+    }
+    return values.size ? Array.from(values) : undefined;
+  }
+
+  private filterOptionsTopicParams(): string[] | undefined {
+    return this.topicQueryValues();
+  }
+
+  private applyFilterOptionsFromDb(data: QuestionFilterOptionsData): void {
+    this.subsourceSources = [...(data.sources || [])].sort();
+    this.subsourceYears = [...(data.years || [])].sort((a, b) => a.localeCompare(b));
+    const typeLabels = new Set<string>();
+    (data.types || []).forEach((t) => typeLabels.add(this.normalizeQuestionTypeLabel(t)));
+    this.filterOptionTypes = Array.from(typeLabels).sort((a, b) => a.localeCompare(b));
+    this.selectedSources = new Set([...this.selectedSources].filter((x) => this.subsourceSources.includes(x)));
+    this.selectedYears = new Set([...this.selectedYears].filter((x) => this.subsourceYears.includes(x)));
+    this.selectedQuestionTypes = new Set(
+      [...this.selectedQuestionTypes].filter((x) => this.filterOptionTypes.includes(x))
+    );
+  }
+
+  /** Load distinct source/year/type for current subject scope (cached in memory). */
+  private loadFilterOptionsFromDb(onDone?: () => void): void {
+    const sub = this.primarySubject;
+    if (!sub) {
+      this.filterOptionTypes = [];
+      onDone?.();
+      return;
+    }
+    const chapters = this.filterOptionsChapterParams();
+    const topics = this.filterOptionsTopicParams();
+    const cacheKey = buildQuestionFilterOptionsCacheKey({
+      level_tr: sub.level_tr,
+      class_level: sub.class_level,
+      subject_tr: sub.subject_tr,
+      chapters,
+      topics,
+      revision: this.subjectFilterRevisionKey,
+    });
+    const cached = getCachedQuestionFilterOptions(cacheKey);
+    if (cached) {
+      this.applyFilterOptionsFromDb(cached);
+      onDone?.();
+      return;
+    }
+    this.apiService
+      .getQuestionFilterOptions({
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr,
+        chapters,
+        topics,
+      })
+      .subscribe({
+        next: (res) => {
+          const data: QuestionFilterOptionsData = {
+            sources: res.sources || [],
+            years: res.years || [],
+            types: res.types || [],
+          };
+          setCachedQuestionFilterOptions(cacheKey, data);
+          this.applyFilterOptionsFromDb(data);
+          onDone?.();
+        },
+        error: () => {
+          this.applyFilterOptionsFromDb({ sources: [], years: [], types: [] });
+          onDone?.();
+        },
+      });
   }
 
   get allQuestionTypesSelected(): boolean {
@@ -2143,15 +2227,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.pagedTopicQuestions = [];
     this.questionListTotalCount = 0;
     this.topicQuestionsPage = 1;
-    this.subsourceSources = [];
-    this.subsourceYears = [];
-    this.selectedSources = new Set();
-    this.selectedYears = new Set();
-    this.selectedQuestionTypes = new Set();
     this.typeDropdownOpen = false;
     this.topicQuestionsLoaded = false;
     if (this.primarySubject) {
-      this.loadQuestionsPage(1);
+      this.loadFilterOptionsFromDb(() => this.loadQuestionsPage(1));
     } else {
       this.topicQuestionsLoaded = true;
     }
@@ -2196,12 +2275,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     };
     orderedChIds.forEach(chapterId => {
       const chapterParam = this.chapters.find(c => c.id == chapterId);
-      const chapterName = chapterParam?.name ?? chapterId;
+      const chapterValue = chapterParam
+        ? chapterParam.chapter_no != null && String(chapterParam.chapter_no).trim() !== ''
+          ? String(chapterParam.chapter_no).trim()
+          : (chapterParam.name || String(chapterId))
+        : String(chapterId);
       this.apiService.getQuestionTopics({
         level_tr: sub.level_tr,
         class_level: sub.class_level,
         subject_tr: sub.subject_tr,
-        chapter: chapterName
+        chapter: chapterValue
       }).subscribe({
         next: (res) => {
           const list = (res.topics || []) as Array<{ id: string; name: string; topic_no?: string | null }>;
@@ -2610,8 +2693,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onSourceSelectAllToggle(): void {
     if (this.allSourcesSelected) this.selectedSources = new Set();
-    else this.selectedSources = new Set(this.subsourceSources);
+    else this.selectedSources = new Set(this.subsourceSourcesFiltered);
+    this.invalidateQuestionPageCache();
+    this.topicQuestionsPage = 1;
     this.saveFilterState();
+    if (this.primarySubject) this.loadQuestionsPage(1);
   }
 
   onYearSelectAllToggle(): void {

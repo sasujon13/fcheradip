@@ -860,6 +860,30 @@ export class ApiService {
       .pipe(map((data) => normalizeQuestionApiResponse(data)));
   }
 
+  /** Distinct source/year/type options for /question filters (scoped by subject + optional chapter/topic). */
+  getQuestionFilterOptions(params: {
+    level_tr: string;
+    class_level: string;
+    subject_tr: string;
+    chapters?: string[];
+    topics?: string[];
+  }): Observable<{ sources: string[]; years: string[]; types: string[]; error?: string }> {
+    let httpParams = new HttpParams()
+      .set('level_tr', params.level_tr || '')
+      .set('class_level', params.class_level || '')
+      .set('subject_tr', params.subject_tr || '');
+    (params.chapters || []).forEach((c) => {
+      httpParams = httpParams.append('chapter', c);
+    });
+    (params.topics || []).forEach((t) => {
+      httpParams = httpParams.append('topic', t);
+    });
+    return this.http.get<{ sources: string[]; years: string[]; types: string[]; error?: string }>(
+      `${this.baseUrl}/question_filter_options/`,
+      { params: httpParams }
+    );
+  }
+
   /** Paginated question list (NTRCA-style: one page from server, default 30 rows). */
   getQuestionListPaged(params: {
     level_tr: string;
