@@ -650,7 +650,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   ];
 
   showExportFormatDialog = false;
-  exportFormat: ExportFormat = 'both';
+  exportFormat: ExportFormat = 'pdf';
   saving = false;
   saveSuccessMessage = '';
 
@@ -8672,17 +8672,21 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     this.apiService.getCustomerSettings().subscribe({
       next: (res) => {
-        const format = res.settings?.['export_format'] as ExportFormat | undefined;
-        if (format === 'both' || format === 'pdf' || format === 'docx') {
-          this.doSave(format);
-        } else {
-          this.showExportFormatDialog = true;
-        }
+        this.doSave(this.exportFormatFromSettings(res.settings));
       },
       error: () => {
-        this.showExportFormatDialog = true;
+        this.doSave('pdf');
       },
     });
+  }
+
+  /** Saved preference, or PDF when unset (change under Settings). */
+  private exportFormatFromSettings(settings: Record<string, unknown> | undefined): ExportFormat {
+    const format = settings?.['export_format'] as ExportFormat | undefined;
+    if (format === 'both' || format === 'pdf' || format === 'docx') {
+      return format;
+    }
+    return 'pdf';
   }
 
   confirmExportFormat(): void {

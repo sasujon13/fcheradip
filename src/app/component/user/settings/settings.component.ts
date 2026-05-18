@@ -14,7 +14,7 @@ export type ExportFormat = 'both' | 'pdf' | 'docx';
   styleUrls: ['./settings.component.css']
 })
 export class SettingsComponent implements OnInit, AfterViewInit {
-  exportFormat: ExportFormat = 'both';
+  exportFormat: ExportFormat = 'pdf';
   saving = false;
   message = '';
 
