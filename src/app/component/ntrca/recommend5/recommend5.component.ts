@@ -1,5 +1,10 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, Renderer2, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import {
+  createNtrcaPagedCache,
+  NTRCA_PAGE_SIZE,
+  syncNtrcaRecommendStyleWindow,
+} from 'src/app/shared/ntrca-paged-window';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
@@ -255,7 +260,9 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
   totalRecordsInDb: number = 0;
   currentPage: number = 1;
   totalPages: number = 1;
-  pageSize: number = 100;
+  pageSize: number = NTRCA_PAGE_SIZE;
+  private readonly vacancyPageCache = createNtrcaPagedCache();
+  private readonly vacancyCacheKeyRef = { value: '' };
   tableRows: string[][] = [];
   maxDistrictSelection: number = 65;
   youtube: string[] = [
@@ -411,51 +418,44 @@ export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getVacancies(page: number): void {
-    let params = new HttpParams()
-      .set('code', this.selectedDesignation || 201)
-      .set('page', page.toString());
-
-    this.selectedDistricts.forEach(d => {
-      params = params.append('district', d);
-    });
-
-    this.selectedThanas.forEach(t => {
-      params = params.append('thana', t);
-    });
-
-    this.loading = true;
-
-    this.http.get(`${this.baseUrl}`, { params }).subscribe((data: any) => {
-      if (data.count === 0) {
-        this.vacancies = [];
-        this.showNoDataAlert2 = true;
-        this.selectedDistricts = [];
-        this.selectedThanas = [];
-        this.loading = false;
-      } else {
-        this.vacancies = data.results;
-        this.totalCount = data.count;
-        this.totalPages = Math.ceil(this.totalCount / this.pageSize);
-        const startRecord = (this.currentPage - 1) * this.pageSize + 1;
-        const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
-        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
-
+    this.currentPage = page;
+    syncNtrcaRecommendStyleWindow({
+      cache: this.vacancyPageCache,
+      cacheKeyRef: this.vacancyCacheKeyRef,
+      currentPage: page,
+      http: this.http,
+      baseUrl: this.baseUrl,
+      code: this.selectedDesignation || 201,
+      districts: this.selectedDistricts,
+      thanas: this.selectedThanas,
+      onCurrentPage: (items) => {
+        this.vacancies = items;
+        this.hydrateUnlockedVacancyRows();
         setTimeout(() => {
           const el = this.scrollContainer?.nativeElement;
           if (el) {
             const topOffset = el.getBoundingClientRect().top + window.scrollY - 220;
             window.scrollTo({ top: topOffset, behavior: 'smooth' });
           }
-          this.loading = false;
+        }, 300);
+      },
+      onMeta: (meta) => {
+        this.totalCount = meta.totalCount;
+        this.totalPages = meta.totalPages;
+        if (meta.totalCount === 0) {
+          this.vacancies = [];
+          this.showNoDataAlert2 = true;
           this.selectedDistricts = [];
           this.selectedThanas = [];
-        }, 700);
-
-
-        this.hydrateUnlockedVacancyRows();
-
-        this.loading = false;
-      }
+          return;
+        }
+        const startRecord = (this.currentPage - 1) * this.pageSize + 1;
+        const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
+        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
+      },
+      onLoading: (loading) => {
+        this.loading = loading;
+      },
     });
   }
 

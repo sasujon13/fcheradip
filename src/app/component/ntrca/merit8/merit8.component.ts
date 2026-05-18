@@ -1,5 +1,11 @@
 import { Component, OnInit, AfterViewInit, ElementRef, ViewChild, Renderer2 } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
+import {
+  createNtrcaPagedCache,
+  NTRCA_PAGE_SIZE,
+  sortVacanciesBySl,
+  syncNtrcaMeritStyleWindow,
+} from 'src/app/shared/ntrca-paged-window';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
@@ -240,7 +246,9 @@ export class Merit8Component implements OnInit, AfterViewInit {
   totalRecordsInDb: number = 0;
   currentPage: number = 1; // Current page number
   totalPages: number = 1;
-  pageSize: number = 100;
+  pageSize: number = NTRCA_PAGE_SIZE;
+  private readonly vacancyPageCache = createNtrcaPagedCache();
+  private readonly vacancyCacheKeyRef = { value: '' };
   tableRows: string[][] = [];
   maxDistrictSelection: number = 16;
   trxRemaining = 0;
@@ -365,44 +373,39 @@ export class Merit8Component implements OnInit, AfterViewInit {
   }
 
   getVacancies(page: number): void {
-    let params = new HttpParams()
-      .set('code', this.selectedDesignation)
-      .set('page', page.toString());
-    this.loading = true;
-
-    this.http.get(`${this.baseUrl}`, { params }).subscribe((data: any) => {
-      if (data.count === 0) {
-        this.vacancies = [];
-        this.showNoDataAlert2 = true;
-        this.loading = false;
-      } else {
-        this.vacancies = data.results;
-
-        // Sorting the vacancies by 'SL' in descending order (numerically)
-        this.vacancies.sort((a, b) => {
-          // Ensure SL is treated as a number and sort in descending order
-          const slA = typeof a.SL === 'number' ? a.SL : Number(a.SL);
-          const slB = typeof b.SL === 'number' ? b.SL : Number(b.SL);
-
-          return slA - slB; // Descending order
-        });
-
-        this.totalCount = data.count; // Total number of records
-        this.totalPages = Math.ceil(this.totalCount / this.pageSize); // Calculate total pages
-
-        // Calculate the range of records to display
-        const startRecord = (this.currentPage - 1) * this.pageSize + 1;
-        const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
-        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
+    this.currentPage = page;
+    syncNtrcaMeritStyleWindow({
+      cache: this.vacancyPageCache,
+      cacheKeyRef: this.vacancyCacheKeyRef,
+      currentPage: page,
+      http: this.http,
+      baseUrl: this.baseUrl,
+      code: this.selectedDesignation,
+      onCurrentPage: (items) => {
+        this.vacancies = sortVacanciesBySl(items);
         setTimeout(() => {
           if (this.scrollContainer?.nativeElement) {
             const element = this.scrollContainer.nativeElement;
             const topOffset = element.getBoundingClientRect().top + window.scrollY - 220;
             window.scrollTo({ top: topOffset, behavior: 'smooth' });
           }
-          this.loading = false;
         }, 300);
-      }
+      },
+      onMeta: (meta) => {
+        this.totalCount = meta.totalCount;
+        this.totalPages = meta.totalPages;
+        if (meta.totalCount === 0) {
+          this.vacancies = [];
+          this.showNoDataAlert2 = true;
+          return;
+        }
+        const startRecord = (this.currentPage - 1) * this.pageSize + 1;
+        const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
+        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
+      },
+      onLoading: (loading) => {
+        this.loading = loading;
+      },
     });
   }
 

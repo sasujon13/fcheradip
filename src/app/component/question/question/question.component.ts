@@ -28,6 +28,8 @@ import {
 import { QuestionUnlockedQidsService } from '../../../service/question-unlocked-qids.service';
 import { TrxUnlockService } from '../../../service/trx-unlock.service';
 import { diffChars } from 'diff';
+import { PagedWindowCache, syncPagedWindowCache } from '../../../shared/paged-window-cache';
+import { map } from 'rxjs/operators';
 
 /** Exam keys aligned with question-creator structured header (BN labels on /question modal). */
 const SMART_CREATOR_EXAM_OPTIONS: ReadonlyArray<{ key: string; label: string }> = [
@@ -243,6 +245,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   questionListTotalCount = 0;
   topicQuestionsPage = 1;
   questionsListLoading = false;
+  /** Sliding window: current ± 1 pages (max 90 questions at 30/page). */
+  private readonly questionPageCache = new PagedWindowCache<any>(30, 3);
+  private questionListCacheKey = '';
 
   get retrievedCount(): number {
     return this.questionListTotalCount;
@@ -267,7 +272,29 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return Math.min(Math.max(1, this.topicQuestionsPage), total);
   }
 
-  /** Load one page from the API (NTRCA vacant5-style pagination). */
+  private buildQuestionListCacheKey(): string {
+    const sub = this.primarySubject;
+    if (!sub) {
+      return '';
+    }
+    return JSON.stringify({
+      level_tr: sub.level_tr,
+      class_level: sub.class_level,
+      subject_tr: sub.subject_tr,
+      topics: Array.from(this.selectedTopicIds).sort(),
+      chapters: Array.from(this.selectedChapterIds).sort(),
+      sources: Array.from(this.selectedSources).sort(),
+      years: Array.from(this.selectedYears).sort(),
+      types: Array.from(this.selectedQuestionTypes).sort(),
+    });
+  }
+
+  private invalidateQuestionPageCache(): void {
+    this.questionPageCache.clear();
+    this.questionListCacheKey = '';
+  }
+
+  /** Load page with 3-page sliding cache (prev/current/next, max 90 questions). */
   loadQuestionsPage(page: number): void {
     const sub = this.primarySubject;
     if (!sub) {
@@ -276,6 +303,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (page === 1 && this._pendingFilterState) {
       this.applyPendingFilterStateSourcesYearsQuestions();
     }
+    const cacheKey = this.buildQuestionListCacheKey();
+    if (cacheKey !== this.questionListCacheKey) {
+      this.questionPageCache.clear();
+      this.questionListCacheKey = cacheKey;
+    }
+    this.topicQuestionsPage = page;
     const topics =
       this.selectedTopicIds.size > 0
         ? Array.from(this.selectedTopicIds).map(
@@ -288,45 +321,52 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
             (id) => this.chapters.find((c) => c.id == id)?.name ?? String(id)
           )
         : undefined;
-    this.questionsListLoading = true;
-    this.topicQuestionsLoaded = false;
-    this.topicQuestionsPage = page;
-    this.apiService
-      .getQuestionListPaged({
-        level_tr: sub.level_tr,
-        class_level: sub.class_level,
-        subject_tr: sub.subject_tr,
-        page,
-        page_size: this.questionListPageSize,
-        topics,
-        chapters,
-        sources: Array.from(this.selectedSources),
-        years: Array.from(this.selectedYears),
-        types: Array.from(this.selectedQuestionTypes),
-      })
-      .subscribe({
-        next: (res) => {
-          let rows = this.applyUserEditsToQuestions(res.questions || []);
-          rows = rows.filter((q) => !this.disappearedQuestions.isDisappeared(q?.qid));
-          this.pagedTopicQuestions = rows;
-          this.questionListTotalCount = res.count ?? rows.length;
-          if (res.revision?.row_count != null) {
-            this.totalQuestionsInDbForSubject = res.revision.row_count;
-          }
-          this.mergeSubsourceOptionsFromPage(rows);
-          this.topicQuestionsLoaded = true;
-          this.questionsListLoading = false;
-          this.cdr.detectChanges();
-          setTimeout(() => this.measureOptionsLayouts(), 80);
-        },
-        error: () => {
-          this.pagedTopicQuestions = [];
-          this.questionListTotalCount = 0;
-          this.topicQuestionsLoaded = true;
-          this.questionsListLoading = false;
-          this.cdr.detectChanges();
-        },
-      });
+
+    syncPagedWindowCache({
+      cache: this.questionPageCache,
+      currentPage: page,
+      fetchPage: (p) =>
+        this.apiService
+          .getQuestionListPaged({
+            level_tr: sub.level_tr,
+            class_level: sub.class_level,
+            subject_tr: sub.subject_tr,
+            page: p,
+            page_size: this.questionListPageSize,
+            topics,
+            chapters,
+            sources: Array.from(this.selectedSources),
+            years: Array.from(this.selectedYears),
+            types: Array.from(this.selectedQuestionTypes),
+          })
+          .pipe(
+            map((res) => {
+              let rows = this.applyUserEditsToQuestions(res.questions || []);
+              rows = rows.filter((q) => !this.disappearedQuestions.isDisappeared(q?.qid));
+              if (res.revision?.row_count != null) {
+                this.totalQuestionsInDbForSubject = res.revision.row_count;
+              }
+              return { items: rows, totalCount: res.count ?? rows.length };
+            })
+          ),
+      onDisplay: (rows) => {
+        this.pagedTopicQuestions = rows;
+        this.topicQuestionsLoaded = true;
+        this.mergeSubsourceOptionsFromPage(rows);
+        this.cdr.detectChanges();
+        setTimeout(() => this.measureOptionsLayouts(), 80);
+      },
+      onMeta: (meta) => {
+        this.questionListTotalCount = meta.totalCount;
+      },
+      onLoading: (loading) => {
+        this.questionsListLoading = loading;
+        if (loading) {
+          this.topicQuestionsLoaded = false;
+        }
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   private mergeSubsourceOptionsFromPage(list: any[]): void {
@@ -1468,6 +1508,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionIds = new Set();
     this.loadUnlockedQidsFromServer();
     this.totalQuestionsInDbForSubject = null;
+    this.invalidateQuestionPageCache();
     this.pagedTopicQuestions = [];
     this.questionListTotalCount = 0;
     this.topicQuestionsPage = 1;
@@ -1633,6 +1674,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private onChapterSelectionChange(): void {
+    this.invalidateQuestionPageCache();
     this.topics = [];
     this.selectedTopicIds = new Set();
     this.topicDropdownOpen = false;
@@ -2056,6 +2098,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private onQuestionTypeSelectionChange(): void {
+    this.invalidateQuestionPageCache();
     this.topicQuestionsPage = 1;
     this.saveFilterState();
     if (this.primarySubject) {
@@ -2096,6 +2139,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private onTopicSelectionChange(): void {
+    this.invalidateQuestionPageCache();
     this.pagedTopicQuestions = [];
     this.questionListTotalCount = 0;
     this.topicQuestionsPage = 1;
@@ -2581,6 +2625,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (next.has(source)) next.delete(source);
     else next.add(source);
     this.selectedSources = next;
+    this.invalidateQuestionPageCache();
     this.topicQuestionsPage = 1;
     this.saveFilterState();
     if (this.primarySubject) this.loadQuestionsPage(1);
@@ -2591,6 +2636,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (next.has(year)) next.delete(year);
     else next.add(year);
     this.selectedYears = next;
+    this.invalidateQuestionPageCache();
     this.topicQuestionsPage = 1;
     this.saveFilterState();
     if (this.primarySubject) this.loadQuestionsPage(1);
@@ -2599,6 +2645,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   clearSubsourceSelection(): void {
     this.selectedSources = new Set();
     this.selectedYears = new Set();
+    this.invalidateQuestionPageCache();
     this.topicQuestionsPage = 1;
     this.saveFilterState();
     if (this.primarySubject) this.loadQuestionsPage(1);

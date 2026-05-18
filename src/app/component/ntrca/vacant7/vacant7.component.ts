@@ -1,9 +1,15 @@
 import { Component, OnInit, AfterViewInit, Renderer2, ElementRef, ViewChild } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
+import {
+  createNtrcaPagedCache,
+  NTRCA_PAGE_SIZE,
+  sortVacanciesByDistrictThana,
+  syncNtrcaVacantStyleWindow,
+} from 'src/app/shared/ntrca-paged-window';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -254,7 +260,9 @@ export class Vacant7Component implements OnInit, AfterViewInit {
   totalRecordsInDb: number = 0;
   currentPage: number = 1; // Current page number
   totalPages: number = 1;
-  pageSize: number = 100;
+  pageSize: number = NTRCA_PAGE_SIZE;
+  private readonly vacancyPageCache = createNtrcaPagedCache();
+  private readonly vacancyCacheKeyRef = { value: '' };
   tableRows: string[][] = [];
   maxDistrictSelection: number = 65;
   youtube: string[] = [
@@ -352,57 +360,42 @@ export class Vacant7Component implements OnInit, AfterViewInit {
   }
 
   getVacancies(page: number): void {
-    let params = new HttpParams()
-      .set('designation', this.selectedDesignation)
-      .set('subject', this.selectedSubject)
-      .set('page', page.toString());
-
-    this.selectedDistricts.forEach(district => {
-      params = params.append('district', district);
-    });
-
-    this.http.get(`${this.baseUrl}`, { params }).subscribe((data: any) => {
-      if (!this.selectedSubject || !this.selectedDesignation || this.selectedDistricts.length === 0) {
+    this.currentPage = page;
+    syncNtrcaVacantStyleWindow({
+      cache: this.vacancyPageCache,
+      cacheKeyRef: this.vacancyCacheKeyRef,
+      currentPage: page,
+      http: this.http,
+      baseUrl: this.baseUrl,
+      designation: this.selectedDesignation,
+      subject: this.selectedSubject,
+      districts: this.selectedDistricts,
+      onEmptySelection: () => {
         this.vacancies = [];
         this.showNoDataAlert = false;
-        setTimeout(() => this.showNoDataAlert = true);
-        return;
-      }
-      
-      this.loading = true;
-      this.vacancies = data.results;
-
-      // Sort by District > Thana
-      this.vacancies.sort((a, b) => {
-        const distA = (a.District || '').toUpperCase();
-        const distB = (b.District || '').toUpperCase();
-        const cmp = distA.localeCompare(distB);
-        if (cmp !== 0) return cmp;
-
-        const thanaA = (a.Thana || '').toUpperCase();
-        const thanaB = (b.Thana || '').toUpperCase();
-        return thanaA.localeCompare(thanaB);
-      });
-
-      // Pagination stats
-      this.totalCount = data.count;
-      this.totalPages = Math.ceil(this.totalCount / this.pageSize);
-      const startRecord = (this.currentPage - 1) * this.pageSize + 1;
-      const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
-      this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
-
-      // Scroll to container
-      setTimeout(() => {
-        const el = this.scrollContainer?.nativeElement;
-        if (el) {
-          const topOffset = el.getBoundingClientRect().top + window.scrollY - 220;
-          window.scrollTo({ top: topOffset, behavior: 'smooth' });
-        }
-      }, 700);
-
-      this.hydrateUnlockedVacancyRows();
-
-      this.loading = false;
+        setTimeout(() => (this.showNoDataAlert = true));
+      },
+      onCurrentPage: (items) => {
+        this.vacancies = sortVacanciesByDistrictThana(items);
+        this.hydrateUnlockedVacancyRows();
+        setTimeout(() => {
+          const el = this.scrollContainer?.nativeElement;
+          if (el) {
+            const topOffset = el.getBoundingClientRect().top + window.scrollY - 220;
+            window.scrollTo({ top: topOffset, behavior: 'smooth' });
+          }
+        }, 300);
+      },
+      onMeta: (meta) => {
+        this.totalCount = meta.totalCount;
+        this.totalPages = meta.totalPages;
+        const startRecord = (this.currentPage - 1) * this.pageSize + 1;
+        const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
+        this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total ${this.totalRecordsInDb.toLocaleString()} Records!`;
+      },
+      onLoading: (loading) => {
+        this.loading = loading;
+      },
     });
   }
 

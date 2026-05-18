@@ -2,7 +2,13 @@ import { Component, OnInit, AfterViewInit, OnChanges, SimpleChanges, ElementRef,
 import { ApiService } from 'src/app/service/api.service';
 import { CartService } from 'src/app/service/cart.service';
 import { ChoiceService } from 'src/app/service/choice.service';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
+import {
+  createNtrcaPagedCache,
+  NTRCA_PAGE_SIZE,
+  sortVacanciesBySl,
+  syncNtrcaMeritStyleWindow,
+} from 'src/app/shared/ntrca-paged-window';
 import { LoadingService } from 'src/app/service/loading.service';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -230,7 +236,9 @@ export class BanbeisComponent implements OnInit, AfterViewInit {
   totalCount: number = 0; // Total number of records
   currentPage: number = 1; // Current page number
   totalPages: number = 1;
-  pageSize: number = 100;
+  pageSize: number = NTRCA_PAGE_SIZE;
+  private readonly vacancyPageCache = createNtrcaPagedCache();
+  private readonly vacancyCacheKeyRef = { value: '' };
   tableRows: string[][] = [];
   maxDistrictSelection: number = 16;
   youtube: string[] = [
@@ -290,37 +298,31 @@ export class BanbeisComponent implements OnInit, AfterViewInit {
   }
 
   getVacancies(page: number): void {
-    let params = new HttpParams()
-      .set('code', this.selectedDesignation)
-      .set('page', page.toString());
-
-    this.http.get(`${this.baseUrl}`, { params }).subscribe((data: any) => {
-      if (data.count === 0) {
-        this.vacancies = [];
-        this.showNoDataAlert2 = true;
-      } else {
-        this.vacancies = data.results;
-
-        // Sorting the vacancies by 'SL' in descending order (numerically)
-        this.vacancies.sort((a, b) => {
-          // Ensure SL is treated as a number and sort in descending order
-          const slA = typeof a.SL === 'number' ? a.SL : Number(a.SL);
-          const slB = typeof b.SL === 'number' ? b.SL : Number(b.SL);
-          
-          return slA - slB; // Descending order
-        });
-
-        this.totalCount = data.count; // Total number of records
-        this.totalPages = Math.ceil(this.totalCount / this.pageSize); // Calculate total pages
-
-        // Calculate the range of records to display
+    this.currentPage = page;
+    syncNtrcaMeritStyleWindow({
+      cache: this.vacancyPageCache,
+      cacheKeyRef: this.vacancyCacheKeyRef,
+      currentPage: page,
+      http: this.http,
+      baseUrl: this.baseUrl,
+      code: this.selectedDesignation,
+      onCurrentPage: (items) => {
+        this.vacancies = sortVacanciesBySl(items);
+        window.scrollTo(0, 0);
+      },
+      onMeta: (meta) => {
+        this.totalCount = meta.totalCount;
+        this.totalPages = meta.totalPages;
+        if (meta.totalCount === 0) {
+          this.vacancies = [];
+          this.showNoDataAlert2 = true;
+          return;
+        }
         const startRecord = (this.currentPage - 1) * this.pageSize + 1;
         const endRecord = Math.min(this.currentPage * this.pageSize, this.totalCount);
         this.recordRange = `Displaying <b>${startRecord}-${endRecord}</b> records of <b>${this.totalCount}</b> of total 100822 Records!`;
-
-        // Scroll to the top
-        window.scrollTo(0, 0);
-      }
+      },
+      onLoading: () => {},
     });
   }
 
