@@ -103,7 +103,8 @@ export type QuestionCreatorContext = {
   subject_code?: string;
   /**
    * Exam variant from question_subjects (`sq`): 25 vs 30 drives per-question timing for header সময়/পূর্ণমান
-   * (MCQ 1 min + 1 mark each; CQ 31 min + 10 marks each for sq=25; CQ floor(n×21.43) min + 10 marks each for sq=30).
+   * (MCQ 1 min + 1 mark each; CQ সময়/পূর্ণমান use answer quota — sq=25: up to 5 CQ (31 min + 10 marks each);
+   * sq=30: 7 CQ (floor(7×21.43) min + 10 marks each), not every question printed on the sheet).
    */
   sq?: number;
   chapter?: string;
@@ -284,6 +285,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private static readonly SQ_CQ_MINUTES_PER_25 = 31;
   private static readonly SQ_CQ_MINUTES_PER_30 = 21.43;
+  /** sq=25: answer any five — header সময়/পূর্ণমান use this count (cap when sheet has more CQ). */
+  private static readonly SQ_CQ_ANSWER_QUOTA_25 = 5;
+  /** sq=30: answer any seven — header সময়/পূর্ণমান always use this count when CQ section is present. */
+  private static readonly SQ_CQ_ANSWER_QUOTA_30 = 7;
 
   private static escapeHtmlText(s: string): string {
     return s
@@ -4327,6 +4332,25 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return { mcq, cq };
   }
 
+  /**
+   * CQ count for sq 25/30 header সময়/পূর্ণমান (line 5 creative-only, line 4 mixed unified).
+   * sq=25: min(sheet CQ, 5). sq=30: 7 when any CQ (matches দ্রষ্টব্য “যেকোন সাতটি”).
+   */
+  private sqCreativeAnswerCountForExamMeta(): number {
+    const v = this.subjectSqExamVariant();
+    if (v !== 25 && v !== 30) {
+      return 0;
+    }
+    const { cq } = this.sqMcqCreativeQuestionCounts();
+    if (cq <= 0) {
+      return 0;
+    }
+    if (v === 25) {
+      return Math.min(cq, QuestionCreatorComponent.SQ_CQ_ANSWER_QUOTA_25);
+    }
+    return QuestionCreatorComponent.SQ_CQ_ANSWER_QUOTA_30;
+  }
+
   private normalizeSqMetaWhitespace(s: string): string {
     return String(s ?? '')
       .replace(/\r\n/g, '\n')
@@ -4449,20 +4473,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return `সময় -- ${this.formatBnSqDurationAfterDash(minutes)}`;
   }
 
-  /** সৃজনশীল header: 4th line (1-based). sq 25: 31 min per CQ; sq 30: floor(n×21.43) total minutes. */
+  /** সৃজনশীল header: 4th line (1-based). sq 25: 31 min × answer quota (≤5); sq 30: floor(7×21.43) min. */
   examDurationLineCreative(): string {
     const v = this.subjectSqExamVariant();
     if (v !== 25 && v !== 30) {
       return '';
     }
-    const { cq } = this.sqMcqCreativeQuestionCounts();
-    if (cq <= 0) {
+    const n = this.sqCreativeAnswerCountForExamMeta();
+    if (n <= 0) {
       return '';
     }
     const totalMin =
       v === 25
-        ? cq * QuestionCreatorComponent.SQ_CQ_MINUTES_PER_25
-        : Math.floor(cq * QuestionCreatorComponent.SQ_CQ_MINUTES_PER_30);
+        ? n * QuestionCreatorComponent.SQ_CQ_MINUTES_PER_25
+        : Math.floor(n * QuestionCreatorComponent.SQ_CQ_MINUTES_PER_30);
     return `সময় -- ${this.formatBnSqDurationAfterDash(totalMin)}`;
   }
 
@@ -4479,17 +4503,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return `পূর্ণমান -- ${QuestionCreatorComponent.toBengaliDigits(String(mcq))}`;
   }
 
-  /** সৃজনশীল header: marks line. sq 25/30: 10 marks per CQ question. */
+  /** সৃজনশীল header: marks line. sq 25/30: 10 marks per answer-quota CQ (5 or 7). */
   examFullMarksLineCreative(): string {
     const v = this.subjectSqExamVariant();
     if (v !== 25 && v !== 30) {
       return '';
     }
-    const { cq } = this.sqMcqCreativeQuestionCounts();
-    if (cq <= 0) {
+    const n = this.sqCreativeAnswerCountForExamMeta();
+    if (n <= 0) {
       return '';
     }
-    return `পূর্ণমান -- ${QuestionCreatorComponent.toBengaliDigits(String(cq * 10))}`;
+    return `পূর্ণমান -- ${QuestionCreatorComponent.toBengaliDigits(String(n * 10))}`;
   }
 
   /** One textarea segment: সময় then পূর্ণমান (MCQ). */
