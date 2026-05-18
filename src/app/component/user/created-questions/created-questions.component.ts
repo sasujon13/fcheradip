@@ -353,7 +353,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
       layoutColumns: this.intClampedLayout(ls, 'layoutColumns', 2, 1, 10),
       layoutColumnsCreative: this.intClampedLayout(ls, 'layoutColumnsCreative', 2, 1, 10),
       layoutColumnGapPx: this.intClampedLayout(ls, 'layoutColumnGapPx', 14, 1, 100),
-      showColumnDivider: this.boolFromLayout(ls, 'showColumnDivider', true),
+      showColumnDivider: this.boolFromLayout(ls, 'showColumnDivider', false),
       optionsColumns: this.intClampedLayout(ls, 'optionsColumns', 2, 1, 5),
       optionsColumnsManualOverride: this.boolFromLayout(ls, 'optionsColumnsManualOverride', false),
       ...(ls['previewOptionsLayoutByQid'] && typeof ls['previewOptionsLayoutByQid'] === 'object'

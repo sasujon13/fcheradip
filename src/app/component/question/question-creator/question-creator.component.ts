@@ -451,7 +451,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   layoutColumnGapPx = 12;
 
   /** Show vertical rule between columns in preview. */
-  showColumnDivider = true;
+  showColumnDivider = false;
 
   /** MCQ option rows: grid columns (1–5), stepper in sidebar. */
   optionsColumns = 2;
@@ -1401,7 +1401,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.mixedTypesSinglePageMergedHeader = mix;
     }
 
-    this.showColumnDivider = false;
     this.mcqPageOrientation = 'portrait';
     this.syncPageOrientationForQTypeFilter();
 
