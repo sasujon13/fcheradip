@@ -439,6 +439,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     | { kind: 'mcqLh'; prev: number; stepIndex: number }
     | null = null;
   private autoFitExpandStepBlocked = new Set<string>();
+  /**
+   * After an invalid multi-px gap trial, retry with +1 px so we converge without looping huge steps.
+   * Cleared on successful gap commit ({@link maybeRevertAutoFitExpandIfInvalid}) and {@link onPreviewLayoutChange}.
+   */
+  private autoFitExpandGapPreferSinglePxBump = false;
 
   /**
    * After gap/LH expand: try +0.1 header line height while sheet counts stay within auto-fit policy (MCQ≤2, CQ≤2 when mixed).
@@ -5840,6 +5845,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitExpandPhase = 0;
     this.autoFitExpandPending = null;
     this.autoFitExpandStepBlocked.clear();
+    this.autoFitExpandGapPreferSinglePxBump = false;
     // Cancel tentative paper-header line-height bump; user changed something else — validate fresh next time.
     this.autoFitHeaderLineHeightPending = null;
     this.autoFitHeaderLineHeightGrowBlocked = false;
@@ -6172,6 +6178,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitBaselineBudgetsCaptured = false;
     this.autoFitMcqFontLockedThisRun = false;
     this.autoFitCqFontLockedThisRun = false;
+    this.autoFitExpandGapPreferSinglePxBump = false;
   }
 
   /**
@@ -6639,6 +6646,53 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
   }
 
+  /** Average pagination fill percent for sheets of `kind`, or null when none apply. Used to pick gap bump step size. */
+  private averageFillPercentForPreviewKind(
+    candidatePages: PreviewPage[],
+    kind: 'creative' | 'mcq'
+  ): number | null {
+    let sum = 0;
+    let n = 0;
+    for (let pi = 0; pi < candidatePages.length; pi++) {
+      if (this.sheetPreviewKindKey(pi, candidatePages) !== kind) {
+        continue;
+      }
+      sum += candidatePages[pi]?.fillPercent ?? 0;
+      n++;
+    }
+    return n > 0 ? sum / n : null;
+  }
+
+  /**
+   * How many px to increase MCQ or CQ question gap per auto-fit iteration when sheet budgets allow.
+   * Larger when measured layout has slack ({@link PreviewPage.fillPercent}); conservative +1 after a revert.
+   */
+  private nextAutoFitGapBumpPx(
+    kind: 'mcq' | 'cq',
+    candidatePages: PreviewPage[],
+    H: typeof QuestionCreatorComponent
+  ): number {
+    const cur = kind === 'mcq' ? this.questionsGap : this.questionsGapCreative;
+    const room = H.QUESTIONS_GAP_MAX_PX - cur;
+    if (room <= 0) {
+      return 0;
+    }
+    if (this.autoFitExpandGapPreferSinglePxBump) {
+      return 1;
+    }
+    const sk: 'creative' | 'mcq' = kind === 'mcq' ? 'mcq' : 'creative';
+    const avg = this.averageFillPercentForPreviewKind(candidatePages, sk);
+    if (avg == null) {
+      return Math.min(room, 1);
+    }
+    const slackPct = Math.max(0, 93 - avg);
+    if (slackPct <= 0.5) {
+      return Math.min(room, 1);
+    }
+    const chunk = Math.max(2, Math.round(slackPct * 0.4));
+    return Math.min(room, chunk, 28);
+  }
+
   private advanceAutoFitExpandPhaseAfterBump(stepIndex: number): void {
     const L = this.autoFitExpandSteps().length;
     // Move ring index to the step after the one that was committed or reverted so the next bump rotates fairly.
@@ -6648,7 +6702,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private applyAutoFitExpandBump(
     step: 'mcqGap' | 'mcqLh' | 'cqGap' | 'cqLh',
     stepIndex: number,
-    H: typeof QuestionCreatorComponent
+    H: typeof QuestionCreatorComponent,
+    gapBumpPx?: number
   ): boolean {
     // Skip kinds that already failed validation for this expand cycle (see maybeRevertAutoFitExpandIfInvalid).
     if (this.autoFitExpandStepBlocked.has(step)) {
@@ -6659,9 +6714,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (!this.selectionHasMcqType()) return false;
         if (this.questionsGap >= H.QUESTIONS_GAP_MAX_PX) return false;
         const prev = this.questionsGap;
-        // +1px vertical gap after each MCQ (and non-creative) block in preview — may be reverted next pass.
-        this.questionsGap = Math.min(H.QUESTIONS_GAP_MAX_PX, prev + 1); //  *
-        // Stash previous value so revert can restore if autoFitExpandLayoutOk becomes false after re-pagination.
+        const d = gapBumpPx ?? 1;
+        const room = H.QUESTIONS_GAP_MAX_PX - prev;
+        if (room <= 0) return false;
+        const delta = Math.min(room, Math.max(1, d));
+        // Vertical gap after each MCQ (and non-creative) block — may be reverted next pass.
+        this.questionsGap = prev + delta; //  *
         this.autoFitExpandPending = { kind: 'mcqGap', prev, stepIndex };
         this.resetAutoFitFontGrowBlocks();
         return true;
@@ -6673,8 +6731,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (!this.selectionHasCreativeType()) return false;
         if (this.questionsGapCreative >= H.QUESTIONS_GAP_MAX_PX) return false;
         const prev = this.questionsGapCreative;
-        // +1px gap after creative (CQ) blocks — validated like mcqGap.
-        this.questionsGapCreative = Math.min(H.QUESTIONS_GAP_MAX_PX, prev + 1); //  *
+        const d = gapBumpPx ?? 1;
+        const room = H.QUESTIONS_GAP_MAX_PX - prev;
+        if (room <= 0) return false;
+        const delta = Math.min(room, Math.max(1, d));
+        this.questionsGapCreative = prev + delta; //  *
         this.autoFitExpandPending = { kind: 'cqGap', prev, stepIndex };
         this.resetAutoFitFontGrowBlocks();
         return true;
@@ -6700,10 +6761,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.autoFitExpandPending = null;
       this.advanceAutoFitExpandPhaseAfterBump(p.stepIndex);
       this.autoFitExpandStepBlocked.clear();
+      this.autoFitExpandGapPreferSinglePxBump = false;
       return false;
     }
-    // Layout broke sheet policy after the bump — remember this step kind so we do not retry it blindly.
-    this.autoFitExpandStepBlocked.add(p.kind);
+    // Revert bump: try smaller increments next — do not permanently block this kind on one failed trial.
+    if (p.kind === 'mcqGap' || p.kind === 'cqGap') {
+      this.autoFitExpandGapPreferSinglePxBump = true;
+    }
     switch (p.kind) {
       case 'cqGap':
         this.questionsGapCreative = p.prev; //  *
@@ -6793,7 +6857,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if ((step === 'cqGap' || step === 'cqLh') && !this.cqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
         continue;
       }
-      if (this.applyAutoFitExpandBump(step, idx, H)) {
+      const gapPx =
+        step === 'mcqGap'
+          ? this.nextAutoFitGapBumpPx('mcq', candidatePages, H)
+          : step === 'cqGap'
+            ? this.nextAutoFitGapBumpPx('cq', candidatePages, H)
+            : 1;
+      if ((step === 'mcqGap' || step === 'cqGap') && gapPx <= 0) {
+        continue;
+      }
+      if (
+        this.applyAutoFitExpandBump(
+          step,
+          idx,
+          H,
+          step === 'mcqGap' || step === 'cqGap' ? gapPx : undefined
+        )
+      ) {
         this.scheduleLayout();
         return true;
       }
@@ -9280,12 +9360,26 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     this.apiService.getCustomerSettings().subscribe({
       next: (res) => {
-        this.doSave(this.exportFormatFromSettings(res.settings));
+        const settings = res.settings as Record<string, unknown> | undefined;
+        // First save (no stored preference): ask PDF / DOCX / both, then persist choice with Continue.
+        if (!this.customerHasStoredExportFormatPreference(settings)) {
+          this.exportFormat = 'pdf';
+          this.showExportFormatDialog = true;
+          this.cdr.markForCheck();
+          return;
+        }
+        this.doSave(this.exportFormatFromSettings(settings));
       },
       error: () => {
         this.doSave('pdf');
       },
     });
+  }
+
+  /** True once the user has chosen and stored an export format on the server (not merely defaulting to PDF). */
+  private customerHasStoredExportFormatPreference(settings: Record<string, unknown> | undefined): boolean {
+    const format = settings?.['export_format'];
+    return format === 'both' || format === 'pdf' || format === 'docx';
   }
 
   /** Saved preference, or PDF when unset (change under Settings). */
