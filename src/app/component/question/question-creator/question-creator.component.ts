@@ -6085,6 +6085,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private shouldUseLeadEmptyFirstColumnFromPages(pages: PreviewPage[]): boolean {
+    if (this.creativeQuestionsAllFitOnOneSheetPage(pages).ok) {
+      return false;
+    }
     if (pages.length <= 1) return false;
     if (Math.max(1, Math.floor(this.layoutColumnsForSheetPage(0))) <= 1) return false;
     if (!this.landscapeSheetPageForPreview(0)) return false;
@@ -6839,9 +6842,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.landscapeSheetPageForPreview(pageIndex)) {
       return false;
     }
-    // Lead-empty is decided during layout generation (based on multi-page same-kind).
-    // Even if we later remove an empty last page, keep lead-empty active so moved content
-    // remains visible in the binding column.
+    if (this.creativeQuestionsAllFitOnOneSheetPage().ok) {
+      return false;
+    }
     return this.leadEmptyFirstPageActive;
   }
 
@@ -7977,11 +7980,29 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         const shouldLeadEmptyFirst = this.shouldUseLeadEmptyFirstColumnFromPages(candidatePages);
         if (shouldLeadEmptyFirst !== this.leadEmptyFirstPageActive) {
           this.leadEmptyFirstPageActive = shouldLeadEmptyFirst;
+          if (!shouldLeadEmptyFirst) {
+            for (const p of candidatePages) {
+              delete p.leadBindingItems;
+            }
+          }
           this.scheduleLayout();
           return;
         }
         if (this.leadEmptyFirstPageActive) {
           this.applyLeadEmptyMoveLastPageColumnToFirstBinding(candidatePages);
+          if (!this.shouldUseLeadEmptyFirstColumnFromPages(candidatePages)) {
+            this.leadEmptyFirstPageActive = false;
+            for (const p of candidatePages) {
+              delete p.leadBindingItems;
+            }
+            this.scheduleLayout();
+            return;
+          }
+        }
+        if (!this.leadEmptyFirstPageActive) {
+          for (const p of candidatePages) {
+            delete p.leadBindingItems;
+          }
         }
         // --- Auto-fit gate: only “first three” exam types auto-adjust unless Smart/Reset sets previewAutoFitForceOneLayoutChain.
         // Same order as commit 7d752c6 (“Working Download”); segment pagination + options grid are layered on top.
