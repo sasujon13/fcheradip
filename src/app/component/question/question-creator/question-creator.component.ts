@@ -243,9 +243,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     { key: 'class_test', label: 'ক্লাস টেস্ট', counter: true },
   ];
 
-  /** Exam name options that trigger auto-fit on change (first three in BN/EN lists: election, pre_election, yearly). */
-  private static readonly EXAM_TYPE_KEYS_FIRST_THREE = ['election', 'pre_election', 'yearly'] as const;
-
   private static readonly EXAM_TYPES_EN: ExamTypeOption[] = [
     { key: 'election', label: 'Test Exam', counter: false },
     { key: 'pre_election', label: 'Pre-test Exam', counter: false },
@@ -389,10 +386,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private previewAutoFitSuppressNextLayoutRun = false;
 
   /**
-   * When `true`, {@link runLayout} sets `suppressAutoFit = false` for that pass even if the exam is **not** one of the
-   * first three — i.e. the full auto-fit pipeline runs like a first-three exam. Set by {@link runForcedPreviewAutoFit}
-   * / {@link runAutoFitThenSave}; cleared after `paginatedPages` is assigned for that chain, or on layout timeout /
-   * error paths so non–first-three exams do not keep mutating forever.
+   * When `true`, {@link runLayout} forces the auto-fit pipeline (fonts → gaps). Set by {@link runForcedPreviewAutoFit}
+   * / {@link runAutoFitThenSave}; cleared after `paginatedPages` is assigned for that chain or on timeout / error paths.
    */
   private previewAutoFitForceOneLayoutChain = false;
 
@@ -407,8 +402,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private autoFitMcqLastGrowSeq = -1;
   private autoFitMcqLastGrowPrevFontPx = 0;
   /**
-   * After ramping to hard minimums, sheet counts per kind (or total sheets for single-kind) define the page budget
-   * for the rest of the auto-fit run — growth must not exceed these without reverting the last bump.
+   * MCQ/CQ sheet counts measured at min font (8px) and min gaps — font growth must not add sheets beyond these;
+   * gap expansion fills blank area on those same sheets.
    */
   private autoFitBaselineSheetBudgetMcq: number | null = null;
   private autoFitBaselineSheetBudgetCq: number | null = null;
@@ -430,7 +425,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private autoFitRegularLayoutTightenStep = 0;
 
-  /** Gap/LH auto-expand (after fonts settle); validated per layout pass for MCQ≤2 / CQ≤2 sheets (mixed), or MCQ-only rules. */
+  /** Gap auto-expand (after fonts settle); validated per layout pass against per-kind sheet budgets from min-font measure. */
   private autoFitExpandPhase = 0;
   private autoFitExpandPending:
     | { kind: 'cqGap'; prev: number; stepIndex: number }
@@ -446,7 +441,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private autoFitExpandGapPreferSinglePxBump = false;
 
   /**
-   * After gap/LH expand: try +0.1 header line height while sheet counts stay within auto-fit policy (MCQ≤2, CQ≤2 when mixed).
+   * After gap expand: try +0.1 header line height while sheet counts stay within min-font budgets (cleared on layout change).
    * Revert and block further tries this session if overflow (cleared on {@link onPreviewLayoutChange}).
    */
   private autoFitHeaderLineHeightPending: { prev: number } | null = null;
@@ -697,10 +692,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private resetAutoFitProgressTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
-   * Full-screen blocking overlay: {@link resetAutoFitOverlayVisible} during Reset, **or** (first-three exam and
-   * layout queued/in flight). Uses exam whitelist + `layoutTimer` / `layoutPassInFlight`, not {@link previewAutoFitSuppressNextLayoutRun}
-   * directly — any multi-pass `scheduleLayout` chain shows the same “busy” chrome for first-three users.
-   * Hidden during Save/export layout and answers-sheet auto-fit (export loading overlay is used instead).
+   * Full-screen blocking overlay: Reset button, or Smart / forced auto-fit chains only.
+   * Hidden during Save/export (export overlay is used instead).
    */
   get autoFitBlockingOverlayVisible(): boolean {
     if (this.saveExportLayoutBusy) {
@@ -708,7 +701,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     return (
       this.resetAutoFitOverlayVisible ||
-      (this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey) &&
+      (this.previewAutoFitForceOneLayoutChain &&
         (this.layoutPassInFlight || this.layoutTimer != null))
     );
   }
@@ -2286,26 +2279,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.cdr.markForCheck();
   }
 
-  /** True when Exam name is one of the first three options (auto-fit runs on change). */
-  private examTypeKeyIsFirstThreeExamOptions(key: string): boolean {
-    return (QuestionCreatorComponent.EXAM_TYPE_KEYS_FIRST_THREE as readonly string[]).includes(key);
-  }
-
-  /**
-   * After restore / init: align {@link previewAutoFitSuppressNextLayoutRun} with whether this exam ever runs auto-fit.
-   * Non–first-three: set `true` so the next layout does not mutate (same as permanent `suppressAutoFit` in {@link runLayout}).
-   * First-three: set `false` so the first pass after load may auto-fit unless a later `onPreviewLayoutChange` suppresses.
-   */
+  /** After restore / init: next layout measures once without auto-fit mutations. */
   private syncPreviewAutoFitSuppressWithExamType(): void {
-    this.previewAutoFitSuppressNextLayoutRun = !this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey);
+    this.previewAutoFitSuppressNextLayoutRun = true;
   }
 
   onHeaderMetaChange(): void {
     this.headerUseLegacyQuestionHeader = false;
     this.rebuildQuestionHeader();
-    const runAutoFit = this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey);
-    // First-three exam: allow auto-fit on next layout; other exams: suppress (header text changed but policy unchanged).
-    this.onPreviewLayoutChange({ suppressAutoFit: !runAutoFit });
+    this.onPreviewLayoutChange({ suppressAutoFit: true });
   }
 
   /**
@@ -5684,10 +5666,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }, 500);
   }
 
-  /** When exam allows auto-fit, keep stepped % ring in sync for layout-triggered overlays (not only Reset). */
+  /** Stepped % ring during Smart / forced auto-fit overlay (Reset uses {@link resetAutoFitOverlayVisible} path). */
   private maybeBootstrapAutoFitOverlayProgress(): void {
-    if (!this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey)) return;
-    if (this.resetAutoFitOverlayVisible) return;
+    if (!this.previewAutoFitForceOneLayoutChain || this.resetAutoFitOverlayVisible) return;
     if (this.resetAutoFitOverlayPercent < 10) {
       this.resetAutoFitOverlayPercent = 10;
     }
@@ -5828,9 +5809,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Central “something about the sheet preview changed” hook: bump layout generation id, reset in-flight auto-fit
    * expand/tighten state, optionally arm {@link previewAutoFitSuppressNextLayoutRun}, then queue {@link scheduleLayout}.
    *
-   * **`suppressAutoFit` option (default `true`)** — `true`: next `runLayout` for first-three exams skips auto-fit
-   * mutations once (see {@link previewAutoFitSuppressNextLayoutRun}). `false`: allow auto-fit on the next pass
-   * (margins, reset, exam change to first-three, Smart save, etc.).
+   * **`suppressAutoFit: true`** (default): next layout measures once without mutating fonts/gaps.
+   * **`suppressAutoFit: false`**: arm immediate auto-fit (Reset / Smart / forced chains).
    */
   onPreviewLayoutChange(options?: { suppressAutoFit?: boolean }): void {
     // Caller passes `false` only when the next pagination should be allowed to auto-adjust (see JSDoc above).
@@ -5853,7 +5833,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       // Typical path: sliders, fonts, columns — keep current numbers for one layout pass before auto-fit may run again.
       this.previewAutoFitSuppressNextLayoutRun = true;
     } else {
-      // Explicit “run auto-fit if exam allows” (e.g. margins, reset, exam meta) — do not skip the next mutation pass.
+      // Forced full auto-fit on the next layout pass (Smart / Reset paths).
       this.previewAutoFitSuppressNextLayoutRun = false;
     }
     this.ensureMcqTextareaSixUpperLines();
@@ -6243,8 +6223,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * After everything is at minimum, record how many MCQ / CQ sheets (or total sheets for single-kind) the content needs.
-   * That ceiling is reused for growth: any bump that increases sheets beyond these counts must be reverted before trying other knobs.
+   * At min font/gaps: record how many MCQ and CQ sheets pagination needs — that is the page budget for font growth
+   * (stop +1px when a kind would exceed its measured count), then widen gaps to fill slack on those sheets.
    */
   private captureBaselineSheetBudgetsFromMeasuringPreview(candidatePages: PreviewPage[]): void {
     if (this.autoFitBaselineBudgetsCaptured) return;
@@ -6599,24 +6579,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Predicate for gap/LH/header-LH bumps after baseline snapshot: no more MCQ/CQ sheets than were required at minimum layout.
-   * Header line-height is shared — still requires both kinds within budget when both are selected.
+   * Gap/LH bumps must not push MCQ or CQ past the sheet counts measured at min font (see baseline capture).
    */
   private autoFitExpandLayoutOk(
     counts: { creative: number; mcq: number },
     totalSheetPages: number
   ): boolean {
-    if (!this.autoFitBaselineBudgetsCaptured) {
-      const hasM = this.selectionHasMcqType();
-      const hasC = this.selectionHasCreativeType();
-      if (hasM && !hasC) {
-        return totalSheetPages <= 2 && counts.creative === 0;
-      }
-      if (hasM && hasC) {
-        return counts.mcq <= 2 && counts.creative <= 2;
-      }
-      return counts.mcq <= 1 && counts.creative <= 2;
-    }
     return this.mcqSheetsAtOrBelowBaseline(counts, totalSheetPages) && this.cqSheetsAtOrBelowBaseline(counts, totalSheetPages);
   }
 
@@ -8084,23 +8052,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             delete p.leadBindingItems;
           }
         }
-        // --- Auto-fit gate: only “first three” exam types auto-adjust unless Smart/Reset sets previewAutoFitForceOneLayoutChain.
-        // Same order as commit 7d752c6 (“Working Download”); segment pagination + options grid are layered on top.
-        const examAllowsAutoFit = this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey);
-        // Default: skip all mutation helpers below when exam name is not in the auto-fit whitelist.
-        let suppressAutoFit = !examAllowsAutoFit;
+        // --- Auto-fit: min font/gaps → snapshot required MCQ/CQ pages → grow fonts within that → widen gaps.
+        let suppressAutoFit = false;
         if (this.optionsLayoutRelayoutPending && !this.previewAutoFitForceOneLayoutChain) {
-          // Options column pass changed grid only — keep sheet fonts/gaps from Working Download auto-fit.
           this.optionsLayoutRelayoutPending = false;
           suppressAutoFit = true;
         }
-        if (examAllowsAutoFit && this.previewAutoFitSuppressNextLayoutRun) {
-          // Manual onPreviewLayoutChange() sets this so one layout pass uses current fonts without auto mutations.
+        if (this.previewAutoFitSuppressNextLayoutRun) {
           suppressAutoFit = true;
           this.previewAutoFitSuppressNextLayoutRun = false;
         }
         if (this.previewAutoFitForceOneLayoutChain) {
-          // Reset Settings / Smart path: run the full pipeline once even if exam would normally suppress.
           suppressAutoFit = false;
         }
         // Auto-fit pipeline (each helper may call scheduleLayout() and return true to defer assigning paginatedPages):
@@ -8147,7 +8109,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             this.layoutTimer == null &&
             this.resetAutoFitOverlayPercent >= 10 &&
             this.resetAutoFitOverlayPercent < 100 &&
-            this.examTypeKeyIsFirstThreeExamOptions(this.headerExamTypeKey) &&
+            this.previewAutoFitForceOneLayoutChain &&
             !this.resetAutoFitOverlayVisible &&
             this.layoutPassInFlight
           ) {
