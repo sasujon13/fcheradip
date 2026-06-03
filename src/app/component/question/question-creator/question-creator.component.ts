@@ -812,6 +812,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Set when navigating from /question with `smartCreator`; cleared after optional post-init {@link save}. */
   private smartCreatorSavePending = false;
   /**
+   * Set when navigating from `/question` with a fresh question selection (non–Smart Creator).
+   * Cleared after {@link runForcedPreviewAutoFit} on init — same pipeline as Smart / Reset.
+   */
+  private incomingNavAutoFitPending = false;
+  /**
    * Header fields chosen in /question Smart Question Creator modal (EIIN, exam, set).
    * Kept through first-visit {@link resetCreatorSettings} so MCQ set is not cleared before auto-save.
    */
@@ -934,8 +939,26 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.flushInitialEiinLookup();
     queueMicrotask(() => {
       this.maybeRunFirstVisitAutoReset();
-      queueMicrotask(() => this.maybeCompleteSmartCreatorSaveAfterInit());
+      queueMicrotask(() => {
+        this.maybeCompleteSmartCreatorSaveAfterInit();
+        this.maybeRunIncomingNavAutoFitAfterInit();
+      });
     });
+  }
+
+  /**
+   * Regular `/question` → `/question/create` handoff (not Smart Creator): run the same forced preview auto-fit
+   * as Reset / Smart after header + measure blocks are ready.
+   */
+  private maybeRunIncomingNavAutoFitAfterInit(): void {
+    if (!this.incomingNavAutoFitPending) {
+      return;
+    }
+    this.incomingNavAutoFitPending = false;
+    if (this.questions.length === 0) {
+      return;
+    }
+    void this.runForcedPreviewAutoFit();
   }
 
   /**
@@ -1689,6 +1712,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     this.syncQuestionListFilterTypesFromNavigation(incoming.questionTypes);
     this.clearManualOptionsColumnsOverride();
+    if (!incoming.smartCreator) {
+      this.incomingNavAutoFitPending = true;
+    }
     this.mergeLayoutFromLocalStorage();
     this.initializeStructuredHeaderForCurrentSelection();
     if (incoming.smartCreator) {
