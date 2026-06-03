@@ -441,6 +441,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private autoFitExpandGapPreferSinglePxBump = false;
 
   /**
+   * Mixed CQ+MCQ: finish CQ font + CQ gap expansion before any MCQ auto-fit (avoids cross-kind layout churn / loops).
+   */
+  private autoFitMixedKindPhase: 'cq' | 'mcq' | null = null;
+
+  /** Layout passes that bail early for auto-fit; capped so a bug cannot spin forever. */
+  private autoFitLayoutDeferrals = 0;
+
+  /**
    * After gap expand: try +0.1 header line height while sheet counts stay within min-font budgets (cleared on layout change).
    * Revert and block further tries this session if overflow (cleared on {@link onPreviewLayoutChange}).
    */
@@ -6070,21 +6078,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return lastMcq === pageIndex;
   }
 
-  private shouldUseLeadEmptyFirstColumnFromPages(pages: PreviewPage[]): boolean {
-    if (this.creativeQuestionsAllFitOnOneSheetPage(pages).ok) {
-      return false;
-    }
-    if (pages.length <= 1) return false;
-    if (Math.max(1, Math.floor(this.layoutColumnsForSheetPage(0))) <= 1) return false;
-    if (!this.landscapeSheetPageForPreview(0)) return false;
-    const k0 = this.sheetPreviewKindKey(0, pages);
-    let n = 0;
-    for (let i = 0; i < pages.length; i++) {
-      if (this.sheetPreviewKindKey(i, pages) === k0) n++;
-    }
-    return n > 1;
-  }
-
   /**
    * Lead-empty binding behavior:
    * Move the last page of the same kind’s column-2 contents into the first page’s lead binding column.
@@ -6159,6 +6152,69 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitMcqFontLockedThisRun = false;
     this.autoFitCqFontLockedThisRun = false;
     this.autoFitExpandGapPreferSinglePxBump = false;
+    this.autoFitMixedKindPhase =
+      this.selectionHasMcqType() && this.selectionHasCreativeType() ? 'cq' : null;
+    this.autoFitLayoutDeferrals = 0;
+  }
+
+  private autoFitMixedMcqAndCqActive(): boolean {
+    return this.autoFitMixedKindPhase != null;
+  }
+
+  /** True when CQ font growth or CQ gap expansion may still run this session. */
+  private autoFitCqKindWorkRemaining(candidatePages: PreviewPage[]): boolean {
+    if (!this.selectionHasCreativeType() || !this.autoFitBaselineBudgetsCaptured) {
+      return false;
+    }
+    if (this.autoFitExpandPending?.kind === 'cqGap') {
+      return true;
+    }
+    const H = QuestionCreatorComponent;
+    const maxQ = H.PREVIEW_QUESTIONS_FONT_MAX_PX;
+    if (
+      !this.autoFitCqFontLockedThisRun &&
+      this.autoFitCqGrowBlockedSeq !== this.previewLayoutChangeSeq &&
+      this.previewQuestionsFontPxCreative < maxQ
+    ) {
+      return true;
+    }
+    if (this.questionsGapCreative >= H.QUESTIONS_GAP_MAX_PX) {
+      return false;
+    }
+    if (this.autoFitExpandStepBlocked.has('cqGap')) {
+      return false;
+    }
+    const counts = this.countKindsInCandidatePages(candidatePages);
+    if (!this.cqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
+      return false;
+    }
+    return this.nextAutoFitGapBumpPx('cq', candidatePages, H) > 0;
+  }
+
+  /** After CQ font + CQ gaps are settled, run MCQ-only auto-fit. */
+  private maybeAdvanceAutoFitMixedKindPhase(candidatePages: PreviewPage[]): void {
+    if (this.autoFitMixedKindPhase !== 'cq') {
+      return;
+    }
+    if (!this.autoFitBaselineBudgetsCaptured) {
+      return;
+    }
+    const counts = this.countKindsInCandidatePages(candidatePages);
+    const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
+    if (
+      this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts) &&
+      this.previewQuestionsFontPxCreative > minQ
+    ) {
+      return;
+    }
+    if (this.autoFitCqKindWorkRemaining(candidatePages)) {
+      return;
+    }
+    this.autoFitMixedKindPhase = 'mcq';
+    this.autoFitExpandPhase = 0;
+    this.autoFitExpandPending = null;
+    this.autoFitExpandStepBlocked.clear();
+    this.autoFitExpandGapPreferSinglePxBump = false;
   }
 
   /**
@@ -6169,28 +6225,22 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private isAtHardAutoFitBaselineMinimum(): boolean {
     const H = QuestionCreatorComponent;
     const minPx = H.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
-    if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) return false;
     if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) return false;
-    if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) return false;
+    if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) return false;
     if (this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) return false;
+    if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) return false;
     if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) return false;
     return true;
   }
 
   /**
    * One layout pass: nudge a single property closer to auto-fit minimums (fonts first, then gaps, padding).
+   * When both CQ and MCQ exist, tighten CQ before MCQ each step.
    * Does not change {@link previewHeaderLineHeight}, CQ/MCQ body line heights, or per-line header fonts.
    */
   private autoFitTakeOneStepTowardsMinimumHard(): boolean {
     const H = QuestionCreatorComponent;
     const minPx = H.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
-    if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) {
-      this.previewQuestionsFontPxMcq--;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
-        skipBumpHeaderTrackedLinesToQuestionBody: true,
-      });
-      return true;
-    }
     if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) {
       this.previewQuestionsFontPxCreative--;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
@@ -6198,12 +6248,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       });
       return true;
     }
-    if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) {
-      this.questionsGap = Math.max(H.QUESTIONS_GAP_MIN_PX, this.questionsGap - 1);
+    if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) {
+      this.previewQuestionsFontPxMcq--;
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
+        skipBumpHeaderTrackedLinesToQuestionBody: true,
+      });
       return true;
     }
     if (this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) {
       this.questionsGapCreative = Math.max(H.QUESTIONS_GAP_MIN_PX, this.questionsGapCreative - 1);
+      return true;
+    }
+    if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) {
+      this.questionsGap = Math.max(H.QUESTIONS_GAP_MIN_PX, this.questionsGap - 1);
       return true;
     }
     if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) {
@@ -6223,8 +6280,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * At min font/gaps: record how many MCQ and CQ sheets pagination needs — that is the page budget for font growth
-   * (stop +1px when a kind would exceed its measured count), then widen gaps to fill slack on those sheets.
+   * At minimum question font and per-kind gaps: snapshot **required** MCQ vs CQ sheet counts from the real pagination.
+   * Those counts are the **page budget** for that kind: body font is raised +1px only while the count stays ≤ snapshot;
+   * if a trial would add a sheet, it is reverted and that kind’s font stops growing. After fonts stabilize,
+   * {@link maybeAutoFitExpandSpacingAfterFontFit} widens gaps (CQ before MCQ when both exist) to eat slack on those sheets.
    */
   private captureBaselineSheetBudgetsFromMeasuringPreview(candidatePages: PreviewPage[]): void {
     if (this.autoFitBaselineBudgetsCaptured) return;
@@ -6291,10 +6350,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const cqBudget = this.autoFitBaselineSheetBudgetCq;
     const overMcq = this.selectionHasMcqType() && mcqBudget != null && counts.mcq > mcqBudget;
     const overCq = this.selectionHasCreativeType() && cqBudget != null && counts.creative > cqBudget;
+    const phase = this.autoFitMixedKindPhase;
+    const overMcqActive = overMcq && phase !== 'cq';
+    const overCqActive = overCq && phase !== 'mcq';
     // Smallest allowed inner padding around the question stack (shared for both kinds in this step).
     const minPad = QuestionCreatorComponent.QUESTIONS_PADDING_MIN_PX;
 
-    if (overMcq || overCq) {
+    if (overMcqActive || overCqActive) {
       // Only shrink padding if there is room above the hard minimum (otherwise this step would do nothing).
       if (this.questionsPadding > minPad) {
         // Reduce shared padding by 1px (clamped to min) to free vertical space without touching per-kind gaps here.
@@ -6319,19 +6381,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const mcqOver = this.selectionHasMcqType() && this.autoFitMcqSheetsOverBaselineBudget(candidatePages, counts);
     const cqOver =
       this.selectionHasCreativeType() && this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts);
+    const phase = this.autoFitMixedKindPhase;
 
-    if (mcqOver && this.previewQuestionsFontPxMcq > minQAuto) {
-      this.previewQuestionsFontPxMcq = Math.max(minQAuto, this.previewQuestionsFontPxMcq - 1); //  *
-      this.autoFitMcqFontLockedThisRun = true;
+    if (cqOver && phase !== 'mcq' && this.previewQuestionsFontPxCreative > minQAuto) {
+      this.previewQuestionsFontPxCreative = Math.max(minQAuto, this.previewQuestionsFontPxCreative - 1); //  *
+      this.autoFitCqFontLockedThisRun = true;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
         skipBumpHeaderTrackedLinesToQuestionBody: true,
       });
       this.scheduleLayout();
       return true;
     }
-    if (cqOver && this.previewQuestionsFontPxCreative > minQAuto) {
-      this.previewQuestionsFontPxCreative = Math.max(minQAuto, this.previewQuestionsFontPxCreative - 1); //  *
-      this.autoFitCqFontLockedThisRun = true;
+    if (mcqOver && phase !== 'cq' && this.previewQuestionsFontPxMcq > minQAuto) {
+      this.previewQuestionsFontPxMcq = Math.max(minQAuto, this.previewQuestionsFontPxMcq - 1); //  *
+      this.autoFitMcqFontLockedThisRun = true;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
         skipBumpHeaderTrackedLinesToQuestionBody: true,
       });
@@ -6342,25 +6405,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * Font growth (+1 px trials) alternating CQ/MCQ when both exist; delegated per-kind helpers use baseline budgets.
-   * Used only from {@link maybeAutoFitQuestionFontsOnly} after baseline sheet budgets exist.
+   * Font growth (+1 px trials). Mixed CQ+MCQ: **CQ phase** (font then gaps) completes before **MCQ phase** —
+   * see {@link autoFitMixedKindPhase} and {@link maybeAdvanceAutoFitMixedKindPhase}.
    */
   private maybeAutoFitRegularPreferOneThenTwo(candidatePages: PreviewPage[]): boolean {
     const hasM = this.selectionHasMcqType();
     const hasC = this.selectionHasCreativeType();
     if (hasM && hasC) {
-      const cqFirst = this.previewLayoutChangeSeq % 2 === 0;
-      const first = cqFirst
-        ? this.maybeAutoFitCqQuestionFontPages(candidatePages, { deferSchedule: true })
-        : this.maybeAutoFitMcqQuestionFontPages(candidatePages, { deferSchedule: true });
-      const second = cqFirst
-        ? this.maybeAutoFitMcqQuestionFontPages(candidatePages, { deferSchedule: true })
-        : this.maybeAutoFitCqQuestionFontPages(candidatePages, { deferSchedule: true });
-      if (first || second) {
-        this.scheduleLayout();
-        return true;
+      this.maybeAdvanceAutoFitMixedKindPhase(candidatePages);
+      if (this.autoFitMixedKindPhase === 'cq') {
+        return this.maybeAutoFitCqQuestionFontPages(candidatePages);
       }
-      return false;
+      return this.maybeAutoFitMcqQuestionFontPages(candidatePages);
     }
     if (hasM && !hasC) {
       return this.maybeAutoFitMcqQuestionFontPages(candidatePages);
@@ -6383,10 +6439,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /** MCQ question font: +1px trial while MCQ sheet count stays ≤ baseline budget; revert and lock if it would add a sheet. */
-  private maybeAutoFitMcqQuestionFontPages(
-    candidatePages: PreviewPage[],
-    options?: { deferSchedule?: boolean }
-  ): boolean {
+  private maybeAutoFitMcqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
     if (!this.selectionHasMcqType() || !this.autoFitBaselineBudgetsCaptured) return false;
     const seq = this.previewLayoutChangeSeq;
     const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
@@ -6394,9 +6447,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const counts = this.countKindsInCandidatePages(candidatePages);
     const mcqOverflow = this.autoFitMcqSheetsOverBaselineBudget(candidatePages, counts);
     const cur = this.previewQuestionsFontPxMcq;
-    const defer = options?.deferSchedule === true;
     const finish = (): boolean => {
-      if (!defer) this.scheduleLayout();
+      this.scheduleLayout();
       return true;
     };
 
@@ -6414,16 +6466,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return finish();
     }
 
-    if (mcqOverflow) {
-      if (cur <= minQ) return false;
-      this.autoFitMcqFontLockedThisRun = true;
-      this.previewQuestionsFontPxMcq = Math.max(minQ, cur - 1); //  *
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
-        skipBumpHeaderTrackedLinesToQuestionBody: true,
-      });
-      return finish();
-    }
-
     if (this.autoFitMcqFontLockedThisRun) return false;
     if (this.autoFitMcqGrowBlockedSeq === seq) return false;
     if (cur >= maxQ) return false;
@@ -6438,10 +6480,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /** CQ question font: +1px trial while creative sheet count stays ≤ baseline budget; revert and lock if it would add a sheet. */
-  private maybeAutoFitCqQuestionFontPages(
-    candidatePages: PreviewPage[],
-    options?: { deferSchedule?: boolean }
-  ): boolean {
+  private maybeAutoFitCqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
     if (!this.selectionHasCreativeType() || !this.autoFitBaselineBudgetsCaptured) return false;
     const seq = this.previewLayoutChangeSeq;
     const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
@@ -6449,9 +6488,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const counts = this.countKindsInCandidatePages(candidatePages);
     const cqOverflow = this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts);
     const cur = this.previewQuestionsFontPxCreative;
-    const defer = options?.deferSchedule === true;
     const finish = (): boolean => {
-      if (!defer) this.scheduleLayout();
+      this.scheduleLayout();
       return true;
     };
 
@@ -6466,16 +6504,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         skipBumpHeaderTrackedLinesToQuestionBody: true,
       });
       this.autoFitCqGrowBlockedSeq = seq;
-      return finish();
-    }
-
-    if (cqOverflow) {
-      if (cur <= minQ) return false;
-      this.autoFitCqFontLockedThisRun = true;
-      this.previewQuestionsFontPxCreative = Math.max(minQ, cur - 1); //  *
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
-        skipBumpHeaderTrackedLinesToQuestionBody: true,
-      });
       return finish();
     }
 
@@ -6592,8 +6620,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const hasM = this.selectionHasMcqType();
     const hasC = this.selectionHasCreativeType();
     if (hasM && hasC) {
-      // Mixed: gaps only — CQ/MCQ body line heights stay user-set (defaults 1.25, min 1).
-      return ['mcqGap', 'cqGap'];
+      return this.autoFitMixedKindPhase === 'mcq' ? ['mcqGap'] : ['cqGap'];
     }
     if (hasM) {
       return ['mcqGap'];
@@ -6732,9 +6759,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.autoFitExpandGapPreferSinglePxBump = false;
       return false;
     }
-    // Revert bump: try smaller increments next — do not permanently block this kind on one failed trial.
+    // Revert bump: retry with +1 px once; if +1 px still fails, stop retrying this step (prevents infinite layout loop).
     if (p.kind === 'mcqGap' || p.kind === 'cqGap') {
-      this.autoFitExpandGapPreferSinglePxBump = true;
+      if (this.autoFitExpandGapPreferSinglePxBump) {
+        this.autoFitExpandStepBlocked.add(p.kind);
+      } else {
+        this.autoFitExpandGapPreferSinglePxBump = true;
+      }
     }
     switch (p.kind) {
       case 'cqGap':
@@ -6792,11 +6823,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     const H = QuestionCreatorComponent;
     const counts = this.countKindsInCandidatePages(candidatePages);
-    if (!this.autoFitBaselineBudgetsCaptured) {
-      if (!this.autoFitExpandLayoutOk(counts, candidatePages.length)) {
-        return false;
-      }
-    } else if (!this.mcqSheetsAtOrBelowBaseline(counts, candidatePages.length) && !this.cqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
+    if (!this.mcqSheetsAtOrBelowBaseline(counts, candidatePages.length) && !this.cqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
       // Both kinds over baseline — font/padding shrink must run first; do not try any gap/LH expand.
       return false;
     }
@@ -8008,6 +8035,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.measuredHeaderHeightPx = headerCreativePx;
         this.measuredMcqHeaderHeightPx = headerMcqPx;
 
+        this.resolveMixedTypesSinglePageMergedHeaderFromProbe(
+          heights,
+          innerH,
+          headerCreativePx,
+          headerMcqPx,
+          pq
+        );
+        /** Lead-empty pagination is disabled — keep display columns aligned with user MCQ/CQ column steppers. */
+        this.leadEmptyFirstPageActive = false;
+
         const candidatePages = this.splitIntoPages(
           heights,
           innerH,
@@ -8016,41 +8053,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.pageSections,
           pq
         );
-        const shouldMergeHeaderForSinglePage =
-          this.paperSubjectMetaLinesEligible() &&
-          this.selectionHasBothHeaderTypes() &&
-          candidatePages.length <= 1;
-        if (shouldMergeHeaderForSinglePage !== this.mixedTypesSinglePageMergedHeader) {
-          this.mixedTypesSinglePageMergedHeader = shouldMergeHeaderForSinglePage;
-          this.scheduleLayout();
-          return;
-        }
-        const shouldLeadEmptyFirst = this.shouldUseLeadEmptyFirstColumnFromPages(candidatePages);
-        if (shouldLeadEmptyFirst !== this.leadEmptyFirstPageActive) {
-          this.leadEmptyFirstPageActive = shouldLeadEmptyFirst;
-          if (!shouldLeadEmptyFirst) {
-            for (const p of candidatePages) {
-              delete p.leadBindingItems;
-            }
-          }
-          this.scheduleLayout();
-          return;
-        }
-        if (this.leadEmptyFirstPageActive) {
-          this.applyLeadEmptyMoveLastPageColumnToFirstBinding(candidatePages);
-          if (!this.shouldUseLeadEmptyFirstColumnFromPages(candidatePages)) {
-            this.leadEmptyFirstPageActive = false;
-            for (const p of candidatePages) {
-              delete p.leadBindingItems;
-            }
-            this.scheduleLayout();
-            return;
-          }
-        }
-        if (!this.leadEmptyFirstPageActive) {
-          for (const p of candidatePages) {
-            delete p.leadBindingItems;
-          }
+        for (const p of candidatePages) {
+          delete p.leadBindingItems;
         }
         // --- Auto-fit: min font/gaps → snapshot required MCQ/CQ pages → grow fonts within that → widen gaps.
         let suppressAutoFit = false;
@@ -8069,31 +8073,38 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         // (0) ramp to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
         // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps only (7) header LH no-op.
         if (!suppressAutoFit) {
-          if (this.maybeRevertAutoFitExpandIfInvalid(candidatePages)) {
+          const autoFitDeferLimit = 400;
+          let autoFitDeferred = false;
+          if (this.autoFitLayoutDeferrals < autoFitDeferLimit) {
+            if (this.maybeRevertAutoFitExpandIfInvalid(candidatePages)) {
+              autoFitDeferred = true;
+            } else if (this.maybeRevertAutoFitHeaderLineHeightIfInvalid(candidatePages)) {
+              autoFitDeferred = true;
+            } else if (this.maybeRampDownToAutoFitBaselineMinimum()) {
+              autoFitDeferred = true;
+            } else {
+              this.captureBaselineSheetBudgetsFromMeasuringPreview(candidatePages);
+              if (this.autoFitMixedMcqAndCqActive()) {
+                this.maybeAdvanceAutoFitMixedKindPhase(candidatePages);
+              }
+              if (this.maybeAutoFitQuestionFontsOnly(candidatePages)) {
+                autoFitDeferred = true;
+              } else if (this.maybeAutoFitPerKindSpacingTargets(candidatePages)) {
+                autoFitDeferred = true;
+              } else if (this.maybeAutoFitRegularTightenLayoutAfterMinFont(candidatePages)) {
+                autoFitDeferred = true;
+              } else if (this.maybeAutoFitExpandSpacingAfterFontFit(candidatePages)) {
+                autoFitDeferred = true;
+              } else if (this.maybeAutoFitHeaderLineHeightAfterExpand(candidatePages)) {
+                autoFitDeferred = true;
+              }
+            }
+          }
+          if (autoFitDeferred) {
+            this.autoFitLayoutDeferrals++;
             return;
           }
-          if (this.maybeRevertAutoFitHeaderLineHeightIfInvalid(candidatePages)) {
-            return;
-          }
-          if (this.maybeRampDownToAutoFitBaselineMinimum()) {
-            return;
-          }
-          this.captureBaselineSheetBudgetsFromMeasuringPreview(candidatePages);
-          if (this.maybeAutoFitQuestionFontsOnly(candidatePages)) {
-            return;
-          }
-          if (this.maybeAutoFitPerKindSpacingTargets(candidatePages)) {
-            return;
-          }
-          if (this.maybeAutoFitRegularTightenLayoutAfterMinFont(candidatePages)) {
-            return;
-          }
-          if (this.maybeAutoFitExpandSpacingAfterFontFit(candidatePages)) {
-            return;
-          }
-          if (this.maybeAutoFitHeaderLineHeightAfterExpand(candidatePages)) {
-            return;
-          }
+          this.autoFitLayoutDeferrals = 0;
         }
         this.paginatedPages = candidatePages;
         this.layoutDidCommitPaginatedPages = true;
@@ -8325,6 +8336,52 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     const usedAreaSum = flatItems.reduce((s, it) => s + (heights[it.index] ?? 0), 0);
     return { flatItems, columnStacks, nextQ: q, pageHasOversized, usedAreaSum };
+  }
+
+  /**
+   * Mixed CQ + MCQ: merged single-sheet header vs split headers cannot be derived from pagination that depends on the
+   * same flag — that feeds back (`scheduleLayout`) forever. Decide from a split-layout probe instead, once per pass.
+   */
+  private resolveMixedTypesSinglePageMergedHeaderFromProbe(
+    heights: number[],
+    innerH: number,
+    headerCreativePx: number,
+    headerMcqPx: number,
+    questionList: any[]
+  ): void {
+    if (!this.paperSubjectMetaLinesEligible() || !this.selectionHasBothHeaderTypes()) {
+      this.mixedTypesSinglePageMergedHeader = false;
+      return;
+    }
+
+    this.leadEmptyFirstPageActive = false;
+    this.mixedTypesSinglePageMergedHeader = false;
+
+    const probeSplit = this.splitIntoPages(
+      heights,
+      innerH,
+      headerCreativePx,
+      headerMcqPx,
+      this.pageSections,
+      questionList
+    );
+
+    if (probeSplit.length <= 1) {
+      this.mixedTypesSinglePageMergedHeader = true;
+      const probeMerged = this.splitIntoPages(
+        heights,
+        innerH,
+        headerCreativePx,
+        headerMcqPx,
+        this.pageSections,
+        questionList
+      );
+      if (probeMerged.length > 1) {
+        this.mixedTypesSinglePageMergedHeader = false;
+      }
+    } else {
+      this.mixedTypesSinglePageMergedHeader = false;
+    }
   }
 
   /** One vertical canvas: multi-column column-major fill (no horizontal page bands). */
