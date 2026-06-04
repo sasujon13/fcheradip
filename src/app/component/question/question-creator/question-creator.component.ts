@@ -505,8 +505,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private static readonly QUESTIONS_PADDING_MIN_PX = 0;
   private static readonly QUESTIONS_PADDING_MAX_PX = 100;
-  private static readonly QUESTIONS_PADDING_DEFAULT_PX = 2;
-  private static readonly PREVIEW_QUESTIONS_FONT_DEFAULT_PX = 10;
+  private static readonly QUESTIONS_PADDING_DEFAULT_PX = 0;
+  private static readonly PREVIEW_QUESTIONS_FONT_DEFAULT_PX = 8;
   private static readonly PREVIEW_QUESTIONS_FONT_MIN_PX = 7;
   /** Regular auto-fit: stop shrinking here (7px remains manual / stepper only). */
   private static readonly PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX = 8;
@@ -613,8 +613,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private static readonly QUESTIONS_GAP_MIN_PX = 0;
   private static readonly QUESTIONS_GAP_MAX_PX = 100;
-  private static readonly QUESTIONS_GAP_MCQ_DEFAULT_PX = 2;
-  private static readonly QUESTIONS_GAP_CQ_DEFAULT_PX = 4;
+  private static readonly QUESTIONS_GAP_MCQ_DEFAULT_PX = 0;
+  private static readonly QUESTIONS_GAP_CQ_DEFAULT_PX = 0;
 
   private static readonly PAGE_SECTIONS_MIN = 1;
   private static readonly PAGE_SECTIONS_MAX = 10;
@@ -1131,6 +1131,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     try {
       this.clearManualOptionsColumnsOverride();
       this.previewAutoFitForceOneLayoutChain = true;
+      this.applyHardAutoFitBaselineMinimumsSync();
       this.maybeBootstrapAutoFitOverlayProgress();
       this.onPreviewLayoutChange({ suppressAutoFit: false });
       await this.waitForLayoutIdle(90_000);
@@ -6419,47 +6420,43 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * One layout pass: nudge a single property closer to auto-fit minimums (fonts first, then gaps, padding).
-   * When both CQ and MCQ exist, tighten CQ before MCQ each step.
-   * Does not change {@link previewHeaderLineHeight}, CQ/MCQ body line heights, or per-line header fonts.
+   * Jump CQ/MCQ question font, per-kind gaps, and shared padding to hard auto-fit minimums in one update.
    */
-  private autoFitTakeOneStepTowardsMinimumHard(): boolean {
+  private applyHardAutoFitBaselineMinimumsSync(): boolean {
+    if (this.autoFitBaselineBudgetsCaptured || this.isAtHardAutoFitBaselineMinimum()) {
+      return false;
+    }
     const H = QuestionCreatorComponent;
     const minPx = H.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
+    let fontChanged = false;
     if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) {
-      this.previewQuestionsFontPxCreative--;
-      this.syncGlobalPreviewQuestionsFontPxFromPerKind({
-        skipBumpHeaderTrackedLinesToQuestionBody: true,
-      });
-      return true;
+      this.previewQuestionsFontPxCreative = minPx;
+      fontChanged = true;
     }
     if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) {
-      this.previewQuestionsFontPxMcq--;
+      this.previewQuestionsFontPxMcq = minPx;
+      fontChanged = true;
+    }
+    if (fontChanged) {
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
         skipBumpHeaderTrackedLinesToQuestionBody: true,
       });
-      return true;
     }
     if (this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) {
-      this.questionsGapCreative = Math.max(H.QUESTIONS_GAP_MIN_PX, this.questionsGapCreative - 1);
-      return true;
+      this.questionsGapCreative = H.QUESTIONS_GAP_MIN_PX;
     }
     if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) {
-      this.questionsGap = Math.max(H.QUESTIONS_GAP_MIN_PX, this.questionsGap - 1);
-      return true;
+      this.questionsGap = H.QUESTIONS_GAP_MIN_PX;
     }
     if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) {
-      this.questionsPadding = Math.max(H.QUESTIONS_PADDING_MIN_PX, this.questionsPadding - 1);
-      return true;
+      this.questionsPadding = H.QUESTIONS_PADDING_MIN_PX;
     }
-    /* Paper header LH and structured header line px are not tightened here. */
-    return false;
+    return true;
   }
 
   private maybeRampDownToAutoFitBaselineMinimum(): boolean {
     if (this.autoFitBaselineBudgetsCaptured) return false;
-    if (this.isAtHardAutoFitBaselineMinimum()) return false;
-    if (!this.autoFitTakeOneStepTowardsMinimumHard()) return false;
+    if (!this.applyHardAutoFitBaselineMinimumsSync()) return false;
     this.scheduleLayout();
     return true;
   }
@@ -8318,7 +8315,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           suppressAutoFit = false;
         }
         // Auto-fit pipeline (each helper may call scheduleLayout() and return true to defer further tuning):
-        // (0) ramp to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
+        // (0) jump to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
         // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps only (7) header LH no-op.
         if (!suppressAutoFit) {
           const autoFitDeferLimit = 400;
