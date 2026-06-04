@@ -1335,7 +1335,28 @@
                   [style.--preview-q-bn-paren-inset.px]="previewQuestionBnParenInsetPx"
                   [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
                 >
-                  <p class="preview-empty-msg">No questions yet — pagination will appear here when you add questions.</p>
+                  <ng-container *ngIf="layoutMeasureQuestions.length === 0; else provisionalPreview">
+                    <p class="preview-empty-msg">No questions yet — pagination will appear here when you add questions.</p>
+                  </ng-container>
+                  <ng-template #provisionalPreview>
+                    <div
+                      class="preview-header"
+                      *ngIf="questionHeader?.trim()"
+                    >
+                      <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: 0 }"></ng-container>
+                    </div>
+                    <div class="preview-questions preview-questions--provisional">
+                      <div
+                        *ngFor="let q of layoutMeasureQuestions; let i = index; trackBy: trackMeasureQ"
+                        class="preview-q"
+                        [ngStyle]="previewQuestionBlockStyleForQ(q)"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="previewQuestionBlock; context: { q: q, sl: previewQuestionDisplaySerialOneBased(i, q), idx: i }"
+                        ></ng-container>
+                      </div>
+                    </div>
+                  </ng-template>
                 </div>
               </div>
             </ng-template>

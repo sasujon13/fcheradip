@@ -8202,6 +8202,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           pq
         );
         this.applyLeadEmptyMoveLastPageColumnToFirstBinding(candidatePages);
+        // Show the current pagination immediately; auto-fit may still adjust typography and re-layout.
+        this.paginatedPages = candidatePages;
+        this.updatePreviewFitScale();
+        this.cdr.markForCheck();
         // --- Auto-fit: min font/gaps → snapshot required MCQ/CQ pages → grow fonts within that → widen gaps.
         let suppressAutoFit = false;
         if (this.optionsLayoutRelayoutPending && !this.previewAutoFitForceOneLayoutChain) {
@@ -8215,7 +8219,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (this.previewAutoFitForceOneLayoutChain) {
           suppressAutoFit = false;
         }
-        // Auto-fit pipeline (each helper may call scheduleLayout() and return true to defer assigning paginatedPages):
+        // Auto-fit pipeline (each helper may call scheduleLayout() and return true to defer further tuning):
         // (0) ramp to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
         // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps only (7) header LH no-op.
         if (!suppressAutoFit) {
@@ -8252,7 +8256,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           }
           this.autoFitLayoutDeferrals = 0;
         }
-        this.paginatedPages = candidatePages;
         this.layoutDidCommitPaginatedPages = true;
         if (this.previewAutoFitForceOneLayoutChain) {
           // Forced chain (Reset / Smart) completed one full pagination commit — return to normal exam gating.
@@ -8961,6 +8964,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       : p.items.map((x) => x.index).join('-');
 
   trackItem = (_: number, row: PreviewPageItem) => row.index;
+
+  trackMeasureQ = (i: number, q: { qid?: unknown }) => String(q?.qid ?? i);
 
   trackColumn = (index: number, _col: PreviewPageItem[]) => index;
 

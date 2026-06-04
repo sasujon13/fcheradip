@@ -776,10 +776,17 @@
 }
 
 .preview-sheet-empty .preview-empty-msg {
-  margin: 24px 0;
+  margin: 0;
+  padding: 12px 0;
   color: #666;
   font-size: 14px;
+  line-height: 1.45;
   text-align: center;
+}
+
+.preview-questions--provisional {
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-page-label {
