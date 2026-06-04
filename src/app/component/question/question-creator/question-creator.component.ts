@@ -6109,6 +6109,59 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return lastMcq === pageIndex;
   }
 
+  /** Count sheet pages whose content kind is CQ (creative). */
+  private creativeSheetPageCount(pages: PreviewPage[]): number {
+    let n = 0;
+    for (let i = 0; i < pages.length; i++) {
+      if (this.sheetPreviewKindKey(i, pages) === 'creative') {
+        n++;
+      }
+    }
+    return n;
+  }
+
+  /**
+   * CQ multi-page + landscape + 2+ columns: leave column 1 empty on page 1; pack from column 2;
+   * move the last CQ page’s trailing column into the binding column on page 1.
+   */
+  private resolveLeadEmptyFirstPageActiveFromProbe(
+    heights: number[],
+    innerH: number,
+    headerCreativePx: number,
+    headerMcqPx: number,
+    questionList: any[]
+  ): void {
+    this.leadEmptyFirstPageActive = false;
+    if (this.pageSections > 1) {
+      return;
+    }
+    if (!this.selectionHasCreativeType()) {
+      return;
+    }
+    if (Math.floor(this.layoutColumnsCreative) <= 1) {
+      return;
+    }
+    if (this.cqPageOrientation !== 'landscape') {
+      return;
+    }
+
+    const probePages = this.splitIntoPages(
+      heights,
+      innerH,
+      headerCreativePx,
+      headerMcqPx,
+      this.pageSections,
+      questionList
+    );
+    if (this.sheetPreviewKindKey(0, probePages) !== 'creative') {
+      return;
+    }
+    if (this.creativeSheetPageCount(probePages) <= 1) {
+      return;
+    }
+    this.leadEmptyFirstPageActive = true;
+  }
+
   /**
    * Lead-empty binding behavior:
    * Move the last page of the same kind’s column-2 contents into the first page’s lead binding column.
@@ -7055,10 +7108,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     questionList: any[],
     pageInnerH: number
   ): boolean {
-    if (cols <= 1 || headerPx <= 0 || startQ > 0) {
+    if (headerPx <= 0 || startQ > 0) {
       return false;
     }
     if (this.leadEmptyFirstPageActive && sheetPageIndex === 0) {
+      return this.paperHeaderVisibleForSheetPage(0);
+    }
+    if (cols <= 1) {
       return false;
     }
     if (!this.paperHeaderVisibleForSheetPage(sheetPageIndex)) {
@@ -8129,8 +8185,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           headerMcqPx,
           pq
         );
-        /** Lead-empty pagination is disabled — keep display columns aligned with user MCQ/CQ column steppers. */
-        this.leadEmptyFirstPageActive = false;
+        this.resolveLeadEmptyFirstPageActiveFromProbe(
+          heights,
+          innerH,
+          headerCreativePx,
+          headerMcqPx,
+          pq
+        );
 
         const candidatePages = this.splitIntoPages(
           heights,
@@ -8140,9 +8201,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.pageSections,
           pq
         );
-        for (const p of candidatePages) {
-          delete p.leadBindingItems;
-        }
+        this.applyLeadEmptyMoveLastPageColumnToFirstBinding(candidatePages);
         // --- Auto-fit: min font/gaps → snapshot required MCQ/CQ pages → grow fonts within that → widen gaps.
         let suppressAutoFit = false;
         if (this.optionsLayoutRelayoutPending && !this.previewAutoFitForceOneLayoutChain) {
@@ -8441,7 +8500,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
 
-    this.leadEmptyFirstPageActive = false;
     this.mixedTypesSinglePageMergedHeader = false;
 
     const probeSplit = this.splitIntoPages(
