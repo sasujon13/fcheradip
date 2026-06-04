@@ -7911,12 +7911,66 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return Math.max(1, innerH - headerBudget);
   }
 
-  /** Margin below a preview block; matches column packing gaps after {@link questionList} indices. */
+  /** Margin below a preview/measure block; CQ segments mirror merged PDF spacing. */
   questionBlockMarginBottomPx(q: { type?: unknown } | null | undefined): number {
-    if ((q as { answerSheetContinuation?: boolean })?.answerSheetContinuation) {
+    const row = q as {
+      answerSheetContinuation?: boolean;
+      answerSheetSegmentKind?: string;
+      answerSheetPartIndex?: number;
+      answerSheetPartCount?: number;
+    };
+    if (this.questionIsCreativeType(q ?? {})) {
+      const kind = (row.answerSheetSegmentKind ?? '').trim();
+      const fz = this.clampPreviewQuestionFontPx(this.previewQuestionsFontPxForQuestion(q as { type?: unknown }));
+      const subpartMt = Math.max(
+        0,
+        QuestionCreatorComponent.exportPlaywrightPreviewSpacingFromFontPx(fz).subpartMtPx
+      );
+      if (kind === 'intro') {
+        // Intro→(ক) gap is on .preview-q-stem-with-parts (--preview-q-stem-mb), not block margin.
+        return 0;
+      }
+      if (kind === 'part') {
+        const pi = row.answerSheetPartIndex ?? 0;
+        const pc = row.answerSheetPartCount ?? 0;
+        if (pc > 0 && pi < pc - 1) {
+          return subpartMt;
+        }
+        return this.questionsGapCreative;
+      }
+    }
+    if (row.answerSheetContinuation) {
       return Math.max(1, Math.round(this.questionsPadding / 2));
     }
     return this.questionIsCreativeType(q ?? {}) ? this.questionsGapCreative : this.questionsGap;
+  }
+
+  /** CQ segment padding: one block pad top/bottom per merged PDF .q-item, not per segment. */
+  private previewQuestionBlockPaddingPx(q: { type?: unknown }): { top: number; bottom: number } {
+    const p = this.questionsPadding;
+    const row = q as {
+      answerSheetContinuation?: boolean;
+      answerSheetSegmentKind?: string;
+      answerSheetPartIndex?: number;
+      answerSheetPartCount?: number;
+    };
+    if (!this.questionIsCreativeType(q)) {
+      return {
+        top: row.answerSheetContinuation ? 0 : p,
+        bottom: p,
+      };
+    }
+    const kind = (row.answerSheetSegmentKind ?? '').trim();
+    if (kind === 'intro') {
+      return { top: p, bottom: 0 };
+    }
+    if (kind === 'part') {
+      const pi = row.answerSheetPartIndex ?? 0;
+      const pc = row.answerSheetPartCount ?? 0;
+      const isLast = pc <= 0 || pi >= pc - 1;
+      return { top: 0, bottom: isLast ? p : 0 };
+    }
+    return { top: row.answerSheetContinuation ? 0 : p, bottom: p };
   }
 
   /**
@@ -7924,7 +7978,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Uses the same px map as Playwright export (`exportPlaywrightPreviewSpacingFromFontPx`).
    */
   previewQuestionBlockStyleForQ(q: { type?: unknown }): Record<string, string> {
-    const p = this.questionsPadding;
+    const pad = this.previewQuestionBlockPaddingPx(q);
     const g = this.questionBlockMarginBottomPx(q);
     const fz = this.clampPreviewQuestionFontPx(this.previewQuestionsFontPxForQuestion(q));
     const lh = this.previewQuestionsLineHeightForQuestion(q);
@@ -7944,10 +7998,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       '--preview-q-stem-mb': `${s.stemMbPx}px`,
       '--preview-q-subpart-mt': `${s.subpartMtPx}px`,
       '--preview-q-opt-my': `${s.optMyPx}px`,
-      paddingTop: (q as { answerSheetContinuation?: boolean })?.answerSheetContinuation
-        ? '0'
-        : `${p}px`,
-      paddingBottom: `${p}px`,
+      paddingTop: `${pad.top}px`,
+      paddingBottom: `${pad.bottom}px`,
       paddingLeft: '0',
       paddingRight: '0',
       marginBottom: `${g}px`,

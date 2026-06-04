@@ -1306,7 +1306,9 @@
 
 .preview-q-stem-with-parts {
   display: flow-root;
-  margin-bottom: var(--preview-q-stem-mb, 0.2857em);
+  margin-bottom: 0;
+  /* Same as PDF .q-item.q-cq .q-stem-with-parts — padding survives print; margin does not. */
+  padding-bottom: var(--preview-q-stem-mb, 0.2857em);
 }
 
 .preview-q-intro {
@@ -1317,13 +1319,16 @@
 
 .preview-q-subpart-wrap {
   position: relative;
-  margin-top: 0;
   box-sizing: border-box;
+}
+
+/* CQ only: intro→(ক) from .preview-q-stem-with-parts; (ক)–(ঘ) gap only between siblings. */
+.preview-q-label:has(.preview-q-stem-with-parts) > .preview-q-subpart-wrap {
+  margin-top: 0;
   clear: none;
 }
 
-/* Unsplit CQ in one block: gap after intro comes from .preview-q-stem-with-parts margin-bottom. */
-.preview-q-label > .preview-q-subpart-wrap + .preview-q-subpart-wrap {
+.preview-q-label:has(.preview-q-stem-with-parts) > .preview-q-subpart-wrap + .preview-q-subpart-wrap {
   margin-top: var(--preview-q-subpart-mt, 0.1429em);
 }
 

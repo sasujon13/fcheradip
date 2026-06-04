@@ -23,6 +23,23 @@
       </div>
     </ng-container>
     <ng-template #answerSegTailOrFull>
+      <!-- CQ intro row only (matches PDF .q-stem-with-parts before merged subparts). -->
+      <ng-container
+        *ngIf="q.answerSheetSegmentKind === 'intro' && questionIsCreativeType(q); else answerSegMcqIntroOrTail"
+      >
+        <div class="preview-q-content">
+          <label class="preview-q-label">
+            <strong class="preview-q-index" *ngIf="previewQuestionShowsIndex(q)">{{ previewQuestionSerialBn(sl) }}।</strong>
+            <span class="preview-q-stem-with-parts">
+              <span
+                class="preview-q-text preview-q-intro"
+                [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"
+              ></span>
+            </span>
+          </label>
+        </div>
+      </ng-container>
+      <ng-template #answerSegMcqIntroOrTail>
       <!-- Main-sheet MCQ: one block per question (matches PDF intro row + options). -->
       <ng-container
         *ngIf="q.answerSheetSegmentKind === 'intro' && !questionIsCreativeType(q); else answerSegTailOrCreativeFull"
@@ -59,6 +76,7 @@
           <span class="preview-q-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
         </div>
       </ng-container>
+      </ng-template>
       </ng-template>
     </ng-template>
     <ng-template #answerSegFullBlock>
