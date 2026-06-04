@@ -362,6 +362,24 @@
   max-width: fit-content;
 }
 
+.bottom-spacing-readout {
+  max-width: 100%;
+  grid-column: 1 / -1;
+}
+
+.bottom-spacing-readout__list {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #444;
+  list-style: disc;
+}
+
+.bottom-spacing-readout__list li + li {
+  margin-top: 4px;
+}
+
 .setting-field2 {
   max-width: 100%;
 }

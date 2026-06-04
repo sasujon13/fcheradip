@@ -8881,6 +8881,43 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return Math.max(0, (h - this.marginTop - bottom) * QuestionCreatorComponent.MM_TO_PX);
   }
 
+  /**
+   * Live readout of bottom-related spacing: page margin, preview sheet chrome, and per-question gaps
+   * (same values sent to PDF export in layout_settings).
+   */
+  get bottomSpacingReadoutLines(): string[] {
+    const mm = this.marginBottomMmForPersistAndExportPayload();
+    const pageBottomPx = Math.round(mm * QuestionCreatorComponent.MM_TO_PX * 10) / 10;
+    const sCq = QuestionCreatorComponent.exportPlaywrightPreviewSpacingFromFontPx(
+      this.clampPreviewQuestionFontPx(this.previewQuestionsFontPxCreative)
+    );
+    const lines: string[] = [
+      `Page bottom margin: ${mm} mm (${pageBottomPx} px) — pagination height & PDF @page`,
+      `MCQ inter-question margin-bottom: ${this.questionsGap} px (preview block & PDF .q-item)`,
+      `CQ inter-question margin-bottom: ${this.questionsGapCreative} px (preview last part & PDF .q-item)`,
+      `Question block padding (top/bottom per segment rules): ${this.questionsPadding} px`,
+      `CQ intro→(ক) gap (--preview-q-stem-mb): ${sCq.stemMbPx} px`,
+      `CQ (ক)–(ঘ) gap (--preview-q-subpart-mt): ${sCq.subpartMtPx} px`,
+    ];
+    const n = this.paginatedPages.length;
+    if (n > 0) {
+      for (let pi = 0; pi < n; pi++) {
+        const kind = this.previewKindForSheetPage(pi);
+        const tag = kind === 'creative' ? 'CQ' : 'MCQ';
+        const sheetPad = Math.round(this.marginBottomPxForPage(pi) * 10) / 10;
+        const packH = Math.round(this.contentInnerHeightPxForPage(pi) * 10) / 10;
+        const extra =
+          sheetPad > pageBottomPx + 0.5
+            ? ' — preview-only sheet padding (not in PDF @page)'
+            : '';
+        lines.push(
+          `Preview sheet ${pi + 1} (${tag}): padding-bottom ${sheetPad} px${extra}; inner pack height ${packH} px`
+        );
+      }
+    }
+    return lines;
+  }
+
   /** Total height under #scaleWrap at 1:1 px (toolbars + fixed-height pages + gaps; for magnifier). */
   get previewStackHeightPx(): number {
     const n = this.paginatedPages.length;

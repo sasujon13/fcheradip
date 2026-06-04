@@ -629,6 +629,12 @@
             <button type="button" class="stepper-btn" (click)="incQuestionsPadding()" [disabled]="questionsPadding >= questionsPaddingMax" aria-label="Increase questions padding">+</button>
           </div>
         </div>
+        <div class="setting-field setting-field--columns bottom-spacing-readout">
+          <span class="setting-label-text">Bottom spacing (preview vs PDF)</span>
+          <ul class="bottom-spacing-readout__list">
+            <li *ngFor="let line of bottomSpacingReadoutLines">{{ line }}</li>
+          </ul>
+        </div>
         <div *ngIf="multiColumnPreviewActive" class="setting-field setting-field--columns">
           <span class="setting-label-text">Column gap</span>
           <div class="setting-stepper" role="group" aria-label="Horizontal gap in pixels between preview columns">
