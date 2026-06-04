@@ -6121,8 +6121,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * CQ multi-page + landscape + 2+ columns: leave column 1 empty on page 1; pack from column 2;
-   * move the last CQ page’s trailing column into the binding column on page 1.
+   * CQ ≥2 landscape sheets + 2+ columns: enable binding column on page 1.
    */
   private resolveLeadEmptyFirstPageActiveFromProbe(
     heights: number[],
@@ -6153,61 +6152,116 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.pageSections,
       questionList
     );
-    if (this.sheetPreviewKindKey(0, probePages) !== 'creative') {
-      return;
-    }
-    if (this.creativeSheetPageCount(probePages) <= 1) {
+    if (this.creativeSheetPageCount(probePages) < 2) {
       return;
     }
     this.leadEmptyFirstPageActive = true;
   }
 
   /**
-   * Lead-empty binding behavior:
-   * Move the last page of the same kind’s column-2 contents into the first page’s lead binding column.
-   * If the last page’s column 2 is empty, use column 1 instead.
-   *
-   * Only implemented for `pageSections <= 1` (single vertical section).
+   * After normal pagination: treat page 1 column 1 as the **last** fill slot.
+   * Slot order becomes (0,1)…(0,C−1), (1,0)…(P−1,C−1), then (0,0) binding — empty or tail only.
    */
-  private applyLeadEmptyMoveLastPageColumnToFirstBinding(pages: PreviewPage[]): void {
-    if (!this.leadEmptyFirstPageActive) return;
-    if (this.pageSections > 1) return;
-    if (pages.length <= 1) return;
+  private applyLeadEmptyTreatFirstColumnAsLast(pages: PreviewPage[]): void {
+    if (!this.leadEmptyFirstPageActive || this.pageSections > 1) {
+      return;
+    }
 
-    const k0 = this.sheetPreviewKindKey(0, pages);
-    if (k0 === 'other') return;
+    let firstCq = -1;
+    let lastCq = -1;
+    for (let i = 0; i < pages.length; i++) {
+      if (this.sheetPreviewKindKey(i, pages) !== 'creative') {
+        continue;
+      }
+      if (firstCq < 0) {
+        firstCq = i;
+      }
+      lastCq = i;
+    }
+    if (firstCq < 0 || lastCq <= firstCq) {
+      return;
+    }
 
-    let lastSameKindIndex = -1;
-    for (let i = pages.length - 1; i >= 0; i--) {
-      if (this.sheetPreviewKindKey(i, pages) === k0) {
-        lastSameKindIndex = i;
-        break;
+    const cols = Math.max(2, Math.floor(this.layoutColumnsCreative));
+    const cqPageCount = lastCq - firstCq + 1;
+    const slotCount = cqPageCount * cols;
+
+    const stacks: PreviewPageItem[][] = [];
+    for (let pi = firstCq; pi <= lastCq; pi++) {
+      const qCols = pages[pi]!.questionColumns ?? [pages[pi]!.items ?? []];
+      for (let c = 0; c < cols; c++) {
+        stacks.push((qCols[c] ?? []).slice());
       }
     }
-    if (lastSameKindIndex <= 0) return;
-
-    const last = pages[lastSameKindIndex];
-    const qCols = last.questionColumns ?? [];
-    if (!qCols.length) return;
-
-    const col2 = qCols[1];
-    const chosenColIndex = col2 && col2.length > 0 ? 1 : qCols[0] && qCols[0].length > 0 ? 0 : -1;
-    if (chosenColIndex < 0) return;
-
-    const moved = (qCols[chosenColIndex] ?? []).slice();
-    if (!moved.length) return;
-
-    const first = pages[0]!;
-    first.leadBindingItems = moved;
-
-    const movedSet = new Set<number>(moved.map((it) => it.index));
-    last.questionColumns = qCols.map((c, idx) => (idx === chosenColIndex ? [] : c));
-    last.items = last.items.filter((it) => !movedSet.has(it.index));
-
-    // If the chosen column represented the last visible content, remove the now-empty page.
-    if (last.items.length === 0) {
-      pages.splice(lastSameKindIndex, 1);
+    while (stacks.length < slotCount) {
+      stacks.push([]);
     }
+
+    for (let pi = firstCq; pi <= lastCq; pi++) {
+      const isFirstCqPage = pi === firstCq;
+      pages[pi]!.leadBindingItems = isFirstCqPage ? [] : undefined;
+      pages[pi]!.questionColumns = Array.from(
+        { length: isFirstCqPage ? cols - 1 : cols },
+        () => [] as PreviewPageItem[]
+      );
+    }
+
+    for (let slotIdx = 0; slotIdx < slotCount; slotIdx++) {
+      const dest = this.leadEmptyBindingSlotDest(slotIdx, cols, cqPageCount);
+      const items = stacks[slotIdx] ?? [];
+      if (!items.length) {
+        continue;
+      }
+      const targetPi = firstCq + dest.pageOffset;
+      if (dest.binding) {
+        pages[firstCq]!.leadBindingItems = items;
+      } else if (dest.pageOffset === 0) {
+        pages[targetPi]!.questionColumns![dest.col - 1] = items;
+      } else {
+        pages[targetPi]!.questionColumns![dest.col] = items;
+      }
+    }
+
+    for (let pi = firstCq; pi <= lastCq; pi++) {
+      this.rebuildPreviewPageItemsFromColumns(pages[pi]!);
+    }
+
+    while (lastCq > firstCq && (pages[lastCq]!.items?.length ?? 0) === 0) {
+      pages.splice(lastCq, 1);
+      lastCq--;
+    }
+  }
+
+  /** Fill-slot index → CQ page offset / column; last index is page 1 column 1 (binding). */
+  private leadEmptyBindingSlotDest(
+    slotIdx: number,
+    cols: number,
+    cqPageCount: number
+  ): { pageOffset: number; col: number; binding: boolean } {
+    const bindingIdx = cqPageCount * cols - 1;
+    if (slotIdx === bindingIdx) {
+      return { pageOffset: 0, col: 0, binding: true };
+    }
+    if (slotIdx < cols - 1) {
+      return { pageOffset: 0, col: slotIdx + 1, binding: false };
+    }
+    const k = slotIdx - (cols - 1);
+    return {
+      pageOffset: 1 + Math.floor(k / cols),
+      col: k % cols,
+      binding: false,
+    };
+  }
+
+  private rebuildPreviewPageItemsFromColumns(page: PreviewPage): void {
+    const items: PreviewPageItem[] = [];
+    if (page.leadBindingItems?.length) {
+      items.push(...page.leadBindingItems);
+    }
+    for (const col of page.questionColumns ?? []) {
+      items.push(...col);
+    }
+    page.items = items;
   }
 
   /**
@@ -7170,9 +7224,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const c = this.previewCreativeBlockQuestionCount();
       const raw = startQuestionIndex < c ? this.layoutColumnsCreative : this.layoutColumns;
       cols = Math.max(1, Math.floor(raw));
-    }
-    if (this.leadEmptyFirstPageActive && sheetPageIndex === 0 && cols > 1) {
-      return cols - 1;
     }
     return cols;
   }
@@ -8201,7 +8252,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.pageSections,
           pq
         );
-        this.applyLeadEmptyMoveLastPageColumnToFirstBinding(candidatePages);
+        this.applyLeadEmptyTreatFirstColumnAsLast(candidatePages);
         // Show the current pagination immediately; auto-fit may still adjust typography and re-layout.
         this.paginatedPages = candidatePages;
         this.updatePreviewFitScale();
