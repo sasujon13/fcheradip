@@ -721,21 +721,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** CSS px per mm at 96dpi. */
   static readonly MM_TO_PX = 96 / 25.4;
-  private static readonly PX_TO_MM = 25.4 / 96;
-
-  /** Per-sheet @page bottom margin tweak (preview pagination + PDF @page). */
-  static readonly CQ_PAGE_BOTTOM_MARGIN_OFFSET_PX = -8;
-  static readonly MCQ_PAGE_BOTTOM_MARGIN_OFFSET_PX = 8;
-
-  static pageBottomMarginOffsetPxForKind(kind: 'creative' | 'mcq'): number {
-    return kind === 'creative'
-      ? QuestionCreatorComponent.CQ_PAGE_BOTTOM_MARGIN_OFFSET_PX
-      : QuestionCreatorComponent.MCQ_PAGE_BOTTOM_MARGIN_OFFSET_PX;
-  }
-
-  static pageBottomMarginOffsetMmForKind(kind: 'creative' | 'mcq'): number {
-    return QuestionCreatorComponent.pageBottomMarginOffsetPxForKind(kind) * QuestionCreatorComponent.PX_TO_MM;
-  }
 
   /** MCQ preview should not add any extra bottom air. */
   private static readonly PREVIEW_ONLY_MCQ_EXTRA_HEIGHT_IN = 0;
@@ -6074,12 +6059,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.headerVariantForPage(pageIndex);
   }
 
-  /** Preview/pagination bottom (mm): user margin + CQ −5px / MCQ +3px sheet offsets. */
-  private previewBottomMarginMmForKind(kind: 'creative' | 'mcq'): number {
-    return Math.max(
-      0,
-      this.marginBottom + QuestionCreatorComponent.pageBottomMarginOffsetMmForKind(kind)
-    );
+  /** Preview/pagination bottom (mm): user marginBottom setting. */
+  private previewBottomMarginMmForKind(_kind: 'creative' | 'mcq'): number {
+    return Math.max(0, this.marginBottom);
   }
 
   /** Bottom margin (mm) sent on save/export: same value for all modes. */
@@ -9149,8 +9131,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       marginRight: this.marginRight,
       marginBottom: this.marginBottomMmForPersistAndExportPayload(),
       marginLeft: this.marginLeft,
-      cqPageBottomMarginOffsetPx: QuestionCreatorComponent.CQ_PAGE_BOTTOM_MARGIN_OFFSET_PX,
-      mcqPageBottomMarginOffsetPx: QuestionCreatorComponent.MCQ_PAGE_BOTTOM_MARGIN_OFFSET_PX,
       questionsPadding: this.questionsPadding,
       questionsGap: this.questionsGap,
       questionsGapCreative: this.questionsGapCreative,
@@ -9626,8 +9606,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       marginRight: this.marginRight,
       marginBottom: this.marginBottomMmForPersistAndExportPayload(),
       marginLeft: this.marginLeft,
-      cqPageBottomMarginOffsetPx: QuestionCreatorComponent.CQ_PAGE_BOTTOM_MARGIN_OFFSET_PX,
-      mcqPageBottomMarginOffsetPx: QuestionCreatorComponent.MCQ_PAGE_BOTTOM_MARGIN_OFFSET_PX,
       questionsPadding: this.questionsPadding,
       questionsGap: this.questionsGap,
       questionsGapCreative: this.questionsGapCreative,
