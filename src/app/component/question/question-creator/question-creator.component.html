@@ -23,11 +23,43 @@
       </div>
     </ng-container>
     <ng-template #answerSegTailOrFull>
+      <!-- Main-sheet MCQ: one block per question (matches PDF intro row + options). -->
+      <ng-container
+        *ngIf="q.answerSheetSegmentKind === 'intro' && !questionIsCreativeType(q); else answerSegTailOrCreativeFull"
+      >
+        <div class="preview-q-content">
+          <label class="preview-q-label">
+            <strong class="preview-q-index" *ngIf="previewQuestionShowsIndex(q)">{{ previewQuestionSerialBn(sl) }}।</strong
+            ><span class="preview-q-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
+          </label>
+          <div
+            class="preview-q-options"
+            *ngIf="q.option_1 || q.option_2"
+            [ngStyle]="optionsColumnsManualOverride ? previewOptionsGridStyle : null"
+            [class.preview-q-options-1row]="
+              !optionsColumnsManualOverride && (previewOptionsMeasureMode || previewOptionsLayoutForQ(q) === '1row')
+            "
+            [class.preview-q-options-2row]="
+              !optionsColumnsManualOverride && !previewOptionsMeasureMode && previewOptionsLayoutForQ(q) === '2row'
+            "
+            [class.preview-q-options-4row]="
+              !optionsColumnsManualOverride && !previewOptionsMeasureMode && previewOptionsLayoutForQ(q) === '4row'
+            "
+          >
+            <span *ngIf="q.option_1" class="preview-q-opt">(ক) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+            <span *ngIf="q.option_2" class="preview-q-opt">(খ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+            <span *ngIf="q.option_3" class="preview-q-opt">(গ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+            <span *ngIf="q.option_4" class="preview-q-opt">(ঘ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          </div>
+        </div>
+      </ng-container>
+      <ng-template #answerSegTailOrCreativeFull>
       <ng-container *ngIf="q.answerSheetSegmentKind === 'tail'; else answerSegFullBlock">
         <div class="preview-q-content">
           <span class="preview-q-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
         </div>
       </ng-container>
+      </ng-template>
     </ng-template>
     <ng-template #answerSegFullBlock>
     <ng-container *ngIf="getQuestionDisplayStructure(q) as struct">

@@ -1251,17 +1251,41 @@
   display: block;
   margin: 0;
   line-height: inherit;
-  white-space: pre-wrap;
+  /* Match Playwright PDF `.topic-question-mcq-inline` (pre-line, not pre-wrap). */
+  white-space: pre-line;
   tab-size: 4;
   box-sizing: border-box;
 }
 
-/* MCQ options: keep (ক)–(ঘ) and option body on one line. */
+/*
+ * Options (ক–ঘ): inline lines + inherited LH (PDF `.q-opt-html` mirrors this).
+ * Without this, only `.topic-question-mcq-inline` was inline; CQ stem split lines stacked in export.
+ */
+.preview-q-opt-html ::ng-deep .topic-question-line {
+  display: inline;
+  margin: 0;
+  line-height: inherit;
+  white-space: pre-line;
+  tab-size: 4;
+  box-sizing: border-box;
+}
+
+.preview-q-opt-html ::ng-deep .topic-question-line.topic-question-roman-line {
+  padding-left: var(--preview-q-roman-indent, 0.7143em);
+  text-indent: calc(0px - var(--preview-q-roman-indent, 0.7143em));
+}
+
+.preview-q-opt-html ::ng-deep .topic-question-line.topic-question-bn-paren-line {
+  padding-left: var(--preview-q-bn-paren-inset, 1.2857em);
+  text-indent: calc(0px - var(--preview-q-bn-paren-inset, 1.2857em));
+}
+
+/* MCQ options: keep (ক)–(ঘ) label and body on one row when text is short. */
 .preview-q-opt-html ::ng-deep .topic-question-line.topic-question-mcq-inline {
   display: inline;
   margin: 0;
   line-height: inherit;
-  white-space: pre-wrap;
+  white-space: pre-line;
   tab-size: 4;
 }
 
@@ -1293,9 +1317,14 @@
 
 .preview-q-subpart-wrap {
   position: relative;
-  margin-top: var(--preview-q-subpart-mt, 0.1429em);
+  margin-top: 0;
   box-sizing: border-box;
-  clear: both;
+  clear: none;
+}
+
+/* Unsplit CQ in one block: gap after intro comes from .preview-q-stem-with-parts margin-bottom. */
+.preview-q-label > .preview-q-subpart-wrap + .preview-q-subpart-wrap {
+  margin-top: var(--preview-q-subpart-mt, 0.1429em);
 }
 
 .preview-q-subpart-wrap--has-marks {
@@ -1354,7 +1383,8 @@
   padding-left: var(--preview-q-subpart-pl, 2em);
   box-sizing: border-box;
   font-size: 1em;
-  line-height: var(--preview-question-lh, 1.4);
+  /* LH only on `.preview-q-opt` — grid container LH was inflating PDF/print option rows. */
+  line-height: normal;
   color: var(--color_primary_black);
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1385,7 +1415,7 @@
   text-indent: calc(0px - var(--preview-q-opt-hang, 1.1429em));
   box-sizing: border-box;
   text-align: left;
-  font-size: calc(13 / 14 * 1em);
+  font-size: var(--preview-q-opt-font-size, calc(13 / 14 * 1em));
   line-height: var(--preview-question-lh, 1.4);
   color: var(--color_primary_black);
 }

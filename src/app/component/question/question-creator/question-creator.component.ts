@@ -545,6 +545,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly PREVIEW_HEADER_LINE_HEIGHT_DEFAULT = 1.25;
   /** CQ and MCQ **question-body** line-height default 1.25; floor {@link PREVIEW_QUESTIONS_LINE_HEIGHT_MIN} (1). Auto-fit does not move these. */
   private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT = 1.25;
+  /**
+   * Shave this many px from each sheet’s pack budget so Playwright PDF (slightly taller lines / breaks)
+   * does not spill the last few lines onto an extra page when preview looks full but not overflowing.
+   */
+  private static readonly PREVIEW_PDF_PACKING_SAFETY_PX = 10;
   /** Floor for CQ/MCQ question-body line height (steppers + clamp); auto-fit never tightens or expands toward this. */
   private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_MIN = 1.0;
 
@@ -7923,9 +7928,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const g = this.questionBlockMarginBottomPx(q);
     const fz = this.clampPreviewQuestionFontPx(this.previewQuestionsFontPxForQuestion(q));
     const lh = this.previewQuestionsLineHeightForQuestion(q);
+    const optFz = Math.max(1, QuestionCreatorComponent.exportJround((fz * 13) / 14));
     const s = QuestionCreatorComponent.exportPlaywrightPreviewSpacingFromFontPx(fz);
     return {
       fontSize: `${fz}px`,
+      '--preview-q-opt-font-size': `${optFz}px`,
       '--preview-question-lh': `${lh}`,
       '--preview-q-bn-paren-inset': `${s.bnParenInsetPx}px`,
       '--preview-q-subpart-pl': QuestionCreatorComponent.PREVIEW_Q_SUBPART_PL_EM,
@@ -7937,7 +7944,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       '--preview-q-stem-mb': `${s.stemMbPx}px`,
       '--preview-q-subpart-mt': `${s.subpartMtPx}px`,
       '--preview-q-opt-my': `${s.optMyPx}px`,
-      paddingTop: `${p}px`,
+      paddingTop: (q as { answerSheetContinuation?: boolean })?.answerSheetContinuation
+        ? '0'
+        : `${p}px`,
       paddingBottom: `${p}px`,
       paddingLeft: '0',
       paddingRight: '0',
@@ -8463,7 +8472,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         pageInnerH
       );
       const capRaw = pageInnerH - (headerInFirstCol ? 0 : headerPx);
-      const cap = Math.max(1, capRaw);
+      const cap = Math.max(
+        1,
+        capRaw - QuestionCreatorComponent.PREVIEW_PDF_PACKING_SAFETY_PX
+      );
       const mixedBoundary = breakAtMixedBoundary && q < creativeCount ? creativeCount : n;
       const packed = this.packQuestionsColumnMajor(
         heights,
@@ -8537,7 +8549,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const showHeaderThisPage =
         !!(this.questionHeader || '').trim() && boundaryShow && headerPxChosen > 0;
       const headerPerSection = showHeaderThisPage ? headerPxChosen : 0;
-      const sectionCap = Math.max(1, band - headerPerSection);
+      const sectionCap = Math.max(
+        1,
+        band - headerPerSection - QuestionCreatorComponent.PREVIEW_PDF_PACKING_SAFETY_PX
+      );
 
       if (band <= 0) {
         return this.splitIntoPagesSingleSection(heights, pageInnerH, headerCreativePx, headerMcqPx, questionList);
@@ -9744,10 +9759,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       for (const fmt of toRequest) {
         const layoutForVariant =
           multiMcq && setLetter != null ? perSetLayout[setLetter] : layoutSettingsForCreate;
+        const ls = (layoutForVariant ?? layoutSettingsForCreate) as Record<string, unknown>;
+        const pagePlan = ls['exportPreviewPagePlan'];
         requests.push(
           this.apiService.exportQuestions({
             ...basePayload,
-            layout_settings: layoutForVariant ?? layoutSettingsForCreate,
+            layout_settings: ls,
+            ...(Array.isArray(pagePlan) && pagePlan.length > 0
+              ? { exportPreviewPagePlan: pagePlan }
+              : {}),
             questions: questionsForFile,
             questionHeader: header,
             ...(headerCreative ? { questionHeaderCreative: headerCreative } : {}),

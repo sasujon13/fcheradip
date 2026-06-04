@@ -1,10 +1,12 @@
 import { formatMaybeCProgramQuestionText } from './c-program-question-format';
 import {
   ANSWER_SHEET_SEG_QID_PREFIX,
+  AnswerSheetMeasureRow,
   buildAnswerLayoutMeasureRows,
   buildAnswersExplanationsExportQuestions,
   buildMcqAnswerKeyExportPayload,
   buildMcqAnswerKeySetBlocks,
+  buildPreviewLayoutMeasureRows,
   LAYOUT_SEG_QID_PREFIX,
   McqSetLetter,
   packMcqAnswerIndicesIntoColumns,
@@ -172,6 +174,62 @@ function parseAnswerSheetQuestionStructure(q: {
     .filter(Boolean);
   if (lines.length <= 1) return { intro: full, parts: [] };
   return { intro: lines[0] ?? '', parts: lines.slice(1) };
+}
+
+/** Same marker split as question-creator `parseCreativeStructureFromParenMarkers`. */
+function parseCreativeStructureFromParenMarkers(full: string): { intro: string; parts: string[] } | null {
+  const pK = full.indexOf('(ক)');
+  const pKh = full.indexOf('(খ)');
+  const pG = full.indexOf('(গ)');
+  const pGh = full.indexOf('(ঘ)');
+  if (pK < 0 || pKh < 0 || pG < 0 || !(pK < pKh && pKh < pG)) {
+    return null;
+  }
+  const intro = full.slice(0, pK).trim();
+  if (pGh >= 0 && pGh > pG) {
+    return {
+      intro,
+      parts: [
+        full.slice(pK, pKh).trim(),
+        full.slice(pKh, pG).trim(),
+        full.slice(pG, pGh).trim(),
+        full.slice(pGh).trim(),
+      ],
+    };
+  }
+  return {
+    intro,
+    parts: [full.slice(pK, pKh).trim(), full.slice(pKh, pG).trim(), full.slice(pG).trim()],
+  };
+}
+
+function parseCreativeQuestionStructureForLayout(q: {
+  question?: unknown;
+  type?: string;
+}): { intro: string; parts: string[] } {
+  const full = getQuestionDisplayText(q);
+  if (!full) return { intro: '', parts: [] };
+  const type = (q?.type ?? '').toString().trim();
+  if (type !== 'সৃজনশীল প্রশ্ন') return { intro: full, parts: [] };
+  const byMarkers = parseCreativeStructureFromParenMarkers(full);
+  if (byMarkers) return byMarkers;
+  const lines = full
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (lines.length <= 1) return { intro: full, parts: [] };
+  return { intro: lines[0] ?? '', parts: lines.slice(1) };
+}
+
+/** Main-sheet PDF/DOCX rows — one per intro / (ক)–(ঘ) part / MCQ block (matches preview pagination). */
+export function buildMainSheetExportSegmentRows(questions: unknown[]): AnswerSheetMeasureRow[] {
+  return buildPreviewLayoutMeasureRows(questions, {
+    isCreativeType: (q: unknown) => questionIsCreativeType(q as { type?: unknown }),
+    parseStructure: parseCreativeQuestionStructureForLayout,
+    formatOption,
+    displayStem: (q: unknown) =>
+      getQuestionDisplayText(q as { question?: unknown; type?: string }),
+  });
 }
 
 function getQuestionDisplayText(q: { question?: unknown; type?: string }): string {

@@ -214,7 +214,9 @@ export class WrapRomanLinesPipe implements PipeTransform {
         ? 'topic-question-line topic-question-roman-line'
         : isBnParen
           ? 'topic-question-line topic-question-bn-paren-line'
-          : 'topic-question-line';
+          : ctx === 'option'
+            ? 'topic-question-line topic-question-mcq-inline'
+            : 'topic-question-line';
       return `<span class="${cls}">${escaped}</span>`;
     });
     return this.sanitizer.bypassSecurityTrustHtml(parts.join(''));

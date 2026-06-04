@@ -6,6 +6,7 @@ import { ApiService, CreatedQuestionSet } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import {
   attachExportMcqOptionsColumnsToQuestions,
+  buildMainSheetExportSegmentRows,
   buildAnswerSheetExportItems,
   hasPersistedFourMcqVariants,
   parseMcqOrderBySet,
@@ -311,11 +312,13 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   /** Same top-level export fields + full `layout_settings` as Save in question-creator (serials, fonts, page plan, MCQ order). */
   private exportPayloadFromSavedSet(set: CreatedQuestionSet): Record<string, unknown> {
     const ls = this.layoutRecord(set) ?? {};
+    const questionsOrdered = set.questions;
+    const segmentRows = buildMainSheetExportSegmentRows(questionsOrdered);
     const qids = ls['exportPreviewQuestionQids'];
-    const questionsOrdered =
+    const questionsForLayout =
       Array.isArray(qids) && qids.length > 0
-        ? reorderQuestionsByQids(set.questions, qids as (string | number)[])
-        : set.questions;
+        ? reorderQuestionsByQids(segmentRows, qids as (string | number)[])
+        : segmentRows;
     const orient = this.strFromLayout(ls, 'pageOrientation', 'portrait');
     const pageOrientation = orient === 'landscape' ? 'landscape' : 'portrait';
     let headerLineFontSizes: number[] = [];
@@ -326,7 +329,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     const splitCreative = ls['exportQuestionHeaderCreative'];
     const splitMcq = ls['exportQuestionHeaderMcq'];
     const out: Record<string, unknown> = {
-      questions: this.attachMcqOptionsForSavedExport(questionsOrdered, set, ls),
+      questions: this.attachMcqOptionsForSavedExport(questionsForLayout, set, ls),
       questionHeader: set.question_header || '',
       filename: this.exportFilenameStem(set),
       layout_settings: ls,
