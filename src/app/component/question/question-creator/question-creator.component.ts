@@ -375,11 +375,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private previewLayoutChangeSeq = 0;
 
   /**
-   * One-shot latch read inside {@link runLayout}: when `true`, the **next** layout pass that would otherwise run
-   * auto-fit (first-three exam only) instead runs **without** font/gap/padding mutations, then this flag is cleared
-   * in the same `runLayout` invocation. {@link onPreviewLayoutChange} sets it to `true` on **every** call that uses the
-   * default `suppressAutoFit: true`, so normal steppers/sliders keep the user’s chosen sizes for one measure pass.
-   * Early exits in `runLayout` (zero inner size, no questions) force it back to `false` so a later visit is not stuck suppressed.
+   * One-shot latch read inside {@link runLayout}: when `true`, the **next** layout pass skips auto-fit
+   * (layout-only remeasure). {@link onPreviewLayoutChange} sets it on manual aside edits.
+   * Auto-fit itself runs only when {@link previewAutoFitForceOneLayoutChain} is set (Reset / Smart / nav / reload).
    */
   private previewAutoFitSuppressNextLayoutRun = false;
 
@@ -1138,6 +1136,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       await this.syncMcqOptionsLayoutAfterAutoFit();
     } catch {
       this.previewAutoFitForceOneLayoutChain = false;
+    } finally {
+      this.previewAutoFitForceOneLayoutChain = false;
     }
   }
 
@@ -1167,8 +1167,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     await this.waitForLayoutIdle(90_000);
   }
 
-  /** Smart Question Creator: {@link runForcedPreviewAutoFit}, then {@link save}. */
+  /** Smart Question Creator: verify coins, then auto-fit, then {@link save}. */
   private async runAutoFitThenSave(): Promise<void> {
+    if (!this.assertSufficientCoinsForSave()) {
+      return;
+    }
     await this.runForcedPreviewAutoFit();
     this.save();
   }
@@ -5896,8 +5899,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Central “something about the sheet preview changed” hook: bump layout generation id, reset in-flight auto-fit
    * expand/tighten state, optionally arm {@link previewAutoFitSuppressNextLayoutRun}, then queue {@link scheduleLayout}.
    *
-   * **`suppressAutoFit: true`** (default): next layout measures once without mutating fonts/gaps.
-   * **`suppressAutoFit: false`**: arm immediate auto-fit (Reset / Smart / forced chains).
+   * **`suppressAutoFit: true`** (default): relayout only — auto-fit does not run (manual aside edits).
+   * **`suppressAutoFit: false`**: used only by forced auto-fit chains (Reset / Smart / nav / reload).
    */
   onPreviewLayoutChange(options?: { suppressAutoFit?: boolean }): void {
     // Caller passes `false` only when the next pagination should be allowed to auto-adjust (see JSDoc above).
@@ -5917,10 +5920,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitHeaderLineHeightPending = null;
     this.autoFitHeaderLineHeightGrowBlocked = false;
     if (suppress) {
-      // Typical path: sliders, fonts, columns — keep current numbers for one layout pass before auto-fit may run again.
+      // Manual aside / header edits: relayout only — never mutate fonts/gaps via auto-fit.
       this.previewAutoFitSuppressNextLayoutRun = true;
+      this.previewAutoFitForceOneLayoutChain = false;
     } else {
-      // Forced full auto-fit on the next layout pass (Smart / Reset paths).
+      // Forced full auto-fit on the next layout pass (Smart / Reset / nav / reload chains).
       this.previewAutoFitSuppressNextLayoutRun = false;
     }
     this.ensureMcqTextareaSixUpperLines();
@@ -8314,10 +8318,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (this.previewAutoFitForceOneLayoutChain) {
           suppressAutoFit = false;
         }
+        // Auto-fit runs only during forced chains (Reset / Auto Fit, Smart Creator, nav/reload restore).
+        const runAutoFitPipeline = this.previewAutoFitForceOneLayoutChain && !suppressAutoFit;
         // Auto-fit pipeline (each helper may call scheduleLayout() and return true to defer further tuning):
         // (0) jump to hard minimums (1) snapshot per-kind sheet budgets (2) revert gap/LH pending (3) question fonts
         // (4) shared padding when over budget (5) legacy tighten when no baseline yet (6) expand gaps only (7) header LH no-op.
-        if (!suppressAutoFit) {
+        if (runAutoFitPipeline) {
           const autoFitDeferLimit = 400;
           let autoFitDeferred = false;
           if (this.autoFitLayoutDeferrals < autoFitDeferLimit) {
