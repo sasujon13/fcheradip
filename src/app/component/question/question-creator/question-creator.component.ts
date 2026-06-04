@@ -412,6 +412,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private autoFitMcqFontLockedThisRun = false;
   private autoFitCqFontLockedThisRun = false;
 
+  /** Forced auto-fit: at most one −1 per kind for font and gap (CQ then MCQ). */
+  private autoFitCqFontDecreaseUsed = false;
+  private autoFitMcqFontDecreaseUsed = false;
+  private autoFitCqGapDecreaseUsed = false;
+  private autoFitMcqGapDecreaseUsed = false;
+
   private autoFitCqGrowBlockedSeq = -1;
   private autoFitCqLastGrowSeq = -1;
   private autoFitCqLastGrowPrevFontPx = 0;
@@ -6342,6 +6348,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitMcqFontLockedThisRun = false;
     this.autoFitCqFontLockedThisRun = false;
     this.autoFitExpandGapPreferSinglePxBump = false;
+    this.autoFitCqFontDecreaseUsed = false;
+    this.autoFitMcqFontDecreaseUsed = false;
+    this.autoFitCqGapDecreaseUsed = false;
+    this.autoFitMcqGapDecreaseUsed = false;
     this.autoFitMixedKindPhase =
       this.selectionHasMcqType() && this.selectionHasCreativeType() ? 'cq' : null;
     this.autoFitLayoutDeferrals = 0;
@@ -6400,11 +6410,45 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.autoFitCqKindWorkRemaining(candidatePages)) {
       return;
     }
+    if (this.maybeApplyFinalAutoFitGapTrimOnce('creative')) {
+      return;
+    }
     this.autoFitMixedKindPhase = 'mcq';
     this.autoFitExpandPhase = 0;
     this.autoFitExpandPending = null;
     this.autoFitExpandStepBlocked.clear();
     this.autoFitExpandGapPreferSinglePxBump = false;
+  }
+
+  /**
+   * When gap expansion for a kind is finished: one −1px safety trim (max once per kind per run).
+   */
+  private maybeApplyFinalAutoFitGapTrimOnce(kind: 'creative' | 'mcq'): boolean {
+    const isCq = kind === 'creative';
+    if (isCq) {
+      if (this.autoFitCqGapDecreaseUsed || !this.selectionHasCreativeType()) {
+        return false;
+      }
+    } else if (this.autoFitMcqGapDecreaseUsed || !this.selectionHasMcqType()) {
+      return false;
+    }
+    const minG = QuestionCreatorComponent.QUESTIONS_GAP_MIN_PX;
+    const cur = isCq ? this.questionsGapCreative : this.questionsGap;
+    if (isCq) {
+      this.autoFitCqGapDecreaseUsed = true;
+    } else {
+      this.autoFitMcqGapDecreaseUsed = true;
+    }
+    if (cur <= minG) {
+      return false;
+    }
+    if (isCq) {
+      this.questionsGapCreative = cur - 1;
+    } else {
+      this.questionsGap = cur - 1;
+    }
+    this.scheduleLayout();
+    return true;
   }
 
   /**
@@ -6530,6 +6574,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private maybeAutoFitPerKindSpacingTargets(candidatePages: PreviewPage[]): boolean {
     if (!this.autoFitBaselineBudgetsCaptured) return false;
+    if (this.previewAutoFitForceOneLayoutChain) {
+      return false;
+    }
     // Count how many preview sheets contain MCQ vs CQ (from first item per page — see countKindsInCandidatePages).
     const counts = this.countKindsInCandidatePages(candidatePages);
     const mcqBudget = this.autoFitBaselineSheetBudgetMcq;
@@ -6569,8 +6616,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.selectionHasCreativeType() && this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts);
     const phase = this.autoFitMixedKindPhase;
 
-    if (cqOver && phase !== 'mcq' && this.previewQuestionsFontPxCreative > minQAuto) {
+    if (cqOver && phase !== 'mcq' && !this.autoFitCqFontDecreaseUsed && this.previewQuestionsFontPxCreative > minQAuto) {
       this.previewQuestionsFontPxCreative = Math.max(minQAuto, this.previewQuestionsFontPxCreative - 1); //  *
+      this.autoFitCqFontDecreaseUsed = true;
       this.autoFitCqFontLockedThisRun = true;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
         skipBumpHeaderTrackedLinesToQuestionBody: true,
@@ -6578,8 +6626,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.scheduleLayout();
       return true;
     }
-    if (mcqOver && phase !== 'cq' && this.previewQuestionsFontPxMcq > minQAuto) {
+    if (mcqOver && phase !== 'cq' && !this.autoFitMcqFontDecreaseUsed && this.previewQuestionsFontPxMcq > minQAuto) {
       this.previewQuestionsFontPxMcq = Math.max(minQAuto, this.previewQuestionsFontPxMcq - 1); //  *
+      this.autoFitMcqFontDecreaseUsed = true;
       this.autoFitMcqFontLockedThisRun = true;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
         skipBumpHeaderTrackedLinesToQuestionBody: true,
@@ -6644,6 +6693,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       cur === this.autoFitMcqLastGrowPrevFontPx + 1
     ) {
       this.previewQuestionsFontPxMcq = this.autoFitMcqLastGrowPrevFontPx; //  *
+      this.autoFitMcqFontDecreaseUsed = true;
       this.autoFitMcqFontLockedThisRun = true;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
         skipBumpHeaderTrackedLinesToQuestionBody: true,
@@ -6653,6 +6703,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
 
     if (this.autoFitMcqFontLockedThisRun) return false;
+    if (this.autoFitMcqFontDecreaseUsed) return false;
     if (this.autoFitMcqGrowBlockedSeq === seq) return false;
     if (cur >= maxQ) return false;
 
@@ -6685,6 +6736,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       cur === this.autoFitCqLastGrowPrevFontPx + 1
     ) {
       this.previewQuestionsFontPxCreative = this.autoFitCqLastGrowPrevFontPx; //  *
+      this.autoFitCqFontDecreaseUsed = true;
       this.autoFitCqFontLockedThisRun = true;
       this.syncGlobalPreviewQuestionsFontPxFromPerKind({
         skipBumpHeaderTrackedLinesToQuestionBody: true,
@@ -6694,6 +6746,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
 
     if (this.autoFitCqFontLockedThisRun) return false;
+    if (this.autoFitCqFontDecreaseUsed) return false;
     if (this.autoFitCqGrowBlockedSeq === seq) return false;
     if (cur >= maxQ) return false;
 
@@ -6938,20 +6991,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const counts = this.countKindsInCandidatePages(candidatePages);
     const ok = this.autoFitSpacingExpandOkAfterKindBump(counts, candidatePages.length, p.kind);
     if (ok) {
-      // Bump is compatible with MCQ/CQ sheet policy — commit: clear pending, advance ring, unblock all steps.
       this.autoFitExpandPending = null;
       this.advanceAutoFitExpandPhaseAfterBump(p.stepIndex);
       this.autoFitExpandStepBlocked.clear();
       this.autoFitExpandGapPreferSinglePxBump = false;
       return false;
     }
-    // Revert bump: retry with +1 px once; if +1 px still fails, stop retrying this step (prevents infinite layout loop).
     if (p.kind === 'mcqGap' || p.kind === 'cqGap') {
-      if (this.autoFitExpandGapPreferSinglePxBump) {
-        this.autoFitExpandStepBlocked.add(p.kind);
-      } else {
-        this.autoFitExpandGapPreferSinglePxBump = true;
-      }
+      this.autoFitExpandStepBlocked.add(p.kind);
     }
     switch (p.kind) {
       case 'cqGap':
@@ -7021,7 +7068,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
 
     if (steps.every((s) => this.autoFitExpandStepCannotBumpMore(s, H))) {
-      // Every step is at max or blocked — spacing expand phase is finished for now.
+      const hasM = this.selectionHasMcqType();
+      const hasC = this.selectionHasCreativeType();
+      if (hasC && (this.autoFitMixedKindPhase === 'cq' || !hasM)) {
+        if (this.maybeApplyFinalAutoFitGapTrimOnce('creative')) {
+          return true;
+        }
+      }
+      if (hasM && (this.autoFitMixedKindPhase === 'mcq' || !hasC)) {
+        if (this.maybeApplyFinalAutoFitGapTrimOnce('mcq')) {
+          return true;
+        }
+      }
       return false;
     }
 
