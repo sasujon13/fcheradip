@@ -704,6 +704,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   resetAutoFitOverlayPercent = 0;
   readonly resetAutoFitOverlayMessage = 'Questions are fitting automatically.....';
   private resetAutoFitProgressTimer: ReturnType<typeof setTimeout> | null = null;
+  /** True from {@link beginAutoFitProgressSession} until the full reset + auto-fit + MCQ sync chain finishes. */
+  private autoFitProgressSessionActive = false;
 
   /**
    * Full-screen blocking overlay: Reset button, or Smart / forced auto-fit chains only.
@@ -711,10 +713,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   get autoFitBlockingOverlayVisible(): boolean {
     if (this.saveExportLayoutBusy) {
-      return this.resetAutoFitOverlayVisible;
+      return this.autoFitProgressSessionActive;
     }
     return (
-      this.resetAutoFitOverlayVisible ||
+      this.autoFitProgressSessionActive ||
       (this.previewAutoFitForceOneLayoutChain &&
         (this.layoutPassInFlight || this.layoutTimer != null))
     );
@@ -967,11 +969,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     if (this.incomingNavAutoFitPending) {
       this.incomingNavAutoFitPending = false;
-      void this.runCreatorResetAndAutoFit({ showOverlay: false });
+      void this.runCreatorResetAndAutoFit();
       return;
     }
     if (this.creatorRestoredDraftOnce) {
-      void this.runCreatorResetAndAutoFit({ showOverlay: false });
+      void this.runCreatorResetAndAutoFit();
     }
   }
 
@@ -1076,20 +1078,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Reset Setting / Auto Fit button pipeline — factory layout defaults, then forced preview auto-fit.
    * Shared by reload restore, /question navigation, Smart Creator, and the Reset button.
    */
-  private async runCreatorResetAndAutoFit(options?: {
-    showOverlay?: boolean;
-    skipRemotePersist?: boolean;
-  }): Promise<void> {
-    const showOverlay = options?.showOverlay === true;
-    if (showOverlay && this.resetAutoFitOverlayVisible) {
+  private async runCreatorResetAndAutoFit(options?: { skipRemotePersist?: boolean }): Promise<void> {
+    if (this.autoFitProgressSessionActive) {
       return;
     }
-    if (showOverlay) {
-      this.resetAutoFitOverlayVisible = true;
-      this.resetAutoFitOverlayPercent = 10;
-      this.cdr.markForCheck();
-      this.scheduleResetAutoFitProgressTick();
-    }
+    this.beginAutoFitProgressSession();
     try {
       this.resetCreatorSettings({
         skipReload: true,
@@ -1097,23 +1090,38 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       });
       this.syncPageOrientationForQTypeFilter();
       this.schedulePersistCreatorStateToLocalStorage();
-      await this.waitForLayoutIdle();
+      await this.waitForLayoutIdle(90_000);
       await this.runForcedPreviewAutoFitOnly();
     } catch {
       this.previewAutoFitForceOneLayoutChain = false;
+    } finally {
+      this.endAutoFitProgressSession();
     }
-    if (showOverlay) {
-      this.clearResetAutoFitProgressTimer();
-      this.resetAutoFitOverlayPercent = 100;
+  }
+
+  private beginAutoFitProgressSession(): void {
+    this.autoFitProgressSessionActive = true;
+    this.resetAutoFitOverlayVisible = true;
+    this.resetAutoFitOverlayPercent = 10;
+    this.cdr.markForCheck();
+    this.scheduleResetAutoFitProgressTick();
+  }
+
+  private endAutoFitProgressSession(): void {
+    if (!this.autoFitProgressSessionActive) {
+      return;
+    }
+    this.clearResetAutoFitProgressTimer();
+    this.resetAutoFitOverlayPercent = 100;
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      this.autoFitProgressSessionActive = false;
+      this.resetAutoFitOverlayVisible = false;
+      if (!this.autoFitBlockingOverlayVisible) {
+        this.resetAutoFitOverlayPercent = 0;
+      }
       this.cdr.markForCheck();
-      setTimeout(() => {
-        this.resetAutoFitOverlayVisible = false;
-        if (!this.autoFitBlockingOverlayVisible) {
-          this.resetAutoFitOverlayPercent = 0;
-        }
-        this.cdr.markForCheck();
-      }, 220);
-    }
+    }, 220);
   }
 
   /**
@@ -1125,7 +1133,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.previewAutoFitForceOneLayoutChain = true;
       this.maybeBootstrapAutoFitOverlayProgress();
       this.onPreviewLayoutChange({ suppressAutoFit: false });
-      await this.waitForLayoutIdle();
+      await this.waitForLayoutIdle(90_000);
       await this.syncMcqOptionsLayoutAfterAutoFit();
     } catch {
       this.previewAutoFitForceOneLayoutChain = false;
@@ -1137,7 +1145,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Ends with the same MCQ options measure + relayout pass as {@link runDoSaveExportFlowCore} (Smart runs that via save).
    */
   private async runForcedPreviewAutoFit(): Promise<void> {
-    await this.runCreatorResetAndAutoFit({ showOverlay: false });
+    await this.runCreatorResetAndAutoFit();
   }
 
   /** Match save/export prep: remeasure MCQ option grids, relayout once, wait until idle. */
@@ -1155,7 +1163,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     this.optionsLayoutRelayoutPending = true;
     this.scheduleLayout();
-    await this.waitForLayoutIdle();
+    await this.waitForLayoutIdle(90_000);
   }
 
   /** Smart Question Creator: {@link runForcedPreviewAutoFit}, then {@link save}. */
@@ -1240,6 +1248,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   ngOnDestroy(): void {
     this.clearResetAutoFitProgressTimer();
+    this.autoFitProgressSessionActive = false;
     this.resetAutoFitOverlayVisible = false;
     this.eiinSearchSub?.unsubscribe();
     this.eiinSearchSub = undefined;
@@ -5692,9 +5701,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * subject, and question selection (e.g. 7-line mixed template). Keeps the active draft (questions,
    * context, EIIN, institute, exam type). Persists (no full page reload from the Reset button).
    */
-  /** Reset / Auto Fit button: same {@link runCreatorResetAndAutoFit} pipeline with aside loader overlay. */
+  /** Reset / Auto Fit button: same {@link runCreatorResetAndAutoFit} pipeline with progress overlay. */
   async onResetCreatorSettingsClick(): Promise<void> {
-    await this.runCreatorResetAndAutoFit({ showOverlay: true });
+    await this.runCreatorResetAndAutoFit();
   }
 
   private clearResetAutoFitProgressTimer(): void {
@@ -5714,14 +5723,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private scheduleResetAutoFitProgressTick(): void {
     this.clearResetAutoFitProgressTimer();
-    if (!this.autoFitBlockingOverlayVisible) {
+    if (!this.autoFitProgressSessionActive && !this.autoFitBlockingOverlayVisible) {
       this.resetAutoFitOverlayPercent = 0;
       return;
     }
-    if (this.resetAutoFitOverlayPercent >= 99) return;
+    if (this.resetAutoFitOverlayPercent >= 99) {
+      return;
+    }
     this.resetAutoFitProgressTimer = setTimeout(() => {
       this.resetAutoFitProgressTimer = null;
-      if (!this.autoFitBlockingOverlayVisible) {
+      if (!this.autoFitProgressSessionActive && !this.autoFitBlockingOverlayVisible) {
         this.resetAutoFitOverlayPercent = 0;
         this.cdr.markForCheck();
         return;
@@ -5732,9 +5743,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }, 500);
   }
 
-  /** Stepped % ring during Smart / forced auto-fit overlay (Reset uses {@link resetAutoFitOverlayVisible} path). */
+  /** Stepped % ring while {@link autoFitProgressSessionActive} or forced layout chain runs. */
   private maybeBootstrapAutoFitOverlayProgress(): void {
-    if (!this.previewAutoFitForceOneLayoutChain || this.resetAutoFitOverlayVisible) return;
+    if (!this.previewAutoFitForceOneLayoutChain) {
+      return;
+    }
+    if (this.autoFitProgressSessionActive) {
+      if (this.resetAutoFitOverlayPercent < 10) {
+        this.resetAutoFitOverlayPercent = 10;
+      }
+      this.scheduleResetAutoFitProgressTick();
+      return;
+    }
     if (this.resetAutoFitOverlayPercent < 10) {
       this.resetAutoFitOverlayPercent = 10;
     }
@@ -8342,19 +8362,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.updatePreviewFitScale();
         this.cdr.markForCheck();
         } finally {
-          if (
-            this.layoutDidCommitPaginatedPages &&
-            this.layoutTimer == null &&
-            this.resetAutoFitOverlayPercent >= 10 &&
-            this.resetAutoFitOverlayPercent < 100 &&
-            this.previewAutoFitForceOneLayoutChain &&
-            !this.resetAutoFitOverlayVisible &&
-            this.layoutPassInFlight
-          ) {
-            this.clearResetAutoFitProgressTimer();
-            this.resetAutoFitOverlayPercent = 100;
-            this.cdr.markForCheck();
-          }
           if (this.layoutDidCommitPaginatedPages) {
             this.scheduleMeasurePreviewOptionsLayouts();
           }
