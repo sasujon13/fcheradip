@@ -819,7 +819,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private smartCreatorSavePending = false;
   /**
    * Set when navigating from `/question` with a fresh question selection (non–Smart Creator).
-   * Cleared after {@link runForcedPreviewAutoFit} on init — same pipeline as Smart / Reset.
+   * Cleared in {@link maybeRunPostInitResetAndAutoFit} — same reset + auto-fit as the Reset button.
    */
   private incomingNavAutoFitPending = false;
   /**
@@ -946,25 +946,33 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     queueMicrotask(() => {
       this.maybeRunFirstVisitAutoReset();
       queueMicrotask(() => {
-        this.maybeCompleteSmartCreatorSaveAfterInit();
-        this.maybeRunIncomingNavAutoFitAfterInit();
+        this.maybeRunPostInitResetAndAutoFit();
       });
     });
   }
 
   /**
-   * Regular `/question` → `/question/create` handoff (not Smart Creator): run the same forced preview auto-fit
-   * as Reset / Smart after header + measure blocks are ready.
+   * After init: Reset Setting / Auto Fit pipeline for navigation, Smart Creator, or reload restore.
+   * Order: Smart (auto-fit + save) → fresh /question selection → local/session/API draft reload.
    */
-  private maybeRunIncomingNavAutoFitAfterInit(): void {
-    if (!this.incomingNavAutoFitPending) {
+  private maybeRunPostInitResetAndAutoFit(): void {
+    if ((this.questions?.length ?? 0) === 0) {
       return;
     }
-    this.incomingNavAutoFitPending = false;
-    if (this.questions.length === 0) {
+    if (this.smartCreatorSavePending) {
+      this.smartCreatorSavePending = false;
+      this.applySmartCreatorNavHeaderFields();
+      void this.runAutoFitThenSave();
       return;
     }
-    void this.runForcedPreviewAutoFit();
+    if (this.incomingNavAutoFitPending) {
+      this.incomingNavAutoFitPending = false;
+      void this.runCreatorResetAndAutoFit({ showOverlay: false });
+      return;
+    }
+    if (this.creatorRestoredDraftOnce) {
+      void this.runCreatorResetAndAutoFit({ showOverlay: false });
+    }
   }
 
   /**
@@ -1063,32 +1071,73 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
   }
 
-  private maybeCompleteSmartCreatorSaveAfterInit(): void {
-    if (!this.smartCreatorSavePending) {
+
+  /**
+   * Reset Setting / Auto Fit button pipeline — factory layout defaults, then forced preview auto-fit.
+   * Shared by reload restore, /question navigation, Smart Creator, and the Reset button.
+   */
+  private async runCreatorResetAndAutoFit(options?: {
+    showOverlay?: boolean;
+    skipRemotePersist?: boolean;
+  }): Promise<void> {
+    const showOverlay = options?.showOverlay === true;
+    if (showOverlay && this.resetAutoFitOverlayVisible) {
       return;
     }
-    this.smartCreatorSavePending = false;
-    if (this.questions.length === 0) {
-      return;
+    if (showOverlay) {
+      this.resetAutoFitOverlayVisible = true;
+      this.resetAutoFitOverlayPercent = 10;
+      this.cdr.markForCheck();
+      this.scheduleResetAutoFitProgressTick();
     }
-    this.applySmartCreatorNavHeaderFields();
-    void this.runAutoFitThenSave();
+    try {
+      this.resetCreatorSettings({
+        skipReload: true,
+        skipRemotePersist: options?.skipRemotePersist,
+      });
+      this.syncPageOrientationForQTypeFilter();
+      this.schedulePersistCreatorStateToLocalStorage();
+      await this.waitForLayoutIdle();
+      await this.runForcedPreviewAutoFitOnly();
+    } catch {
+      this.previewAutoFitForceOneLayoutChain = false;
+    }
+    if (showOverlay) {
+      this.clearResetAutoFitProgressTimer();
+      this.resetAutoFitOverlayPercent = 100;
+      this.cdr.markForCheck();
+      setTimeout(() => {
+        this.resetAutoFitOverlayVisible = false;
+        if (!this.autoFitBlockingOverlayVisible) {
+          this.resetAutoFitOverlayPercent = 0;
+        }
+        this.cdr.markForCheck();
+      }, 220);
+    }
   }
 
   /**
-   * Full preview auto-fit for any exam name (same pipeline as first-three exams). Shared by Smart and Reset.
-   * Ends with the same MCQ options measure + relayout pass as {@link runDoSaveExportFlowCore} (Smart runs that via save).
+   * Forced preview auto-fit only (no factory reset). Used internally after {@link resetCreatorSettings}.
    */
-  private async runForcedPreviewAutoFit(): Promise<void> {
+  private async runForcedPreviewAutoFitOnly(): Promise<void> {
     try {
       this.clearManualOptionsColumnsOverride();
       this.previewAutoFitForceOneLayoutChain = true;
+      this.maybeBootstrapAutoFitOverlayProgress();
       this.onPreviewLayoutChange({ suppressAutoFit: false });
       await this.waitForLayoutIdle();
       await this.syncMcqOptionsLayoutAfterAutoFit();
     } catch {
       this.previewAutoFitForceOneLayoutChain = false;
     }
+  }
+
+  /**
+   * Full preview auto-fit for any exam name (same pipeline as Reset Setting / Auto Fit).
+   * Ends with the same MCQ options measure + relayout pass as {@link runDoSaveExportFlowCore} (Smart runs that via save).
+   */
+  private async runForcedPreviewAutoFit(): Promise<void> {
+    await this.runCreatorResetAndAutoFit({ showOverlay: false });
   }
 
   /** Match save/export prep: remeasure MCQ option grids, relayout once, wait until idle. */
@@ -2178,7 +2227,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     this.questionHeader = '';
     this.rebuildQuestionHeader();
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.onPreviewLayoutChange();
     if (!mixedSqCreativeNotice && !mixedSqMcqNotice) {
       return;
     }
@@ -2202,7 +2251,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     this.questionHeader = merged.join('\n');
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.onPreviewLayoutChange();
   }
 
   /**
@@ -2243,7 +2292,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.questionHeader = merged.join('\n');
     }
     this.syncHeaderFontSizesToLineCount();
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.onPreviewLayoutChange();
     this.cdr.markForCheck();
   }
 
@@ -3330,7 +3379,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             this.suppressHydrateHeaderRebuildOnce = false;
             /** Rebuild was skipped (trusted restore); sq/subject may have been missing on first sync — rerun header syncs. */
             if (!this.headerUseLegacyQuestionHeader) {
-              this.onPreviewLayoutChange({ suppressAutoFit: false });
+              this.onPreviewLayoutChange();
             }
           } else if (!this.headerUseLegacyQuestionHeader) {
             /**
@@ -5643,32 +5692,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * subject, and question selection (e.g. 7-line mixed template). Keeps the active draft (questions,
    * context, EIIN, institute, exam type). Persists (no full page reload from the Reset button).
    */
-  /** Reset / Auto Fit button: show aside loader (page-load style), run reset, wait for layout to settle. */
+  /** Reset / Auto Fit button: same {@link runCreatorResetAndAutoFit} pipeline with aside loader overlay. */
   async onResetCreatorSettingsClick(): Promise<void> {
-    if (this.resetAutoFitOverlayVisible) return;
-    this.resetAutoFitOverlayVisible = true;
-    this.resetAutoFitOverlayPercent = 10;
-    this.cdr.markForCheck();
-    this.scheduleResetAutoFitProgressTick();
-    try {
-      this.resetCreatorSettings();
-      this.syncPageOrientationForQTypeFilter();
-      this.schedulePersistCreatorStateToLocalStorage();
-      await this.waitForLayoutIdle();
-      await this.runForcedPreviewAutoFit();
-    } catch {
-      this.previewAutoFitForceOneLayoutChain = false;
-    }
-    this.clearResetAutoFitProgressTimer();
-    this.resetAutoFitOverlayPercent = 100;
-    this.cdr.markForCheck();
-    setTimeout(() => {
-      this.resetAutoFitOverlayVisible = false;
-      if (!this.autoFitBlockingOverlayVisible) {
-        this.resetAutoFitOverlayPercent = 0;
-      }
-      this.cdr.markForCheck();
-    }, 220);
+    await this.runCreatorResetAndAutoFit({ showOverlay: true });
   }
 
   private clearResetAutoFitProgressTimer(): void {
@@ -5719,7 +5745,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Restore layout/header defaults. Pass `{ skipReload: true }` to avoid `window.location.reload()` (default for the Reset Setting button).
    * Pass `{ skipReload: false }` only if a full reload is explicitly required after remote sync.
    * `skipRemotePersist`: first-visit flow sets the local “reset done” flag then persists remote once.
-   * Reset-button auto-fit runs {@link runForcedPreviewAutoFit} after this (same as Smart Question Creator).
+   * Reset-button and all other auto-fit entry points run {@link runCreatorResetAndAutoFit} (factory reset + forced chain).
    */
   resetCreatorSettings(options?: { skipReload?: boolean; skipRemotePersist?: boolean }): void {
     /** Default true: avoid full page reload; pass `{ skipReload: false }` to reload after remote sync (legacy). */
