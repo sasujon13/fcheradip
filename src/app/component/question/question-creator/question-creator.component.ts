@@ -29,8 +29,6 @@ import { LoadingService } from 'src/app/service/loading.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from 'src/app/service/login-redirect.session';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import {
-  QUESTION_SAVE_DEBIT_CQ,
-  QUESTION_SAVE_DEBIT_OTHER,
   questionSaveDebitTotal,
 } from 'src/app/service/question-unlock.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
@@ -697,6 +695,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   exportFormat: ExportFormat = 'pdf';
   saving = false;
   saveSuccessMessage = '';
+  /** Insufficient coins for save (need vs balance + per-question pricing). */
+  coinAlertMessage = '';
+  showCoinAlert = false;
 
   /** Aside overlay during Reset / Auto Fit (same stepped ring as global page load). */
   resetAutoFitOverlayVisible = false;
@@ -9533,6 +9534,46 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.trxUnlock.getCachedRemaining();
   }
 
+  private formatInsufficientCoinsSaveAlertMessage(debit: number, balance: number): string {
+    const shortfall = Math.max(0, debit - balance);
+    const taka = (shortfall / 100).toFixed(2);
+    return `Insufficient coins. Need ${debit}, you have ${balance}. (Need more ${taka} Taka)`;
+  }
+
+  private openInsufficientCoinsSaveAlert(debit: number, balance: number): void {
+    this.coinAlertMessage = this.formatInsufficientCoinsSaveAlertMessage(debit, balance);
+    this.showCoinAlert = false;
+    this.cdr.markForCheck();
+    queueMicrotask(() => {
+      this.showCoinAlert = true;
+      this.cdr.markForCheck();
+    });
+  }
+
+  private maybeShowInsufficientCoinsSaveAlertFromError(err: unknown): boolean {
+    const body = (err as { error?: { detail?: string; error?: string; required?: number; remaining?: number } })
+      ?.error;
+    const detail = typeof body?.detail === 'string' ? body.detail.trim() : '';
+    const errMsg = typeof body?.error === 'string' ? body.error.trim() : '';
+    const isInsufficient = /insufficient/i.test(detail) || /insufficient/i.test(errMsg);
+    if (!isInsufficient) {
+      return false;
+    }
+    const debit =
+      typeof body?.required === 'number' && Number.isFinite(body.required)
+        ? body.required
+        : this.questionSaveCoinCost;
+    const balance =
+      typeof body?.remaining === 'number' && Number.isFinite(body.remaining)
+        ? body.remaining
+        : this.trxUnlock.getCachedRemaining();
+    if (typeof body?.remaining === 'number' && Number.isFinite(body.remaining)) {
+      this.trxUnlock.setCachedRemaining(body.remaining);
+    }
+    this.openInsufficientCoinsSaveAlert(debit, balance);
+    return true;
+  }
+
   private assertSufficientCoinsForSave(): boolean {
     const debit = this.questionSaveCoinCost;
     if (debit <= 0) {
@@ -9542,8 +9583,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (debit <= balance) {
       return true;
     }
-    this.saveSuccessMessage = `Insufficient coins. Need ${debit}, you have ${balance}. (CQ ×${QUESTION_SAVE_DEBIT_CQ}, other ×${QUESTION_SAVE_DEBIT_OTHER} per question)`;
-    this.cdr.markForCheck();
+    this.openInsufficientCoinsSaveAlert(debit, balance);
     return false;
   }
 
@@ -10036,7 +10076,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         void this.router.navigate(['/created-questions'], { queryParams: { highlight: highlightId } });
       });
     } catch (err) {
-      this.saveSuccessMessage = this.createSetSaveErrorMessage(err);
+      if (!this.maybeShowInsufficientCoinsSaveAlertFromError(err)) {
+        this.saveSuccessMessage = this.createSetSaveErrorMessage(err);
+      }
       this.cdr.markForCheck();
     }
   }

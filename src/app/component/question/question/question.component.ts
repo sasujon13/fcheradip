@@ -191,6 +191,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Success alert (same app-alert as Apply TrxID): message and visibility. */
   successAlertMessage = '';
   showSuccessAlert = false;
+  /** Insufficient coins for unlock (need vs balance). */
+  coinAlertMessage = '';
+  showCoinAlert = false;
   /** Disappear feedback (snackbar like Apply TrxID). */
   disappearAlertMessage = '';
   showDisappearAlert = false;
@@ -2036,6 +2039,20 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       );
   }
 
+  private isInsufficientCoinsDetail(detail: string | undefined): boolean {
+    return !!detail && /insufficient/i.test(detail);
+  }
+
+  private openInsufficientCoinsUnlockAlert(debit: number, balance: number): void {
+    this.coinAlertMessage = `Insufficient coins. Need ${debit}, you have ${balance}.`;
+    this.showCoinAlert = false;
+    this.cdr.markForCheck();
+    queueMicrotask(() => {
+      this.showCoinAlert = true;
+      this.cdr.markForCheck();
+    });
+  }
+
   private runQuestionUnlock(items: QuestionUnlockItem[]): void {
     const chargeable = items.filter((it) => !this.purchasedUnlockedQids.has(it.qid));
     items.forEach((it) => {
@@ -2054,8 +2071,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const debit = this.totalUnlockDebit(chargeable);
     const balance = this.trxUnlock.getCachedRemaining();
     if (debit > balance) {
-      this.successAlertMessage = `Insufficient coins. Need ${debit}, you have ${balance}.`;
-      this.showSuccessAlert = true;
+      this.openInsufficientCoinsUnlockAlert(debit, balance);
       return;
     }
     this.unlockBusy = true;
@@ -2083,8 +2099,15 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           if (r.updateBalance) {
             this.trxUnlock.setCachedRemaining(r.remaining);
           }
-          this.successAlertMessage = r.detail || 'Unlock failed.';
-          this.showSuccessAlert = true;
+          if (this.isInsufficientCoinsDetail(r.detail)) {
+            this.openInsufficientCoinsUnlockAlert(
+              debit,
+              r.updateBalance ? r.remaining : this.trxUnlock.getCachedRemaining()
+            );
+          } else {
+            this.successAlertMessage = r.detail || 'Unlock failed.';
+            this.showSuccessAlert = true;
+          }
           this.cdr.markForCheck();
         }
       },

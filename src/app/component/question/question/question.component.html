@@ -295,6 +295,8 @@
       </div>
       <app-alert [message]="successAlertMessage" [showAlert]="showSuccessAlert" alertType="success"
         (alertClosed)="showSuccessAlert = false"></app-alert>
+      <app-alert [message]="coinAlertMessage" [showAlert]="showCoinAlert" alertType="error"
+        (alertClosed)="showCoinAlert = false"></app-alert>
       <app-alert [message]="disappearAlertMessage" [showAlert]="showDisappearAlert" alertType="success"
         (alertClosed)="showDisappearAlert = false"></app-alert>
 
