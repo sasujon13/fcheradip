@@ -503,9 +503,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly LAYOUT_GAP_MIN_PX = 1;
   private static readonly LAYOUT_GAP_MAX_PX = 100;
 
-  private static readonly QUESTIONS_PADDING_MIN_PX = 0;
+  private static readonly QUESTIONS_PADDING_MIN_PX = 2;
   private static readonly QUESTIONS_PADDING_MAX_PX = 100;
-  private static readonly QUESTIONS_PADDING_DEFAULT_PX = 0;
+  private static readonly QUESTIONS_PADDING_DEFAULT_PX = 2;
   private static readonly PREVIEW_QUESTIONS_FONT_DEFAULT_PX = 8;
   private static readonly PREVIEW_QUESTIONS_FONT_MIN_PX = 7;
   /** Regular auto-fit: stop shrinking here (7px remains manual / stepper only). */

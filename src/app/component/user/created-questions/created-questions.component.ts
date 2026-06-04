@@ -343,7 +343,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
       marginRight: this.numFromLayout(ls, 'marginRight', 25.4),
       marginBottom: this.numFromLayout(ls, 'marginBottom', 25.4),
       marginLeft: this.numFromLayout(ls, 'marginLeft', 25.4),
-      questionsPadding: this.numFromLayout(ls, 'questionsPadding', 0),
+      questionsPadding: this.numFromLayout(ls, 'questionsPadding', 2),
       questionsGap: this.numFromLayout(ls, 'questionsGap', 0),
       questionsGapCreative: this.numFromLayout(ls, 'questionsGapCreative', 0),
       previewQuestionsFontPx: this.numFromLayout(ls, 'previewQuestionsFontPx', 8),
