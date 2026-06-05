@@ -360,6 +360,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private mcqPreviewShuffleNonce = 0;
   /** After a successful save, preview/export order comes from `persistedMcqOrderBySet`. */
   private mcqOrdersFrozen = false;
+  /** Four set orders resolved to fit target sheet budget (preview/export before save). */
+  private mcqSetOrdersResolved = false;
+  private mcqSetOrderResolutionInFlight = false;
+  /** Segment block heights from last layout pass — keyed by layout-seg qid for shuffle probes. */
+  private layoutSegmentHeightByQid = new Map<string, number>();
+  private lastLayoutPaginationProbe: {
+    innerH: number;
+    headerCreativePx: number;
+    headerMcqPx: number;
+  } | null = null;
   /** Full question `qid` order per set letter (saved in layout_settings). */
   persistedMcqOrderBySet: Partial<Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], (string | number)[]>> =
     {};
@@ -1151,6 +1161,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.autoFitMcqGapNeedsPostOptionsPass = false;
       await this.waitForLayoutIdle(90_000);
       await this.syncMcqOptionsLayoutAfterAutoFit();
+      if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen) {
+        this.mcqSetOrdersResolved = false;
+        this.persistedMcqOrderBySet = {};
+        await this.runMcqSetOrderResolutionWhenIdle();
+      }
     } catch {
       this.previewAutoFitForceOneLayoutChain = false;
     } finally {
@@ -1552,9 +1567,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (mos != null && typeof mos === 'object' && !Array.isArray(mos)) {
       this.persistedMcqOrderBySet = this.parsePersistedMcqOrderMap(mos);
       this.mcqOrdersFrozen = Object.keys(this.persistedMcqOrderBySet).length > 0;
+      this.mcqSetOrdersResolved = this.mcqOrdersFrozen;
     } else {
       this.persistedMcqOrderBySet = {};
       this.mcqOrdersFrozen = false;
+      this.mcqSetOrdersResolved = false;
     }
     const qhm = parsed['questionHeaderByMcqSet'];
     if (qhm != null && typeof qhm === 'object' && !Array.isArray(qhm)) {
@@ -3942,16 +3959,190 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   onMcqSetLetterChange(): void {
-    if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen) {
-      this.mcqPreviewShuffleNonce++;
+    if (this.selectedMcqSetLetter === null && !this.mcqOrdersFrozen) {
+      this.mcqSetOrdersResolved = false;
+      this.persistedMcqOrderBySet = {};
     }
     this.onPreviewLayoutChange();
+    if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen && !this.mcqSetOrdersResolved) {
+      void this.runMcqSetOrderResolutionWhenIdle();
+    }
   }
 
   private clearMcqPersistedOrders(): void {
     this.persistedMcqOrderBySet = {};
     this.questionHeaderByMcqSet = {};
     this.mcqOrdersFrozen = false;
+    this.mcqSetOrdersResolved = false;
+  }
+
+  /** True when MCQ set ক–ঘ orders should be (re)computed to fit the canonical-order page budget. */
+  private shouldResolveMcqSetOrders(): boolean {
+    return this.shouldExportFourMcqSetFiles() && !this.mcqOrdersFrozen;
+  }
+
+  private mcqSetOrdersUsePersistedSnapshot(): boolean {
+    return this.mcqOrdersFrozen || this.mcqSetOrdersResolved;
+  }
+
+  /** Canonical question order (no set shuffle) — mixed mode keeps CQ before MCQ. */
+  private buildCanonicalQuestionsForSetShuffleTarget(): any[] {
+    const base = this.questions.slice();
+    if (!this.selectionHasBothHeaderTypes()) {
+      return base;
+    }
+    const creative = base.filter((q) => this.questionIsCreativeType(q));
+    const mcq = base.filter((q) => this.questionIsMcqType(q));
+    const others = base.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q));
+    return [...creative, ...mcq, ...others];
+  }
+
+  /** Replace MCQ slots with `shuffledMcqs` while preserving CQ / other positions. */
+  private buildFullQuestionListWithMcqPermutation(shuffledMcqs: any[]): any[] {
+    let mi = 0;
+    const mixed = this.questions.map((q) => (this.questionIsMcqType(q) ? shuffledMcqs[mi++]! : q));
+    if (!this.selectionHasBothHeaderTypes()) {
+      return mixed;
+    }
+    const creative = mixed.filter((q) => this.questionIsCreativeType(q));
+    const mcq = mixed.filter((q) => this.questionIsMcqType(q));
+    const others = mixed.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q));
+    return [...creative, ...mcq, ...others];
+  }
+
+  private mcqPermutationKeyFromQuestions(mcqList: any[]): string {
+    return mcqList.map((q) => String(q?.qid ?? '')).join('\u0001');
+  }
+
+  /** Paginate a candidate full-question order using cached segment heights (no DOM). */
+  private probeSheetCountsForQuestionOrder(fullQuestions: any[]): { total: number; mcq: number } | null {
+    const ctx = this.lastLayoutPaginationProbe;
+    if (!ctx || this.layoutSegmentHeightByQid.size === 0) {
+      return null;
+    }
+    let ordered = fullQuestions;
+    if (this.selectionHasBothHeaderTypes()) {
+      const creative = fullQuestions.filter((q) => this.questionIsCreativeType(q));
+      const mcq = fullQuestions.filter((q) => this.questionIsMcqType(q));
+      const others = fullQuestions.filter(
+        (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q)
+      );
+      ordered = [...creative, ...mcq, ...others];
+    }
+    const segments = buildPreviewLayoutMeasureRows(ordered, this.layoutSegmentSplitOpts());
+    if (!segments.length) {
+      return null;
+    }
+    const heights = segments.map((seg) => {
+      const qid = seg['qid'] != null ? String(seg['qid']) : '';
+      return this.layoutSegmentHeightByQid.get(qid) ?? 0;
+    });
+    const pages = this.splitIntoPages(
+      heights,
+      ctx.innerH,
+      ctx.headerCreativePx,
+      ctx.headerMcqPx,
+      this.pageSections,
+      segments
+    );
+    const counts = this.countKindsInCandidatePages(pages);
+    return { total: pages.length, mcq: counts.mcq };
+  }
+
+  /**
+   * Find four distinct MCQ permutations (ক–ঘ) that do not add sheets vs canonical order at current layout.
+   * Answers follow question position within each set order (see {@link orderedMcqBySetForAnswerExport}).
+   */
+  private resolveMcqSetOrdersFittingTargetPages(): boolean {
+    if (!this.shouldResolveMcqSetOrders()) {
+      return false;
+    }
+    const letters = QuestionCreatorComponent.MCQ_SET_LETTERS;
+    const canonical = this.buildCanonicalQuestionsForSetShuffleTarget();
+    const targetCounts = this.probeSheetCountsForQuestionOrder(canonical);
+    if (!targetCounts) {
+      return false;
+    }
+    const usesTotalPages = !this.selectionHasCreativeType();
+    const sheetBudget = usesTotalPages ? targetCounts.total : targetCounts.mcq;
+
+    const mcqInOrder = this.questions.filter((q) => this.questionIsMcqType(q));
+    if (mcqInOrder.length <= 1) {
+      const qids = this.questions.map((q) => q.qid);
+      const snap: typeof this.persistedMcqOrderBySet = {};
+      for (const L of letters) {
+        snap[L] = qids.slice();
+      }
+      this.persistedMcqOrderBySet = snap;
+      this.mcqSetOrdersResolved = true;
+      return true;
+    }
+
+    const found: typeof this.persistedMcqOrderBySet = {};
+    const usedPermKeys = new Set<string>();
+    const maxAttempts = 900;
+    const randomBase = ((Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0) || 1;
+
+    for (let attempt = 0; attempt < maxAttempts && Object.keys(found).length < letters.length; attempt++) {
+      for (let vi = 0; vi < letters.length; vi++) {
+        const L = letters[vi]!;
+        if (found[L]?.length) {
+          continue;
+        }
+        let seed = this.mcqPermutationSeed(vi, mcqInOrder);
+        seed = (seed + Math.imul(randomBase + attempt * 2_654_435_761 + vi * 97, 0x9e3779b9)) >>> 0;
+        const shuffled = this.shuffleArrayDeterministic(mcqInOrder, seed || 1);
+        const permKey = this.mcqPermutationKeyFromQuestions(shuffled);
+        if (usedPermKeys.has(permKey)) {
+          continue;
+        }
+        const full = this.buildFullQuestionListWithMcqPermutation(shuffled);
+        const counts = this.probeSheetCountsForQuestionOrder(full);
+        if (!counts) {
+          continue;
+        }
+        const used = usesTotalPages ? counts.total : counts.mcq;
+        if (used > sheetBudget) {
+          continue;
+        }
+        usedPermKeys.add(permKey);
+        found[L] = full.map((q) => q.qid);
+      }
+    }
+
+    if (Object.keys(found).length < letters.length) {
+      return false;
+    }
+
+    this.persistedMcqOrderBySet = found;
+    this.mcqSetOrdersResolved = true;
+    this.schedulePersistCreatorStateToLocalStorage();
+    return true;
+  }
+
+  private async runMcqSetOrderResolutionWhenIdle(): Promise<void> {
+    if (!this.shouldResolveMcqSetOrders() || this.mcqSetOrderResolutionInFlight) {
+      return;
+    }
+    this.mcqSetOrderResolutionInFlight = true;
+    try {
+      await this.waitForLayoutIdle();
+      if (!this.shouldResolveMcqSetOrders()) {
+        return;
+      }
+      let ok = this.resolveMcqSetOrdersFittingTargetPages();
+      if (!ok) {
+        ok = this.resolveMcqSetOrdersFittingTargetPages();
+      }
+      if (ok) {
+        this.scheduleLayout();
+        await this.waitForLayoutIdle();
+      }
+    } catch {
+      /* layout timeout — preview keeps last canonical order */
+    } finally {
+      this.mcqSetOrderResolutionInFlight = false;
+    }
   }
 
   /** Reorder an arbitrary row list (e.g. layout segments) by stored qids. */
@@ -4038,7 +4229,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const L = setLetter as (typeof letters)[number];
     if (!letters.includes(L)) return this.questions.slice();
     const snap = this.persistedMcqOrderBySet[L];
-    if (snap?.length && this.mcqOrdersFrozen) {
+    if (snap?.length && this.mcqSetOrdersUsePersistedSnapshot()) {
       return this.reorderQuestionsFromQidList(snap);
     }
     const variantIndex = Math.max(0, letters.indexOf(L));
@@ -5877,6 +6068,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     this.mcqPreviewShuffleNonce = 0;
     this.mcqOrdersFrozen = false;
+    this.mcqSetOrdersResolved = false;
     this.persistedMcqOrderBySet = {};
     this.questionHeaderByMcqSet = {};
     this.pageSize = 'A4';
@@ -5960,6 +6152,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.previewAutoFitForceOneLayoutChain = false;
       this.autoFitDeferMcqGapUntilOptionsSync = false;
       this.autoFitMcqGapNeedsPostOptionsPass = false;
+      if (!this.mcqOrdersFrozen && this.selectedMcqSetLetter != null) {
+        this.mcqSetOrdersResolved = false;
+        this.persistedMcqOrderBySet = {};
+      }
     } else {
       // Forced full auto-fit on the next layout pass (Smart / Reset / nav / reload chains).
       this.previewAutoFitSuppressNextLayoutRun = false;
@@ -5970,6 +6166,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.scheduleLayout();
     queueMicrotask(() => this.updatePreviewFitScale());
     this.schedulePersistCreatorStateToLocalStorage();
+    if (suppress && this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen && !this.mcqSetOrdersResolved) {
+      void this.runMcqSetOrderResolutionWhenIdle();
+    }
   }
 
   decLayoutColumns(): void {
@@ -8430,6 +8629,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             : 0;
         this.measuredHeaderHeightPx = headerCreativePx;
         this.measuredMcqHeaderHeightPx = headerMcqPx;
+        this.layoutSegmentHeightByQid.clear();
+        for (let hi = 0; hi < pq.length; hi++) {
+          const seg = pq[hi];
+          const qid = seg?.qid != null ? String(seg.qid) : String(hi);
+          this.layoutSegmentHeightByQid.set(qid, heights[hi] ?? 0);
+        }
+        this.lastLayoutPaginationProbe = {
+          innerH,
+          headerCreativePx,
+          headerMcqPx,
+        };
 
         this.resolveMixedTypesSinglePageMergedHeaderFromProbe(
           heights,
@@ -9489,7 +9699,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
       const qids = this.persistedMcqOrderBySet[L];
       out[L] =
-        qids?.length && this.mcqOrdersFrozen
+        qids?.length && this.mcqSetOrdersUsePersistedSnapshot()
           ? this.reorderQuestionsFromQidList(qids)
           : this.buildQuestionsOrderedForMcqSet(L);
     }
