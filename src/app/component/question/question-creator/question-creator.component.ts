@@ -4029,11 +4029,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return mcqList.map((q) => String(q?.qid ?? '')).join('\u0001');
   }
 
-  /** Paginate a candidate full-question order using cached segment heights (no DOM). */
-  private probeSheetCountsForQuestionOrder(fullQuestions: any[]): { total: number; mcq: number } | null {
+  /** Paginate a candidate full-question order using cached segment heights (no DOM / no preview update). */
+  private probePaginatedPagesForQuestionOrder(fullQuestions: any[]): PreviewPage[] {
     const ctx = this.lastLayoutPaginationProbe;
     if (!ctx || this.layoutSegmentHeightByQid.size === 0) {
-      return null;
+      return [];
     }
     let ordered = fullQuestions;
     if (this.selectionHasBothHeaderTypes()) {
@@ -4046,13 +4046,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     const segments = buildPreviewLayoutMeasureRows(ordered, this.layoutSegmentSplitOpts());
     if (!segments.length) {
-      return null;
+      return [];
     }
     const heights = segments.map((seg) => {
       const qid = seg['qid'] != null ? String(seg['qid']) : '';
       return this.layoutSegmentHeightByQid.get(qid) ?? 0;
     });
-    const pages = this.splitIntoPages(
+    return this.splitIntoPages(
       heights,
       ctx.innerH,
       ctx.headerCreativePx,
@@ -4060,8 +4060,66 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.pageSections,
       segments
     );
+  }
+
+  /** Paginate a candidate full-question order using cached segment heights (no DOM). */
+  private probeSheetCountsForQuestionOrder(fullQuestions: any[]): { total: number; mcq: number } | null {
+    const pages = this.probePaginatedPagesForQuestionOrder(fullQuestions);
+    if (!pages.length) {
+      return null;
+    }
     const counts = this.countKindsInCandidatePages(pages);
     return { total: pages.length, mcq: counts.mcq };
+  }
+
+  private buildExportPreviewPagePlanForPages(pages: PreviewPage[]): Record<string, unknown>[] {
+    if (this.pageSections > 1 || !pages.length) {
+      return [];
+    }
+    return pages.map((page, pi) => {
+      const kindKey = this.sheetPreviewKindKey(pi, pages);
+      const kind = kindKey === 'creative' || kindKey === 'mcq' ? kindKey : this.headerVariantForPage(pi, pages);
+      return {
+        kind,
+        headerKind: this.headerVariantForPage(pi, pages),
+        leadEmpty: this.landscapeLeadEmptyFirstColumnForSheetPage(pi),
+        headerVisible: this.paperHeaderVisibleForSheetPage(pi, pages),
+        headerInFirstColumn: this.headerInFirstColumnLandscape(pi, pages),
+        questionColumnIndexes: (page.questionColumns ?? [page.items]).map((col) =>
+          col.map((it) => it.index)
+        ),
+        leadBindingIndexes: (page.leadBindingItems ?? []).map((it) => it.index),
+      };
+    });
+  }
+
+  private buildPreviewSerialByIndexForMeasureRows(measureRows: any[]): Record<string, number> {
+    const previewSerialByIndex: Record<string, number> = {};
+    for (let i = 0; i < measureRows.length; i++) {
+      const q = measureRows[i]!;
+      previewSerialByIndex[String(i)] = this.previewQuestionDisplaySerialOneBased(i, q);
+    }
+    return previewSerialByIndex;
+  }
+
+  /** Per-set export layout from persisted order — does not change preview or selected set letter. */
+  private buildPerSetLayoutForMcqExport(
+    baseLayout: Record<string, unknown>,
+    setLetter: (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number]
+  ): Record<string, unknown> {
+    const qids = this.persistedMcqOrderBySet[setLetter];
+    const fullQuestions = qids?.length
+      ? this.reorderQuestionsFromQidList(qids)
+      : this.buildQuestionsOrderedForMcqSet(setLetter);
+    const measureRows = buildPreviewLayoutMeasureRows(fullQuestions, this.layoutSegmentSplitOpts());
+    const pages = this.probePaginatedPagesForQuestionOrder(fullQuestions);
+    return {
+      ...baseLayout,
+      mcqSetLetter: setLetter,
+      exportPreviewPagePlan: this.buildExportPreviewPagePlanForPages(pages),
+      previewSerialByIndex: this.buildPreviewSerialByIndexForMeasureRows(measureRows),
+      exportPreviewQuestionQids: measureRows.map((q) => q['qid']),
+    };
   }
 
   /**
@@ -10140,7 +10198,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const multiMcq = this.shouldExportFourMcqSetFiles();
     if (multiMcq) {
       if (!this.mcqSetOrdersResolved && !this.mcqOrdersFrozen) {
-        await this.runMcqSetOrderResolutionWhenIdle();
+        this.resolveMcqSetOrdersFittingTargetPages();
       }
       const letters = [...QuestionCreatorComponent.MCQ_SET_LETTERS];
       const orderSnap: typeof this.persistedMcqOrderBySet = { ...this.persistedMcqOrderBySet };
@@ -10159,36 +10217,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.clearMcqPersistedOrders();
     }
 
+    await this.syncMcqOptionsLayoutForExport();
+    const layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     const perSetLayout: Partial<
       Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>
     > = {};
-    let layoutSettingsForCreate: Record<string, unknown>;
-    const syncMcqOptionsForExport = async (): Promise<void> => {
-      await this.syncMcqOptionsLayoutForExport();
-    };
     if (multiMcq) {
-      const prevLetter = this.selectedMcqSetLetter;
       for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
-        this.selectedMcqSetLetter = L;
-        this.mcqSetLetterOnlyRelayout = true;
-        this.onPreviewLayoutChange({ suppressAutoFit: true });
-        this.mcqSetLetterOnlyRelayout = false;
-        await this.waitForLayoutIdle();
-        await syncMcqOptionsForExport();
-        perSetLayout[L] = this.buildLayoutSettingsForPersist();
+        perSetLayout[L] = this.buildPerSetLayoutForMcqExport(layoutSettingsForCreate, L);
       }
-      this.selectedMcqSetLetter = prevLetter;
-      this.mcqSetLetterOnlyRelayout = true;
-      this.onPreviewLayoutChange({ suppressAutoFit: true });
-      this.mcqSetLetterOnlyRelayout = false;
-      await this.waitForLayoutIdle();
-      await syncMcqOptionsForExport();
-      layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
-    } else {
-      this.onPreviewLayoutChange({ suppressAutoFit: true });
-      await this.waitForLayoutIdle();
-      await syncMcqOptionsForExport();
-      layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     }
 
     const basePayload = {
@@ -10242,13 +10279,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       headerLineFontSizesPdfMcq?: number[];
     } = {};
     for (const setLetter of setVariants) {
-      if (multiMcq && setLetter != null) {
-        this.applyLayoutAndHeaderFromParsed(perSetLayout[setLetter] as Record<string, unknown>, {
-          trustSavedHeader: true,
-        });
-        this.onPreviewLayoutChange({ suppressAutoFit: true });
-        await this.waitForLayoutIdle();
-      }
+      const layoutForVariant =
+        multiMcq && setLetter != null ? perSetLayout[setLetter] : layoutSettingsForCreate;
+      const ls = (layoutForVariant ?? layoutSettingsForCreate) as Record<string, unknown>;
       const fname =
         setLetter != null ? `${this.exportFileNameBase}-${setLetter}` : this.exportFileNameBase;
       const header =
@@ -10260,7 +10293,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           ? this.reorderQuestionsFromQidList(this.persistedMcqOrderBySet[setLetter])
           : this.canonicalPreviewQuestions;
       const segmentRows = this.expandQuestionsIntoLayoutSegments(canonicalForFile);
-      const exportQids = layoutSettingsForCreate['exportPreviewQuestionQids'];
+      const exportQids = ls['exportPreviewQuestionQids'] ?? layoutSettingsForCreate['exportPreviewQuestionQids'];
       const orderedSegmentRows =
         Array.isArray(exportQids) && exportQids.length
           ? this.reorderListFromQidList(segmentRows, exportQids as (string | number)[])
@@ -10406,9 +10439,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       }
 
       for (const fmt of toRequest) {
-        const layoutForVariant =
-          multiMcq && setLetter != null ? perSetLayout[setLetter] : layoutSettingsForCreate;
-        const ls = (layoutForVariant ?? layoutSettingsForCreate) as Record<string, unknown>;
         const pagePlan = ls['exportPreviewPagePlan'];
         requests.push(
           this.apiService.exportQuestions({
@@ -10429,14 +10459,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         );
         downloadNames.push(fmt === 'pdf' ? `${fname}.pdf` : `${fname}.docx`);
       }
-    }
-
-    if (multiMcq) {
-      this.applyLayoutAndHeaderFromParsed(layoutSettingsForCreate as Record<string, unknown>, {
-        trustSavedHeader: true,
-      });
-      this.onPreviewLayoutChange({ suppressAutoFit: true });
-      await this.waitForLayoutIdle();
     }
 
     const answerLayouts = await this.appendPostSaveAnswerSheetExportRequests(requests, downloadNames, {
