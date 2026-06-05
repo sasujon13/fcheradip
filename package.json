@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "node scripts/clean-angular-cache.mjs",
     "start": "ng serve",
+    "prestart:quiet": "node scripts/clean-angular-cache.mjs",
     "start:quiet": "node --no-deprecation ./node_modules/@angular/cli/bin/ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
