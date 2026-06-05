@@ -113,14 +113,14 @@
     <br>
     <div
       class="hover-message-container"
-      [style.margin-left.px]="loginStatus ? -37 : -37"
       (pointerenter)="onTrxHelpPointerEnter()"
       (pointerleave)="onTrxHelpPointerLeave()"
     >
       <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
-        [style.margin-left]="loginStatus ? '-80px' : '-80px'" />
+        [style.margin-left]="loginStatus ? '-174px' : '0'" />
       <button (click)="applyToken()">Apply</button>
-      <p class="rmsg" *ngIf="loginStatus"><span aria-hidden="true">{{ null | coinEmoji }}</span> <b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins</p>
+      <p class="rmsg" *ngIf="loginStatus" 
+      [style.margin-left]="loginStatus ? '200px' : '0'"><span aria-hidden="true">{{ null | coinEmoji }}</span> <b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins</p>
       <div class="hover-message-box"
         [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
         [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'"

@@ -94,8 +94,6 @@ header .tokenbox.header-tokenbox .token-input-box input {
   width: 132px;
   border: 5px solid var(--color_primary_teal);
   border-left: 5px solid var(--color_primary_teal);
-  margin-left: -142px !important;
-  /* margin-left: -80px; */
   position: relative;
   z-index: 1001;
 }
@@ -120,7 +118,7 @@ header .tokenbox.header-tokenbox .token-input-box button {
 
 
 header .rmsg {
-  margin: -25px 0 0 236px;
+  margin: -25px 0 0 0;
   font-size: 1.5em;
   pointer-events: none;
 }
@@ -132,12 +130,9 @@ header:not(.logged-in) .rmsg {
 header .tokenbox.header-tokenbox .hover-message-container {
   position: fixed;
   display: inline-block;
-  margin-left: -80px;
   z-index: 10000;
 }
 
-/* Logged-in offset (-40px) is applied inline from header.component.html so logout clears it and this -34px shows again */
-/* Trx help tooltip: use .ntrca-help-phase-on / .ntrca-help-phase-closing + pointer handlers (same as app-ntrca-header-section) */
 header .tokenbox.header-tokenbox .hover-message-container .hover-message-box::before {
   content: '';
   position: absolute;
@@ -151,7 +146,6 @@ header .tokenbox.header-tokenbox .hover-message-box {
   display: block;
   position: absolute;
   top: 100%;
-  left: 37px;
   margin-top: 10px;
   padding: 10px;
   width: max-content;
