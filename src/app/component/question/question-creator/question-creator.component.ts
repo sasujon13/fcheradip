@@ -36,6 +36,7 @@ import {
   answerSheetParentQuestionSerialOneBased,
   attachExportMcqOptionsColumnsToQuestions,
   buildSequentialAnswersExplanationsExportLayout,
+  filterExportLayoutForKind,
 } from '../../../shared/question-answer-sheet-export';
 import {
   buildAnswerLayoutMeasureRows,
@@ -5364,6 +5365,155 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
   }
 
+  /** Mixed CQ+MCQ with structured headers → separate question PDFs per kind (and per MCQ set when selected). */
+  private shouldExportSplitCreativeAndMcqFiles(): boolean {
+    return (
+      !this.headerUseLegacyQuestionHeader &&
+      this.paperSubjectMetaLinesEligible() &&
+      this.selectionHasBothHeaderTypes() &&
+      !this.mixedTypesSinglePageMergedHeader
+    );
+  }
+
+  private creativeQuestionsForSplitExport(): any[] {
+    return [
+      ...this.questions.filter((q) => this.questionIsCreativeType(q)),
+      ...this.questions.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q)),
+    ];
+  }
+
+  private buildKindFilteredExportLayout(
+    sourceLayout: Record<string, unknown>,
+    fullSegmentRows: any[],
+    kind: 'creative' | 'mcq'
+  ): Record<string, unknown> {
+    const filtered = filterExportLayoutForKind(sourceLayout, fullSegmentRows, kind);
+    const filteredRows = fullSegmentRows.filter((seg) =>
+      kind === 'creative' ? this.questionIsCreativeType(seg) : this.questionIsMcqType(seg)
+    );
+    return {
+      ...filtered,
+      previewSerialByIndex: this.buildPreviewSerialByIndexForMeasureRows(filteredRows),
+    };
+  }
+
+  private buildSaveExportTargets(
+    layoutSettingsForCreate: Record<string, unknown>,
+    perSetLayout: Partial<
+      Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>
+    >,
+    multiMcq: boolean
+  ): {
+    targets: Array<{
+      filenameStem: string;
+      setLetter: (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number] | null;
+      exportKind: 'combined' | 'creative' | 'mcq';
+      layout: Record<string, unknown>;
+      canonicalQuestions: any[];
+    }>;
+    splitPersist: {
+      exportSplitCreativeMcqFiles?: boolean;
+      exportCreativeLayout?: Record<string, unknown>;
+      exportMcqLayout?: Record<string, unknown>;
+      exportMcqLayoutBySet?: Partial<
+        Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>
+      >;
+    };
+  } {
+    const base = this.exportFileNameBase;
+    const split = this.shouldExportSplitCreativeAndMcqFiles();
+    if (!split) {
+      const setVariants: Array<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number] | null> =
+        multiMcq ? [...QuestionCreatorComponent.MCQ_SET_LETTERS] : [null];
+      return {
+        targets: setVariants.map((setLetter) => ({
+          filenameStem: setLetter != null ? `${base}-${setLetter}` : base,
+          setLetter,
+          exportKind: 'combined' as const,
+          layout: (setLetter != null ? perSetLayout[setLetter] : layoutSettingsForCreate) as Record<
+            string,
+            unknown
+          >,
+          canonicalQuestions:
+            setLetter != null
+              ? this.reorderQuestionsFromQidList(this.persistedMcqOrderBySet[setLetter])
+              : this.canonicalPreviewQuestions,
+        })),
+        splitPersist: {},
+      };
+    }
+
+    const fullSegmentRows = this.layoutMeasureQuestions.slice();
+    const exportCreativeLayout = this.buildKindFilteredExportLayout(
+      layoutSettingsForCreate,
+      fullSegmentRows,
+      'creative'
+    );
+    const targets: Array<{
+      filenameStem: string;
+      setLetter: (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number] | null;
+      exportKind: 'combined' | 'creative' | 'mcq';
+      layout: Record<string, unknown>;
+      canonicalQuestions: any[];
+    }> = [
+      {
+        filenameStem: `${base}-CQ`,
+        setLetter: null,
+        exportKind: 'creative',
+        layout: exportCreativeLayout,
+        canonicalQuestions: this.creativeQuestionsForSplitExport(),
+      },
+    ];
+
+    const splitPersist: {
+      exportSplitCreativeMcqFiles?: boolean;
+      exportCreativeLayout?: Record<string, unknown>;
+      exportMcqLayout?: Record<string, unknown>;
+      exportMcqLayoutBySet?: Partial<
+        Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>
+      >;
+    } = {
+      exportSplitCreativeMcqFiles: true,
+      exportCreativeLayout,
+    };
+
+    if (multiMcq) {
+      const exportMcqLayoutBySet: Partial<
+        Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>
+      > = {};
+      for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
+        const fullQuestions = this.reorderQuestionsFromQidList(this.persistedMcqOrderBySet[L]);
+        const fullSeg = this.expandQuestionsIntoLayoutSegments(fullQuestions);
+        const mcqLayout = this.buildKindFilteredExportLayout(perSetLayout[L] ?? layoutSettingsForCreate, fullSeg, 'mcq');
+        exportMcqLayoutBySet[L] = { ...mcqLayout, mcqSetLetter: L };
+        targets.push({
+          filenameStem: `${base}-${L}`,
+          setLetter: L,
+          exportKind: 'mcq',
+          layout: exportMcqLayoutBySet[L]!,
+          canonicalQuestions: fullQuestions.filter((q) => this.questionIsMcqType(q)),
+        });
+      }
+      splitPersist.exportMcqLayoutBySet = exportMcqLayoutBySet;
+    } else {
+      const exportMcqLayout = this.buildKindFilteredExportLayout(
+        layoutSettingsForCreate,
+        fullSegmentRows,
+        'mcq'
+      );
+      splitPersist.exportMcqLayout = exportMcqLayout;
+      targets.push({
+        filenameStem: `${base}-MCQ`,
+        setLetter: this.selectedMcqSetLetter,
+        exportKind: 'mcq',
+        layout: exportMcqLayout,
+        canonicalQuestions: this.questions.filter((q) => this.questionIsMcqType(q)),
+      });
+    }
+
+    return { targets, splitPersist };
+  }
+
   /**
    * Pure MCQ export: lines 0–5 from textarea, one canonical code row for `setL`, then any lines after 7.
    * (Line 6 in the textarea is the editable mirror of the grid — replaced on export so ক–ঘ variants stay correct.)
@@ -10265,9 +10415,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       layout_settings: layoutSettingsForCreate,
     };
 
-    const setVariants: Array<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number] | null> = multiMcq
-      ? [...QuestionCreatorComponent.MCQ_SET_LETTERS]
-      : [null];
+    const { targets: exportTargets, splitPersist } = this.buildSaveExportTargets(
+      layoutSettingsForCreate,
+      perSetLayout,
+      multiMcq
+    );
+    const splitExport = this.shouldExportSplitCreativeAndMcqFiles();
 
     const requests: ReturnType<ApiService['exportQuestions']>[] = [];
     const downloadNames: string[] = [];
@@ -10278,29 +10431,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       headerLineFontSizesPdfCreative?: number[];
       headerLineFontSizesPdfMcq?: number[];
     } = {};
-    for (const setLetter of setVariants) {
-      const layoutForVariant =
-        multiMcq && setLetter != null ? perSetLayout[setLetter] : layoutSettingsForCreate;
-      const ls = (layoutForVariant ?? layoutSettingsForCreate) as Record<string, unknown>;
-      const fname =
-        setLetter != null ? `${this.exportFileNameBase}-${setLetter}` : this.exportFileNameBase;
+    for (const target of exportTargets) {
+      const setLetter = target.setLetter;
+      const ls = target.layout;
+      const fname = target.filenameStem;
       const header =
         setLetter != null
           ? (this.questionHeaderByMcqSet[setLetter] ?? this.buildQuestionHeaderForPersist(setLetter))
           : this.buildQuestionHeaderForPersist();
-      const canonicalForFile =
-        setLetter != null
-          ? this.reorderQuestionsFromQidList(this.persistedMcqOrderBySet[setLetter])
-          : this.canonicalPreviewQuestions;
-      const segmentRows = this.expandQuestionsIntoLayoutSegments(canonicalForFile);
-      const exportQids = ls['exportPreviewQuestionQids'] ?? layoutSettingsForCreate['exportPreviewQuestionQids'];
+      const segmentRows = this.expandQuestionsIntoLayoutSegments(target.canonicalQuestions);
+      const exportQids = ls['exportPreviewQuestionQids'];
       const orderedSegmentRows =
         Array.isArray(exportQids) && exportQids.length
           ? this.reorderListFromQidList(segmentRows, exportQids as (string | number)[])
           : segmentRows;
       const questionsForFile = this.attachMcqOptionsColumnsForExport(
         orderedSegmentRows,
-        canonicalForFile
+        target.canonicalQuestions
       );
 
       // Export-only: per-kind MCQ/CQ header strings (+ line fonts). Mixed uses both kinds;
@@ -10327,9 +10474,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         !this.selectionHasMcqType() &&
         !this.mixedTypesSinglePageMergedHeader;
       const useSplitCreativeHeaderForPdf =
-        canSplitCreativeMcqPdfHeaders || canExportStructuredCreativeOnlyPdfHeader;
+        target.exportKind === 'creative' ||
+        (target.exportKind === 'combined' &&
+          (canSplitCreativeMcqPdfHeaders || canExportStructuredCreativeOnlyPdfHeader));
       const useSplitMcqHeaderForPdf =
-        canSplitCreativeMcqPdfHeaders || canExportStructuredMcqOnlyPdfHeader;
+        target.exportKind === 'mcq' ||
+        (target.exportKind === 'combined' &&
+          (canSplitCreativeMcqPdfHeaders || canExportStructuredMcqOnlyPdfHeader));
       const buildHeaderForPdfKind = (kind: 'creative' | 'mcq'): string => {
         if (kind === 'creative' && !useSplitCreativeHeaderForPdf) {
           return header;
@@ -10502,9 +10653,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.selectionHasMcqType() || this.questions.length > 0
         ? ' Includes MCQ answer-key and answers/explanations sheets when applicable.'
         : '';
-    this.saveSuccessMessage = multiMcq
-      ? `Created and downloaded (${setVariants.length} sets × formats): ${listed}. Saved to Created Questions.${answerNote}`
-      : `Created and downloaded: ${listed}. Saved to Created Questions.${answerNote}`;
+    const questionFileCount = exportTargets.length;
+    this.saveSuccessMessage = splitExport
+      ? `Created and downloaded (${questionFileCount} question files × formats): ${listed}. Saved to Created Questions.${answerNote}`
+      : multiMcq
+        ? `Created and downloaded (${questionFileCount} sets × formats): ${listed}. Saved to Created Questions.${answerNote}`
+        : `Created and downloaded: ${listed}. Saved to Created Questions.${answerNote}`;
     this.cdr.markForCheck();
 
     try {
@@ -10518,6 +10672,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           layout_settings: {
             ...layoutSettingsForCreate,
             ...persistedExportSplitHeaders,
+            ...splitPersist,
             ...(answerLayouts.answerExplanationsExportLayout
               ? { answerExplanationsExportLayout: answerLayouts.answerExplanationsExportLayout }
               : {}),

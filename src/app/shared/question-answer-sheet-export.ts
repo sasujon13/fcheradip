@@ -156,6 +156,101 @@ export function reorderQuestionsByQids(questions: any[], qids: (string | number)
   return out;
 }
 
+export function hasPersistedSplitCreativeMcqExport(ls: Record<string, unknown> | undefined): boolean {
+  return ls?.['exportSplitCreativeMcqFiles'] === true;
+}
+
+export function creativeParentQuestionsFromList(questions: unknown[]): any[] {
+  const creative = questions.filter((q) => questionIsCreativeType(q as { type?: unknown }));
+  const others = questions.filter(
+    (q) => !questionIsCreativeType(q as { type?: unknown }) && !questionIsMcqType(q as { type?: unknown })
+  );
+  return [...creative, ...others];
+}
+
+export function mcqParentQuestionsFromList(questions: unknown[]): any[] {
+  return questions.filter((q) => questionIsMcqType(q as { type?: unknown }));
+}
+
+/** Filter a mixed export layout + page plan to CQ-only or MCQ-only; remap segment indices. */
+export function filterExportLayoutForKind(
+  sourceLayout: Record<string, unknown>,
+  fullSegmentRows: Record<string, unknown>[],
+  kind: 'creative' | 'mcq'
+): Record<string, unknown> {
+  const matchesKind = (seg: Record<string, unknown>): boolean =>
+    kind === 'creative' ? questionIsCreativeType(seg) : questionIsMcqType(seg);
+
+  const oldToNew = new Map<number, number>();
+  const filteredRows: typeof fullSegmentRows = [];
+  for (let i = 0; i < fullSegmentRows.length; i++) {
+    const seg = fullSegmentRows[i]!;
+    if (matchesKind(seg)) {
+      oldToNew.set(i, filteredRows.length);
+      filteredRows.push(seg);
+    }
+  }
+
+  const remapIdx = (pi: number): number | undefined => oldToNew.get(pi);
+  const remapCol = (col: unknown): number[] => {
+    if (!Array.isArray(col)) return [];
+    const mapped: number[] = [];
+    for (const x of col) {
+      const ni = remapIdx(Number(x));
+      if (ni !== undefined) mapped.push(ni);
+    }
+    return mapped;
+  };
+
+  const pagePlan: Record<string, unknown>[] = [];
+  const rawPlan = sourceLayout['exportPreviewPagePlan'];
+  if (Array.isArray(rawPlan)) {
+    for (const pg of rawPlan) {
+      if (!pg || typeof pg !== 'object') continue;
+      const row = pg as Record<string, unknown>;
+      const pgKind = String(row['kind'] || '').toLowerCase();
+      if (pgKind !== kind) continue;
+
+      const colsRaw = row['questionColumnIndexes'];
+      const questionColumnIndexes: number[][] = [];
+      if (Array.isArray(colsRaw)) {
+        for (const col of colsRaw) {
+          const mapped = remapCol(col);
+          if (mapped.length) questionColumnIndexes.push(mapped);
+        }
+      }
+      if (!questionColumnIndexes.length) continue;
+
+      const leadRaw = row['leadBindingIndexes'];
+      const leadBindingIndexes: number[] = [];
+      if (Array.isArray(leadRaw)) {
+        for (const x of leadRaw) {
+          const ni = remapIdx(Number(x));
+          if (ni !== undefined) leadBindingIndexes.push(ni);
+        }
+      }
+
+      pagePlan.push({
+        ...row,
+        kind,
+        headerKind: kind,
+        questionColumnIndexes,
+        ...(leadBindingIndexes.length ? { leadBindingIndexes } : {}),
+      });
+    }
+  }
+
+  const out: Record<string, unknown> = {
+    ...sourceLayout,
+    exportPreviewPagePlan: pagePlan,
+    exportPreviewQuestionQids: filteredRows.map((r) => r['qid']),
+  };
+  if (kind === 'creative') {
+    delete out['mcqSetLetter'];
+  }
+  return out;
+}
+
 function formatOption(raw: string): string {
   return formatMaybeCProgramQuestionText(raw);
 }
@@ -601,6 +696,40 @@ export function mergeExportPayloadWithLayoutSettings(
     if (layout[k] !== undefined) out[k] = layout[k];
   }
   return out;
+}
+
+/** Layout for one split CQ/MCQ file on re-download; uses persisted snapshot or filters combined layout. */
+export function resolvePersistedSplitFileLayout(
+  ls: Record<string, unknown>,
+  questions: unknown[],
+  kind: 'creative' | 'mcq',
+  setLetter?: McqSetLetter
+): Record<string, unknown> {
+  if (kind === 'creative') {
+    const stored = ls['exportCreativeLayout'];
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+      return { ...(stored as Record<string, unknown>) };
+    }
+  } else if (setLetter) {
+    const bySet = ls['exportMcqLayoutBySet'];
+    if (bySet && typeof bySet === 'object' && !Array.isArray(bySet)) {
+      const stored = (bySet as Record<string, unknown>)[setLetter];
+      if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+        return { ...(stored as Record<string, unknown>), mcqSetLetter: setLetter };
+      }
+    }
+  } else {
+    const stored = ls['exportMcqLayout'];
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+      return { ...(stored as Record<string, unknown>) };
+    }
+  }
+  const orderMap = parseMcqOrderBySet(ls['mcqOrderBySet']);
+  const fullOrder =
+    setLetter && orderMap[setLetter]?.length
+      ? reorderQuestionsByQids(questions as any[], orderMap[setLetter]!)
+      : questions;
+  return filterExportLayoutForKind(ls, buildMainSheetExportSegmentRows(fullOrder), kind);
 }
 
 export type AnswerSheetExportItem = {

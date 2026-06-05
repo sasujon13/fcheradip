@@ -8,11 +8,16 @@ import {
   attachExportMcqOptionsColumnsToQuestions,
   buildMainSheetExportSegmentRows,
   buildAnswerSheetExportItems,
+  creativeParentQuestionsFromList,
   hasPersistedFourMcqVariants,
+  hasPersistedSplitCreativeMcqExport,
+  mcqParentQuestionsFromList,
+  mergeExportPayloadWithLayoutSettings,
   parseMcqOrderBySet,
   parseQuestionHeaderByMcqSet,
   PreviewMcqOptionsLayout,
   reorderQuestionsByQids,
+  resolvePersistedSplitFileLayout,
 } from '../../../shared/question-answer-sheet-export';
 
 @Component({
@@ -309,6 +314,33 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     });
   }
 
+  private splitHeadersFromSavedLayout(ls: Record<string, unknown>): {
+    questionHeaderCreative?: string;
+    questionHeaderMcq?: string;
+    headerLineFontSizesPdfCreative?: number[];
+    headerLineFontSizesPdfMcq?: number[];
+  } {
+    const out: {
+      questionHeaderCreative?: string;
+      questionHeaderMcq?: string;
+      headerLineFontSizesPdfCreative?: number[];
+      headerLineFontSizesPdfMcq?: number[];
+    } = {};
+    const c = ls['exportQuestionHeaderCreative'];
+    const m = ls['exportQuestionHeaderMcq'];
+    if (typeof c === 'string' && c.trim()) out.questionHeaderCreative = c;
+    if (typeof m === 'string' && m.trim()) out.questionHeaderMcq = m;
+    const fc = ls['headerLineFontSizesPdfCreative'];
+    const fm = ls['headerLineFontSizesPdfMcq'];
+    if (Array.isArray(fc) && fc.length) {
+      out.headerLineFontSizesPdfCreative = fc.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+    }
+    if (Array.isArray(fm) && fm.length) {
+      out.headerLineFontSizesPdfMcq = fm.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+    }
+    return out;
+  }
+
   /** Same top-level export fields + full `layout_settings` as Save in question-creator (serials, fonts, page plan, MCQ order). */
   private exportPayloadFromSavedSet(set: CreatedQuestionSet): Record<string, unknown> {
     const ls = this.layoutRecord(set) ?? {};
@@ -417,8 +449,83 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     const stem = this.exportFilenameStem(set);
     const base = this.exportPayloadFromSavedSet(set);
     const items: Array<{ filename: string; payload: Parameters<ApiService['exportQuestions']>[0] }> = [];
+    const splitHdr = this.splitHeadersFromSavedLayout(ls);
+    const attachMcq = (rows: unknown[]) =>
+      this.attachMcqOptionsForSavedExport(rows, set, ls) as Record<string, unknown>[];
 
-    if (hasPersistedFourMcqVariants(ls)) {
+    const pushSplitMainSheet = (
+      filename: string,
+      fileLayout: Record<string, unknown>,
+      parentQuestions: unknown[],
+      header: string,
+      opts?: {
+        questionHeaderCreative?: string;
+        questionHeaderMcq?: string;
+        headerLineFontSizesPdfCreative?: number[];
+        headerLineFontSizesPdfMcq?: number[];
+      }
+    ): void => {
+      const segmentRows = buildMainSheetExportSegmentRows(parentQuestions);
+      const qids = fileLayout['exportPreviewQuestionQids'];
+      const ordered =
+        Array.isArray(qids) && qids.length
+          ? reorderQuestionsByQids(segmentRows, qids as (string | number)[])
+          : segmentRows;
+      const extra: Record<string, unknown> = {
+        questions: attachMcq(ordered),
+        questionHeader: header,
+        filename,
+        format,
+        ...(opts?.questionHeaderCreative ? { questionHeaderCreative: opts.questionHeaderCreative } : {}),
+        ...(opts?.questionHeaderMcq ? { questionHeaderMcq: opts.questionHeaderMcq } : {}),
+        ...(opts?.headerLineFontSizesPdfCreative?.length
+          ? { headerLineFontSizesPdfCreative: opts.headerLineFontSizesPdfCreative }
+          : {}),
+        ...(opts?.headerLineFontSizesPdfMcq?.length
+          ? { headerLineFontSizesPdfMcq: opts.headerLineFontSizesPdfMcq }
+          : {}),
+      };
+      items.push({
+        filename,
+        payload: mergeExportPayloadWithLayoutSettings(base, fileLayout, extra) as Parameters<
+          ApiService['exportQuestions']
+        >[0],
+      });
+    };
+
+    if (hasPersistedSplitCreativeMcqExport(ls)) {
+      const creativeQs = creativeParentQuestionsFromList(set.questions);
+      const creativeLayout = resolvePersistedSplitFileLayout(ls, set.questions, 'creative');
+      pushSplitMainSheet(`${stem}-CQ`, creativeLayout, creativeQs, set.question_header || '', {
+        ...(splitHdr.questionHeaderCreative ? { questionHeaderCreative: splitHdr.questionHeaderCreative } : {}),
+        ...(splitHdr.headerLineFontSizesPdfCreative?.length
+          ? { headerLineFontSizesPdfCreative: splitHdr.headerLineFontSizesPdfCreative }
+          : {}),
+      });
+
+      if (hasPersistedFourMcqVariants(ls)) {
+        const orderMap = parseMcqOrderBySet(ls['mcqOrderBySet']);
+        const headerMap = parseQuestionHeaderByMcqSet(ls['questionHeaderByMcqSet']);
+        for (const L of CreatedQuestionsComponent.MCQ_SET_LETTERS) {
+          const fullOrder = reorderQuestionsByQids(set.questions, orderMap[L] ?? []);
+          const mcqLayout = resolvePersistedSplitFileLayout(ls, set.questions, 'mcq', L);
+          pushSplitMainSheet(`${stem}-${L}`, mcqLayout, mcqParentQuestionsFromList(fullOrder), (headerMap[L] || (base['questionHeader'] as string)) as string, {
+            ...(splitHdr.questionHeaderMcq ? { questionHeaderMcq: splitHdr.questionHeaderMcq } : {}),
+            ...(splitHdr.headerLineFontSizesPdfMcq?.length
+              ? { headerLineFontSizesPdfMcq: splitHdr.headerLineFontSizesPdfMcq }
+              : {}),
+          });
+        }
+      } else {
+        const mcqLayout = resolvePersistedSplitFileLayout(ls, set.questions, 'mcq');
+        pushSplitMainSheet(`${stem}-MCQ`, mcqLayout, mcqParentQuestionsFromList(set.questions), set.question_header || '', {
+          ...(splitHdr.questionHeaderMcq ? { questionHeaderMcq: splitHdr.questionHeaderMcq } : {}),
+          ...(splitHdr.headerLineFontSizesPdfMcq?.length
+            ? { headerLineFontSizesPdfMcq: splitHdr.headerLineFontSizesPdfMcq }
+            : {}),
+        });
+      }
+    } else if (hasPersistedFourMcqVariants(ls)) {
       const orderMap = parseMcqOrderBySet(ls['mcqOrderBySet']);
       const headerMap = parseQuestionHeaderByMcqSet(ls['questionHeaderByMcqSet']);
       for (const L of CreatedQuestionsComponent.MCQ_SET_LETTERS) {
