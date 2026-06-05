@@ -412,11 +412,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private autoFitMcqFontLockedThisRun = false;
   private autoFitCqFontLockedThisRun = false;
 
-  /** Forced auto-fit: at most one −1 per kind for font and gap (CQ then MCQ). */
+  /** Forced auto-fit: at most one −1 per kind for font (CQ then MCQ). */
   private autoFitCqFontDecreaseUsed = false;
   private autoFitMcqFontDecreaseUsed = false;
-  private autoFitCqGapDecreaseUsed = false;
-  private autoFitMcqGapDecreaseUsed = false;
+
+  /** Forced auto-fit: binary-search max CQ/MCQ gap while sheet counts stay ≤ baseline. */
+  private autoFitForcedGapBinaryKind: 'mcq' | 'cq' | null = null;
+  private autoFitForcedGapBinaryLo = 0;
+  private autoFitForcedGapBinaryHi = 0;
+  private autoFitForcedGapBinaryBest = 0;
+  private autoFitForcedGapBinaryAwaitProbe = false;
+  /** MCQ option grids are remeasured after fonts — defer MCQ gap binary until that relayout finishes. */
+  private autoFitDeferMcqGapUntilOptionsSync = false;
+  private autoFitMcqGapNeedsPostOptionsPass = false;
 
   private autoFitCqGrowBlockedSeq = -1;
   private autoFitCqLastGrowSeq = -1;
@@ -1138,6 +1146,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.applyHardAutoFitBaselineMinimumsSync();
       this.maybeBootstrapAutoFitOverlayProgress();
       this.onPreviewLayoutChange({ suppressAutoFit: false });
+      // After resetAutoFitBaselineCalibration (inside onPreviewLayoutChange): defer MCQ gap until option grids remeasure.
+      this.autoFitDeferMcqGapUntilOptionsSync = this.selectionHasMcqType();
+      this.autoFitMcqGapNeedsPostOptionsPass = false;
       await this.waitForLayoutIdle(90_000);
       await this.syncMcqOptionsLayoutAfterAutoFit();
     } catch {
@@ -1165,10 +1176,28 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     await new Promise<void>((r) =>
       requestAnimationFrame(() => requestAnimationFrame(() => r()))
     );
-    if (!this.runPreviewOptionsLayoutMeasurePass()) {
+    const optionsLayoutChanged = this.runPreviewOptionsLayoutMeasurePass();
+    if (optionsLayoutChanged) {
+      this.optionsLayoutRelayoutPending = true;
+      this.scheduleLayout();
+      await this.waitForLayoutIdle(90_000);
+    }
+    await this.runMcqGapAutoFitAfterOptionsSync();
+  }
+
+  /** MCQ question gap must be tuned after option-grid remeasure (heights change vs font-only layout). */
+  private async runMcqGapAutoFitAfterOptionsSync(): Promise<void> {
+    if (!this.selectionHasMcqType()) {
       return;
     }
-    this.optionsLayoutRelayoutPending = true;
+    this.autoFitDeferMcqGapUntilOptionsSync = false;
+    this.autoFitMcqGapNeedsPostOptionsPass = false;
+    // Any gap chosen before option remeasure used stale block heights — search again from minimum.
+    this.questionsGap = QuestionCreatorComponent.QUESTIONS_GAP_MIN_PX;
+    this.autoFitExpandStepBlocked.delete('mcqGap');
+    this.autoFitForcedGapBinaryKind = null;
+    this.autoFitForcedGapBinaryAwaitProbe = false;
+    this.previewAutoFitForceOneLayoutChain = true;
     this.scheduleLayout();
     await this.waitForLayoutIdle(90_000);
   }
@@ -5929,6 +5958,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       // Manual aside / header edits: relayout only — never mutate fonts/gaps via auto-fit.
       this.previewAutoFitSuppressNextLayoutRun = true;
       this.previewAutoFitForceOneLayoutChain = false;
+      this.autoFitDeferMcqGapUntilOptionsSync = false;
+      this.autoFitMcqGapNeedsPostOptionsPass = false;
     } else {
       // Forced full auto-fit on the next layout pass (Smart / Reset / nav / reload chains).
       this.previewAutoFitSuppressNextLayoutRun = false;
@@ -6350,8 +6381,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitExpandGapPreferSinglePxBump = false;
     this.autoFitCqFontDecreaseUsed = false;
     this.autoFitMcqFontDecreaseUsed = false;
-    this.autoFitCqGapDecreaseUsed = false;
-    this.autoFitMcqGapDecreaseUsed = false;
+    this.autoFitForcedGapBinaryKind = null;
+    this.autoFitForcedGapBinaryAwaitProbe = false;
     this.autoFitMixedKindPhase =
       this.selectionHasMcqType() && this.selectionHasCreativeType() ? 'cq' : null;
     this.autoFitLayoutDeferrals = 0;
@@ -6384,6 +6415,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.autoFitExpandStepBlocked.has('cqGap')) {
       return false;
     }
+    if (this.autoFitForcedGapBinaryKind === 'cq') {
+      return true;
+    }
     const counts = this.countKindsInCandidatePages(candidatePages);
     if (!this.cqSheetsAtOrBelowBaseline(counts, candidatePages.length)) {
       return false;
@@ -6410,45 +6444,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.autoFitCqKindWorkRemaining(candidatePages)) {
       return;
     }
-    if (this.maybeApplyFinalAutoFitGapTrimOnce('creative')) {
-      return;
-    }
     this.autoFitMixedKindPhase = 'mcq';
     this.autoFitExpandPhase = 0;
     this.autoFitExpandPending = null;
     this.autoFitExpandStepBlocked.clear();
     this.autoFitExpandGapPreferSinglePxBump = false;
-  }
-
-  /**
-   * When gap expansion for a kind is finished: one −1px safety trim (max once per kind per run).
-   */
-  private maybeApplyFinalAutoFitGapTrimOnce(kind: 'creative' | 'mcq'): boolean {
-    const isCq = kind === 'creative';
-    if (isCq) {
-      if (this.autoFitCqGapDecreaseUsed || !this.selectionHasCreativeType()) {
-        return false;
-      }
-    } else if (this.autoFitMcqGapDecreaseUsed || !this.selectionHasMcqType()) {
-      return false;
-    }
-    const minG = QuestionCreatorComponent.QUESTIONS_GAP_MIN_PX;
-    const cur = isCq ? this.questionsGapCreative : this.questionsGap;
-    if (isCq) {
-      this.autoFitCqGapDecreaseUsed = true;
-    } else {
-      this.autoFitMcqGapDecreaseUsed = true;
-    }
-    if (cur <= minG) {
-      return false;
-    }
-    if (isCq) {
-      this.questionsGapCreative = cur - 1;
-    } else {
-      this.questionsGap = cur - 1;
-    }
-    this.scheduleLayout();
-    return true;
+    this.autoFitForcedGapBinaryKind = null;
+    this.autoFitForcedGapBinaryAwaitProbe = false;
   }
 
   /**
@@ -6998,7 +7000,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return false;
     }
     if (p.kind === 'mcqGap' || p.kind === 'cqGap') {
-      this.autoFitExpandStepBlocked.add(p.kind);
+      if (this.autoFitExpandGapPreferSinglePxBump) {
+        this.autoFitExpandStepBlocked.add(p.kind);
+      } else {
+        this.autoFitExpandGapPreferSinglePxBump = true;
+      }
     }
     switch (p.kind) {
       case 'cqGap':
@@ -7044,12 +7050,114 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
   }
 
+  private autoFitForcedGapBinaryTargetKind(): 'mcq' | 'cq' | null {
+    const hasM = this.selectionHasMcqType();
+    const hasC = this.selectionHasCreativeType();
+    if (hasM && hasC) {
+      if (this.autoFitMixedKindPhase === 'cq') return 'cq';
+      if (this.autoFitMixedKindPhase === 'mcq') return 'mcq';
+      return null;
+    }
+    if (hasM) return 'mcq';
+    if (hasC) return 'cq';
+    return null;
+  }
+
+  private autoFitKindGapPx(kind: 'mcq' | 'cq'): number {
+    return kind === 'mcq' ? this.questionsGap : this.questionsGapCreative;
+  }
+
+  private setAutoFitKindGapPx(kind: 'mcq' | 'cq', px: number): void {
+    if (kind === 'mcq') {
+      this.questionsGap = px;
+    } else {
+      this.questionsGapCreative = px;
+    }
+  }
+
+  private autoFitKindGapExpandOk(candidatePages: PreviewPage[], kind: 'mcq' | 'cq'): boolean {
+    const counts = this.countKindsInCandidatePages(candidatePages);
+    const bumpKind = kind === 'mcq' ? 'mcqGap' : 'cqGap';
+    return this.autoFitSpacingExpandOkAfterKindBump(counts, candidatePages.length, bumpKind);
+  }
+
+  /**
+   * Forced auto-fit: binary-search the largest gap for the active kind that keeps sheet counts ≤ baseline.
+   */
+  private maybeAutoFitExpandSpacingForcedBinary(candidatePages: PreviewPage[]): boolean {
+    const target = this.autoFitForcedGapBinaryTargetKind();
+    if (!target) {
+      return false;
+    }
+    const stepKey = target === 'mcq' ? 'mcqGap' : 'cqGap';
+    if (target === 'mcq' && this.autoFitDeferMcqGapUntilOptionsSync) {
+      if (!this.autoFitExpandStepBlocked.has(stepKey)) {
+        this.autoFitMcqGapNeedsPostOptionsPass = true;
+        this.autoFitExpandStepBlocked.add(stepKey);
+      }
+      return false;
+    }
+    if (this.autoFitExpandStepBlocked.has(stepKey)) {
+      return false;
+    }
+
+    const maxG = QuestionCreatorComponent.QUESTIONS_GAP_MAX_PX;
+    const kind =
+      this.autoFitForcedGapBinaryKind != null && this.autoFitForcedGapBinaryKind === target
+        ? this.autoFitForcedGapBinaryKind
+        : target;
+
+    if (this.autoFitForcedGapBinaryKind !== kind) {
+      this.autoFitForcedGapBinaryKind = kind;
+      this.autoFitForcedGapBinaryLo = this.autoFitKindGapPx(kind);
+      this.autoFitForcedGapBinaryHi = maxG;
+      this.autoFitForcedGapBinaryBest = this.autoFitForcedGapBinaryLo;
+      this.autoFitForcedGapBinaryAwaitProbe = false;
+    }
+
+    if (this.autoFitForcedGapBinaryAwaitProbe) {
+      const probe = this.autoFitKindGapPx(kind);
+      if (this.autoFitKindGapExpandOk(candidatePages, kind)) {
+        this.autoFitForcedGapBinaryBest = probe;
+        this.autoFitForcedGapBinaryLo = probe + 1;
+      } else {
+        this.autoFitForcedGapBinaryHi = probe - 1;
+      }
+      this.autoFitForcedGapBinaryAwaitProbe = false;
+    }
+
+    if (this.autoFitForcedGapBinaryLo <= this.autoFitForcedGapBinaryHi) {
+      const mid = Math.floor((this.autoFitForcedGapBinaryLo + this.autoFitForcedGapBinaryHi) / 2);
+      this.setAutoFitKindGapPx(kind, mid);
+      this.resetAutoFitFontGrowBlocks();
+      this.autoFitForcedGapBinaryAwaitProbe = true;
+      this.scheduleLayout();
+      return true;
+    }
+
+    const best = this.autoFitForcedGapBinaryBest;
+    const cur = this.autoFitKindGapPx(kind);
+    this.autoFitForcedGapBinaryKind = null;
+    this.autoFitForcedGapBinaryAwaitProbe = false;
+    this.autoFitExpandStepBlocked.add(stepKey);
+    if (cur !== best) {
+      this.setAutoFitKindGapPx(kind, best);
+      this.resetAutoFitFontGrowBlocks();
+      this.scheduleLayout();
+      return true;
+    }
+    return false;
+  }
+
   /**
    * After fonts and tighten steps, increase MCQ/CQ **gaps** when layout allows (per {@link autoFitExpandLayoutOk}).
    * Per-kind question body line heights are not auto-expanded.
    */
   private maybeAutoFitExpandSpacingAfterFontFit(candidatePages: PreviewPage[]): boolean {
     if (!this.autoFitBaselineBudgetsCaptured) return false;
+    if (this.previewAutoFitForceOneLayoutChain) {
+      return this.maybeAutoFitExpandSpacingForcedBinary(candidatePages);
+    }
     if (this.autoFitExpandPending) {
       // Wait until maybeRevertAutoFitExpandIfInvalid has validated or reverted the last bump.
       return false;
@@ -7068,18 +7176,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
 
     if (steps.every((s) => this.autoFitExpandStepCannotBumpMore(s, H))) {
-      const hasM = this.selectionHasMcqType();
-      const hasC = this.selectionHasCreativeType();
-      if (hasC && (this.autoFitMixedKindPhase === 'cq' || !hasM)) {
-        if (this.maybeApplyFinalAutoFitGapTrimOnce('creative')) {
-          return true;
-        }
-      }
-      if (hasM && (this.autoFitMixedKindPhase === 'mcq' || !hasC)) {
-        if (this.maybeApplyFinalAutoFitGapTrimOnce('mcq')) {
-          return true;
-        }
-      }
       return false;
     }
 
