@@ -342,7 +342,12 @@ export class Merit7Component implements OnInit, AfterViewInit {
           setTimeout(() => this.showNoDataAlert7 = true);
           return;
         }
-        if (e?.code === 'trx_invalid') {
+        if (e?.code === 'trx_not_found' || e?.code === 'trx_invalid') {
+          this.showNoDataAlert5 = false;
+          setTimeout(() => this.showNoDataAlert5 = true);
+          return;
+        }
+        if (e?.code === 'trx_already_used') {
           this.showNoDataAlert11 = false;
           setTimeout(() => this.showNoDataAlert11 = true);
           return;

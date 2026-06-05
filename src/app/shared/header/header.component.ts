@@ -345,7 +345,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
           this.showTokenAlertMessage('Enter a valid 8–10 digit TrxID to unlock more Details!');
           return;
         }
-        if (e?.code === 'trx_invalid') {
+        if (e?.code === 'trx_not_found' || e?.code === 'trx_invalid') {
+          this.showTokenAlertMessage('Invalid TrxID / TrxID Not Found! Please write the right TrxID!');
+          return;
+        }
+        if (e?.code === 'trx_already_used') {
           this.showTokenAlertMessage('TrxID Already Used! Request another valid TrxID to unlock more Details!');
           return;
         }

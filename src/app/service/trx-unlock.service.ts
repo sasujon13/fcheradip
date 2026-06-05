@@ -18,6 +18,9 @@ export const NTRCA_UNLOCK_DEBIT = 20;
 export type TrxApplyErrorCode =
   | 'login_required'
   | 'invalid_format'
+  | 'trx_not_found'
+  | 'trx_already_used'
+  /** @deprecated use trx_not_found / trx_already_used */
   | 'trx_invalid'
   | 'network'
   | 'activate_failed';
@@ -195,8 +198,14 @@ export class TrxUnlockService {
       .pipe(
         switchMap((res) => {
           const result = res?.results?.[0];
-          if (!(result && result.Counter != null && Number(result.Status) === 0)) {
-            return throwError(() => ({ code: 'trx_invalid' as TrxApplyErrorCode }));
+          if (!result) {
+            return throwError(() => ({ code: 'trx_not_found' as TrxApplyErrorCode }));
+          }
+          if (Number(result.Status) !== 0) {
+            return throwError(() => ({ code: 'trx_already_used' as TrxApplyErrorCode }));
+          }
+          if (result.Counter == null) {
+            return throwError(() => ({ code: 'trx_not_found' as TrxApplyErrorCode }));
           }
           return this.activateAppliedTrx({ id: result.id as number });
         }),
@@ -211,6 +220,8 @@ export class TrxUnlockService {
           if (
             err?.code === 'login_required' ||
             err?.code === 'invalid_format' ||
+            err?.code === 'trx_not_found' ||
+            err?.code === 'trx_already_used' ||
             err?.code === 'trx_invalid'
           ) {
             return throwError(() => err);
