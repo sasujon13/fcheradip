@@ -1214,14 +1214,22 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     this.autoFitDeferMcqGapUntilOptionsSync = false;
     this.autoFitMcqGapNeedsPostOptionsPass = false;
-    // Any gap chosen before option remeasure used stale block heights — search again from minimum.
     this.questionsGap = QuestionCreatorComponent.QUESTIONS_GAP_MIN_PX;
     this.autoFitExpandStepBlocked.delete('mcqGap');
     this.autoFitForcedGapBinaryKind = null;
     this.autoFitForcedGapBinaryAwaitProbe = false;
-    this.previewAutoFitForceOneLayoutChain = true;
-    this.scheduleLayout();
-    await this.waitForLayoutIdle(90_000);
+
+    if (!this.autoFitBaselineBudgetsCaptured || !this.lastLayoutPaginationProbe) {
+      return;
+    }
+    if (this.selectionHasBothHeaderTypes()) {
+      this.autoFitMixedKindPhase = 'mcq';
+    }
+    const best = this.resolveMaxAutoFitGapOffline('mcq');
+    this.setAutoFitKindGapPx('mcq', best);
+    this.autoFitExpandStepBlocked.add('mcqGap');
+    this.reassignPaginatedPagesFromCachedHeights();
+    this.cdr.markForCheck();
   }
 
   /** Smart Question Creator: verify coins, then auto-fit, then {@link save}. */
@@ -3888,13 +3896,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.optionsLayoutMeasureTimer != null) {
       clearTimeout(this.optionsLayoutMeasureTimer);
     }
+    const delay =
+      this.previewAutoFitForceOneLayoutChain || this.autoFitProgressSessionActive ? 0 : 80;
     this.optionsLayoutMeasureTimer = setTimeout(() => {
       this.optionsLayoutMeasureTimer = null;
       if (this.runPreviewOptionsLayoutMeasurePass()) {
         this.optionsLayoutRelayoutPending = true;
         this.scheduleLayout();
       }
-    }, 80);
+    }, delay);
   }
 
   /**
@@ -7515,10 +7525,83 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.autoFitSpacingExpandOkAfterKindBump(counts, candidatePages.length, bumpKind);
   }
 
+  /** Paginate current measure rows using cached block heights (gap/font changes do not invalidate heights). */
+  private paginateFromCachedMeasureHeights(): PreviewPage[] {
+    const pq = this.layoutMeasureQuestions;
+    const ctx = this.lastLayoutPaginationProbe;
+    if (!ctx || !pq.length || this.layoutSegmentHeightByQid.size === 0) {
+      return [];
+    }
+    const heights = pq.map((seg, i) => {
+      const qid = seg?.qid != null ? String(seg.qid) : String(i);
+      return this.layoutSegmentHeightByQid.get(qid) ?? 0;
+    });
+    const pages = this.splitIntoPages(
+      heights,
+      ctx.innerH,
+      ctx.headerCreativePx,
+      ctx.headerMcqPx,
+      this.pageSections,
+      pq
+    );
+    this.applyLeadEmptyTreatFirstColumnAsLast(pages);
+    return pages;
+  }
+
+  private reassignPaginatedPagesFromCachedHeights(): void {
+    const pages = this.paginateFromCachedMeasureHeights();
+    if (!pages.length) {
+      return;
+    }
+    this.paginatedPages = pages;
+    this.updatePreviewFitScale();
+  }
+
+  /**
+   * Forced auto-fit gap tuning: binary-search max gap synchronously from cached heights (same result as
+   * one layout pass per probe, without DOM re-measure — gap only affects pagination margins).
+   */
+  private resolveMaxAutoFitGapOffline(kind: 'mcq' | 'cq'): number {
+    const H = QuestionCreatorComponent;
+    const maxG = H.QUESTIONS_GAP_MAX_PX;
+    const bumpKind = kind === 'mcq' ? 'mcqGap' : 'cqGap';
+    const start = this.autoFitKindGapPx(kind);
+    let best = start;
+
+    const okAt = (gapPx: number): boolean => {
+      const prev = this.autoFitKindGapPx(kind);
+      this.setAutoFitKindGapPx(kind, gapPx);
+      const pages = this.paginateFromCachedMeasureHeights();
+      this.setAutoFitKindGapPx(kind, prev);
+      if (!pages.length) {
+        return false;
+      }
+      const counts = this.countKindsInCandidatePages(pages);
+      return this.autoFitSpacingExpandOkAfterKindBump(counts, pages.length, bumpKind);
+    };
+
+    if (!okAt(start)) {
+      return Math.max(H.QUESTIONS_GAP_MIN_PX, start);
+    }
+    best = start;
+    let lo = start + 1;
+    let hi = maxG;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (okAt(mid)) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return best;
+  }
+
   /**
    * Forced auto-fit: binary-search the largest gap for the active kind that keeps sheet counts ≤ baseline.
    */
-  private maybeAutoFitExpandSpacingForcedBinary(candidatePages: PreviewPage[]): boolean {
+  private maybeAutoFitExpandSpacingForcedBinary(_candidatePages: PreviewPage[]): boolean {
     const target = this.autoFitForcedGapBinaryTargetKind();
     if (!target) {
       return false;
@@ -7535,50 +7618,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return false;
     }
 
-    const maxG = QuestionCreatorComponent.QUESTIONS_GAP_MAX_PX;
-    const kind =
-      this.autoFitForcedGapBinaryKind != null && this.autoFitForcedGapBinaryKind === target
-        ? this.autoFitForcedGapBinaryKind
-        : target;
-
-    if (this.autoFitForcedGapBinaryKind !== kind) {
-      this.autoFitForcedGapBinaryKind = kind;
-      this.autoFitForcedGapBinaryLo = this.autoFitKindGapPx(kind);
-      this.autoFitForcedGapBinaryHi = maxG;
-      this.autoFitForcedGapBinaryBest = this.autoFitForcedGapBinaryLo;
-      this.autoFitForcedGapBinaryAwaitProbe = false;
+    const ctx = this.lastLayoutPaginationProbe;
+    if (!ctx || this.layoutSegmentHeightByQid.size === 0) {
+      return false;
     }
 
-    if (this.autoFitForcedGapBinaryAwaitProbe) {
-      const probe = this.autoFitKindGapPx(kind);
-      if (this.autoFitKindGapExpandOk(candidatePages, kind)) {
-        this.autoFitForcedGapBinaryBest = probe;
-        this.autoFitForcedGapBinaryLo = probe + 1;
-      } else {
-        this.autoFitForcedGapBinaryHi = probe - 1;
-      }
-      this.autoFitForcedGapBinaryAwaitProbe = false;
-    }
-
-    if (this.autoFitForcedGapBinaryLo <= this.autoFitForcedGapBinaryHi) {
-      const mid = Math.floor((this.autoFitForcedGapBinaryLo + this.autoFitForcedGapBinaryHi) / 2);
-      this.setAutoFitKindGapPx(kind, mid);
-      this.resetAutoFitFontGrowBlocks();
-      this.autoFitForcedGapBinaryAwaitProbe = true;
-      this.scheduleLayout();
-      return true;
-    }
-
-    const best = this.autoFitForcedGapBinaryBest;
-    const cur = this.autoFitKindGapPx(kind);
+    const best = this.resolveMaxAutoFitGapOffline(target);
+    const cur = this.autoFitKindGapPx(target);
     this.autoFitForcedGapBinaryKind = null;
     this.autoFitForcedGapBinaryAwaitProbe = false;
     this.autoFitExpandStepBlocked.add(stepKey);
     if (cur !== best) {
-      this.setAutoFitKindGapPx(kind, best);
+      this.setAutoFitKindGapPx(target, best);
       this.resetAutoFitFontGrowBlocks();
-      this.scheduleLayout();
-      return true;
+    }
+    this.reassignPaginatedPagesFromCachedHeights();
+    this.cdr.markForCheck();
+
+    if (this.autoFitMixedMcqAndCqActive()) {
+      const prevPhase = this.autoFitMixedKindPhase;
+      this.maybeAdvanceAutoFitMixedKindPhase(this.paginatedPages);
+      if (prevPhase === 'cq' && this.autoFitMixedKindPhase === 'mcq') {
+        this.scheduleLayout();
+        return true;
+      }
     }
     return false;
   }
@@ -8777,7 +8840,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         await new Promise<void>((r) => setTimeout(r, 0));
         continue;
       }
-      await new Promise<void>((r) => setTimeout(r, 48));
+      await new Promise<void>((r) => setTimeout(r, 12));
       if (this.layoutTimer == null && !this.layoutPassInFlight) {
         return;
       }
@@ -8810,8 +8873,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     const pq = this.layoutMeasureQuestions;
     const blocks = this.measureBlocks?.toArray() ?? [];
+    const layoutRetryMs =
+      this.previewAutoFitForceOneLayoutChain || this.autoFitProgressSessionActive ? 16 : 32;
     if (pq.length > 0 && blocks.length !== pq.length) {
-      setTimeout(() => this.scheduleLayout(), 32);
+      setTimeout(() => this.scheduleLayout(), layoutRetryMs);
       this.layoutPassInFlight = false;
       return;
     }
@@ -8851,7 +8916,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           blocksNow.length === pq.length &&
           heights.every((h) => h === 0)
         ) {
-          setTimeout(() => this.scheduleLayout(), 32);
+          setTimeout(() => this.scheduleLayout(), layoutRetryMs);
           return;
         }
         const headerCreativePx =
