@@ -176,7 +176,9 @@ export type McqAnswerKeyExportPayload = {
 };
 
 /**
- * MCQ answer-key: one PDF page per set (when multi-set), 5 columns, set code in page header.
+ * MCQ answer-key (`-mcq-answers`): no paper header — set code labels in body only.
+ * Multi-set (ক–ঘ): one page, one column per set (banner + answers stacked).
+ * Single-set: one page, `layoutColumns`-wide grid (default 5).
  */
 export function buildMcqAnswerKeyExportPayload(
   blocks: McqAnswerKeySetBlock[],
@@ -185,8 +187,44 @@ export function buildMcqAnswerKeyExportPayload(
   const questions: Record<string, unknown>[] = [];
   const exportPreviewPagePlan: Record<string, unknown>[] = [];
   const previewSerialByIndex: Record<string, number> = {};
-  let offset = 0;
 
+  const multiSet =
+    blocks.length > 1 && blocks.every((b) => b.setLetter != null && b.questions.length > 0);
+
+  if (multiSet) {
+    const questionColumnIndexes: number[][] = [];
+    let offset = 0;
+
+    for (const block of blocks) {
+      const col: number[] = [];
+      if (block.setLetter != null) {
+        questions.push(buildMcqSetBannerQuestion(block.setLetter));
+        col.push(offset);
+        offset++;
+      }
+      for (let i = 0; i < block.questions.length; i++) {
+        previewSerialByIndex[String(offset)] = i + 1;
+        questions.push(block.questions[i]!);
+        col.push(offset);
+        offset++;
+      }
+      questionColumnIndexes.push(col);
+    }
+
+    exportPreviewPagePlan.push({
+      kind: 'mcq',
+      headerVisible: false,
+      headerKind: 'mcq',
+      leadEmpty: false,
+      headerInFirstColumn: false,
+      mcqAnswerKeyCompactMultiSet: true,
+      questionColumnIndexes,
+    });
+
+    return { questions, exportPreviewPagePlan, previewSerialByIndex };
+  }
+
+  let offset = 0;
   for (const block of blocks) {
     const n = block.questions.length;
     if (n === 0) continue;
@@ -200,11 +238,10 @@ export function buildMcqAnswerKeyExportPayload(
 
     exportPreviewPagePlan.push({
       kind: 'mcq',
-      headerVisible: true,
+      headerVisible: false,
       headerKind: 'mcq',
       leadEmpty: false,
       headerInFirstColumn: false,
-      ...(block.setLetter != null ? { mcqSetLetter: block.setLetter } : {}),
       questionColumnIndexes,
     });
 

@@ -535,11 +535,19 @@ function fallbackMcqAnswerKeyLayout(
   base: Record<string, unknown>,
   blocks: ReturnType<typeof buildMcqAnswerKeySetBlocks>
 ): { layout: Record<string, unknown>; questions: Record<string, unknown>[] } {
-  const payload = buildMcqAnswerKeyExportPayload(blocks, MCQ_ANSWER_SHEET_LAYOUT_COLUMNS);
+  const multiSet =
+    blocks.length > 1 && blocks.every((b) => b.setLetter != null && b.questions.length > 0);
+  const cols = multiSet ? blocks.length : MCQ_ANSWER_SHEET_LAYOUT_COLUMNS;
+  const payload = buildMcqAnswerKeyExportPayload(blocks, cols);
   return {
     layout: {
       ...base,
-      layoutColumns: MCQ_ANSWER_SHEET_LAYOUT_COLUMNS,
+      layoutColumns: cols,
+      pageSections: 1,
+      questionsPadding: 0,
+      questionsGap: 0,
+      questionsGapCreative: 0,
+      ...(multiSet ? { mcqAnswerKeyCompactMultiSet: true } : {}),
       exportPreviewPagePlan: payload.exportPreviewPagePlan,
       exportPreviewQuestionQids: payload.questions.map((q) => q['qid']),
       previewSerialByIndex: payload.previewSerialByIndex,
@@ -686,39 +694,47 @@ export function buildAnswerSheetExportItems(args: {
       isMcqType: (q) => questionIsMcqType(q as { type?: unknown }),
     });
 
-    const persistedMcq = ls[MCQ_ANSWER_KEY_LAYOUT_KEY];
-    let layout: Record<string, unknown>;
-    let mcqQuestions: Record<string, unknown>[];
+    const fbDefault = fallbackMcqAnswerKeyLayout(ls, blocks);
+    let layout: Record<string, unknown> = fbDefault.layout;
+    let mcqQuestions: Record<string, unknown>[] = fbDefault.questions;
 
+    const persistedMcq = ls[MCQ_ANSWER_KEY_LAYOUT_KEY];
     if (persistedMcq && typeof persistedMcq === 'object' && !Array.isArray(persistedMcq)) {
       const p = persistedMcq as Record<string, unknown>;
-      layout = { ...p };
-      const qids = p['exportPreviewQuestionQids'];
-      if (Array.isArray(qids) && qids.length) {
-        mcqQuestions = reorderQuestionsByQids(
-          blocks.flatMap((b) => b.questions),
-          qids as (string | number)[]
-        ) as Record<string, unknown>[];
-      } else {
-        mcqQuestions = blocks.flatMap((b) => b.questions);
+      const plan = p['exportPreviewPagePlan'];
+      const legacyMultiPage =
+        multiMcq && Array.isArray(plan) && plan.length > 1;
+      const legacyHeader =
+        Array.isArray(plan) &&
+        plan.some(
+          (pg) =>
+            pg &&
+            typeof pg === 'object' &&
+            (pg as Record<string, unknown>)['headerVisible'] === true
+        );
+      const needsCompactMultiSet = multiMcq && p['mcqAnswerKeyCompactMultiSet'] !== true;
+      if (!legacyMultiPage && !legacyHeader && !needsCompactMultiSet) {
+        layout = { ...p };
+        const qids = p['exportPreviewQuestionQids'];
+        if (Array.isArray(qids) && qids.length) {
+          mcqQuestions = reorderQuestionsByQids(
+            blocks.flatMap((b) => b.questions),
+            qids as (string | number)[]
+          ) as Record<string, unknown>[];
+        } else {
+          mcqQuestions = blocks.flatMap((b) => b.questions);
+        }
       }
-    } else {
-      const fb = fallbackMcqAnswerKeyLayout(ls, blocks);
-      layout = fb.layout;
-      mcqQuestions = fb.questions;
     }
 
     if (mcqQuestions.length > 0) {
-      const mcqHeader = headerWithTitle(
-        multiMcq && headerBySet['ক'] ? headerBySet['ক']! : questionHeader,
-        'উত্তরমালা (বহুনির্বাচনি)'
-      );
       items.push({
         filename: `${filenameStem}-mcq-answers`,
         format,
         payload: mergeExportPayloadWithLayoutSettings(baseExportPayload, layout, {
           questions: mcqQuestions,
-          questionHeader: mcqHeader,
+          questionHeader: '',
+          questionHeaderMcq: '',
         }),
       });
     }

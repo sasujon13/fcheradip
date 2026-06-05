@@ -363,6 +363,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Four set orders resolved to fit target sheet budget (preview/export before save). */
   private mcqSetOrdersResolved = false;
   private mcqSetOrderResolutionInFlight = false;
+  /** Set dropdown ক↔খ relayout only — do not wipe resolved four-set orders. */
+  private mcqSetLetterOnlyRelayout = false;
   /** Segment block heights from last layout pass — keyed by layout-seg qid for shuffle probes. */
   private layoutSegmentHeightByQid = new Map<string, number>();
   private lastLayoutPaginationProbe: {
@@ -1162,8 +1164,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       await this.waitForLayoutIdle(90_000);
       await this.syncMcqOptionsLayoutAfterAutoFit();
       if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen) {
-        this.mcqSetOrdersResolved = false;
-        this.persistedMcqOrderBySet = {};
+        this.invalidateMcqSetOrders();
         await this.runMcqSetOrderResolutionWhenIdle();
       }
     } catch {
@@ -1175,14 +1176,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * Full preview auto-fit for any exam name (same pipeline as Reset Setting / Auto Fit).
-   * Ends with the same MCQ options measure + relayout pass as {@link runDoSaveExportFlowCore} (Smart runs that via save).
+   * Save uses {@link syncMcqOptionsLayoutForExport} only (no font/gap auto-fit).
    */
   private async runForcedPreviewAutoFit(): Promise<void> {
     await this.runCreatorResetAndAutoFit();
   }
 
-  /** Match save/export prep: remeasure MCQ option grids, relayout once, wait until idle. */
-  private async syncMcqOptionsLayoutAfterAutoFit(): Promise<void> {
+  /** Remeasure MCQ option grids and relayout if needed — no font/gap auto-fit (Save / export). */
+  private async syncMcqOptionsLayoutForExport(): Promise<void> {
     if (!this.selectionHasMcqType()) {
       return;
     }
@@ -1197,6 +1198,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.scheduleLayout();
       await this.waitForLayoutIdle(90_000);
     }
+  }
+
+  /** After forced auto-fit: remeasure options, tune MCQ gap, then resolve set orders if needed. */
+  private async syncMcqOptionsLayoutAfterAutoFit(): Promise<void> {
+    await this.syncMcqOptionsLayoutForExport();
     await this.runMcqGapAutoFitAfterOptionsSync();
   }
 
@@ -3960,13 +3966,22 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   onMcqSetLetterChange(): void {
     if (this.selectedMcqSetLetter === null && !this.mcqOrdersFrozen) {
-      this.mcqSetOrdersResolved = false;
-      this.persistedMcqOrderBySet = {};
+      this.invalidateMcqSetOrders();
     }
+    const needsResolve =
+      this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen && !this.mcqSetOrdersResolved;
+    this.mcqSetLetterOnlyRelayout =
+      this.selectedMcqSetLetter != null && this.mcqSetOrdersResolved && !needsResolve;
     this.onPreviewLayoutChange();
-    if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen && !this.mcqSetOrdersResolved) {
+    this.mcqSetLetterOnlyRelayout = false;
+    if (needsResolve) {
       void this.runMcqSetOrderResolutionWhenIdle();
     }
+  }
+
+  private invalidateMcqSetOrders(): void {
+    this.mcqSetOrdersResolved = false;
+    this.persistedMcqOrderBySet = {};
   }
 
   private clearMcqPersistedOrders(): void {
@@ -6152,9 +6167,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.previewAutoFitForceOneLayoutChain = false;
       this.autoFitDeferMcqGapUntilOptionsSync = false;
       this.autoFitMcqGapNeedsPostOptionsPass = false;
-      if (!this.mcqOrdersFrozen && this.selectedMcqSetLetter != null) {
-        this.mcqSetOrdersResolved = false;
-        this.persistedMcqOrderBySet = {};
+      if (
+        suppress &&
+        !this.saveExportLayoutBusy &&
+        !this.mcqOrdersFrozen &&
+        this.selectedMcqSetLetter != null &&
+        !this.mcqSetLetterOnlyRelayout
+      ) {
+        this.invalidateMcqSetOrders();
       }
     } else {
       // Forced full auto-fit on the next layout pass (Smart / Reset / nav / reload chains).
@@ -6166,7 +6186,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.scheduleLayout();
     queueMicrotask(() => this.updatePreviewFitScale());
     this.schedulePersistCreatorStateToLocalStorage();
-    if (suppress && this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen && !this.mcqSetOrdersResolved) {
+    if (
+      suppress &&
+      !this.saveExportLayoutBusy &&
+      this.selectedMcqSetLetter != null &&
+      !this.mcqOrdersFrozen &&
+      !this.mcqSetOrdersResolved &&
+      !this.mcqSetLetterOnlyRelayout
+    ) {
       void this.runMcqSetOrderResolutionWhenIdle();
     }
   }
@@ -9786,18 +9813,24 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * MCQ answer-key: fixed 5-column grid per set (no measure-rail auto-fit); serial ১… restarts per set.
+   * MCQ answer-key (`-mcq-answers`): compact one-page sheet; no institute/exam header (set label in body only).
    */
   private layoutSettingsForMcqAnswerKeyExport(
     blocks: ReturnType<QuestionCreatorComponent['buildMcqAnswerKeySetBlocks']>,
     baseLayout: Record<string, unknown>
   ): { layout: Record<string, unknown>; questions: any[] } {
-    const cols = QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS;
+    const multiSet =
+      blocks.length > 1 && blocks.every((b) => b.setLetter != null && b.questions.length > 0);
+    const cols = multiSet ? blocks.length : QuestionCreatorComponent.MCQ_ANSWER_SHEET_LAYOUT_COLUMNS;
     const payload = buildMcqAnswerKeyExportPayload(blocks, cols);
     const layout: Record<string, unknown> = {
       ...baseLayout,
       layoutColumns: cols,
       pageSections: 1,
+      questionsPadding: 0,
+      questionsGap: 0,
+      questionsGapCreative: 0,
+      ...(multiSet ? { mcqAnswerKeyCompactMultiSet: true } : {}),
       exportPreviewPagePlan: payload.exportPreviewPagePlan,
       exportPreviewQuestionQids: payload.questions.map((q) => q['qid']),
       previewSerialByIndex: payload.previewSerialByIndex,
@@ -9911,7 +9944,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             this.apiService.exportQuestions(
               this.mergeExportPayloadWithLayoutSettings(opts.basePayload, layout, {
                 questions,
-                questionHeader: this.mcqAnswerSheetExportHeader(opts.multiMcq),
+                questionHeader: '',
+                questionHeaderMcq: '',
                 filename: `${baseName}-mcq-answers`,
                 format: fmt,
               }) as any
@@ -10105,12 +10139,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     const multiMcq = this.shouldExportFourMcqSetFiles();
     if (multiMcq) {
+      if (!this.mcqSetOrdersResolved && !this.mcqOrdersFrozen) {
+        await this.runMcqSetOrderResolutionWhenIdle();
+      }
       const letters = [...QuestionCreatorComponent.MCQ_SET_LETTERS];
-      const orderSnap: typeof this.persistedMcqOrderBySet = {};
+      const orderSnap: typeof this.persistedMcqOrderBySet = { ...this.persistedMcqOrderBySet };
       const headerSnap: typeof this.questionHeaderByMcqSet = {};
       for (const L of letters) {
-        const ordered = this.buildQuestionsOrderedForMcqSet(L);
-        orderSnap[L] = ordered.map((q) => q.qid);
+        if (!orderSnap[L]?.length) {
+          const ordered = this.buildQuestionsOrderedForMcqSet(L);
+          orderSnap[L] = ordered.map((q) => q.qid);
+        }
         headerSnap[L] = this.buildQuestionHeaderForPersist(L);
       }
       this.persistedMcqOrderBySet = orderSnap;
@@ -10124,27 +10163,31 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>
     > = {};
     let layoutSettingsForCreate: Record<string, unknown>;
-    const syncMcqOptionsLayoutMeasure = async (): Promise<void> => {
-      await this.syncMcqOptionsLayoutAfterAutoFit();
+    const syncMcqOptionsForExport = async (): Promise<void> => {
+      await this.syncMcqOptionsLayoutForExport();
     };
     if (multiMcq) {
       const prevLetter = this.selectedMcqSetLetter;
       for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
         this.selectedMcqSetLetter = L;
+        this.mcqSetLetterOnlyRelayout = true;
         this.onPreviewLayoutChange({ suppressAutoFit: true });
+        this.mcqSetLetterOnlyRelayout = false;
         await this.waitForLayoutIdle();
-        await syncMcqOptionsLayoutMeasure();
+        await syncMcqOptionsForExport();
         perSetLayout[L] = this.buildLayoutSettingsForPersist();
       }
       this.selectedMcqSetLetter = prevLetter;
+      this.mcqSetLetterOnlyRelayout = true;
       this.onPreviewLayoutChange({ suppressAutoFit: true });
+      this.mcqSetLetterOnlyRelayout = false;
       await this.waitForLayoutIdle();
-      await syncMcqOptionsLayoutMeasure();
+      await syncMcqOptionsForExport();
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     } else {
       this.onPreviewLayoutChange({ suppressAutoFit: true });
       await this.waitForLayoutIdle();
-      await syncMcqOptionsLayoutMeasure();
+      await syncMcqOptionsForExport();
       layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     }
 
