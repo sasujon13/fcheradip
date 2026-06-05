@@ -16,6 +16,7 @@ import {
   resolveAuthTokenFromResponse,
   resolveShowWelcomeCoinsCeremony,
 } from 'src/app/service/auth-response.util';
+import { SESSION_LOGOUT_REASON_KEY } from 'src/app/service/auth-session.service';
 
 
 @Component({
@@ -85,6 +86,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadingService.setTotal(1);
+    this.showMultiDeviceLogoutNoticeIfNeeded();
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
@@ -318,6 +320,29 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.detectChanges();
     this.showAuthAlert = true;
     this.cdr.detectChanges();
+  }
+
+  private showMultiDeviceLogoutNoticeIfNeeded(): void {
+    let reason = '';
+    try {
+      reason = sessionStorage.getItem(SESSION_LOGOUT_REASON_KEY) || '';
+      if (reason === 'multi_device') {
+        sessionStorage.removeItem(SESSION_LOGOUT_REASON_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+    if (reason !== 'multi_device') {
+      return;
+    }
+    const msg =
+      'You were signed out because this account was logged in on another device. Please sign in again.';
+    this.snackBar.open(msg, 'Close', {
+      duration: 10000,
+      panelClass: ['auth-flow-snackbar-top'],
+      verticalPosition: 'top',
+    });
+    this.showAuthAlertMessage(msg, false);
   }
 
   logout(): void {

@@ -12,6 +12,7 @@ import { Router, NavigationEnd } from '@angular/router';
 import { filter, take } from 'rxjs/operators';
 import { CountryService } from './service/country.service';
 import { WelcomeBonusCeremonyService } from './service/welcome-bonus-ceremony.service';
+import { AuthSessionService } from './service/auth-session.service';
 
 @Component({
   selector: 'app-root',
@@ -31,15 +32,18 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private countryService: CountryService,
     private router: Router,
     private welcomeCeremony: WelcomeBonusCeremonyService,
+    private authSession: AuthSessionService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.primeBrowserAudioOnFirstUserGesture();
+    this.authSession.startSessionMonitor();
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {
+        this.authSession.startSessionMonitor();
         setTimeout(() => this.welcomeCeremony.tryPlayAfterNavigation(), 400);
         this.queueWatermarkMeasureAfterContent();
       });
