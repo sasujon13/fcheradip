@@ -64,6 +64,10 @@
   pointer-events: none;
 }
 
+:host(:not(.auth-logged-in)) .rmsg {
+  display: none !important;
+}
+
 /* ---- .hover-message-container / .hover-message-box — match header (base -34px; -40px when logged in via template) ---- */
 :host .hover-message-container {
   position: fixed;

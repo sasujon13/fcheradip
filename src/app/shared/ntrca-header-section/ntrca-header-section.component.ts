@@ -1,4 +1,13 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  HostBinding,
+  Input,
+  OnDestroy,
+  OnInit,
+  Output,
+} from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -20,8 +29,13 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
 
   /** Matches header `loginStatus`: shifts token input when logged in (same-tab logout has no route change). */
   tokenInputLoggedIn = false;
+  @HostBinding('class.auth-logged-in')
+  get authLoggedInHostClass(): boolean {
+    return this.tokenInputLoggedIn;
+  }
   private authRouteSub?: Subscription;
   private authPollId?: ReturnType<typeof setInterval>;
+  private readonly onAuthStorageBound = (): void => this.syncTokenInputLoggedIn();
 
   trxHelpPhase: 'off' | 'on' | 'closing' = 'off';
   private trxHelpTimers: number[] = [];
@@ -39,10 +53,13 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
         this.syncTokenInputLoggedIn();
         this.cdr.markForCheck();
       });
+    window.addEventListener('storage', this.onAuthStorageBound);
+    this.authPollId = window.setInterval(() => this.syncTokenInputLoggedIn(), 400);
   }
 
   private syncTokenInputLoggedIn(): void {
-    const next = localStorage.getItem('isLoggedIn') === 'true';
+    const token = (localStorage.getItem('authToken') || '').trim();
+    const next = localStorage.getItem('isLoggedIn') === 'true' && !!token;
     if (next !== this.tokenInputLoggedIn) {
       this.tokenInputLoggedIn = next;
       this.cdr.markForCheck();
@@ -50,6 +67,7 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('storage', this.onAuthStorageBound);
     if (this.authRouteSub) {
       this.authRouteSub.unsubscribe();
       this.authRouteSub = undefined;

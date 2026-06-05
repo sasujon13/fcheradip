@@ -226,18 +226,20 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   /** Sync profile vs Login/SignUp visibility and `header.logged-in` from storage (init + every navigation). */
   private applyHeaderLoginChromeFromStorage(): void {
+    const token = (localStorage.getItem('authToken') || '').trim();
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true' && !!token;
     const menu_item0 = document.getElementById('menu_item0');
     const menu_item1 = document.getElementById('menu_item1');
     const menu_item2 = document.getElementById('menu_item2');
     const sign_menu = document.getElementById('sign_menu');
     const profileMenu = document.getElementById('profileMenu');
     if (!menu_item2 || !menu_item1 || !menu_item0 || !sign_menu || !profileMenu) {
-      this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
+      this.loginStatus = loggedIn;
       this.syncMainNavDashboardLink();
       this.cdr.markForCheck();
       return;
     }
-    this.loginStatus = localStorage.getItem('isLoggedIn') === 'true';
+    this.loginStatus = loggedIn;
     const headerEl = document.querySelector('header');
     if (this.loginStatus) {
       menu_item2.style.display = 'block';
@@ -744,6 +746,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   /** Log out: clear auth storage, then full reload so header/token UI resets reliably. */
   logout(): void {
+    this.loginStatus = false;
+    this.cdr.markForCheck();
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('loginStatus');
     localStorage.removeItem('authToken');

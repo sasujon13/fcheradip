@@ -125,10 +125,14 @@ header .rmsg {
   pointer-events: none;
 }
 
+header:not(.logged-in) .rmsg {
+  display: none !important;
+}
+
 header .tokenbox.header-tokenbox .hover-message-container {
   position: fixed;
   display: inline-block;
-  margin-left: -34px;
+  margin-left: -80px;
   z-index: 10000;
 }
 
