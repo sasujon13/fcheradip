@@ -8,8 +8,15 @@ export function escapeHtmlPlain(text: string): string {
 }
 
 function renderTex(tex: string, displayMode: boolean): string {
-  const t = tex.trim();
+  let t = tex.trim();
   if (!t) return '';
+  if (!displayMode) {
+    /** Trailing `\\` is a line break in display mode only — breaks inline KaTeX. */
+    t = t.replace(/\\+$/g, '').trim();
+  }
+  /** `\text { pow }` → `\text{pow}` (common DB spacing). */
+  t = t.replace(/\\(text|mathrm|operatorname|mathbf|mathit)\s*\{\s*/g, '\\$1{');
+  t = t.replace(/\s+\}/g, '}');
   try {
     return katex.renderToString(t, {
       displayMode,
@@ -22,6 +29,16 @@ function renderTex(tex: string, displayMode: boolean): string {
   }
 }
 
+/** Tighten inline `$...$` before KaTeX (trailing `\\`, spaced `\\text { }`). */
+function normalizeInlineMathDelimiters(s: string): string {
+  return s.replace(/\$([^$\n]+?)\$/g, (_, inner: string) => {
+    let t = inner.replace(/\\+$/g, '').trim();
+    t = t.replace(/\\(text|mathrm|operatorname|mathbf|mathit)\s*\{\s*/g, '\\$1{');
+    t = t.replace(/\s+\}/g, '}');
+    return `$${t}$`;
+  });
+}
+
 /**
  * DB / PDF export quirks: `\\ $$`, `$$\boxed{...}$`, missing closing `$$`, zero-width chars.
  * Applied before KaTeX so answer/explanation/stem all behave the same on /question.
@@ -29,13 +46,12 @@ function renderTex(tex: string, displayMode: boolean): string {
 export function normalizeQuestionLatexSource(text: string): string {
   if (!text) return '';
   let s = text.replace(/[\u200B-\u200D\uFEFF]/g, '');
-  // Line-break markers before display math (common in CQ explanations).
   s = s.replace(/\\+\s*\$\$/g, '\n$$');
-  // Single trailing `$` after boxed block: `$$\boxed{...}$` → `$$...$$`
   s = s.replace(
     /\$\$(\s*\\boxed\{(?:[^{}]|\{[^{}]*\})*\})\s*\$(?!\$)/g,
     '$$$1$$'
   );
+  s = normalizeInlineMathDelimiters(s);
   return closeUnterminatedDisplayMath(s);
 }
 

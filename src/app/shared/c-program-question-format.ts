@@ -97,7 +97,12 @@ function looksLikeCProgramQuestion(input: string): boolean {
     /\bfor\s*\([^)]*\)\s*\{/.test(text) ||
     /\bfor\s*\([^)]*\)\s*(?!\{)\s*\S/.test(text) ||
     (/\bif\s*\([^)]*\)\s*\{/.test(text) && /;/.test(text) && /\{/.test(text));
-  return (hasClassicAnchor && hasCSignal) || hasGluedLoopOrBranch;
+  /** Two or more `;` with C keywords — one-line loop/branch fragments (no #include). */
+  const semicolonCount = (text.match(/;/g) || []).length;
+  const hasMultiSemicolonC =
+    semicolonCount >= 2 &&
+    /\b(int|char|void|float|double|for|while|if|else|continue|break|return|switch)\b/i.test(text);
+  return (hasClassicAnchor && hasCSignal) || hasGluedLoopOrBranch || hasMultiSemicolonC;
 }
 
 function hasIncludeAnchor(text: string): boolean {
@@ -792,6 +797,8 @@ function isCodeAnchorLine(line: string): boolean {
   if (/\b(main|printf|scanf|clrscr|getch|print\s*f|scan\s*f|print|scan)\s*\(/i.test(line)) return true;
   if (/;\s*(?:for|while|if)\s*\(/.test(line)) return true;
   if (/^\s*(?:for|while|if)\s*\(/.test(line)) return true;
+  const semi = (line.match(/;/g) || []).length;
+  if (semi >= 2 && /\b(int|char|void|for|while|if|continue|break|return)\b/i.test(line)) return true;
   return false;
 }
 
@@ -1137,11 +1144,16 @@ export function formatMaybeCProgramQuestionText(raw: string): string {
   /** Short printf/scanf-only fragments (no #include) stay plain; full `main` programs always get the code block. */
   const looksLikeFullMainProgram =
     /\b(?:void|int|char|float|double|long|short|unsigned|static)\s+main\s*\(|\bmain\s*\(/i.test(codeOnlyJoined);
+  const semicolonCount = (codeOnlyJoined.match(/;/g) || []).length;
+  const hasMultiSemicolonControlFlow =
+    semicolonCount >= 2 &&
+    /\b(for|while|if|continue|break|switch|return)\b/i.test(codeOnlyJoined);
   if (
     !hasIncludeAnchor(codeOnlyJoined) &&
     hasIoAnchor(codeOnlyJoined) &&
     codeLineCount <= 4 &&
-    !looksLikeFullMainProgram
+    !looksLikeFullMainProgram &&
+    !hasMultiSemicolonControlFlow
   ) {
     return input;
   }
