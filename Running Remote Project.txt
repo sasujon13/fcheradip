@@ -30,9 +30,33 @@ sudo systemctl status cheradip nginx --no-pager
 
 
 
-# alternative
+
+
+
+
+
+
+
+
+
+
+# --- Backend (Django + AILT API) ---
+cd /home/sasha/apps/cheradip/bcheradip
+git fetch origin
+git checkout main
+git pull origin main
+source venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install -r ailt_api/requirements.txt
+python manage.py collectstatic --noinput
+sudo systemctl restart cheradip
+sudo systemctl restart cheradip-ailt
+
+# --- Frontend (unchanged) ---
 cd /home/sasha/apps/cheradip/fcheradip
 git fetch origin
+git checkout main
+git pull origin main
 npm ci
 npm run build -- --configuration production
 
@@ -46,3 +70,8 @@ else
 fi
 
 sudo systemctl reload nginx
+sudo systemctl status cheradip cheradip-ailt nginx --no-pager
+curl -s https://cheradip.com/ailt/api/health
+
+
+

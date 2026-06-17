@@ -1241,6 +1241,35 @@ span.mx-3 {
   vertical-align: middle;
 }
 
+/* C program blocks from formatMaybeCProgramQuestionText / wrapRomanLines */
+.topic-question-text ::ng-deep .q-code-block,
+.topic-question-subpart ::ng-deep .q-code-block,
+.topic-question-opt-html ::ng-deep .q-code-block,
+.topic-question-answer-html ::ng-deep .q-code-block,
+.topic-question-explanation ::ng-deep .q-code-block {
+  display: block;
+  margin: 0.35em 0;
+  max-width: min(720px, 100%);
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.topic-question-text ::ng-deep .q-code-block code,
+.topic-question-subpart ::ng-deep .q-code-block code,
+.topic-question-opt-html ::ng-deep .q-code-block code,
+.topic-question-answer-html ::ng-deep .q-code-block code,
+.topic-question-explanation ::ng-deep .q-code-block code {
+  display: block;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+  line-height: 1.38;
+}
+
 .topic-question-intro {
   display: block;
   margin-bottom: 4px;

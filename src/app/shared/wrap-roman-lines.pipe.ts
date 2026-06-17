@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { formatMaybeCProgramQuestionText } from './c-program-question-format';
+import { formatMaybeCProgramQuestionText, normalizeExistingQCodeBlocks, Q_CODE_BLOCK_FULL_RE } from './c-program-question-format';
 import { enrichPlainTextWithKatex, normalizeQuestionLatexSource } from './question-katex-render';
 import {
   buildRomanMcqPackHtml,
@@ -24,9 +24,23 @@ const ROMAN_LINE = /^\s*(i|ii|iii|I|II|III)\./;
 /** সৃজনশীল sub-clauses: (ক) (খ) (গ) (ঘ) at line start (Bengali letters in ASCII parens). */
 const BN_PAREN_KHOGH_LINE = /^\s*\([কখগঘ]\)/;
 
+/** Placeholder wrapping a code block so line-split does not escape its HTML. */
+const QCB_PLACEHOLDER = /\uE000QCB(\d+)\uE001/;
+
+function shieldCodeBlocks(text: string): { shielded: string; blocks: string[] } {
+  const blocks: string[] = [];
+  const normalized = normalizeExistingQCodeBlocks(text);
+  const re = new RegExp(Q_CODE_BLOCK_FULL_RE.source, Q_CODE_BLOCK_FULL_RE.flags);
+  const shielded = normalized.replace(re, (m) => {
+    const idx = blocks.length;
+    blocks.push(m);
+    return `\uE000QCB${idx}\uE001`;
+  });
+  return { shielded, blocks };
+}
+
 /** Match code block, img stack+caption, bare <img>, or <br> on a single line (stack pattern first). */
-const CODE_BLOCK_RE =
-  /<span class="q-code-block"[^>]*><code>[\s\S]*?<\/code><\/span>/gi;
+const CODE_BLOCK_RE = new RegExp(Q_CODE_BLOCK_FULL_RE.source, Q_CODE_BLOCK_FULL_RE.flags);
 const IMG_STACK_CAPTION =
   /<span class="q-rich-img-stack[^"]*"[^>]*>\s*<img\b[^>]*>\s*<span class="q-rich-img-caption">[^<]*<\/span>\s*<\/span>/gi;
 const IMG_STACK_BARE =
@@ -137,7 +151,8 @@ function escapeHtmlPreserveImages(line: string): string {
     const token = m[0];
     if (/^<br\s*\/?>/i.test(token)) {
       parts.push('<br />');
-    } else if (/^<span class="q-code-block"[^>]*><code>[\s\S]*<\/code><\/span>$/i.test(token)) {
+    } else if (CODE_BLOCK_RE.test(token)) {
+      CODE_BLOCK_RE.lastIndex = 0;
       parts.push(token);
     } else if (/^<span class="q-rich-img-stack[^"]*"[^>]*>/i.test(token)) {
       parts.push(token);
@@ -182,7 +197,9 @@ export class WrapRomanLinesPipe implements PipeTransform {
       (_match, script: string, roman: string) => `${script}<br />${roman}.`
     );
 
-    const parsed = splitHtmlAtRomanMarkers(glued);
+    const { shielded, blocks } = shieldCodeBlocks(glued);
+
+    const parsed = splitHtmlAtRomanMarkers(shielded);
     if (parsed && parsed.segments.length >= 1) {
       const maxW = resolveRomanMcqMaxWidthPx(ctx);
       const font = detectMcqOptionFont();
@@ -195,15 +212,24 @@ export class WrapRomanLinesPipe implements PipeTransform {
         formatHtmlFragment,
         formatRomanSegment
       );
-      return this.sanitizer.bypassSecurityTrustHtml(html);
+      return this.sanitizer.bypassSecurityTrustHtml(
+        html.replace(QCB_PLACEHOLDER, (_, n: string) => blocks[Number(n)] ?? '')
+      );
     }
 
-    const lines = nicherReady
+    const lines = shielded
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
     const parts = lines.map((line) => {
-      if (/^\s*<span class="q-code-block"[^>]*><code>[\s\S]*<\/code><\/span>\s*$/i.test(line)) {
+      const ph = QCB_PLACEHOLDER.exec(line);
+      QCB_PLACEHOLDER.lastIndex = 0;
+      if (ph) {
+        return blocks[Number(ph[1])] ?? line;
+      }
+      CODE_BLOCK_RE.lastIndex = 0;
+      if (CODE_BLOCK_RE.test(line)) {
+        CODE_BLOCK_RE.lastIndex = 0;
         return line.trim();
       }
       const decodedLine = decodeHtmlEntities(line);

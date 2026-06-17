@@ -1311,6 +1311,27 @@
   box-sizing: border-box;
 }
 
+.preview-q-text ::ng-deep .q-code-block,
+.preview-q-subpart ::ng-deep .q-code-block,
+.preview-q-opt-html ::ng-deep .q-code-block {
+  display: block;
+  margin: 0.35em 0;
+  max-width: min(720px, 100%);
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.preview-q-text ::ng-deep .q-code-block code,
+.preview-q-subpart ::ng-deep .q-code-block code,
+.preview-q-opt-html ::ng-deep .q-code-block code {
+  display: block;
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+  line-height: 1.38;
+}
+
 .preview-q-stem-with-parts {
   display: flow-root;
   margin-bottom: 0;

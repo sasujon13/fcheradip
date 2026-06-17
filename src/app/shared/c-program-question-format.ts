@@ -6,6 +6,80 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
+const Q_CODE_BLOCK_CLASS =
+  String.raw`\bclass=(?:"[^"]*\bq-code-block\b[^"]*"|'[^']*\bq-code-block\b[^']*')`;
+
+/** Full block — any extra classes on `<span>`, single/double quotes (matches backend export regex). */
+export const Q_CODE_BLOCK_FULL_RE = new RegExp(
+  `<span[^>]*${Q_CODE_BLOCK_CLASS}[^>]*>\\s*<code>([\\s\\S]*?)<\\/code>\\s*<\\/span>`,
+  'gi'
+);
+
+function decodeHtmlEntitiesMinimal(text: string): string {
+  if (!text.includes('&')) {
+    return text;
+  }
+  return text
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'");
+}
+
+/** One logical line inside `<code>` — keep prior `encodeCodeHtml` entities, escape raw C tokens. */
+function normalizeCodeInnerLine(line: string): string {
+  const t = line.trimEnd();
+  if (!t.trim()) {
+    return '';
+  }
+  if (/<br\s*\/?>/i.test(t)) {
+    return t;
+  }
+  if (/&(?:lt|gt|amp|quot|#39);/i.test(t) && !/[<>]/.test(t.replace(/&(?:lt|gt|amp|quot|#39);/gi, ''))) {
+    return t;
+  }
+  return escapeHtml(t);
+}
+
+/** Cursor-style `@file.c (1-N)` label — omitted from display (extra line in created questions). */
+const PROGRAM_REF_LINE = /^@[^\s<]+ \(1-\d+\)\s*$/;
+
+function isProgramRefHeaderLine(line: string): boolean {
+  const plain = String(line ?? '')
+    .replace(/<br\s*\/?>/gi, '')
+    .trim();
+  return PROGRAM_REF_LINE.test(plain);
+}
+
+function flattenCodeInnerToBrHtml(inner: string): string {
+  const normalized = String(inner ?? '').replace(/\r\n?/g, '\n');
+  if (!normalized.includes('\n')) {
+    return isProgramRefHeaderLine(normalized) ? '' : normalized;
+  }
+  return normalized
+    .split('\n')
+    .map((line) => normalizeCodeInnerLine(line))
+    .filter((line) => line.length > 0 && !isProgramRefHeaderLine(line))
+    .join('<br />');
+}
+
+/**
+ * Repair stored / exported `<span class="q-code-block">` markup: inner newlines break
+ * wrapRomanLines line-split and get escaped as visible `&lt;span` text in the browser.
+ */
+export function normalizeExistingQCodeBlocks(input: string): string {
+  if (!input || !/q-code-block/i.test(input)) {
+    return input;
+  }
+  const decoded = decodeHtmlEntitiesMinimal(input);
+  Q_CODE_BLOCK_FULL_RE.lastIndex = 0;
+  return decoded.replace(Q_CODE_BLOCK_FULL_RE, (_full, inner: string) => {
+    const flat = flattenCodeInnerToBrHtml(String(inner ?? ''));
+    return `<span class="q-code-block"><code>${flat}</code></span>`;
+  });
+}
+
 function looksLikeCProgramQuestion(input: string): boolean {
   const text = String(input ?? '').trim();
   if (!text) {
@@ -1015,14 +1089,6 @@ function encodeCodeHtml(code: string): string {
     .join('<br />');
 }
 
-/** Cursor-style label; uses first `*.c` token in the raw question if present, else `program`. */
-function guessCSourceFileRef(raw: string, formattedLineCount: number): string {
-  const m = /\b([A-Za-z_][\w.-]*\.c)\b/i.exec(String(raw ?? ''));
-  const base = m ? m[1]! : 'program';
-  const n = Math.max(1, formattedLineCount);
-  return `@${base} (1-${n})`;
-}
-
 function ensureNewlineBeforeCreativeParenMarkers(code: string): string {
   return String(code ?? '')
     .replace(/\}\s*(\(ক\))/g, '}\n$1')
@@ -1032,8 +1098,14 @@ function ensureNewlineBeforeCreativeParenMarkers(code: string): string {
 }
 
 export function formatMaybeCProgramQuestionText(raw: string): string {
-  const input = String(raw ?? '').trim();
-  if (!input || input.includes('class="q-code-block"') || !looksLikeCProgramQuestion(input)) {
+  const input = decodeHtmlEntitiesMinimal(String(raw ?? '').trim());
+  if (!input) {
+    return input;
+  }
+  if (/q-code-block/i.test(input)) {
+    return normalizeExistingQCodeBlocks(input);
+  }
+  if (!looksLikeCProgramQuestion(input)) {
     return input;
   }
 
@@ -1085,13 +1157,7 @@ export function formatMaybeCProgramQuestionText(raw: string): string {
       if (!formatted.trim()) {
         continue;
       }
-      const lineCount = formatted
-        .split('\n')
-        .map((ln) => ln.trim())
-        .filter(Boolean).length;
-      const refLine = guessCSourceFileRef(input, lineCount);
-      const withRef = `${refLine}\n${formatted}`;
-      parts.push(`<span class="q-code-block"><code>${encodeCodeHtml(withRef)}</code></span>`);
+      parts.push(`<span class="q-code-block"><code>${encodeCodeHtml(formatted)}</code></span>`);
     } else if (seg.s.trim()) {
       parts.push(seg.s.trim());
     }

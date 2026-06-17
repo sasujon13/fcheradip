@@ -222,6 +222,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private static readonly HEADER_MIXED_SUBJECT_COMPOSITE_RE =
     /^([\s\S]*?)\s*\[([^\[\]]*)\]\s*\[([^\[\]]*)\]\s*$/u;
+
+  /** True when `text` already ends with the mixed-mode `[CQ][MCQ]` bracket pair (HTML-safe). */
+  private static mixedSubjectCompositeSuffixPresent(text: string): boolean {
+    return QuestionCreatorComponent.HEADER_MIXED_SUBJECT_COMPOSITE_RE.test((text ?? '').trimEnd());
+  }
   /** Mixed sq দ্রষ্টব্য rows (textarea indices 7–8): default sidebar/preview font. */
   private static readonly HEADER_MIXED_SQ_NOTICE_FONT_DEFAULT_PX = 10;
   /** Creative-only: combined সময়+পূর্ণমান row (canonical `examSqMetaCombinedLineCreative`) — 14px, not 3rd-line 21px. */
@@ -998,7 +1003,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     if (this.creatorRestoredDraftOnce) {
-      void this.runCreatorResetAndAutoFit();
+      /** Reload / session restore: keep saved aside + header lines; relayout only (no factory reset). */
+      this.onPreviewLayoutChange({ suppressAutoFit: true });
     }
   }
 
@@ -1596,17 +1602,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
 
     if (opts?.layoutOnly) {
+      this.restorePersistedHeaderAsideFromParsed(parsed);
       return;
     }
 
-    /**
-     * Header per-line font sizes are deliberately NOT restored from the persisted payload
-     * (see {@link buildPersistPayload} / {@link buildRemoteCustomerSettingsPayload} — they no
-     * longer write this field). Reset to `[]` so {@link syncHeaderFontSizesToLineCount} seeds
-     * fresh content-aware defaults on every reload — most importantly the 10px default for
-     * `[দ্রষ্টব্য : …]` rows. Legacy `headerLineFontSizes` / `headerLine{1,2}FontPx` that may
-     * still exist in older customer-settings or `localStorage` blobs are ignored on purpose.
-     */
     this.headerLineFontSizes = [];
 
     const hei = parsed['headerEiin'];
@@ -1655,14 +1654,48 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       }
     }
 
-    // Persisted flag so reload doesn't re-seed default template rows unexpectedly.
+    this.restorePersistedHeaderManualEditAndFontSizes(parsed);
+    this.syncHeaderFontSizesToLineCount();
+  }
+
+  /**
+   * Restore aside/header text and mixed-mode bracket overrides from localStorage (layout-only merge)
+   * without running a full header rebuild.
+   */
+  private restorePersistedHeaderAsideFromParsed(parsed: Record<string, unknown>): void {
+    const qh = parsed['questionHeader'];
+    if (typeof qh === 'string') {
+      this.questionHeader = qh;
+    }
+    this.restorePersistedHeaderManualEditAndFontSizes(parsed);
+    this.syncHeaderFontSizesToLineCount();
+  }
+
+  private restorePersistedHeaderManualEditAndFontSizes(parsed: Record<string, unknown>): void {
     const hmed = parsed['headerManualEditSinceRebuild'];
     if (typeof hmed === 'boolean') {
       this.headerManualEditSinceRebuild = hmed;
-    } else {
-      this.headerManualEditSinceRebuild = false;
+    } else if (typeof parsed['questionHeader'] === 'string' && (parsed['questionHeader'] as string).trim()) {
+      /** Saved lines without the flag — keep preview/aside mapping stable on reload. */
+      this.headerManualEditSinceRebuild = true;
     }
-    this.syncHeaderFontSizesToLineCount();
+    const hfs = parsed['headerLineFontSizes'];
+    if (Array.isArray(hfs) && hfs.length > 0) {
+      const nums = hfs.filter((x): x is number => typeof x === 'number' && Number.isFinite(x));
+      if (nums.length > 0) {
+        this.headerLineFontSizes = nums.map((n) =>
+          this.clampHeaderLineFontPx(Math.round(n))
+        );
+      }
+    }
+    const cq = parsed['mixedCqSubtitleOverride'];
+    if (typeof cq === 'string' && cq.trim()) {
+      this.mixedCqSubtitleOverride = cq;
+    }
+    const mcq = parsed['mixedMcqSubtitleOverride'];
+    if (typeof mcq === 'string' && mcq.trim()) {
+      this.mixedMcqSubtitleOverride = mcq;
+    }
   }
 
   /** Payload `v` may be stored as string from some backends. */
@@ -1683,9 +1716,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const ctx = parsed['context'];
     this.context = (ctx as QuestionCreatorContext) || {};
     this.applyLayoutAndHeaderFromParsed(parsed, opts);
-    // Local-storage / customer-settings payloads no longer carry `questionHeader`, so the
-    // "trusted restore" fast-path in `ngAfterViewInit` (which skips the type-aware rebuild)
-    // must not fire — drop the trust flag when nothing was actually restored.
     const hasSavedHeader = typeof parsed['questionHeader'] === 'string';
     const trust = !!opts?.trustSavedHeader && hasSavedHeader;
     this.creatorTrustedHeaderRestored = trust;
@@ -2123,6 +2153,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (!raw) return;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       this.applyLayoutAndHeaderFromParsed(parsed, { layoutOnly: true });
+      if (typeof parsed['questionHeader'] === 'string') {
+        this.creatorTrustedHeaderRestored = true;
+      }
     } catch (_) {}
   }
 
@@ -5901,7 +5934,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           subjectText = canonical;
         }
       }
-      if (!subjectText.includes('[')) {
+      if (!QuestionCreatorComponent.mixedSubjectCompositeSuffixPresent(subjectText)) {
         out[2] = {
           modelIndex: r.modelIndex,
           text: `${subjectText}[${this.mixedCqSubtitleOverride}][${this.mixedMcqSubtitleOverride}]`,
@@ -5989,6 +6022,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!normalized.trim() && !compositeParsed) {
       if (lines.length > 1) {
         lines.splice(index, 1);
+        if (index < this.headerLineFontSizes.length) {
+          this.headerLineFontSizes.splice(index, 1);
+        }
         this.headerManualEditSinceRebuild = true;
         this.commitHeaderEditorLines(lines.length ? lines : ['']);
         this.onPreviewLayoutChange();
@@ -6024,6 +6060,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       event.preventDefault();
       const next = [...lines];
       next.splice(index, 1);
+      if (index < this.headerLineFontSizes.length) {
+        this.headerLineFontSizes.splice(index, 1);
+      }
       this.headerManualEditSinceRebuild = true;
       this.commitHeaderEditorLines(next.length ? next : ['']);
       this.onPreviewLayoutChange();
@@ -6084,11 +6123,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.onPreviewLayoutChange();
   }
 
-  private buildPersistPayload(opts?: { keepHeaderState?: boolean }): Record<string, unknown> {
+  private buildPersistPayload(_opts?: { keepHeaderState?: boolean }): Record<string, unknown> {
     const questionQids = this.questions
       .map((q) => q?.qid)
       .filter((id): id is string | number => id != null && id !== '');
-    const stripHeader = !opts?.keepHeaderState;
     return {
       v: QUESTION_CREATOR_PAYLOAD_VERSION,
       savedAt: Date.now(),
@@ -6096,15 +6134,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       // Include full rows so reload can render real question text even if API hydration fails.
       questions: this.questions,
       context: this.context,
-      // `questionHeader` + per-line font sizes are intentionally NOT persisted to local
-      // storage / customer settings: switching the question-type selection
-      // (MCQ-only ↔ MCQ+CQ ↔ CQ-only) would otherwise drag stale lines from the previous
-      // shape into the new layout. Reload rebuilds the textarea from the current
-      // institute/exam/subject meta so lines always match the active selection.
-      // `keepHeaderState: true` (login-flow session storage) preserves the in-progress
-      // header for the redirect round-trip since the user is not switching modes there.
-      ...(stripHeader ? {} : { questionHeader: this.questionHeader }),
-      ...this.buildLayoutSettingsForPersist({ stripHeaderState: stripHeader }),
+      questionHeader: this.questionHeader,
+      mixedCqSubtitleOverride: this.mixedCqSubtitleOverride,
+      mixedMcqSubtitleOverride: this.mixedMcqSubtitleOverride,
+      ...this.buildLayoutSettingsForPersist({ stripHeaderState: false }),
     };
   }
 
