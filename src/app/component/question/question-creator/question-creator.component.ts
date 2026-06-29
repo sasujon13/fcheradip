@@ -1733,7 +1733,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private restorePersistedHeaderAsideFromParsed(parsed: Record<string, unknown>): void {
     const qh = parsed['questionHeader'];
     if (typeof qh === 'string') {
-      this.questionHeader = qh;
+      const physical = qh.replace(/\r\n/g, '\n').split('\n');
+      this.ensureStructuredPhysicalHrSlots(physical);
+      this.questionHeader = physical.join('\n');
     }
     this.restorePersistedHeaderManualEditAndFontSizes(parsed);
     this.syncHeaderFontSizesToLineCount();
@@ -2431,7 +2433,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!changed) {
       return;
     }
-    this.questionHeader = merged.join('\n');
+    this.commitHeaderEditorLines(merged);
     this.onPreviewLayoutChange();
   }
 
@@ -2470,7 +2472,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (mixedSqMcqNotice) {
         merged[8] = mixedSqMcqNotice;
       }
-      this.questionHeader = merged.join('\n');
+      this.commitHeaderEditorLines(merged);
     }
     this.syncHeaderFontSizesToLineCount();
     this.onPreviewLayoutChange();
@@ -6016,12 +6018,107 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return row.modelIndex;
   }
 
-  private commitHeaderEditorLines(lines: string[]): void {
-    if (lines.length === 1 && lines[0] === '') {
-      this.questionHeader = '';
-    } else {
-      this.questionHeader = lines.join('\n');
+  /** True when a stored header line is a structural `<hr>` row (not edited in the aside). */
+  private headerStorageLineIsHr(ln: string | undefined | null): boolean {
+    return (ln ?? '').trim().toLowerCase().includes('<hr');
+  }
+
+  /**
+   * Rebuild full `questionHeader` (with `<hr>` rows at fixed preview indices) from filtered editor
+   * lines ({@link getHeaderEditorLinesRaw}). Preview renderers use physical `headerPreviewLines`
+   * indices — dropping `<hr>` on commit shifted CQ/MCQ band rows (e.g. line 6 vanished, line 7 moved up).
+   */
+  private physicalLinesFromFilteredEditorLines(
+    filteredLines: string[],
+    opts?: { removedFilteredIndex?: number }
+  ): string[] {
+    const prevPhysical = (this.questionHeader || '').replace(/\r\n/g, '\n').split('\n');
+    type Slot = { kind: 'hr'; text: string } | { kind: 'content'; fi: number };
+    const slots: Slot[] = [];
+    let fi = 0;
+    for (const ln of prevPhysical) {
+      if (this.headerStorageLineIsHr(ln)) {
+        slots.push({ kind: 'hr', text: ln ?? QuestionCreatorComponent.DEFAULT_STRUCTURED_HEADER_HR });
+      } else {
+        slots.push({ kind: 'content', fi });
+        fi++;
+      }
     }
+
+    const removed = opts?.removedFilteredIndex;
+    let workSlots = slots;
+    if (removed != null && removed >= 0 && fi > filteredLines.length) {
+      let dropped = false;
+      const nextSlots: Slot[] = [];
+      for (const s of slots) {
+        if (!dropped && s.kind === 'content' && s.fi === removed) {
+          dropped = true;
+          continue;
+        }
+        nextSlots.push(s);
+      }
+      let nf = 0;
+      workSlots = nextSlots.map((s) =>
+        s.kind === 'hr' ? s : { kind: 'content' as const, fi: nf++ }
+      );
+    }
+
+    const out: string[] = [];
+    for (const s of workSlots) {
+      if (s.kind === 'hr') {
+        out.push(s.text);
+      } else {
+        out.push(filteredLines[s.fi] ?? '');
+      }
+    }
+    const contentSlots = workSlots.filter((x) => x.kind === 'content').length;
+    for (let i = contentSlots; i < filteredLines.length; i++) {
+      out.push(filteredLines[i] ?? '');
+    }
+    this.ensureStructuredPhysicalHrSlots(out);
+    return out;
+  }
+
+  /** Insert missing structural `<hr>` rows expected by CQ / MCQ / mixed preview mappers. */
+  private ensureStructuredPhysicalHrSlots(physical: string[]): void {
+    if (this.headerUseLegacyQuestionHeader || !this.paperSubjectMetaLinesEligible()) {
+      return;
+    }
+    const hr = QuestionCreatorComponent.DEFAULT_STRUCTURED_HEADER_HR;
+    const ensureAt = (index: number): void => {
+      while (physical.length < index) {
+        physical.push('');
+      }
+      if (physical.length === index) {
+        physical.push(hr);
+        return;
+      }
+      if (!this.headerStorageLineIsHr(physical[index])) {
+        physical.splice(index, 0, hr);
+      }
+    };
+    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
+      ensureAt(5);
+      return;
+    }
+    if (this.mcqOnlyUsesSixLineTextareaBlock() && physical.length >= 5) {
+      ensureAt(5);
+      return;
+    }
+    if (this.selectionHasCreativeType() && !this.selectionHasMcqType() && physical.length >= 4) {
+      ensureAt(4);
+    }
+  }
+
+  private commitHeaderEditorLines(
+    filteredLines: string[],
+    opts?: { removedFilteredIndex?: number }
+  ): void {
+    if (filteredLines.length === 1 && filteredLines[0] === '') {
+      this.questionHeader = '';
+      return;
+    }
+    this.questionHeader = this.physicalLinesFromFilteredEditorLines(filteredLines, opts).join('\n');
   }
 
   headerEditorLineShowsFontControls(line: string): boolean {
@@ -6094,7 +6191,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.headerLineFontSizes.splice(index, 1);
         }
         this.headerManualEditSinceRebuild = true;
-        this.commitHeaderEditorLines(lines.length ? lines : ['']);
+        this.commitHeaderEditorLines(lines.length ? lines : [''], { removedFilteredIndex: index });
         this.onPreviewLayoutChange();
         queueMicrotask(() => {
           this.cdr.detectChanges();
@@ -6132,7 +6229,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.headerLineFontSizes.splice(index, 1);
       }
       this.headerManualEditSinceRebuild = true;
-      this.commitHeaderEditorLines(next.length ? next : ['']);
+      this.commitHeaderEditorLines(next.length ? next : [''], { removedFilteredIndex: index });
       this.onPreviewLayoutChange();
       queueMicrotask(() => {
         this.cdr.detectChanges();
