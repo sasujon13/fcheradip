@@ -3898,6 +3898,21 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return null;
   }
 
+  /** Right-aligned stem marks for জ্ঞানমূলক (১) and অনুধাবনমূলক (২) — same placement as CQ subparts. */
+  mcqFamilyQuestionMarkBn(q: { type?: unknown }): string | null {
+    if (this.questionIsKnowledgeType(q)) {
+      return QuestionCreatorComponent.toBengaliDigits(
+        String(QuestionCreatorComponent.SQ_KNOWLEDGE_TYPE_MARK)
+      );
+    }
+    if (this.questionIsComprehensionType(q)) {
+      return QuestionCreatorComponent.toBengaliDigits(
+        String(QuestionCreatorComponent.SQ_COMPREHENSION_TYPE_MARK)
+      );
+    }
+    return null;
+  }
+
   /** Preview serial with Bengali digits (e.g. ১, ১০) for stem prefix. */
   previewQuestionSerialBn(oneBasedSerial: number): string {
     const n = Math.max(1, Math.floor(Number(oneBasedSerial) || 0));

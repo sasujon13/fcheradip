@@ -1364,6 +1364,13 @@
   padding-right: 2em;
 }
 
+/* জ্ঞানমূলক / অনুধাবনমূলক: marks on the right of the MCQ stem (not CQ subpart indent). */
+.preview-q-mcq-stem-marks-wrap {
+  display: flow-root;
+  overflow: visible;
+  min-width: 0;
+}
+
 .preview-q-subpart-marks {
   position: absolute;
   right: 0;
