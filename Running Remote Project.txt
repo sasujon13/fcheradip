@@ -75,3 +75,12 @@ curl -s https://cheradip.com/ailt/api/health
 
 
 
+
+cd /home/sasha/apps/cheradip/bcheradip/ailt_api
+git pull   # after you push these changes
+bash scripts/setup-brevo-env.sh   # or edit .env manually
+sudo systemctl restart cheradip-ailt
+./scripts/test_smtp.sh sashafik.me@gmail.com
+
+
+
