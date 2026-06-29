@@ -1,4 +1,4 @@
-<app-header></app-header>
-<div class="app-page-shell" #pageShell>
+<app-header *ngIf="showSiteHeader"></app-header>
+<div class="app-page-shell" #pageShell [class.app-page-shell--full]="!showSiteHeader">
   <router-outlet></router-outlet>
 </div>

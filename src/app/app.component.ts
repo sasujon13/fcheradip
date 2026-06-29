@@ -22,6 +22,7 @@ import { TrxUnlockService } from './service/trx-unlock.service';
 })
 export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   title = 'Cheradip';
+  showSiteHeader = true;
 
   @ViewChild('pageShell', { static: false }) pageShellRef?: ElementRef<HTMLElement>;
 
@@ -40,6 +41,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.showSiteHeader = !this.isAiltManualRoute(this.router.url);
     this.primeBrowserAudioOnFirstUserGesture();
     this.authSession.startSessionMonitor();
     if (this.authSession.hasStoredSession()) {
@@ -47,7 +49,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe(() => {
+      .subscribe((e) => {
+        this.showSiteHeader = !this.isAiltManualRoute(e.urlAfterRedirects || e.url);
         this.authSession.startSessionMonitor();
         setTimeout(() => this.welcomeCeremony.tryPlayAfterNavigation(), 400);
         this.queueWatermarkMeasureAfterContent();
@@ -152,6 +155,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.shellResizeObserver = new ResizeObserver(() => this.queueWatermarkMeasureAfterContent());
     this.shellResizeObserver.observe(shell);
+  }
+
+  private isAiltManualRoute(url: string): boolean {
+    const path = (url || '').split('?')[0].split('#')[0];
+    return path === '/ailt' || path.startsWith('/ailt/');
   }
 
 }

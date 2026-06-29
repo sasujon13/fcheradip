@@ -55,6 +55,7 @@ import { LeaderboardComponent } from './component/student/leaderboard/leaderboar
 import { TutorComponent } from './component/student/tutor/tutor.component';
 import { ScraperComponent } from './component/scraper/scraper/scraper.component';
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
+import { AiltManualComponent } from './component/ailt/ailt-manual.component';
 import {
   StudentSectionDashboardGuard,
   TeacherHomeDashboardGuard,
@@ -65,6 +66,7 @@ const routes: Routes = [
   { path: '', component: IndexComponent, pathMatch: 'full' },
   { path: 'index', component: IndexComponent },
   { path: 'packages', component: PackagesComponent },
+  { path: 'ailt', component: AiltManualComponent },
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutComponent},
   {path:'live_chat', component: ChatComponent},
