@@ -1513,6 +1513,23 @@
   color: #444;
 }
 
+.creator-add-more-questions {
+  margin-left: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  color: var(--color_primary_teal);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.creator-add-more-questions:hover,
+.creator-add-more-questions:focus-visible {
+  text-decoration: underline;
+}
+
 .creator-questions-section .creator-questions-type-heading:first-of-type {
   margin-top: 12px;
 }

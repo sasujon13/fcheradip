@@ -1419,6 +1419,13 @@
     <ng-container *ngIf="creatorSidebarCreativeQuestions.length">
       <h3 class="creator-questions-type-heading">
         {{ isEnglishSubject() ? 'Creative (CQ)' : 'সৃজনশীল' }} ({{ creatorSidebarCreativeQuestions.length }})
+        <button
+          type="button"
+          class="creator-add-more-questions"
+          (click)="navigateToAddMoreQuestions()"
+        >
+          Add More Questions
+        </button>
       </h3>
       <ul
         class="creator-questions-list"
@@ -1451,6 +1458,13 @@
     <ng-container *ngIf="creatorSidebarMcqQuestions.length">
       <h3 class="creator-questions-type-heading">
         {{ isEnglishSubject() ? 'Multiple choice (MCQ)' : 'বহুনির্বাচনি' }} ({{ creatorSidebarMcqQuestions.length }})
+        <button
+          type="button"
+          class="creator-add-more-questions"
+          (click)="navigateToAddMoreQuestions()"
+        >
+          Add More Questions
+        </button>
       </h3>
       <ul
         class="creator-questions-list"

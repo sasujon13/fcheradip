@@ -102,7 +102,8 @@ export type QuestionCreatorContext = {
   subject_code?: string;
   /**
    * Exam variant from question_subjects (`sq`): 25 vs 30 drives per-question timing for header সময়/পূর্ণমান
-   * (MCQ 1 min + 1 mark each; CQ সময়/পূর্ণমান use answer quota — sq=25: up to 5 CQ (31 min + 10 marks each);
+   * (standard MCQ 1 min + 1 mark each; জ্ঞানমূলক 2 min + 1 mark; অনুধাবনমূলক 5 min + 2 marks;
+   * CQ সময়/পূর্ণমান use answer quota — sq=25: up to 5 CQ (31 min + 10 marks each);
    * sq=30: 7 CQ (floor(7×21.43) min + 10 marks each), not every question printed on the sheet).
    */
   sq?: number;
@@ -290,6 +291,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly SQ_CQ_ANSWER_QUOTA_25 = 5;
   /** sq=30: answer any seven — header সময়/পূর্ণমান always use this count when CQ section is present. */
   private static readonly SQ_CQ_ANSWER_QUOTA_30 = 7;
+
+  /** Per-question MCQ-family exam meta (sq 25/30 header lines). */
+  private static readonly SQ_KNOWLEDGE_TYPE_MARK = 1;
+  private static readonly SQ_KNOWLEDGE_TYPE_MINUTES = 2;
+  private static readonly SQ_COMPREHENSION_TYPE_MARK = 2;
+  private static readonly SQ_COMPREHENSION_TYPE_MINUTES = 5;
 
   private static escapeHtmlText(s: string): string {
     return s
@@ -2596,6 +2603,27 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return !!t && (t === 'বহুনির্বাচনি' || t.includes('বহুনির্বাচনি'));
   }
 
+  /** জ্ঞানমূলক প্রশ্ন — sq header: 1 mark, 2 minutes each. */
+  questionIsKnowledgeType(q: { type?: unknown }): boolean {
+    const t = this.normalizeQuestionType(q);
+    return !!t && t.includes('জ্ঞানমূলক');
+  }
+
+  /** অনুধাবনমূলক প্রশ্ন — sq header: 2 marks, 5 minutes each. */
+  questionIsComprehensionType(q: { type?: unknown }): boolean {
+    const t = this.normalizeQuestionType(q);
+    return !!t && t.includes('অনুধাবনমূলক');
+  }
+
+  /** MCQ sheet / MCQ-family header totals (standard MCQ + জ্ঞানমূলক + অনুধাবনমূলক). */
+  questionIsMcqFamilyType(q: { type?: unknown }): boolean {
+    return (
+      this.questionIsMcqType(q) ||
+      this.questionIsKnowledgeType(q) ||
+      this.questionIsComprehensionType(q)
+    );
+  }
+
   selectionHasCreativeType(): boolean {
     return this.questions.some((q) => this.questionIsCreativeType(q));
   }
@@ -3063,6 +3091,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     const next = lines.slice();
+    const t4 = (next[4] ?? '').trim();
+    if (!this.shouldReseedSqMcqCombinedLine(t4)) {
+      return;
+    }
     next[4] = combined;
     const marks = this.examFullMarksLineMcq();
     const legacyMarks = ['পূর্ণমান-- ৩০', 'পূর্ণমান-- ২৫', 'পূর্ণমান -- ৩০', 'পূর্ণমান -- ২৫'];
@@ -3260,6 +3292,78 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.compactCreativeOnlyTrailingEmptyLines();
     }
     this.syncMcqCodePlainLineInTextarea();
+  }
+
+  /**
+   * After preview sidebar deletes, refresh auto sq সময়/পূর্ণমান lines even when the header
+   * was manually edited ({@link headerManualEditSinceRebuild}).
+   */
+  private reapplySqExamMetaFromQuestionCounts(): void {
+    if (this.headerUseLegacyQuestionHeader || !this.paperSubjectMetaLinesEligible()) {
+      return;
+    }
+    if (this.subjectSqExamVariant() == null) {
+      return;
+    }
+    this.ensureMixedExpandedHeaderEditorLines();
+    const next = this.headerPreviewLines.slice();
+    let changed = false;
+
+    const applyMcqCombinedAt = (idx: number): void => {
+      const mcqC = this.examSqMetaCombinedLineMcq();
+      if (!mcqC) {
+        return;
+      }
+      while (next.length <= idx) {
+        next.push('');
+      }
+      const cur = (next[idx] ?? '').trim();
+      if (this.shouldReseedSqMcqCombinedLine(cur)) {
+        next[idx] = mcqC;
+        changed = true;
+      }
+    };
+
+    const applyCreativeCombinedAt = (idx: number): void => {
+      const creC = this.examSqMetaCombinedLineCreative();
+      if (!creC) {
+        return;
+      }
+      while (next.length <= idx) {
+        next.push('');
+      }
+      const cur = (next[idx] ?? '').trim();
+      if (this.shouldReseedSqCreativeCombinedLine(cur)) {
+        next[idx] = creC;
+        changed = true;
+      }
+    };
+
+    if (this.mcqOnlyUsesSixLineTextareaBlock()) {
+      applyMcqCombinedAt(4);
+    }
+
+    if (this.selectionHasBothHeaderTypes() && !this.mixedTypesSinglePageMergedHeader) {
+      while (next.length < QuestionCreatorComponent.MIXED_HEADER_UNIFIED_MIN_LINES) {
+        next.push('');
+      }
+      applyMcqCombinedAt(3);
+      applyCreativeCombinedAt(4);
+    }
+
+    if (this.selectionHasCreativeType() && !this.selectionHasMcqType()) {
+      const idx = this.mixedUnifiedHeaderTextareaLayoutActive() ? 4 : 3;
+      applyCreativeCombinedAt(idx);
+    }
+
+    if (!changed) {
+      return;
+    }
+    const proposed = next.join('\n');
+    if (proposed.replace(/\r\n/g, '\n') === (this.questionHeader || '').replace(/\r\n/g, '\n')) {
+      return;
+    }
+    this.questionHeader = proposed;
   }
 
   /**
@@ -3666,8 +3770,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return base;
     }
     const creative = base.filter((q) => this.questionIsCreativeType(q));
-    const mcq = base.filter((q) => this.questionIsMcqType(q));
-    const others = base.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q));
+    const mcq = base.filter((q) => this.questionIsMcqFamilyType(q));
+    const others = base.filter(
+      (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqFamilyType(q)
+    );
     // Mixed mode order: সৃজনশীল first, then বহুনির্বাচনি.
     return [...creative, ...mcq, ...others];
   }
@@ -3847,15 +3953,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Sidebar list: MCQ rows in preview order (SL ১… separate from CQ). */
   get creatorSidebarMcqQuestions(): any[] {
     return this.previewQuestions.filter(
-      (q) => !this.questionIsCreativeType(q) && this.questionIsMcqType(q)
+      (q) => !this.questionIsCreativeType(q) && this.questionIsMcqFamilyType(q)
     );
   }
 
-  /** Neither CQ nor MCQ (rare); SL matches global position in preview order. */
+  /** Neither CQ nor MCQ-family (rare); SL matches global position in preview order. */
   get creatorSidebarOtherQuestions(): any[] {
     return this.previewQuestions.filter(
-      (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q)
+      (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqFamilyType(q)
     );
+  }
+
+  navigateToAddMoreQuestions(): void {
+    void this.router.navigate(['/question']);
   }
 
   /** Bengali SL for a sidebar row — same numbering as {@link previewQuestionDisplaySerialOneBased}. */
@@ -4121,8 +4231,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return base;
     }
     const creative = base.filter((q) => this.questionIsCreativeType(q));
-    const mcq = base.filter((q) => this.questionIsMcqType(q));
-    const others = base.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q));
+    const mcq = base.filter((q) => this.questionIsMcqFamilyType(q));
+    const others = base.filter(
+      (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqFamilyType(q)
+    );
     return [...creative, ...mcq, ...others];
   }
 
@@ -4820,18 +4932,81 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return null;
   }
 
-  /** Counts MCQ (বহুনির্বাচনি) and CQ (সৃজনশীল) in the active creator list for sq header math. */
+  /** Counts MCQ-family and CQ (সৃজনশীল) in the active creator list for sq header math. */
   private sqMcqCreativeQuestionCounts(): { mcq: number; cq: number } {
     let mcq = 0;
     let cq = 0;
     for (const q of this.questions ?? []) {
-      if (this.questionIsMcqType(q)) {
+      if (this.questionIsMcqFamilyType(q)) {
         mcq++;
       } else if (this.questionIsCreativeType(q)) {
         cq++;
       }
     }
     return { mcq, cq };
+  }
+
+  /**
+   * sq 25/30 MCQ-family header totals: standard MCQ 1m/1 mark;
+   * জ্ঞানমূলক 2m/1 mark; অনুধাবনমূলক 5m/2 marks per question.
+   */
+  private sqMcqExamMetaTotals(): { minutes: number; marks: number } {
+    let minutes = 0;
+    let marks = 0;
+    for (const q of this.questions ?? []) {
+      if (this.questionIsMcqType(q)) {
+        minutes += 1;
+        marks += 1;
+      } else if (this.questionIsKnowledgeType(q)) {
+        minutes += QuestionCreatorComponent.SQ_KNOWLEDGE_TYPE_MINUTES;
+        marks += QuestionCreatorComponent.SQ_KNOWLEDGE_TYPE_MARK;
+      } else if (this.questionIsComprehensionType(q)) {
+        minutes += QuestionCreatorComponent.SQ_COMPREHENSION_TYPE_MINUTES;
+        marks += QuestionCreatorComponent.SQ_COMPREHENSION_TYPE_MARK;
+      }
+    }
+    return { minutes, marks };
+  }
+
+  /** Parse auto MCQ sq combined line (সময় + পূর্ণমান) into numeric minutes/marks. */
+  private extractMcqSqMetaMinutesMarksFromCombinedLine(
+    text: string
+  ): { minutes: number; marks: number } | null {
+    const parts = String(text ?? '')
+      .split(/<br\s*\/?>/i)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    if (parts.length !== 2) {
+      return null;
+    }
+    const asciiA = QuestionCreatorComponent.bnToAsciiDigits(parts[0]!);
+    const asciiB = QuestionCreatorComponent.bnToAsciiDigits(parts[1]!);
+    let minutes: number | null = null;
+    const hourMin = asciiA.match(/সময়\s*--\s*(\d+)\s*ঘন্টা(?:\s*(\d+)\s*মিনিট)?/i);
+    if (hourMin) {
+      const h = parseInt(hourMin[1]!, 10);
+      const m = hourMin[2] ? parseInt(hourMin[2], 10) : 0;
+      minutes = h * 60 + m;
+    } else {
+      const minOnly = asciiA.match(/সময়\s*--\s*(\d+)\s*মিনিট/i);
+      if (minOnly) {
+        minutes = parseInt(minOnly[1]!, 10);
+      }
+    }
+    const marksMatch = asciiB.match(/পূর্ণমান\s*--\s*(\d+)/i);
+    if (minutes == null || !marksMatch) {
+      return null;
+    }
+    return { minutes, marks: parseInt(marksMatch[1]!, 10) };
+  }
+
+  private mcqSqCombinedLineMatchesCurrentExamMeta(text: string): boolean {
+    const parsed = this.extractMcqSqMetaMinutesMarksFromCombinedLine(text);
+    if (!parsed) {
+      return false;
+    }
+    const totals = this.sqMcqExamMetaTotals();
+    return parsed.minutes === totals.minutes && parsed.marks === totals.marks;
   }
 
   /**
@@ -4924,13 +5099,25 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!t) {
       return true;
     }
-    if (this.parseMcqSqCombinedDisplayParts(text) != null) {
-      return true;
+    if (this.mcqSqCombinedLineMatchesCurrentExamMeta(t)) {
+      return false;
     }
     if (this.lineMatchesLegacySqMcqCombined(text)) {
       return true;
     }
-    return this.isProbableAutoMcqSqMetaTwoLine(text);
+    if (this.isProbableAutoMcqSqMetaTwoLine(text)) {
+      return true;
+    }
+    return this.extractMcqSqMetaMinutesMarksFromCombinedLine(text) != null;
+  }
+
+  private creativeSqCombinedLineMatchesCurrentExamMeta(text: string): boolean {
+    const canon = this.examSqMetaCombinedLineCreative().trim();
+    const t = String(text ?? '').trim();
+    if (!canon || !t) {
+      return false;
+    }
+    return t === canon || this.parseCreativeSqCombinedDisplayParts(text) != null;
   }
 
   private shouldReseedSqCreativeCombinedLine(text: string): boolean {
@@ -4938,8 +5125,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!t) {
       return true;
     }
-    if (this.parseCreativeSqCombinedDisplayParts(text) != null) {
-      return true;
+    if (this.creativeSqCombinedLineMatchesCurrentExamMeta(t)) {
+      return false;
     }
     if (this.lineMatchesLegacySqCreativeCombined(text)) {
       return true;
@@ -4961,17 +5148,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return `${QuestionCreatorComponent.toBengaliDigits(String(h))} ঘন্টা ${QuestionCreatorComponent.toBengaliDigits(String(rem))} মিনিট`;
   }
 
-  /** MCQ header: 5th line (1-based). sq 25/30: 1 minute per MCQ question. */
+  /** MCQ header: 5th line (1-based). sq 25/30: per-type minutes from {@link sqMcqExamMetaTotals}. */
   examDurationLineMcq(): string {
     const v = this.subjectSqExamVariant();
     if (v !== 25 && v !== 30) {
       return '';
     }
-    const { mcq } = this.sqMcqCreativeQuestionCounts();
-    if (mcq <= 0) {
+    const { minutes } = this.sqMcqExamMetaTotals();
+    if (minutes <= 0) {
       return '';
     }
-    const minutes = mcq;
     return `সময় -- ${this.formatBnSqDurationAfterDash(minutes)}`;
   }
 
@@ -4992,17 +5178,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return `সময় -- ${this.formatBnSqDurationAfterDash(totalMin)}`;
   }
 
-  /** MCQ header: 6th line (1-based). sq 25/30: 1 mark per MCQ question. */
+  /** MCQ header: 6th line (1-based). sq 25/30: per-type marks from {@link sqMcqExamMetaTotals}. */
   examFullMarksLineMcq(): string {
     const v = this.subjectSqExamVariant();
     if (v !== 25 && v !== 30) {
       return '';
     }
-    const { mcq } = this.sqMcqCreativeQuestionCounts();
-    if (mcq <= 0) {
+    const { marks } = this.sqMcqExamMetaTotals();
+    if (marks <= 0) {
       return '';
     }
-    return `পূর্ণমান -- ${QuestionCreatorComponent.toBengaliDigits(String(mcq))}`;
+    return `পূর্ণমান -- ${QuestionCreatorComponent.toBengaliDigits(String(marks))}`;
   }
 
   /** সৃজনশীল header: marks line. sq 25/30: 10 marks per answer-quota CQ (5 or 7). */
@@ -10024,8 +10210,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   removeQuestion(qid: number | string): void {
     this.questions = this.questions.filter((q) => q.qid !== qid);
     this.clearMcqPersistedOrders();
+    this.reapplySqExamMetaFromQuestionCounts();
     this.scheduleLayout();
     this.schedulePersistCreatorStateToLocalStorage();
+    this.onPreviewLayoutChange();
   }
 
   goBack(): void {
