@@ -1189,6 +1189,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     await this.runCreatorResetAndAutoFit();
   }
 
+  private flushPendingOptionsLayoutMeasureTimer(): void {
+    if (this.optionsLayoutMeasureTimer != null) {
+      clearTimeout(this.optionsLayoutMeasureTimer);
+      this.optionsLayoutMeasureTimer = null;
+    }
+  }
+
   /** Remeasure MCQ option grids and relayout if needed — no font/gap auto-fit (Save / export). */
   private async syncMcqOptionsLayoutForExport(): Promise<void> {
     if (!this.selectionHasMcqType()) {
@@ -1202,8 +1209,66 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const optionsLayoutChanged = this.runPreviewOptionsLayoutMeasurePass();
     if (optionsLayoutChanged) {
       this.optionsLayoutRelayoutPending = true;
-      this.scheduleLayout();
+      this.scheduleLayout({ allowDuringExport: this.saveExportLayoutBusy });
       await this.waitForLayoutIdle(90_000);
+    }
+  }
+
+  /** Wait until hidden measure-rail images finish loading (same URLs the PDF export will request). */
+  private async waitForMeasureRailImagesBeforeExport(timeoutMs = 30_000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await new Promise<void>((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => r()))
+      );
+      const blocks = this.measureBlocks?.toArray() ?? [];
+      let pending = false;
+      for (const ref of blocks) {
+        const host = ref?.nativeElement;
+        if (!host) continue;
+        for (const node of Array.from(host.querySelectorAll('img'))) {
+          const img = node as HTMLImageElement;
+          try {
+            img.loading = 'eager';
+          } catch {
+            /* ignore */
+          }
+          if (!img.complete) {
+            pending = true;
+          }
+        }
+      }
+      if (!pending) {
+        return;
+      }
+      await new Promise<void>((r) => setTimeout(r, 40));
+    }
+  }
+
+  /**
+   * Freeze pagination for export after aside/header edits: flush header model, wait for layout +
+   * deferred MCQ option measure passes, then capture {@link buildLayoutSettingsForPersist}.
+   */
+  private async prepareExportLayoutSnapshot(): Promise<void> {
+    this.runHeaderTextareaSyncs();
+    this.syncHeaderFontSizesToLineCount();
+    this.flushPendingOptionsLayoutMeasureTimer();
+    this.cdr.detectChanges();
+    await new Promise<void>((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => r()))
+    );
+    await this.waitForMeasureRailImagesBeforeExport();
+    await this.syncMcqOptionsLayoutForExport();
+    this.scheduleLayout({ allowDuringExport: true });
+    await this.waitForLayoutIdle(90_000);
+    this.flushPendingOptionsLayoutMeasureTimer();
+    if (this.selectionHasMcqType() && !this.optionsColumnsManualOverride) {
+      this.previewOptionsLayoutStale = true;
+      if (this.runPreviewOptionsLayoutMeasurePass()) {
+        this.optionsLayoutRelayoutPending = true;
+        this.scheduleLayout({ allowDuringExport: true });
+        await this.waitForLayoutIdle(90_000);
+      }
     }
   }
 
@@ -1290,6 +1355,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const hadTrustedRestore = this.creatorTrustedHeaderRestored;
     setTimeout(() => this.loadingService.completeOne(), 0);
     this.measureBlocks.changes.subscribe(() => {
+      if (this.saveExportLayoutBusy) {
+        return;
+      }
       this.markPreviewOptionsLayoutStale();
       this.scheduleLayout();
       this.scheduleMeasurePreviewOptionsLayouts();
@@ -3925,7 +3993,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   scheduleMeasurePreviewOptionsLayouts(): void {
-    if (this.optionsColumnsManualOverride) return;
+    if (this.saveExportLayoutBusy || this.optionsColumnsManualOverride) return;
     if (this.optionsLayoutMeasureTimer != null) {
       clearTimeout(this.optionsLayoutMeasureTimer);
     }
@@ -6396,6 +6464,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * **`suppressAutoFit: false`**: used only by forced auto-fit chains (Reset / Smart / nav / reload).
    */
   onPreviewLayoutChange(options?: { suppressAutoFit?: boolean }): void {
+    if (this.saveExportLayoutBusy) {
+      return;
+    }
     // Caller passes `false` only when the next pagination should be allowed to auto-adjust (see JSDoc above).
     const suppress = options?.suppressAutoFit ?? true;
     this.markPreviewOptionsLayoutStale();
@@ -8852,16 +8923,27 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   trackSection = (index: number, sec: PreviewPageItem[]) =>
     sec.length ? sec.map((x) => x.index).join('-') : `empty-${index}`;
 
-  private scheduleLayout(): void {
+  private scheduleLayout(opts?: { allowDuringExport?: boolean }): void {
+    if (this.saveExportLayoutBusy && !opts?.allowDuringExport) {
+      return;
+    }
     if (this.layoutTimer) clearTimeout(this.layoutTimer);
     this.layoutTimer = setTimeout(() => this.runLayout(), 0);
     this.maybeBootstrapAutoFitOverlayProgress();
     this.cdr.markForCheck();
   }
 
+  private isLayoutPipelineBusy(): boolean {
+    return (
+      this.layoutTimer != null ||
+      this.layoutPassInFlight ||
+      this.optionsLayoutMeasureTimer != null
+    );
+  }
+
   /**
-   * Wait until queued layout + auto-fit passes finish: no {@link layoutTimer} and no in-flight
-   * {@link runLayout} (including nested RAF pagination/auto-fit).
+   * Wait until queued layout + auto-fit passes finish: no {@link layoutTimer}, no in-flight
+   * {@link runLayout}, and no deferred MCQ option measure timer.
    */
   private async waitForLayoutIdle(timeoutMs = 12000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
@@ -8869,12 +8951,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       );
-      if (this.layoutTimer != null || this.layoutPassInFlight) {
+      if (this.isLayoutPipelineBusy()) {
         await new Promise<void>((r) => setTimeout(r, 0));
         continue;
       }
       await new Promise<void>((r) => setTimeout(r, 12));
-      if (this.layoutTimer == null && !this.layoutPassInFlight) {
+      if (!this.isLayoutPipelineBusy()) {
         return;
       }
     }
@@ -9134,7 +9216,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         pending = true;
         if (this.pendingMeasureImageListeners.has(img)) continue;
         this.pendingMeasureImageListeners.add(img);
-        const rerun = () => this.scheduleLayout();
+        const rerun = () => {
+          if (!this.saveExportLayoutBusy) {
+            this.scheduleLayout();
+          }
+        };
         img.addEventListener('load', rerun, { once: true });
         img.addEventListener('error', rerun, { once: true });
       }
@@ -10418,23 +10504,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     this.saving = true;
     this.saveSuccessMessage = '';
+    this.saveExportLayoutBusy = true;
     this.loadingService.beginPdfDocxExport(format);
     try {
-      await this.runDoSaveExportFlow(format);
+      await this.runDoSaveExportFlowCore(format);
     } catch {
       this.saveSuccessMessage = 'Failed to prepare export. Please try again.';
     } finally {
       this.saving = false;
-      this.endExportLoadingOverlay();
-    }
-  }
-
-  private async runDoSaveExportFlow(format: ExportFormat): Promise<void> {
-    this.saveExportLayoutBusy = true;
-    try {
-      await this.runDoSaveExportFlowCore(format);
-    } finally {
       this.saveExportLayoutBusy = false;
+      this.endExportLoadingOverlay();
     }
   }
 
@@ -10465,7 +10544,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.clearMcqPersistedOrders();
     }
 
-    await this.syncMcqOptionsLayoutForExport();
+    await this.prepareExportLayoutSnapshot();
     const layoutSettingsForCreate = this.buildLayoutSettingsForPersist();
     const perSetLayout: Partial<
       Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], Record<string, unknown>>

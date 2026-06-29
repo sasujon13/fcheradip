@@ -17,6 +17,7 @@ import {
   resolveShowWelcomeCoinsCeremony,
 } from 'src/app/service/auth-response.util';
 import { SESSION_LOGOUT_REASON_KEY } from 'src/app/service/auth-session.service';
+import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 
 
 @Component({
@@ -76,6 +77,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     private welcomeCeremony: WelcomeBonusCeremonyService,
     private route: ActivatedRoute,
     private snackBar: MatSnackBar,
+    private trxUnlock: TrxUnlockService,
   ) {
     this.authForm = this.fb.group({
       countryCode: ['BD', [Validators.required]],
@@ -276,6 +278,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
           localStorage.setItem('username', username);
           if (token) localStorage.setItem('authToken', token);
           localStorage.setItem('formData', JSON.stringify(formData));
+          this.trxUnlock.fetchCoinBalance().subscribe();
           this.logout();
           const targetUrl = this.consumePostLoginTargetUrl();
           if (showWelcome) {

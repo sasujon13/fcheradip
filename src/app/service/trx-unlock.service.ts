@@ -97,6 +97,7 @@ export class TrxUnlockService {
     } catch {
       /* ignore */
     }
+    const previous = this.coinBalance;
     return this.http.get<{ settings?: { balance?: number } }>(`${environment.apiUrl}/customer_settings/`).pipe(
       map((res) => {
         const b = Number(res?.settings?.balance ?? 0);
@@ -105,8 +106,11 @@ export class TrxUnlockService {
         return n;
       }),
       catchError(() => {
-        this.setCoinBalance(0);
-        return of(0);
+        // Keep last known balance on transient API errors — do not flash 0 while still logged in.
+        if (this.hasAppSession() && previous > 0) {
+          return of(previous);
+        }
+        return of(this.coinBalance);
       })
     );
   }

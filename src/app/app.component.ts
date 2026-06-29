@@ -13,6 +13,7 @@ import { filter, take } from 'rxjs/operators';
 import { CountryService } from './service/country.service';
 import { WelcomeBonusCeremonyService } from './service/welcome-bonus-ceremony.service';
 import { AuthSessionService } from './service/auth-session.service';
+import { TrxUnlockService } from './service/trx-unlock.service';
 
 @Component({
   selector: 'app-root',
@@ -33,6 +34,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private router: Router,
     private welcomeCeremony: WelcomeBonusCeremonyService,
     private authSession: AuthSessionService,
+    private trxUnlock: TrxUnlockService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef
   ) {}
@@ -40,6 +42,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.primeBrowserAudioOnFirstUserGesture();
     this.authSession.startSessionMonitor();
+    if (this.authSession.hasStoredSession()) {
+      this.trxUnlock.fetchCoinBalance().subscribe();
+    }
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {
