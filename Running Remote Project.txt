@@ -10,6 +10,9 @@ python manage.py collectstatic --noinput
 sudo systemctl restart cheradip
 sudo systemctl restart cheradip-ailt
 
+# --- AILT user manual (https://cheradip.com/ailt — email link) ---
+python3 ailt/scripts/build-manual.py
+
 # --- Frontend ---
 cd /home/sasha/apps/cheradip/fcheradip
 git fetch origin
@@ -27,21 +30,19 @@ else
   find /home/sasha/apps/cheradip/fcheradip/dist -name index.html
 fi
 
+# --- nginx: API only at /ailt/api/ (manual stays /ailt) ---
+cd /home/sasha/apps/cheradip/bcheradip
+sudo bash ailt_api/deploy/install-nginx-ailt-api.sh
+
 sudo systemctl reload nginx
 sudo systemctl status cheradip cheradip-ailt nginx --no-pager
-curl -s https://cheradip.com/ailt/api/health
 
+# Verify: HTML manual vs JSON API
+curl -sI https://cheradip.com/ailt | head -3
+curl -s https://cheradip.com/ailt/api/health | head -c 200
+echo
 
-
-
-
-
-
-cd /home/sasha/apps/cheradip/bcheradip/ailt_api
-bash scripts/setup-brevo-env.sh   # or edit .env manually
-sudo systemctl restart cheradip-ailt
-./scripts/test_smtp.sh sashafik.me@gmail.com
-
-
-cd /home/sasha/apps/cheradip/bcheradip
-python3 ailt/scripts/build-manual.py
+# --- SMTP / .env on server (never commit secrets) ---
+# cd /home/sasha/apps/cheradip/bcheradip/ailt_api
+# bash scripts/setup-brevo-env.sh
+# sudo systemctl restart cheradip-ailt

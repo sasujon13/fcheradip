@@ -66,6 +66,7 @@ const routes: Routes = [
   { path: '', component: IndexComponent, pathMatch: 'full' },
   { path: 'index', component: IndexComponent },
   { path: 'packages', component: PackagesComponent },
+  /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
   { path: 'ailt', component: AiltManualComponent },
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutComponent},
