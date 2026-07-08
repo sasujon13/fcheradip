@@ -72,6 +72,7 @@ const routes: Routes = [
    * Declared BEFORE the `ailt` manual route so the more specific paths always win.
    */
   { path: 'ailt/pricing', component: AiltPageComponent, data: { page: 'pricing', title: 'Pricing — Cheradip' } },
+  { path: 'ailt/paddle', component: AiltPageComponent, data: { page: 'paddle', title: 'Paddle Setup — Cheradip Admin' } },
   { path: 'ailt/terms', component: AiltPageComponent, data: { page: 'terms', title: 'Terms of Service — Cheradip' } },
   { path: 'ailt/privacy', component: AiltPageComponent, data: { page: 'privacy', title: 'Privacy Policy — Cheradip' } },
   { path: 'ailt/refunds', component: AiltPageComponent, data: { page: 'refunds', title: 'Refund Policy — Cheradip' } },

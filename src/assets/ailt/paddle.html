@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Cheradip admin — configure Paddle payment credentials.">
+  <title>Paddle Setup — Cheradip Admin</title>
+  <link rel="stylesheet" href="manual.css">
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__brand">
+      <img class="site-header__logo" src="cheradip.svg" alt="Cheradip" width="180" height="45">
+      <p class="site-header__title">Admin · Paddle Setup</p>
+    </div>
+    <div class="site-header__links">
+      <a href="https://cheradip.com/ailt/pricing" target="_top">Pricing</a>
+    </div>
+  </header>
+
+  <div class="page-wrap">
+    <!-- Sign in -->
+    <section id="loginCard" class="admin-card">
+      <h2>Admin sign in</h2>
+      <p class="sub">Sign in with your Cheradip extension admin account to configure Paddle.</p>
+      <div id="loginAlert" class="alert alert-err"></div>
+      <form id="loginForm">
+        <div class="field">
+          <label for="loginUser">Email or username</label>
+          <input id="loginUser" type="text" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="loginPass">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" required>
+        </div>
+        <button id="loginBtn" class="btn-primary" type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <!-- Paddle config -->
+    <section id="configCard" class="admin-card" style="display:none">
+      <div class="admin-meta">
+        <span id="whoami"></span>
+        <button id="logoutBtn" class="btn-link" type="button">Sign out</button>
+      </div>
+      <h2>Paddle credentials</h2>
+      <p class="sub">
+        Get these from the Paddle dashboard once your account is approved. Secrets are
+        stored server-side and never shown again in full. Status:
+        <span id="statusBadge" class="badge-off">Not configured</span>
+      </p>
+      <div id="configAlert" class="alert"></div>
+      <form id="configForm">
+        <div class="field">
+          <label for="environment">Environment</label>
+          <select id="environment">
+            <option value="sandbox">Sandbox (testing)</option>
+            <option value="production">Production (live)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="apiKey">API key <span id="apiKeyHint" class="hint"></span></label>
+          <input id="apiKey" type="password" autocomplete="off" placeholder="Leave blank to keep current">
+          <p class="hint">Developer Tools → Authentication → API keys (secret). Starts with <code>pdl_</code>.</p>
+        </div>
+        <div class="field">
+          <label for="clientToken">Client-side token</label>
+          <input id="clientToken" type="text" autocomplete="off" placeholder="e.g. test_xxx / live_xxx">
+          <p class="hint">Publishable token used by the pricing page checkout overlay.</p>
+        </div>
+        <div class="field">
+          <label for="webhookSecret">Webhook secret</label>
+          <input id="webhookSecret" type="password" autocomplete="off" placeholder="Leave blank to keep current">
+          <p class="hint">Notifications → Webhooks → signing secret. Verifies incoming events.</p>
+        </div>
+        <div class="field">
+          <label for="pricePro">Price ID — Pro ($10/mo)</label>
+          <input id="pricePro" type="text" autocomplete="off" placeholder="pri_...">
+        </div>
+        <div class="field">
+          <label for="pricePlus">Price ID — Plus ($30/mo)</label>
+          <input id="pricePlus" type="text" autocomplete="off" placeholder="pri_...">
+        </div>
+        <div class="field">
+          <label for="priceBusiness">Price ID — Business ($100/mo)</label>
+          <input id="priceBusiness" type="text" autocomplete="off" placeholder="pri_...">
+        </div>
+        <label class="field-check">
+          <input id="validate" type="checkbox" checked>
+          Verify the API key with Paddle before saving
+        </label>
+        <button id="saveBtn" class="btn-primary" type="submit">Save configuration</button>
+      </form>
+      <p class="pricing-note">
+        Set the webhook URL in Paddle to
+        <code>https://cheradip.com/ailt/api/subscription/webhook</code>.
+      </p>
+    </section>
+  </div>
+
+  <footer class="site-footer">
+    <p><a href="https://cheradip.com" target="_top">Cheradip.com</a></p>
+  </footer>
+
+  <script>
+    var API_BASE = 'https://cheradip.com/ailt/api';
+    var TOKEN_KEY = 'cheradip_admin_session';
+    var token = null;
+
+    function $(id) { return document.getElementById(id); }
+    function showAlert(el, msg, ok) {
+      el.textContent = msg;
+      el.className = 'alert show ' + (ok ? 'alert-ok' : 'alert-err');
+    }
+    function hideAlert(el) { el.className = 'alert'; }
+
+    function api(path, opts) {
+      opts = opts || {};
+      opts.headers = opts.headers || {};
+      opts.headers['Content-Type'] = 'application/json';
+      if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+      return fetch(API_BASE + path, opts).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (body) {
+          if (!r.ok) {
+            var msg = (body && body.detail) ? body.detail : ('HTTP ' + r.status);
+            throw new Error(msg);
+          }
+          return body;
+        });
+      });
+    }
+
+    function setStatus(enabled) {
+      var b = $('statusBadge');
+      if (enabled) { b.className = 'badge-on'; b.textContent = 'Configured'; }
+      else { b.className = 'badge-off'; b.textContent = 'Not configured'; }
+    }
+
+    function loadConfig() {
+      return api('/ext/admin/paddle').then(function (c) {
+        $('environment').value = c.environment || 'sandbox';
+        $('apiKeyHint').textContent = c.apiKeySet ? ('current: ' + c.apiKeyHint) : '';
+        $('clientToken').value = c.clientToken || '';
+        $('pricePro').value = c.pricePro || '';
+        $('pricePlus').value = c.pricePlus || '';
+        $('priceBusiness').value = c.priceBusiness || '';
+        setStatus(c.enabled);
+      });
+    }
+
+    function showConfig() {
+      $('loginCard').style.display = 'none';
+      $('configCard').style.display = 'block';
+      loadConfig().catch(function (e) {
+        if (String(e.message).indexOf('403') >= 0 || /admin/i.test(e.message)) {
+          signOut('Admin access required.');
+        } else {
+          showAlert($('configAlert'), 'Could not load config: ' + e.message, false);
+        }
+      });
+    }
+
+    function signOut(msg) {
+      token = null;
+      try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+      $('configCard').style.display = 'none';
+      $('loginCard').style.display = 'block';
+      if (msg) showAlert($('loginAlert'), msg, false);
+    }
+
+    $('loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      hideAlert($('loginAlert'));
+      $('loginBtn').disabled = true;
+      api('/ext/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: $('loginUser').value.trim(), password: $('loginPass').value })
+      }).then(function (res) {
+        if (res.role !== 'admin') { throw new Error('This account is not an admin.'); }
+        token = res.sessionToken;
+        try { sessionStorage.setItem(TOKEN_KEY, token); } catch (e) {}
+        $('whoami').textContent = 'Signed in as ' + (res.email || res.username);
+        $('loginPass').value = '';
+        showConfig();
+      }).catch(function (err) {
+        var m = err.message === 'NOT_REGISTERED' ? 'No account found for that email/username.'
+              : err.message === 'PASSWORD_MISMATCH' ? 'Incorrect password.'
+              : err.message;
+        showAlert($('loginAlert'), m, false);
+      }).finally(function () { $('loginBtn').disabled = false; });
+    });
+
+    $('logoutBtn').addEventListener('click', function () {
+      api('/ext/auth/logout', { method: 'POST' }).catch(function () {});
+      signOut();
+    });
+
+    $('configForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      hideAlert($('configAlert'));
+      $('saveBtn').disabled = true;
+      var payload = {
+        environment: $('environment').value,
+        clientToken: $('clientToken').value.trim(),
+        pricePro: $('pricePro').value.trim(),
+        pricePlus: $('pricePlus').value.trim(),
+        priceBusiness: $('priceBusiness').value.trim(),
+        validate: $('validate').checked
+      };
+      var apiKey = $('apiKey').value.trim();
+      var webhook = $('webhookSecret').value.trim();
+      if (apiKey) payload.apiKey = apiKey;
+      if (webhook) payload.webhookSecret = webhook;
+
+      api('/ext/admin/paddle', { method: 'PUT', body: JSON.stringify(payload) })
+        .then(function (res) {
+          showAlert($('configAlert'), res.message || 'Saved.', true);
+          $('apiKey').value = '';
+          $('webhookSecret').value = '';
+          if (res.config) {
+            $('apiKeyHint').textContent = res.config.apiKeySet ? ('current: ' + res.config.apiKeyHint) : '';
+            setStatus(res.config.enabled);
+          }
+        })
+        .catch(function (err) { showAlert($('configAlert'), err.message, false); })
+        .finally(function () { $('saveBtn').disabled = false; });
+    });
+
+    // Resume an existing admin session on reload.
+    (function () {
+      try { token = sessionStorage.getItem(TOKEN_KEY); } catch (e) {}
+      if (token) {
+        api('/ext/auth/me').then(function (me) {
+          if (me.role === 'admin') {
+            $('whoami').textContent = 'Signed in as ' + (me.email || me.username);
+            showConfig();
+          } else { signOut(); }
+        }).catch(function () { signOut(); });
+      }
+    })();
+  </script>
+</body>
+</html>

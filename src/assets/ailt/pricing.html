@@ -34,8 +34,8 @@
         <p class="plan__price">$0<span> / month</span></p>
         <ul>
           <li>50 AI requests / month</li>
+          <li>500 line edits / month</li>
           <li>Agent, chat &amp; edits</li>
-          <li>Codebase keyword search</li>
         </ul>
         <a class="plan__cta plan__cta--ghost" href="https://marketplace.visualstudio.com/" target="_top">Install free</a>
       </div>
@@ -46,7 +46,7 @@
         <p class="plan__price">$10<span> / month</span></p>
         <ul>
           <li>500 AI requests / month</li>
-          <li>Semantic codebase search</li>
+          <li>5,000 line edits / month</li>
           <li>Pay-as-you-go add-on</li>
         </ul>
         <button class="plan__cta" type="button" data-plan="pro">Subscribe</button>
@@ -57,7 +57,7 @@
         <p class="plan__price">$30<span> / month</span></p>
         <ul>
           <li>2,000 AI requests / month</li>
-          <li>+500 bonus requests</li>
+          <li>20,000 line edits / month</li>
           <li>Team billing</li>
         </ul>
         <button class="plan__cta" type="button" data-plan="plus">Subscribe</button>
@@ -68,14 +68,14 @@
         <p class="plan__price">$100<span> / month</span></p>
         <ul>
           <li>7,500 AI requests / month</li>
-          <li>+2,500 bonus requests</li>
+          <li>75,000 line edits / month</li>
           <li>Centralised team management</li>
         </ul>
         <button class="plan__cta" type="button" data-plan="business">Subscribe</button>
       </div>
     </div>
 
-    <p>On any paid plan you can enable <strong>pay-as-you-go</strong> to keep working past your monthly quota at <strong>$0.02 per request</strong>. When your overage reaches the cost of the next plan, we ask you to settle it or upgrade — no month-end surprises.</p>
+    <p>Each plan meters two things: <strong>line edits</strong> (replacements + insertions) and <strong>requests</strong>. Line edits are the primary limit; requests are the fallback. On any paid plan you can enable <strong>pay-as-you-go</strong> to keep working past your quota at <strong>$0.02 per request</strong> or <strong>$0.02 per 10 line edits</strong> — you're billed whichever is higher, never both. When your overage reaches the cost of the next plan, we ask you to settle it or upgrade — no month-end surprises.</p>
 
     <div class="callout">
       Payments are processed securely by <strong>Paddle</strong>, our authorised reseller and Merchant of Record. Prices are in USD and exclude any applicable sales tax/VAT, which Paddle calculates at checkout. You can also subscribe from the Cheradip extension (<em>Settings → Billing</em>).
@@ -105,39 +105,51 @@
 
   <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   <script>
-    // --- Paddle Billing config: paste your values from the Paddle dashboard ---
-    // Client-side token is publishable/safe to expose (Developer Tools → Authentication).
-    // Price IDs look like "pri_xxx" (Catalog → Products → Prices).
-    var PADDLE_ENV = 'sandbox';            // 'sandbox' while testing, 'production' when live
-    var PADDLE_CLIENT_TOKEN = '';          // e.g. 'test_xxx' or 'live_xxx'
-    var PADDLE_PRICES = { pro: '', plus: '', business: '' };
+    // Live Paddle config is fetched from the App API (set by the admin at
+    // /ailt/paddle) — no keys are hard-coded here. Only the publishable client
+    // token + price ids are returned; secrets stay on the server.
+    var API_BASE = 'https://cheradip.com/ailt/api';
     var BILLING_SUCCESS_URL = 'https://cheradip.com/ailt/billing/success';
 
     (function () {
       var ready = false;
-      if (PADDLE_CLIENT_TOKEN && window.Paddle) {
-        try {
-          if (PADDLE_ENV !== 'production') Paddle.Environment.set('sandbox');
-          Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
-          ready = true;
-        } catch (e) { console.error('Paddle init failed', e); }
-      }
-      document.querySelectorAll('button[data-plan]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var plan = btn.getAttribute('data-plan');
-          var priceId = PADDLE_PRICES[plan];
-          if (ready && priceId) {
-            Paddle.Checkout.open({
-              items: [{ priceId: priceId, quantity: 1 }],
-              settings: { successUrl: BILLING_SUCCESS_URL },
-              customData: { product: 'ext', plan: plan }
-            });
-          } else {
-            // Not configured yet — guide the user to the in-editor checkout.
-            alert('Online checkout is being set up. For now, subscribe from the Cheradip extension: Settings → Billing.');
-          }
+      var prices = { pro: '', plus: '', business: '' };
+
+      function wire() {
+        document.querySelectorAll('button[data-plan]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var plan = btn.getAttribute('data-plan');
+            var priceId = prices[plan];
+            if (ready && priceId) {
+              Paddle.Checkout.open({
+                items: [{ priceId: priceId, quantity: 1 }],
+                settings: { successUrl: BILLING_SUCCESS_URL, displayMode: 'overlay' },
+                customData: { product: 'ext', plan: plan }
+              });
+            } else {
+              alert('Online checkout is being set up. For now, subscribe from the Cheradip extension: Settings → Plan & Pricing.');
+            }
+          });
         });
-      });
+      }
+
+      fetch(API_BASE + '/subscription/plans')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var c = (data && data.checkout) || {};
+          prices = c.prices || prices;
+          if (c.provider === 'paddle' && c.clientToken && window.Paddle) {
+            try {
+              if ((c.environment || 'sandbox') !== 'production') {
+                Paddle.Environment.set('sandbox');
+              }
+              Paddle.Initialize({ token: c.clientToken });
+              ready = !!(c.enabled);
+            } catch (e) { console.error('Paddle init failed', e); }
+          }
+        })
+        .catch(function (e) { console.error('Failed to load billing config', e); })
+        .finally(wire);
     })();
   </script>
 </body>
