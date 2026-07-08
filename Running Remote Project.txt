@@ -20,6 +20,7 @@ git checkout main
 git pull origin main
 npm ci
 npm run build -- --configuration production
+rsync -av dist/frontend/ user@server:/var/www/cheradip/
 
 FRONT_DIST="/home/sasha/apps/cheradip/fcheradip/dist/frontend"
 if [ -f "$FRONT_DIST/index.html" ]; then

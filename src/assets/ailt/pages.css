@@ -326,3 +326,36 @@
   background: #f3f0e8;
   color: #8a6d1a;
 }
+
+/* Admin login (paddle.html) */
+.admin-login {
+  max-width: 400px;
+  margin-top: 48px;
+}
+.admin-login h2 {
+  font-size: 1.35rem;
+  text-align: center;
+}
+.admin-login .sub {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.login-form .field {
+  margin-bottom: 16px;
+}
+.login-form .field input {
+  padding: 11px 14px;
+}
+.form-section {
+  margin: 22px 0 6px;
+  font-size: 1rem;
+  color: var(--teal-dark);
+}
+.form-section-hint {
+  margin: 0 0 14px;
+}
+.callout-payg {
+  margin-top: 8px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}

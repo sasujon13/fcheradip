@@ -22,19 +22,18 @@
 
   <div class="page-wrap">
     <!-- Sign in -->
-    <section id="loginCard" class="admin-card">
-      <h2>Admin sign in</h2>
-      <p class="sub">Sign in with your Cheradip extension admin account to configure Paddle.</p>
-      <p class="sub hint">Use <strong>sashafik.me@gmail.com</strong> or username <strong>sashafik.me</strong> (not your phone number — that is the AILT app account).</p>
+    <section id="loginCard" class="admin-card admin-login">
+      <h2>Sign in</h2>
+      <p class="sub">Cheradip extension admin</p>
       <div id="loginAlert" class="alert alert-err"></div>
-      <form id="loginForm">
+      <form id="loginForm" class="login-form">
         <div class="field">
-          <label for="loginUser">Email or username</label>
-          <input id="loginUser" type="text" autocomplete="username" required>
+          <label for="loginUser">Username</label>
+          <input id="loginUser" type="text" name="username" autocomplete="username" placeholder="Username" required>
         </div>
         <div class="field">
           <label for="loginPass">Password</label>
-          <input id="loginPass" type="password" autocomplete="current-password" required>
+          <input id="loginPass" type="password" name="password" autocomplete="current-password" placeholder="Password" required>
         </div>
         <button id="loginBtn" class="btn-primary" type="submit">Sign in</button>
       </form>
@@ -76,17 +75,29 @@
           <input id="webhookSecret" type="password" autocomplete="off" placeholder="Leave blank to keep current">
           <p class="hint">Notifications → Webhooks → signing secret. Verifies incoming events.</p>
         </div>
+
+        <h3 class="form-section">Subscription plans</h3>
+        <p class="hint form-section-hint">Create three recurring monthly prices in Paddle (Catalog → Products). Paste each <code>pri_…</code> id below.</p>
         <div class="field">
-          <label for="pricePro">Price ID — Pro ($10/mo)</label>
+          <label for="pricePro">Pro — $10 / month</label>
           <input id="pricePro" type="text" autocomplete="off" placeholder="pri_...">
         </div>
         <div class="field">
-          <label for="pricePlus">Price ID — Plus ($30/mo)</label>
+          <label for="pricePlus">Plus — $30 / month</label>
           <input id="pricePlus" type="text" autocomplete="off" placeholder="pri_...">
         </div>
         <div class="field">
-          <label for="priceBusiness">Price ID — Business ($100/mo)</label>
+          <label for="priceBusiness">Business — $100 / month</label>
           <input id="priceBusiness" type="text" autocomplete="off" placeholder="pri_...">
+        </div>
+
+        <div class="callout callout-payg">
+          <strong>Pay-as-you-go</strong> — no Price ID needed.<br>
+          PAYG is an add-on on Pro, Plus, or Business (enabled in the extension settings).
+          When a team exceeds their monthly quota, usage is metered on our server
+          ($0.02 per request or $0.02 per 10 line edits — whichever bill is higher).
+          When they choose to pay, the API creates a <em>one-off</em> Paddle checkout
+          for the exact amount due. You do not create a separate PAYG product in Paddle.
         </div>
         <label class="field-check">
           <input id="validate" type="checkbox" checked>
