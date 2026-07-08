@@ -67,15 +67,18 @@ const routes: Routes = [
   { path: '', component: IndexComponent, pathMatch: 'full' },
   { path: 'index', component: IndexComponent },
   { path: 'packages', component: PackagesComponent },
-  /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
-  { path: 'ailt', component: AiltManualComponent },
-  /** Cheradip extension billing/legal pages (static HTML in assets/ailt, iframed). */
+  /**
+   * Cheradip extension billing/legal pages (static HTML in assets/ailt, iframed).
+   * Declared BEFORE the `ailt` manual route so the more specific paths always win.
+   */
   { path: 'ailt/pricing', component: AiltPageComponent, data: { page: 'pricing', title: 'Pricing — Cheradip' } },
   { path: 'ailt/terms', component: AiltPageComponent, data: { page: 'terms', title: 'Terms of Service — Cheradip' } },
   { path: 'ailt/privacy', component: AiltPageComponent, data: { page: 'privacy', title: 'Privacy Policy — Cheradip' } },
   { path: 'ailt/refunds', component: AiltPageComponent, data: { page: 'refunds', title: 'Refund Policy — Cheradip' } },
   { path: 'ailt/billing/success', component: AiltPageComponent, data: { page: 'billing-success', title: 'Payment complete — Cheradip' } },
   { path: 'ailt/billing/cancel', component: AiltPageComponent, data: { page: 'billing-cancel', title: 'Checkout cancelled — Cheradip' } },
+  /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
+  { path: 'ailt', component: AiltManualComponent, pathMatch: 'full' },
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutComponent},
   {path:'live_chat', component: ChatComponent},
