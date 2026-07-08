@@ -46,3 +46,20 @@ echo
 # cd /home/sasha/apps/cheradip/bcheradip/ailt_api
 # bash scripts/setup-brevo-env.sh
 # sudo systemctl restart cheradip-ailt
+
+
+
+
+cd /home/sasha/apps/cheradip/fcheradip
+
+# 1. Remove the untracked files blocking the pull (they'll be restored from git)
+rm -f src/assets/email/cheradip-avatar.png src/assets/email/cheradip-wordmark.png
+
+# 2. Pull — must now fast-forward to b400309
+git pull origin main
+git log --oneline -1          # MUST show: b400309 Billing Page added2
+
+# 3. Rebuild + deploy
+npm ci
+npm run build -- --configuration production
+sudo rsync -av --delete dist/frontend/ /var/www/cheradip/
