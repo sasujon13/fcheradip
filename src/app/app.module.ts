@@ -80,6 +80,7 @@ import { TutorComponent } from './component/student/tutor/tutor.component';
 import { ScraperComponent } from './component/scraper/scraper/scraper.component';
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
 import { AiltManualComponent } from './component/ailt/ailt-manual.component';
+import { AiltPageComponent } from './component/ailt/ailt-page.component';
 import { BreadcrumbComponent } from './component/question/navigation/breadcrumb/breadcrumb.component';
 import { SubjectSelectorComponent } from './component/question/navigation/subjectselector/subjectselector.component';
 import { ChapterNavigatorComponent } from './component/question/navigation/chapternavigator/chapternavigator.component';
@@ -167,6 +168,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     ScraperComponent,
     WelcomeCeremonyPreviewComponent,
     AiltManualComponent,
+    AiltPageComponent,
   ],
   imports: [
     BrowserModule,

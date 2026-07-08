@@ -56,6 +56,7 @@ import { TutorComponent } from './component/student/tutor/tutor.component';
 import { ScraperComponent } from './component/scraper/scraper/scraper.component';
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
 import { AiltManualComponent } from './component/ailt/ailt-manual.component';
+import { AiltPageComponent } from './component/ailt/ailt-page.component';
 import {
   StudentSectionDashboardGuard,
   TeacherHomeDashboardGuard,
@@ -68,6 +69,13 @@ const routes: Routes = [
   { path: 'packages', component: PackagesComponent },
   /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
   { path: 'ailt', component: AiltManualComponent },
+  /** Cheradip extension billing/legal pages (static HTML in assets/ailt, iframed). */
+  { path: 'ailt/pricing', component: AiltPageComponent, data: { page: 'pricing', title: 'Pricing — Cheradip' } },
+  { path: 'ailt/terms', component: AiltPageComponent, data: { page: 'terms', title: 'Terms of Service — Cheradip' } },
+  { path: 'ailt/privacy', component: AiltPageComponent, data: { page: 'privacy', title: 'Privacy Policy — Cheradip' } },
+  { path: 'ailt/refunds', component: AiltPageComponent, data: { page: 'refunds', title: 'Refund Policy — Cheradip' } },
+  { path: 'ailt/billing/success', component: AiltPageComponent, data: { page: 'billing-success', title: 'Payment complete — Cheradip' } },
+  { path: 'ailt/billing/cancel', component: AiltPageComponent, data: { page: 'billing-cancel', title: 'Checkout cancelled — Cheradip' } },
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutComponent},
   {path:'live_chat', component: ChatComponent},

@@ -32,7 +32,7 @@
       <li><a href="#2-first-launch-trial">2. 🚀 First launch &amp; trial</a></li>
       <li><a href="#3-navigation">3. 🧭 Navigation</a></li>
       <li><a href="#4-home-scan-only-vs-learning">4. 🏠 Home — Scan Only vs Learning</a></li>
-      <li><a href="#5-scanning-document-editor">5. 📷 Scanning &amp; document editor</a></li>
+      <li><a href="#5-scanning-enhancement">5. 📷 Scanning &amp; enhancement</a></li>
       <li><a href="#6-reader">6. 📖 Reader</a></li>
       <li><a href="#7-practice-hub">7. 🎯 Practice hub</a></li>
       <li><a href="#8-grammar-book">8. 📚 Grammar book</a></li>
@@ -54,7 +54,7 @@
       <li><a href="#2-first-launch-trial">2. 🚀 First launch &amp; trial</a></li>
       <li><a href="#3-navigation">3. 🧭 Navigation</a></li>
       <li><a href="#4-home-scan-only-vs-learning">4. 🏠 Home — Scan Only vs Learning</a></li>
-      <li><a href="#5-scanning-document-editor">5. 📷 Scanning &amp; document editor</a></li>
+      <li><a href="#5-scanning-enhancement">5. 📷 Scanning &amp; enhancement</a></li>
       <li><a href="#6-reader">6. 📖 Reader</a></li>
       <li><a href="#7-practice-hub">7. 🎯 Practice hub</a></li>
       <li><a href="#8-grammar-book">8. 📚 Grammar book</a></li>
@@ -119,45 +119,54 @@
 </ul>
 <p><strong>Example:</strong> Scan a French worksheet → Process &amp; Read → tap words for definitions and grammar.</p>
 <hr>
-<h2 id="5-scanning-document-editor">5. 📷 Scanning &amp; document editor</h2>
-<h3>Capture flow</h3>
-<ol>
-<li>Tap <strong>Scan</strong> (or Camera / Import from Home or Practice).</li>
-<li>Capture one or more pages.</li>
-<li>After capture, the <strong>editor</strong> opens automatically with crop tools.</li>
-</ol>
-<h3>Editor toolbar</h3>
+<h2 id="5-scanning-enhancement">5. 📷 Scanning &amp; enhancement</h2>
+<h3>Capture options</h3>
+<p>When you tap <strong>Scan</strong>, you can choose:</p>
 <ul>
-<li>🖼 <strong>Original</strong> — View raw capture</li>
-<li>✂️ <strong>Crop &amp; Rotate</strong> — Drag corner handles, rotate ±90°, auto-detect edges</li>
-<li>✨ <strong>Clean</strong> — Apply document filters (see below)</li>
-<li>💾 <strong>Save / Export</strong> — PDF, separate images, or long image</li>
+<li><strong>Scan document</strong> — Google ML Kit scanner (auto edge detection, multi-page, perspective correction). Best for quick everyday scans.</li>
+<li><strong>Live scan (boundary guide)</strong> — In-app camera with a <strong>live teal outline</strong> on the preview so you see the exact area selected before you shoot.</li>
 </ul>
-<h3>✨ Clean filters (40+ presets)</h3>
-<p>Tap <strong>Clean</strong> to open the preset grid:</p>
+<p>- <strong>Solid outline</strong> — flat / rectangular document</p>
+<p>- <strong>Dashed outline</strong> — curved or wrinkled page (e.g. open book)</p>
 <ul>
-<li><strong>Auto</strong>, <strong>Color</strong>, <strong>Magic color</strong>, <strong>Gray</strong>, <strong>B&amp;W</strong></li>
-<li><strong>OCR</strong>, <strong>Document</strong>, <strong>Receipt</strong>, <strong>Book</strong>, <strong>Handwritten</strong></li>
-<li><strong>Shadow fix</strong>, <strong>Straighten</strong> (levels 1–3), <strong>Brightness</strong> presets</li>
-<li><strong>Custom1 / Custom2</strong> — Save your own slider combinations and rename them</li>
+<li><strong>Import from gallery</strong> — Pick existing photos.</li>
 </ul>
-<p>Manual sliders (in custom mode): brightness, contrast, sharpness, noise, shadow, paper whitening, ink enhancement.</p>
+<p><strong>💡 Tip:</strong> Use <strong>Live scan</strong> when pages are curved; use <strong>Scan document</strong> when you want automatic crop and multi-page capture.</p>
+<h3>After capture — review screen</h3>
+<p>The review screen opens for each page:</p>
+<ul>
+<li><strong>Thumbnails</strong> — Tap to switch pages; <strong>+</strong> to add more (up to 20 per document).</li>
+<li><strong>Detected document area</strong> — Shows the boundary found on the original (flat vs curved label).</li>
+<li><strong>Recommendation</strong> — Suggested enhance level; tap <strong>Apply</strong> to use it.</li>
+<li><strong>Clean | AI Clean</strong></li>
+</ul>
+<p>- <strong>Clean</strong> — Offline processing on your phone (all users).</p>
+<p>- <strong>AI Clean</strong> — <strong>Pro or Plus + internet</strong>; uses Cheradip <strong>Home AI</strong> on your Windows PC (https://ai.cheradip.com) when online, with offline fallback if unavailable.</p>
+<ul>
+<li><strong>Level 0</strong> — Compare <strong>L1</strong> and <strong>L7</strong> side by side; tap a preview to pick that level.</li>
+<li><strong>Levels 1–7</strong> — Stronger cleanup step by step (shadow removal, dewarp at higher levels, detail recovery).</li>
+<li><strong>Export profile</strong> — Document, receipt, book, etc. (affects save format).</li>
+</ul>
+<h3>Scan Only vs Learning</h3>
+<ul>
+<li><strong>Scan Only</strong> (Home) — Scan, enhance, then <strong>Save</strong> as PDF or images. No OCR or reader.</li>
+<li><strong>Learning</strong> (default) — After enhance, tap <strong>Process &amp; Read</strong> for OCR and the reader.</li>
+</ul>
 <h3>Multi-page documents</h3>
 <ul>
-<li>Thumbnail strip below the preview — tap to switch pages.</li>
-<li>Each page keeps its own edit state.</li>
-<li><strong>Undo / redo</strong> per page.</li>
+<li>Each page keeps its own enhance level and mode (Clean / AI Clean).</li>
+<li><strong>Rescan</strong> replaces the current page; <strong>Delete</strong> removes it.</li>
 </ul>
-<h3>After editing</h3>
+<h3>After enhancement</h3>
 <ul>
-<li><strong>Process &amp; Read</strong> — Runs OCR and opens the reader (Learning mode).</li>
+<li><strong>Process &amp; Read</strong> — Runs OCR on the enhanced image and opens the reader (Learning mode).</li>
 <li><strong>Save</strong> — Export only (Scan Only mode).</li>
 </ul>
 <p><strong>💡 Tips:</strong></p>
 <ul>
-<li>Good lighting and flat pages improve OCR accuracy.</li>
-<li>Math, code, and diagrams may route to cloud structuring when online.</li>
-<li>Crop handles work in the main editor preview — drag corners to adjust the region.</li>
+<li>Good lighting and holding the phone steady improve detection and OCR.</li>
+<li>For curved book pages: <strong>Live scan</strong> → <strong>AI Clean</strong> → try level <strong>5+</strong> when online.</li>
+<li>Math, code, and diagrams may use cloud structuring when online in Learning mode.</li>
 </ul>
 <hr>
 <h2 id="6-reader">6. 📖 Reader</h2>
@@ -288,7 +297,9 @@
 <hr>
 <h2 id="14-troubleshooting">14. 🔧 Troubleshooting</h2>
 <ul>
-<li><strong>OCR text looks messy</strong> — Better lighting; use Process &amp; Read while online for math/code; try Clean → OCR or Document preset.</li>
+<li><strong>OCR text looks messy</strong> — Better lighting; try <strong>AI Clean</strong> level 4–6 when Pro/Plus and online; use <strong>Live scan</strong> for curved pages; Process &amp; Read while online for math/code.</li>
+<li><strong>AI Clean disabled or offline</strong> — Needs <strong>Pro or Plus</strong> and internet for Home AI; <strong>Clean</strong> still works offline.</li>
+<li><strong>Boundary looks wrong</strong> — Use <strong>Live scan</strong> to align the page; rescan with better lighting.</li>
 <li><strong>AI says offline</strong> — Check Wi‑Fi; verify subscription or guest limit (99 requests).</li>
 <li><strong>No word definitions</strong> — Download the language pack on Languages tab.</li>
 <li><strong>Mode 5 locked</strong> — Upgrade to Plus.</li>
@@ -306,7 +317,7 @@
 </ul>
 <p>For support, use <strong>Profile → Support</strong> (WhatsApp) or the contact on the Paywall.</p>
 <hr>
-<p class="footer-note">Cheradip AI Language Tutor · User Guide · v2.1.0</p>
+<p class="footer-note">Cheradip AI Language Tutor · User Guide · v2.2.0</p>
       </article>
     </main>
   </div>
