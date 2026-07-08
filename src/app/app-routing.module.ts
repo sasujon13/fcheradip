@@ -62,6 +62,27 @@ import {
   TeacherHomeDashboardGuard,
 } from './service/dashboard-routing.guard';
 
+/** Static AILT pages (pricing, paddle, legal, billing return). Register with and
+ *  without a trailing slash so both /ailt/pricing and /ailt/pricing/ work. */
+function ailtStaticPageRoutes(): Routes {
+  const pages: { segment: string; page: string; title: string }[] = [
+    { segment: 'pricing', page: 'pricing', title: 'Pricing — Cheradip' },
+    { segment: 'paddle', page: 'paddle', title: 'Paddle Setup — Cheradip Admin' },
+    { segment: 'terms', page: 'terms', title: 'Terms of Service — Cheradip' },
+    { segment: 'privacy', page: 'privacy', title: 'Privacy Policy — Cheradip' },
+    { segment: 'refunds', page: 'refunds', title: 'Refund Policy — Cheradip' },
+    { segment: 'billing/success', page: 'billing-success', title: 'Payment complete — Cheradip' },
+    { segment: 'billing/cancel', page: 'billing-cancel', title: 'Checkout cancelled — Cheradip' },
+  ];
+  const out: Routes = [];
+  for (const p of pages) {
+    const data = { page: p.page, title: p.title };
+    out.push({ path: `ailt/${p.segment}`, component: AiltPageComponent, data });
+    out.push({ path: `ailt/${p.segment}/`, component: AiltPageComponent, data });
+  }
+  return out;
+}
+
 const routes: Routes = [
   /** Root URL must render index here — do not rely on redirect-only (avoids empty outlet on `/`). */
   { path: '', component: IndexComponent, pathMatch: 'full' },
@@ -71,13 +92,7 @@ const routes: Routes = [
    * Cheradip extension billing/legal pages (static HTML in assets/ailt, iframed).
    * Declared BEFORE the `ailt` manual route so the more specific paths always win.
    */
-  { path: 'ailt/pricing', component: AiltPageComponent, data: { page: 'pricing', title: 'Pricing — Cheradip' } },
-  { path: 'ailt/paddle', component: AiltPageComponent, data: { page: 'paddle', title: 'Paddle Setup — Cheradip Admin' } },
-  { path: 'ailt/terms', component: AiltPageComponent, data: { page: 'terms', title: 'Terms of Service — Cheradip' } },
-  { path: 'ailt/privacy', component: AiltPageComponent, data: { page: 'privacy', title: 'Privacy Policy — Cheradip' } },
-  { path: 'ailt/refunds', component: AiltPageComponent, data: { page: 'refunds', title: 'Refund Policy — Cheradip' } },
-  { path: 'ailt/billing/success', component: AiltPageComponent, data: { page: 'billing-success', title: 'Payment complete — Cheradip' } },
-  { path: 'ailt/billing/cancel', component: AiltPageComponent, data: { page: 'billing-cancel', title: 'Checkout cancelled — Cheradip' } },
+  ...ailtStaticPageRoutes(),
   /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
   { path: 'ailt', component: AiltManualComponent, pathMatch: 'full' },
   {path:'faqs', component: FaqsComponent},

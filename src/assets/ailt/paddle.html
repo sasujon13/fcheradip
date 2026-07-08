@@ -25,6 +25,7 @@
     <section id="loginCard" class="admin-card">
       <h2>Admin sign in</h2>
       <p class="sub">Sign in with your Cheradip extension admin account to configure Paddle.</p>
+      <p class="sub hint">Use <strong>sashafik.me@gmail.com</strong> or username <strong>sashafik.me</strong> (not your phone number — that is the AILT app account).</p>
       <div id="loginAlert" class="alert alert-err"></div>
       <form id="loginForm">
         <div class="field">
@@ -116,6 +117,19 @@
     }
     function hideAlert(el) { el.className = 'alert'; }
 
+    function formatApiError(body, status) {
+      if (!body) return 'HTTP ' + status;
+      var d = body.detail;
+      if (typeof d === 'string') {
+        if (d === 'NOT_REGISTERED') return 'No extension account for that email/username.';
+        if (d === 'PASSWORD_MISMATCH') return 'Incorrect password.';
+        return d;
+      }
+      if (Array.isArray(d) && d.length) return d.map(function (x) { return x.msg || x; }).join('; ');
+      if (body.message) return body.message;
+      return 'HTTP ' + status;
+    }
+
     function api(path, opts) {
       opts = opts || {};
       opts.headers = opts.headers || {};
@@ -124,7 +138,10 @@
       return fetch(API_BASE + path, opts).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (body) {
           if (!r.ok) {
-            var msg = (body && body.detail) ? body.detail : ('HTTP ' + r.status);
+            var msg = formatApiError(body, r.status);
+            if (r.status >= 500) {
+              msg += ' — check API health (extcheradip database must be connected).';
+            }
             throw new Error(msg);
           }
           return body;
