@@ -57,6 +57,8 @@ import { ScraperComponent } from './component/scraper/scraper/scraper.component'
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
 import { AiltManualComponent } from './component/ailt/ailt-manual.component';
 import { AiltPageComponent } from './component/ailt/ailt-page.component';
+import { CheradipManualComponent } from './component/cheradip/cheradip-manual.component';
+import { CheradipSupportComponent } from './component/cheradip/cheradip-support.component';
 import {
   StudentSectionDashboardGuard,
   TeacherHomeDashboardGuard,
@@ -95,6 +97,11 @@ const routes: Routes = [
   ...ailtStaticPageRoutes(),
   /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
   { path: 'ailt', component: AiltManualComponent, pathMatch: 'full' },
+  /** Cheradip VS Code AI Coding Assistant user manual. */
+  { path: 'cheradip', component: CheradipManualComponent, pathMatch: 'full' },
+  { path: 'cheradip/', component: CheradipManualComponent, pathMatch: 'full' },
+  { path: 'support', component: CheradipSupportComponent, pathMatch: 'full' },
+  { path: 'support/', component: CheradipSupportComponent, pathMatch: 'full' },
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutComponent},
   {path:'live_chat', component: ChatComponent},

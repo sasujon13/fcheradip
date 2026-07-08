@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cheradip AI Coding Assistant — complete user manual for install, chat, agent, inline edit, billing, and troubleshooting.">
+  <title>User Manual — Cheradip AI Coding Assistant</title>
+  <link rel="stylesheet" href="manual.css">
+  <link rel="icon" type="image/png" href="cheradip-avatar.png">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__brand">
+      <img class="site-header__logo" src="cheradip.svg" alt="Cheradip" width="180" height="45">
+      <p class="site-header__title">AI Coding Assistant · Manual</p>
+    </div>
+    <div class="site-header__links">
+      <a href="https://cheradip.com/ailt/pricing" target="_top">Pricing</a>
+      <a href="https://cheradip.com" target="_top">Cheradip.com</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="hero__badge">User Manual</span>
+    <div class="hero-brand">
+      <img class="hero-brand__avatar" src="cheradip-avatar.png" alt="Cheradip" width="72" height="72">
+      <div>
+        <h1>Cheradip — AI Coding Companion</h1>
+        <p>An AI pair-programmer for VS Code: chat, agent tools, multi-file edits, codebase search, inline edits, and Cheradip AI — with clear plans from Free to Business.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="Table of contents">
+      <h2>Contents</h2>
+      <nav><ol>
+        <li><a href="#1-welcome">1. Welcome</a></li>
+        <li><a href="#2-install">2. Install</a></li>
+        <li><a href="#3-first-run">3. First run</a></li>
+        <li><a href="#4-chat">4. Chat &amp; sessions</a></li>
+        <li><a href="#5-providers">5. AI providers</a></li>
+        <li><a href="#6-agent">6. Agent mode</a></li>
+        <li><a href="#7-composer">7. Composer</a></li>
+        <li><a href="#8-context">8. @ context &amp; search</a></li>
+        <li><a href="#9-inline">9. Inline edit &amp; apply</a></li>
+        <li><a href="#10-checkpoints">10. Checkpoints &amp; diffs</a></li>
+        <li><a href="#11-account">11. Sign-in &amp; account</a></li>
+        <li><a href="#12-billing">12. Plans &amp; billing</a></li>
+        <li><a href="#13-settings">13. Settings &amp; config</a></li>
+        <li><a href="#14-shortcuts">14. Shortcuts &amp; commands</a></li>
+        <li><a href="#15-mcp">15. MCP &amp; rules</a></li>
+        <li><a href="#16-troubleshoot">16. Troubleshooting</a></li>
+        <li><a href="#17-privacy">17. Privacy &amp; support</a></li>
+      </ol></nav>
+    </aside>
+
+    <main class="content">
+      <details class="mobile-toc">
+        <summary>Table of contents</summary>
+        <nav><ol>
+          <li><a href="#1-welcome">1. Welcome</a></li>
+          <li><a href="#2-install">2. Install</a></li>
+          <li><a href="#3-first-run">3. First run</a></li>
+          <li><a href="#4-chat">4. Chat &amp; sessions</a></li>
+          <li><a href="#5-providers">5. AI providers</a></li>
+          <li><a href="#6-agent">6. Agent mode</a></li>
+          <li><a href="#7-composer">7. Composer</a></li>
+          <li><a href="#8-context">8. @ context &amp; search</a></li>
+          <li><a href="#9-inline">9. Inline edit &amp; apply</a></li>
+          <li><a href="#10-checkpoints">10. Checkpoints &amp; diffs</a></li>
+          <li><a href="#11-account">11. Sign-in &amp; account</a></li>
+          <li><a href="#12-billing">12. Plans &amp; billing</a></li>
+          <li><a href="#13-settings">13. Settings &amp; config</a></li>
+          <li><a href="#14-shortcuts">14. Shortcuts &amp; commands</a></li>
+          <li><a href="#15-mcp">15. MCP &amp; rules</a></li>
+          <li><a href="#16-troubleshoot">16. Troubleshooting</a></li>
+          <li><a href="#17-privacy">17. Privacy &amp; support</a></li>
+        </ol></nav>
+      </details>
+
+      <article class="content-card manual">
+        <p>Welcome to the official guide for the <strong>Cheradip</strong> VS Code extension. Use the left menu like chapters in an ebook — pick a topic anytime, or read start to finish.</p>
+        <p class="quick-links">
+          <a href="https://cheradip.com/ailt/pricing" target="_top">Pricing</a> ·
+          <a href="https://cheradip.com/support" target="_top">Support</a> ·
+          <a href="https://cheradip.com/ailt/terms" target="_top">Terms</a> ·
+          <a href="https://cheradip.com/ailt/privacy" target="_top">Privacy</a> ·
+          <a href="mailto:support@cheradip.com">support@cheradip.com</a>
+        </p>
+        <hr>
+
+        <h2 id="1-welcome">1. Welcome</h2>
+        <p>Cheradip is an AI coding assistant that sits in your editor activity bar. It can:</p>
+        <ul>
+          <li>💬 <strong>Chat</strong> about your code with streaming replies</li>
+          <li>🤖 <strong>Agent mode</strong> — read/write files, run terminal commands, create projects</li>
+          <li>🧩 <strong>Composer</strong> — multi-step edits across the workspace</li>
+          <li>📎 <strong>@ context</strong> — attach files and search the codebase</li>
+          <li>✏️ <strong>Inline edit</strong> — change a selection in place (Ctrl+K style)</li>
+          <li>🏠 Use <strong>Cheradip AI</strong> by default (no API key), or your own cloud / Ollama keys</li>
+        </ul>
+        <p>Requires <strong>VS Code 1.85+</strong> (or another VS Code–compatible editor).</p>
+        <hr>
+
+        <h2 id="2-install">2. Install</h2>
+        <h3>From the Marketplace (recommended)</h3>
+        <ol>
+          <li>Open VS Code → <strong>Extensions</strong> (<code>Ctrl+Shift+X</code>)</li>
+          <li>Search for <strong>Cheradip</strong> (publisher <code>cheradip</code>)</li>
+          <li>Click <strong>Install</strong>, then reload if prompted</li>
+          <li>Look for the Cheradip icon in the left <strong>activity bar</strong></li>
+        </ol>
+        <h3>From a VSIX file</h3>
+        <ol>
+          <li>Get a <code>.vsix</code> package from your team or build it yourself</li>
+          <li>Extensions → <strong>⋯</strong> → <strong>Install from VSIX…</strong></li>
+          <li>Or CLI: <code>code --install-extension path\to\cheradip-x.y.z.vsix</code></li>
+        </ol>
+        <h3>Build from source (developers)</h3>
+        <pre><code>cd path\to\cheradip
+npm install
+npm run build
+npx @vscode/vsce package --no-dependencies
+code --install-extension cheradip-*.vsix</code></pre>
+        <p>After install: <strong>Developer: Reload Window</strong>.</p>
+        <hr>
+
+        <h2 id="3-first-run">3. First run</h2>
+        <ol>
+          <li>Click the <strong>Cheradip</strong> activity-bar icon to open the sidebar chat.</li>
+          <li>Optionally sign in: Command Palette → <strong>Cheradip: Sign In</strong> (needed for paid plans and synced billing).</li>
+          <li>Open settings or the config file if you want a cloud API key or a custom Cheradip AI URL.</li>
+          <li>Confirm the status line shows something like <code>Connected · ai.cheradip.com</code> (or your chosen provider).</li>
+          <li>Type a question and send with <strong>Ctrl+Enter</strong> (Enter alone inserts a new line).</li>
+        </ol>
+        <p><strong>Tip:</strong> Open a folder as a workspace before using agent file tools — paths are relative to the workspace root.</p>
+        <hr>
+
+        <h2 id="4-chat">4. Chat &amp; sessions</h2>
+        <ul>
+          <li><strong>Session tabs</strong> — each chat is a tab; use <strong>+</strong> for a new session</li>
+          <li><strong>Streaming</strong> — replies arrive progressively; use <strong>■ Stop</strong> or <strong>Cheradip: Stop Agent</strong> to cancel</li>
+          <li><strong>Copy</strong> — copy buttons on messages show a brief “Copied” snackbar</li>
+          <li><strong>Clarifying questions</strong> — when the agent is unsure, clickable options may appear; pick one to continue</li>
+          <li><strong>History</strong> — conversation memory stays in your local profile/session (not synced across machines by default)</li>
+        </ul>
+        <p>Commands: <strong>Cheradip: Open Chat</strong>, <strong>Cheradip: New Chat Session</strong>, <strong>Cheradip: Focus Chat Input</strong> (<code>Ctrl+L</code>).</p>
+        <hr>
+
+        <h2 id="5-providers">5. AI providers</h2>
+        <p>Pick a provider and model in the chat composer (bottom of the panel).</p>
+        <table>
+          <thead><tr><th>Provider</th><th>What you need</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Cheradip AI</strong></td><td>Internet → <code>https://ai.cheradip.com</code></td><td>Default · no API key</td></tr>
+            <tr><td><strong>Ollama (local)</strong></td><td>Ollama on your PC + pulled models</td><td>Default URL <code>http://127.0.0.1:11434</code></td></tr>
+            <tr><td><strong>OpenAI / Anthropic / Gemini / Groq / Mistral / DeepSeek</strong></td><td>API key in config or settings</td><td>Used as fallback if Cheradip AI is down</td></tr>
+          </tbody>
+        </table>
+        <p>Config: <strong>Cheradip: Open Config File</strong> (or ⚙ in chat). Default path on Windows:</p>
+        <pre><code>%APPDATA%\Code\User\globalStorage\cheradip.cheradip\cheradip.config.jsonc</code></pre>
+        <p>Health check: <a href="https://ai.cheradip.com/health" target="_blank" rel="noopener">https://ai.cheradip.com/health</a></p>
+        <hr>
+
+        <h2 id="6-agent">6. Agent mode</h2>
+        <p>With <code>cheradip.agentMode</code> enabled (default), Cheradip runs an autonomous agent loop through tools until the task is done.</p>
+        <h3>What the agent can do</h3>
+        <ul>
+          <li>List the project, search text, read and write files</li>
+          <li>Create / delete files and folders</li>
+          <li>Run shell commands (<code>runCommand</code> captures output; <code>runTerminal</code> opens a visible terminal)</li>
+          <li>Create a starter project layout</li>
+        </ul>
+        <h3>Permissions</h3>
+        <p>Each tool action asks for approval:</p>
+        <ul>
+          <li><strong>Allow</strong> — once</li>
+          <li><strong>Allow all</strong> — always allow that tool type until reset</li>
+          <li><strong>Deny</strong> — skip</li>
+        </ul>
+        <p>Reset remembered grants: <strong>Cheradip: Reset Agent Permissions (Allow Always)</strong>.</p>
+        <h3>Safeguards</h3>
+        <ul>
+          <li><code>cheradip.agentMaxIterations</code> — max tool loop steps (default 12)</li>
+          <li><code>cheradip.agentYoloMode</code> — skip prompts (use carefully)</li>
+          <li><code>cheradip.agentDiffReview</code> — review diffs before writes</li>
+        </ul>
+        <hr>
+
+        <h2 id="7-composer">7. Composer</h2>
+        <p>Composer is the focused “get this change done” flow:</p>
+        <ul>
+          <li><strong>Cheradip: Open Composer (Agent)</strong> — agent-style multi-step work</li>
+          <li><strong>Cheradip: Open Composer Panel</strong> — editor-panel variant</li>
+          <li><strong>Cheradip: Run Background Agent</strong> — longer jobs with a separate iteration limit</li>
+        </ul>
+        <p>Related settings: <code>cheradip.composerMaxIterations</code>, <code>cheradip.backgroundAgentMaxIterations</code>, <code>cheradip.chatMode</code>.</p>
+        <hr>
+
+        <h2 id="8-context">8. @ context &amp; search</h2>
+        <ul>
+          <li><strong>Cheradip: Insert @ Context</strong> — mention files / symbols for the next message</li>
+          <li><strong>Cheradip: Add File to Context</strong> — from the editor context menu</li>
+          <li>📎 attach button in the composer</li>
+          <li><strong>Codebase search</strong> — lexical or embedding modes (<code>cheradip.codebaseSearchMode</code>)</li>
+          <li><strong>Cheradip: Build Semantic Index</strong> / <strong>Clear Semantic Index</strong> / <strong>Refresh Codebase Index</strong></li>
+        </ul>
+        <p>Embedding backend is configurable via <code>cheradip.embeddingBackend</code>.</p>
+        <hr>
+
+        <h2 id="9-inline">9. Inline edit &amp; apply</h2>
+        <ul>
+          <li><strong>Inline Edit (Ctrl+K)</strong> — select code → instruct Cheradip to rewrite the selection</li>
+          <li><strong>Ghost completions</strong> — optional inline suggestions (<code>cheradip.inlineCompletion</code>)</li>
+          <li><strong>Apply</strong> on fenced code in chat — write the snippet into the workspace (<strong>Cheradip: Apply Code</strong>)</li>
+        </ul>
+        <p>Editor shortcuts: <code>Ctrl+Shift+K</code> (inline edit), right-click → Inline Edit / Add File to Context.</p>
+        <hr>
+
+        <h2 id="10-checkpoints">10. Checkpoints &amp; diffs</h2>
+        <ul>
+          <li>With <code>cheradip.agentCheckpoints</code>, Cheradip can snapshot files before agent writes</li>
+          <li><strong>Cheradip: Restore Checkpoint (pick)</strong> — roll back a snapshot</li>
+          <li>With <code>cheradip.agentDiffReview</code>, review side-by-side diffs and Accept / Reject before applying</li>
+        </ul>
+        <hr>
+
+        <h2 id="11-account">11. Sign-in &amp; account</h2>
+        <p>Extension accounts are separate from the Cheradip MCQ / Android app phone login.</p>
+        <ul>
+          <li><strong>Cheradip: Sign In</strong> — username/email + password for the extension App API</li>
+          <li><strong>Cheradip: Sign Out</strong> / <strong>Sign Out All Devices</strong></li>
+          <li><strong>Cheradip: Enter License Key</strong> — if you use offline/license activation</li>
+        </ul>
+        <p>API base (default): <code>https://cheradip.com/ailt/api/</code> (<code>cheradip.appApiUrl</code>).</p>
+        <hr>
+
+        <h2 id="12-billing">12. Plans &amp; billing</h2>
+        <p>Full details and checkout: <a href="https://cheradip.com/ailt/pricing" target="_top">cheradip.com/ailt/pricing</a>. Payments are processed by <strong>Paddle</strong> (Merchant of Record).</p>
+        <table>
+          <thead><tr><th>Plan</th><th>Requests / mo</th><th>Line edits / mo</th></tr></thead>
+          <tbody>
+            <tr><td>Free</td><td>50</td><td>500</td></tr>
+            <tr><td>Pro — $10</td><td>500</td><td>5,000</td></tr>
+            <tr><td>Plus — $30</td><td>2,000</td><td>20,000</td></tr>
+            <tr><td>Business — $100</td><td>7,500</td><td>75,000</td></tr>
+          </tbody>
+        </table>
+        <p><strong>What counts</strong></p>
+        <ul>
+          <li><strong>Request</strong> — one meter tick when you send a message (Ctrl+Enter), not every internal agent loop step</li>
+          <li><strong>Line edits</strong> — insertions/replacements written into files</li>
+        </ul>
+        <p><strong>Pay-as-you-go</strong> (paid plans): enable in extension Settings → Billing. Overage is billed at <strong>$0.02 per request</strong> or <strong>$0.02 per 10 line edits</strong> — whichever amount is higher — via a one-off Paddle checkout when you choose to pay.</p>
+        <p>Upgrade from the panel: <strong>Cheradip: Upgrade to Pro</strong> or Settings → Billing.</p>
+        <hr>
+
+        <h2 id="13-settings">13. Settings &amp; config</h2>
+        <p>Two places to configure Cheradip:</p>
+        <ol>
+          <li><strong>VS Code Settings</strong> — search “Cheradip”, or <strong>Cheradip: Open Settings</strong></li>
+          <li><strong>Config JSONC</strong> — <strong>Cheradip: Open Config File</strong> for keys, models, URLs</li>
+        </ol>
+        <table>
+          <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>cheradip.apiUrl</code></td><td>https://ai.cheradip.com</td><td>Cheradip AI base URL</td></tr>
+            <tr><td><code>cheradip.provider</code></td><td>cheradip</td><td>Active LLM provider</td></tr>
+            <tr><td><code>cheradip.model</code></td><td>auto</td><td>Model id</td></tr>
+            <tr><td><code>cheradip.agentMode</code></td><td>true</td><td>File / terminal tools</td></tr>
+            <tr><td><code>cheradip.agentAutoLoop</code></td><td>true</td><td>Multi-step agent loop</td></tr>
+            <tr><td><code>cheradip.inlineCompletion</code></td><td>true</td><td>Ghost text</td></tr>
+            <tr><td><code>cheradip.demoMode</code></td><td>false</td><td>Offline demo only</td></tr>
+            <tr><td><code>cheradip.enforcePaywall</code></td><td>—</td><td>Gate features by plan</td></tr>
+            <tr><td><code>cheradip.userRules</code></td><td>""</td><td>Extra rules every agent turn</td></tr>
+            <tr><td><code>cheradip.mcpServers</code></td><td>{}</td><td>MCP server definitions</td></tr>
+          </tbody>
+        </table>
+        <hr>
+
+        <h2 id="14-shortcuts">14. Shortcuts &amp; commands</h2>
+        <h3>Keyboard</h3>
+        <table>
+          <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><code>Ctrl+L</code> / <code>Cmd+L</code></td><td>Focus chat input</td></tr>
+            <tr><td><code>Ctrl+K</code> / Inline Cmd+K</td><td>Inline edit selection</td></tr>
+            <tr><td><code>Ctrl+Shift+K</code></td><td>Inline edit (alternate binding)</td></tr>
+            <tr><td><code>Ctrl+Enter</code></td><td>Send message</td></tr>
+            <tr><td>Enter</td><td>New line in the composer</td></tr>
+          </tbody>
+        </table>
+        <h3>Useful Command Palette entries</h3>
+        <ul>
+          <li>Open Chat · Open Composer · Open Composer Panel · Run Background Agent</li>
+          <li>Stop Agent · Restore Checkpoint · Build / Clear / Refresh Index</li>
+          <li>Open Config File · Open Settings · Sign In / Out · Upgrade · Enter License</li>
+          <li>Read / Write File · Create / Delete Directory · Delete File (agent)</li>
+        </ul>
+        <hr>
+
+        <h2 id="15-mcp">15. MCP &amp; rules</h2>
+        <p><strong>User rules</strong> (<code>cheradip.userRules</code>) are injected into every agent turn — great for house style, “always use TypeScript”, security constraints, and so on.</p>
+        <p><strong>MCP servers</strong> (<code>cheradip.mcpServers</code>) let you attach Model Context Protocol tools, for example a filesystem MCP:</p>
+        <pre><code>{
+  "filesystem": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]
+  }
+}</code></pre>
+        <p>Native tool-calling preference: <code>cheradip.nativeToolCalls</code>.</p>
+        <hr>
+
+        <h2 id="16-troubleshoot">16. Troubleshooting</h2>
+        <table>
+          <thead><tr><th>Problem</th><th>What to try</th></tr></thead>
+          <tbody>
+            <tr><td>Chat view failed to load</td><td>Reload Window · Output panel → Cheradip</td></tr>
+            <tr><td>Cheradip AI offline</td><td>Check <a href="https://ai.cheradip.com/health" target="_blank" rel="noopener">/health</a> · add a cloud key for fallback · or run local Cheradip AI</td></tr>
+            <tr><td>Ollama models empty</td><td><code>ollama serve</code>, <code>ollama pull …</code>, verify <code>cheradip.ollamaUrl</code></td></tr>
+            <tr><td>Cloud provider errors</td><td>Put a real API key in the config file</td></tr>
+            <tr><td>Old UI after update</td><td>Uninstall → install new VSIX → Reload Window</td></tr>
+            <tr><td>Agent can’t see files</td><td>Open a workspace folder first</td></tr>
+            <tr><td>Quota / paywall</td><td>Open Settings → Billing, or visit <a href="https://cheradip.com/ailt/pricing" target="_top">Pricing</a></td></tr>
+            <tr><td>Sign-in fails</td><td>Use your <em>extension</em> email/username (not AILT phone login)</td></tr>
+          </tbody>
+        </table>
+        <hr>
+
+        <h2 id="17-privacy">17. Privacy &amp; support</h2>
+        <ul>
+          <li>Chat content is sent to the AI provider you select (Cheradip AI or a third-party cloud)</li>
+          <li>Billing and account data use the Cheradip App API; card data is handled by Paddle</li>
+          <li>Policies: <a href="https://cheradip.com/ailt/privacy" target="_top">Privacy</a> · <a href="https://cheradip.com/ailt/terms" target="_top">Terms</a> · <a href="https://cheradip.com/ailt/refunds" target="_top">Refunds</a></li>
+          <li>Support: <a href="mailto:support@cheradip.com">support@cheradip.com</a></li>
+        </ul>
+        <p>Related product: <a href="https://cheradip.com/ailt" target="_top">AI Language Tutor user guide</a> (mobile app — separate from this extension).</p>
+        <hr>
+        <p class="manual-end">© Cheradip · Manual for the AI Coding Assistant · <a href="https://cheradip.com/cheradip" target="_top">cheradip.com/cheradip</a></p>
+      </article>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <p>
+      <a href="https://cheradip.com" target="_top">Cheradip.com</a>
+      &nbsp;·&nbsp;
+      <a href="https://cheradip.com/ailt/pricing" target="_top">Pricing</a>
+      &nbsp;·&nbsp;
+      <a href="https://cheradip.com/support" target="_top">Support</a>
+      &nbsp;·&nbsp;
+      <a href="https://cheradip.com/ailt" target="_top">Language Tutor</a>
+      &nbsp;·&nbsp;
+      <a href="mailto:support@cheradip.com">Support email</a>
+    </p>
+  </footer>
+
+  <script>
+    (function () {
+      var links = document.querySelectorAll('.sidebar a[href^="#"], .mobile-toc a[href^="#"]');
+      var sections = [];
+      links.forEach(function (a) {
+        var id = a.getAttribute('href').slice(1);
+        var el = document.getElementById(id);
+        if (el) sections.push({ id: id, el: el, link: a });
+      });
+      function setActive() {
+        var y = window.scrollY + 100;
+        var current = sections[0] && sections[0].id;
+        for (var i = 0; i < sections.length; i++) {
+          if (sections[i].el.offsetTop <= y) current = sections[i].id;
+        }
+        links.forEach(function (a) {
+          a.classList.toggle('is-active', a.getAttribute('href') === '#' + current);
+        });
+      }
+      window.addEventListener('scroll', setActive, { passive: true });
+      setActive();
+    })();
+  </script>
+</body>
+</html>

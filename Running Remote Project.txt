@@ -20,8 +20,11 @@ git checkout main
 git pull origin main
 npm ci
 npm run build -- --configuration production
-rsync -av dist/frontend/ user@server:/var/www/cheradip/
+sudo rsync -av --delete dist/frontend/ /var/www/cheradip/
+sudo rsync -av --delete /tmp/cheradip-dist/ /var/www/cheradip/
 
+
+# Deploy on the Linux server (run after build — not from Windows):
 FRONT_DIST="/home/sasha/apps/cheradip/fcheradip/dist/frontend"
 if [ -f "$FRONT_DIST/index.html" ]; then
   sudo rsync -av --delete "$FRONT_DIST/" /var/www/cheradip/

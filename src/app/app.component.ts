@@ -159,7 +159,14 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private isAiltManualRoute(url: string): boolean {
     const path = (url || '').split('?')[0].split('#')[0];
-    return path === '/ailt' || path.startsWith('/ailt/');
+    return (
+      path === '/ailt' ||
+      path.startsWith('/ailt/') ||
+      path === '/cheradip' ||
+      path.startsWith('/cheradip/') ||
+      path === '/support' ||
+      path.startsWith('/support/')
+    );
   }
 
 }
