@@ -18,6 +18,9 @@ export class AiltPageComponent {
   constructor(route: ActivatedRoute, sanitizer: DomSanitizer) {
     const page = (route.snapshot.data['page'] as string) || 'pricing';
     this.title = (route.snapshot.data['title'] as string) || 'Cheradip';
-    this.src = sanitizer.bypassSecurityTrustResourceUrl(`assets/ailt/${page}.html`);
+    // Absolute (root-relative) path so the iframe resolves correctly at any
+    // route depth (e.g. /ailt/pricing, /ailt/billing/success). A bare relative
+    // URL would resolve against the current path and 404 on deep links.
+    this.src = sanitizer.bypassSecurityTrustResourceUrl(`/assets/ailt/${page}.html`);
   }
 }
