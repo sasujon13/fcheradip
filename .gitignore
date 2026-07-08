@@ -42,3 +42,7 @@ testem.log
 Thumbs.db
 
 .tmp.driveupload/
+
+# Local-only email branding assets (kept per environment, not tracked in git)
+/src/assets/email/cheradip-avatar.png
+/src/assets/email/cheradip-wordmark.png
