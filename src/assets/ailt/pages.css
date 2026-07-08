@@ -87,6 +87,38 @@
   margin-top: 18px;
 }
 
+/* Plan call-to-action buttons */
+.plan__cta {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.plan__cta:hover {
+  background: var(--teal-dark);
+}
+.plan__cta--ghost {
+  background: transparent;
+  color: var(--teal-dark);
+  border: 1.5px solid var(--line);
+}
+.plan__cta--ghost:hover {
+  background: #e8f5f2;
+}
+.plan ul {
+  flex: 1 0 auto;
+}
+
 .price-table {
   width: 100%;
   border-collapse: collapse;
