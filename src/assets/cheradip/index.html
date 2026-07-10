@@ -132,7 +132,7 @@ code --install-extension cheradip-*.vsix</code></pre>
           <li>Optionally sign in: Command Palette → <strong>Cheradip: Sign In</strong> (needed for paid plans and synced billing).</li>
           <li>Open settings or the config file if you want a cloud API key or a custom Cheradip AI URL.</li>
           <li>Confirm the status line shows something like <code>Connected · ai.cheradip.com</code> (or your chosen provider).</li>
-          <li>Type a question and send with <strong>Ctrl+Enter</strong> (Enter alone inserts a new line).</li>
+          <li>Type a question and send with <strong>Enter</strong> (<strong>Ctrl+Enter</strong> or <strong>Shift+Enter</strong> inserts a new line).</li>
         </ol>
         <p><strong>Tip:</strong> Open a folder as a workspace before using agent file tools — paths are relative to the workspace root.</p>
         <hr>
@@ -175,11 +175,12 @@ code --install-extension cheradip-*.vsix</code></pre>
         <h3>Permissions</h3>
         <p>Each tool action asks for approval:</p>
         <ul>
-          <li><strong>Allow</strong> — once</li>
-          <li><strong>Allow all</strong> — always allow that tool type until reset</li>
+          <li><strong>Allow</strong> — run this action once</li>
           <li><strong>Deny</strong> — skip</li>
         </ul>
-        <p>Reset remembered grants: <strong>Cheradip: Reset Agent Permissions (Allow Always)</strong>.</p>
+        <p>There is no session-wide “allow all”. Use <strong>Cheradip › Agent: YOLO mode</strong> to auto-approve. Reset legacy cache: <strong>Cheradip: Reset Agent Permissions</strong>.</p>
+        <h3>Prompt preparation</h3>
+        <p>Like Cursor, Cheradip can analyze your request with a fast model before the main agent runs. Planning streams in a temporary panel (not saved); the <strong>Execution plan</strong> appears in the reply and guides the agent. Toggle: <code>cheradip.promptReadyEnabled</code> · prep model: <code>cheradip.promptReadyModel</code>.</p>
         <h3>Safeguards</h3>
         <ul>
           <li><code>cheradip.agentMaxIterations</code> — max tool loop steps (default 12)</li>
@@ -249,7 +250,7 @@ code --install-extension cheradip-*.vsix</code></pre>
         </table>
         <p><strong>What counts</strong></p>
         <ul>
-          <li><strong>Request</strong> — one meter tick when you send a message (Ctrl+Enter), not every internal agent loop step</li>
+          <li><strong>Request</strong> — one meter tick when you send a message (Enter), not every internal agent loop step</li>
           <li><strong>Line edits</strong> — insertions/replacements written into files</li>
         </ul>
         <p><strong>Pay-as-you-go</strong> (paid plans): enable in extension Settings → Billing. Overage is billed at <strong>$0.02 per request</strong> or <strong>$0.02 per 10 line edits</strong> — whichever amount is higher — via a one-off Paddle checkout when you choose to pay.</p>
@@ -287,7 +288,8 @@ code --install-extension cheradip-*.vsix</code></pre>
             <tr><td><code>Ctrl+L</code> / <code>Cmd+L</code></td><td>Focus chat input</td></tr>
             <tr><td><code>Ctrl+K</code> / Inline Cmd+K</td><td>Inline edit selection</td></tr>
             <tr><td><code>Ctrl+Shift+K</code></td><td>Inline edit (alternate binding)</td></tr>
-            <tr><td><code>Ctrl+Enter</code></td><td>Send message</td></tr>
+            <tr><td><code>Enter</code></td><td>Send message</td></tr>
+            <tr><td><code>Ctrl+Enter</code> / <code>Shift+Enter</code></td><td>New line in composer</td></tr>
             <tr><td>Enter</td><td>New line in the composer</td></tr>
           </tbody>
         </table>
