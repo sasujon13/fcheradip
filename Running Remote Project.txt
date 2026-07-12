@@ -23,6 +23,11 @@ npm run build -- --configuration production
 sudo rsync -av --delete dist/frontend/ /var/www/cheradip/
 sudo rsync -av --delete /tmp/cheradip-dist/ /var/www/cheradip/
 
+# 3. Rebuild + deploy
+npm ci
+npm run build -- --configuration production
+sudo rsync -av --delete dist/frontend/ /var/www/cheradip/
+
 
 # Deploy on the Linux server (run after build — not from Windows):
 FRONT_DIST="/home/sasha/apps/cheradip/fcheradip/dist/frontend"
@@ -63,7 +68,16 @@ rm -f src/assets/email/cheradip-avatar.png src/assets/email/cheradip-wordmark.pn
 git pull origin main
 git log --oneline -1          # MUST show: b400309 Billing Page added2
 
-# 3. Rebuild + deploy
-npm ci
-npm run build -- --configuration production
-sudo rsync -av --delete dist/frontend/ /var/www/cheradip/
+
+# sending language packs to server
+-------------------------------------------------------
+local machine
+-------------
+cd D:\VSCode\android\ailanguagetutor
+.\tools\pack-builder\scripts\build-all-packs.ps1
+
+scp -r "D:\VSCode\cheradip\bcheradip\ailt_api\packs\*" sasha@163.227.144.146:~/apps/cheradip/bcheradip/ailt_api/packs/
+
+Linux server
+--------------
+sudo systemctl restart cheradip-ailt
