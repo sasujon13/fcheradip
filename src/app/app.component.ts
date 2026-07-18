@@ -162,6 +162,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     return (
       path === '/ailt' ||
       path.startsWith('/ailt/') ||
+      path === '/aicodingagent' ||
+      path.startsWith('/aicodingagent/') ||
       path === '/cheradip' ||
       path.startsWith('/cheradip/') ||
       path === '/support' ||

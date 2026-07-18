@@ -3,8 +3,8 @@ import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 /**
- * Full-page host for a static AI Language Tutor / Cheradip page in assets/ailt/.
- * The route supplies `data.page` (e.g. "pricing" -> assets/ailt/pricing.html).
+ * Full-page host for static HTML under assets/{folder}/.
+ * Route data: `page` (filename without .html), optional `folder` (default "ailt").
  */
 @Component({
   selector: 'app-ailt-page',
@@ -16,11 +16,11 @@ export class AiltPageComponent {
   title = 'Cheradip';
 
   constructor(route: ActivatedRoute, sanitizer: DomSanitizer) {
-    const page = (route.snapshot.data['page'] as string) || 'pricing';
+    const page = (route.snapshot.data['page'] as string) || 'privacy';
+    const folder = (route.snapshot.data['folder'] as string) || 'ailt';
     this.title = (route.snapshot.data['title'] as string) || 'Cheradip';
     // Absolute (root-relative) path so the iframe resolves correctly at any
-    // route depth (e.g. /ailt/pricing, /ailt/billing/success). A bare relative
-    // URL would resolve against the current path and 404 on deep links.
-    this.src = sanitizer.bypassSecurityTrustResourceUrl(`/assets/ailt/${page}.html`);
+    // route depth (e.g. /ailt/privacy, /aicodingagent/pricing).
+    this.src = sanitizer.bypassSecurityTrustResourceUrl(`/assets/${folder}/${page}.html`);
   }
 }

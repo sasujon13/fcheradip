@@ -81,6 +81,7 @@ import { ScraperComponent } from './component/scraper/scraper/scraper.component'
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
 import { AiltManualComponent } from './component/ailt/ailt-manual.component';
 import { AiltPageComponent } from './component/ailt/ailt-page.component';
+import { AicodingagentHomeComponent } from './component/aicodingagent/aicodingagent-home.component';
 import { CheradipManualComponent } from './component/cheradip/cheradip-manual.component';
 import { CheradipSupportComponent } from './component/cheradip/cheradip-support.component';
 import { BreadcrumbComponent } from './component/question/navigation/breadcrumb/breadcrumb.component';
@@ -171,6 +172,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     WelcomeCeremonyPreviewComponent,
     AiltManualComponent,
     AiltPageComponent,
+    AicodingagentHomeComponent,
     CheradipManualComponent,
     CheradipSupportComponent,
   ],

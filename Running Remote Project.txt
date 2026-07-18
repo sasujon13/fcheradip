@@ -1,8 +1,13 @@
+# ============================================================
+# Cheradip server deploy (run on Linux host)
+# ============================================================
+
 # --- Backend ---
 cd /home/sasha/apps/cheradip/bcheradip
 git fetch origin
 git checkout main
 git pull origin main
+sudo bash ailt_api/deploy/install-nginx-ailt-api.sh
 source venv/bin/activate
 python -m pip install -r requirements.txt
 python -m pip install -r ailt_api/requirements.txt
@@ -20,30 +25,12 @@ git checkout main
 git pull origin main
 npm ci
 npm run build -- --configuration production
-sudo rsync -av --delete dist/frontend/ /var/www/cheradip/
-sudo rsync -av --delete /tmp/cheradip-dist/ /var/www/cheradip/
 
-# 3. Rebuild + deploy
-npm ci
-npm run build -- --configuration production
 sudo rsync -av --delete dist/frontend/ /var/www/cheradip/
 
-
-# Deploy on the Linux server (run after build — not from Windows):
-FRONT_DIST="/home/sasha/apps/cheradip/fcheradip/dist/frontend"
-if [ -f "$FRONT_DIST/index.html" ]; then
-  sudo rsync -av --delete "$FRONT_DIST/" /var/www/cheradip/
-elif [ -f "$FRONT_DIST/browser/index.html" ]; then
-  sudo rsync -av --delete "$FRONT_DIST/browser/" /var/www/cheradip/
-else
-  find /home/sasha/apps/cheradip/fcheradip/dist -name index.html
-fi
-
-# --- nginx: API only at /ailt/api/ (manual stays /ailt) ---
+# --- nginx: ensure /ailt/api/ → FastAPI (idempotent, safe every deploy) ---
 cd /home/sasha/apps/cheradip/bcheradip
 sudo bash ailt_api/deploy/install-nginx-ailt-api.sh
-
-sudo systemctl reload nginx
 sudo systemctl status cheradip cheradip-ailt nginx --no-pager
 
 # Verify: HTML manual vs JSON API
@@ -51,33 +38,19 @@ curl -sI https://cheradip.com/ailt | head -3
 curl -s https://cheradip.com/ailt/api/health | head -c 200
 echo
 
-# --- SMTP / .env on server (never commit secrets) ---
-# cd /home/sasha/apps/cheradip/bcheradip/ailt_api
-# bash scripts/setup-brevo-env.sh
-# sudo systemctl restart cheradip-ailt
+# ============================================================
+# Optional: language packs (from Windows)
+# ============================================================
+# cd D:\VSCode\android\ailanguagetutor
+# .\tools\pack-builder\scripts\build-all-packs.ps1
+# scp -r "D:\VSCode\cheradip\bcheradip\ailt_api\packs\*" sasha@163.227.144.146:~/apps/cheradip/bcheradip/ailt_api/packs/
+# On server: sudo systemctl restart cheradip-ailt
 
-
-
-
-cd /home/sasha/apps/cheradip/fcheradip
-
-# 1. Remove the untracked files blocking the pull (they'll be restored from git)
-rm -f src/assets/email/cheradip-avatar.png src/assets/email/cheradip-wordmark.png
-
-# 2. Pull — must now fast-forward to b400309
-git pull origin main
-git log --oneline -1          # MUST show: b400309 Billing Page added2
-
-
-# sending language packs to server
--------------------------------------------------------
-local machine
--------------
-cd D:\VSCode\android\ailanguagetutor
-.\tools\pack-builder\scripts\build-all-packs.ps1
-
-scp -r "D:\VSCode\cheradip\bcheradip\ailt_api\packs\*" sasha@163.227.144.146:~/apps/cheradip/bcheradip/ailt_api/packs/
-
-Linux server
---------------
-sudo systemctl restart cheradip-ailt
+# ============================================================
+# Optional: grammar books (from Windows)
+# ============================================================
+# cd D:\VSCode\android\ailanguagetutor\tools\grammar-book-builder
+# python build_grammar_books.py
+# scp -r "D:\VSCode\cheradip\bcheradip\ailt_api\grammar_books\*" sasha@163.227.144.146:~/apps/cheradip/bcheradip/ailt_api/grammar_books/
+# On server: sudo systemctl restart cheradip-ailt
+# curl -s https://cheradip.com/ailt/api/health | grep grammar_books_available

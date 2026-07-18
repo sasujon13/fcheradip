@@ -57,6 +57,7 @@ import { ScraperComponent } from './component/scraper/scraper/scraper.component'
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
 import { AiltManualComponent } from './component/ailt/ailt-manual.component';
 import { AiltPageComponent } from './component/ailt/ailt-page.component';
+import { AicodingagentHomeComponent } from './component/aicodingagent/aicodingagent-home.component';
 import { CheradipManualComponent } from './component/cheradip/cheradip-manual.component';
 import { CheradipSupportComponent } from './component/cheradip/cheradip-support.component';
 import {
@@ -64,23 +65,56 @@ import {
   TeacherHomeDashboardGuard,
 } from './service/dashboard-routing.guard';
 
-/** Static AILT pages (pricing, paddle, legal, billing return). Register with and
- *  without a trailing slash so both /ailt/pricing and /ailt/pricing/ work. */
+/** Static pages under /ailt/* (AI Language Tutor legal + any remaining assets). */
 function ailtStaticPageRoutes(): Routes {
   const pages: { segment: string; page: string; title: string }[] = [
-    { segment: 'pricing', page: 'pricing', title: 'Pricing — Cheradip' },
+    { segment: 'terms', page: 'terms', title: 'Terms of Service — AI Language Tutor | Cheradip' },
+    { segment: 'privacy', page: 'privacy', title: 'Privacy Policy — AI Language Tutor | Cheradip' },
+    { segment: 'refunds', page: 'refunds', title: 'Refund Policy — AI Language Tutor | Cheradip' },
+  ];
+  const out: Routes = [];
+  for (const p of pages) {
+    const data = { page: p.page, folder: 'ailt', title: p.title };
+    out.push({ path: `ailt/${p.segment}`, component: AiltPageComponent, data });
+    out.push({ path: `ailt/${p.segment}/`, component: AiltPageComponent, data });
+  }
+  return out;
+}
+
+/** Static pages under /aicodingagent/* (coding agent product, billing, legal). */
+function aicodingagentStaticPageRoutes(): Routes {
+  const pages: { segment: string; page: string; title: string }[] = [
+    { segment: 'pricing', page: 'pricing', title: 'Pricing — Cheradip AI Coding Agent' },
     { segment: 'paddle', page: 'paddle', title: 'Paddle Setup — Cheradip Admin' },
-    { segment: 'terms', page: 'terms', title: 'Terms of Service — Cheradip' },
-    { segment: 'privacy', page: 'privacy', title: 'Privacy Policy — Cheradip' },
-    { segment: 'refunds', page: 'refunds', title: 'Refund Policy — Cheradip' },
+    { segment: 'policy', page: 'policy', title: 'Policy & Terms — Cheradip AI Coding Agent' },
+    { segment: 'terms', page: 'policy', title: 'Terms of Service — Cheradip AI Coding Agent' },
+    { segment: 'privacy', page: 'privacy', title: 'Privacy Policy — Cheradip AI Coding Agent' },
+    { segment: 'refunds', page: 'refunds', title: 'Refund Policy — Cheradip AI Coding Agent' },
+    { segment: 'support', page: 'support', title: 'Support — Cheradip AI Coding Agent' },
     { segment: 'billing/success', page: 'billing-success', title: 'Payment complete — Cheradip' },
     { segment: 'billing/cancel', page: 'billing-cancel', title: 'Checkout cancelled — Cheradip' },
   ];
   const out: Routes = [];
   for (const p of pages) {
-    const data = { page: p.page, title: p.title };
-    out.push({ path: `ailt/${p.segment}`, component: AiltPageComponent, data });
-    out.push({ path: `ailt/${p.segment}/`, component: AiltPageComponent, data });
+    const data = { page: p.page, folder: 'aicodingagent', title: p.title };
+    out.push({ path: `aicodingagent/${p.segment}`, component: AiltPageComponent, data });
+    out.push({ path: `aicodingagent/${p.segment}/`, component: AiltPageComponent, data });
+  }
+  return out;
+}
+
+/** Old /ailt/* coding-agent URLs → /aicodingagent/* */
+function ailtLegacyRedirects(): Routes {
+  const map: { from: string; to: string }[] = [
+    { from: 'ailt/pricing', to: 'aicodingagent/pricing' },
+    { from: 'ailt/paddle', to: 'aicodingagent/paddle' },
+    { from: 'ailt/billing/success', to: 'aicodingagent/billing/success' },
+    { from: 'ailt/billing/cancel', to: 'aicodingagent/billing/cancel' },
+  ];
+  const out: Routes = [];
+  for (const m of map) {
+    out.push({ path: m.from, redirectTo: m.to, pathMatch: 'full' });
+    out.push({ path: `${m.from}/`, redirectTo: m.to, pathMatch: 'full' });
   }
   return out;
 }
@@ -90,18 +124,18 @@ const routes: Routes = [
   { path: '', component: IndexComponent, pathMatch: 'full' },
   { path: 'index', component: IndexComponent },
   { path: 'packages', component: PackagesComponent },
-  /**
-   * Cheradip extension billing/legal pages (static HTML in assets/ailt, iframed).
-   * Declared BEFORE the `ailt` manual route so the more specific paths always win.
-   */
+  ...aicodingagentStaticPageRoutes(),
+  { path: 'aicodingagent', component: AicodingagentHomeComponent, pathMatch: 'full' },
+  { path: 'aicodingagent/', component: AicodingagentHomeComponent, pathMatch: 'full' },
+  ...ailtLegacyRedirects(),
   ...ailtStaticPageRoutes(),
   /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
   { path: 'ailt', component: AiltManualComponent, pathMatch: 'full' },
   /** Cheradip VS Code AI Coding Assistant user manual. */
   { path: 'cheradip', component: CheradipManualComponent, pathMatch: 'full' },
   { path: 'cheradip/', component: CheradipManualComponent, pathMatch: 'full' },
-  { path: 'support', component: CheradipSupportComponent, pathMatch: 'full' },
-  { path: 'support/', component: CheradipSupportComponent, pathMatch: 'full' },
+  { path: 'support', redirectTo: 'aicodingagent/support', pathMatch: 'full' },
+  { path: 'support/', redirectTo: 'aicodingagent/support', pathMatch: 'full' },
   {path:'faqs', component: FaqsComponent},
   {path:'about_us', component: AboutComponent},
   {path:'live_chat', component: ChatComponent},
