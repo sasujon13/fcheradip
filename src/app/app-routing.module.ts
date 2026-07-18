@@ -71,6 +71,7 @@ function ailtStaticPageRoutes(): Routes {
     { segment: 'terms', page: 'terms', title: 'Terms of Service — AI Language Tutor | Cheradip' },
     { segment: 'privacy', page: 'privacy', title: 'Privacy Policy — AI Language Tutor | Cheradip' },
     { segment: 'refunds', page: 'refunds', title: 'Refund Policy — AI Language Tutor | Cheradip' },
+    { segment: 'delete-account', page: 'delete-account', title: 'Delete account — AI Language Tutor | Cheradip' },
   ];
   const out: Routes = [];
   for (const p of pages) {
