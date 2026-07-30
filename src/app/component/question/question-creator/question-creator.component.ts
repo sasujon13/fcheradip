@@ -102,9 +102,10 @@ export type QuestionCreatorContext = {
   subject_code?: string;
   /**
    * Exam variant from question_subjects (`sq`): 25 vs 30 drives per-question timing for header সময়/পূর্ণমান
-   * (standard MCQ 1 min + 1 mark each; জ্ঞানমূলক 2 min + 1 mark; অনুধাবনমূলক 5 min + 2 marks;
+   * (standard MCQ 1 min + 1 mark each;
    * CQ সময়/পূর্ণমান use answer quota — sq=25: up to 5 CQ (31 min + 10 marks each);
    * sq=30: 7 CQ (floor(7×21.43) min + 10 marks each), not every question printed on the sheet).
+   * জ্ঞানমূলক / অনুধাবনমূলক sit on the CQ sheet below সৃজনশীল (stem marks 1 / 2; ordered 1→2→3).
    */
   sq?: number;
   chapter?: string;
@@ -228,6 +229,111 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static mixedSubjectCompositeSuffixPresent(text: string): boolean {
     return QuestionCreatorComponent.HEADER_MIXED_SUBJECT_COMPOSITE_RE.test((text ?? '').trimEnd());
   }
+
+  /**
+   * Bare subject prefix from an aside subject row (strips dual composite, CQ `(…)`, MCQ `[…]`).
+   * Sheet/PDF still use {@link mixedUnifiedCreativeSubjectPreviewLine} / `mcqTitle`.
+   */
+  private plainSubjectTextForFocusAside(raw: string | undefined | null): string {
+    let t = (raw ?? '').trimEnd();
+    const composite = t.match(QuestionCreatorComponent.HEADER_MIXED_SUBJECT_COMPOSITE_RE);
+    if (composite) {
+      t = (composite[1] ?? '').trimEnd();
+    }
+    t = t.replace(/\s*\([^()]*\)\s*$/u, '').trimEnd();
+    t = t.replace(/\s*\[[^\[\]]*\]\s*$/u, '').trimEnd();
+    if (t.trim() === QuestionCreatorComponent.HEADER_MCQ_TITLE_LINE_BN) {
+      return (this.creatorSubjectLabel ?? '').trimEnd();
+    }
+    return t;
+  }
+
+  /**
+   * Aside subject when CQ|MCQ slider is on — editable kind suffix so users can override sheet labels:
+   * CQ → `Subject (সৃজনশীল)`; MCQ → `Subject[বহুনির্বাচনি অভীক্ষা]` (title stays a separate sheet line).
+   */
+  private focusAsideSubjectDisplayText(storedSubjectLine: string): string {
+    const plain =
+      this.plainSubjectTextForFocusAside(storedSubjectLine) ||
+      (this.creatorSubjectLabel ?? '').trimEnd();
+    if (this.previewKindFocus === 'creative') {
+      const cq =
+        (this.mixedCqSubtitleOverride ?? '').trim() ||
+        QuestionCreatorComponent.HEADER_MIXED_CQ_SUBTITLE_DEFAULT_BN;
+      return plain ? `${plain} ${cq}` : cq;
+    }
+    const mcq = this.mixedMcqSubtitleOverride ?? '';
+    return `${plain}[${mcq}]`;
+  }
+
+  /**
+   * Parse focus-slider subject aside edits into plain storage + session overrides.
+   * MCQ: trailing `[…]` is required (empty inner allowed); brackets themselves are restored if deleted.
+   */
+  private applyFocusAsideSubjectEdit(value: string): { plain: string; parsed: boolean } {
+    const raw = (value ?? '').trimEnd();
+    if (this.previewKindFocus === 'creative') {
+      const m = raw.match(/^([\s\S]*?)\s*(\([^()]*\))\s*$/u);
+      if (m) {
+        this.mixedCqSubtitleOverride =
+          (m[2] ?? '').trim() || QuestionCreatorComponent.HEADER_MIXED_CQ_SUBTITLE_DEFAULT_BN;
+        return { plain: (m[1] ?? '').trimEnd(), parsed: true };
+      }
+      return { plain: this.plainSubjectTextForFocusAside(raw), parsed: true };
+    }
+    const m = raw.match(/^([\s\S]*?)\s*\[([^\[\]]*)\]\s*$/u);
+    if (m) {
+      this.mixedMcqSubtitleOverride = m[2] ?? '';
+      return { plain: (m[1] ?? '').trimEnd(), parsed: true };
+    }
+    // Brackets removed — keep prior override (possibly empty) and plain prefix only.
+    return { plain: this.plainSubjectTextForFocusAside(raw), parsed: true };
+  }
+
+  /**
+   * Keep intentional `[]` pairs and `<br>` markers that exist on an aside line.
+   * Inner bracket text may be cleared; the brackets and `<br>` tags themselves are restored.
+   * A fully cleared line (`''`) is left empty so the row can be removed from the header.
+   */
+  private preserveAsideStructuralMarkers(prev: string, next: string): string {
+    let out = next ?? '';
+    if (!out.trim()) {
+      return out;
+    }
+    const prevStr = prev ?? '';
+
+    // Restore `<br>` if the previous line had any and the edit removed them all.
+    if (/<br\s*\/?>/i.test(prevStr) && !/<br\s*\/?>/i.test(out)) {
+      const parts = prevStr.split(/<br\s*\/?>/i);
+      if (parts.length >= 2) {
+        const left = parts[0] ?? '';
+        const rightJoined = parts.slice(1).join('');
+        if (left && out.startsWith(left)) {
+          out = `${left}<br>${out.slice(left.length)}`;
+        } else if (rightJoined && out.endsWith(rightJoined)) {
+          out = `${out.slice(0, out.length - rightJoined.length)}<br>${rightJoined}`;
+        } else {
+          const mid = Math.min(out.length, Math.max(0, left.length));
+          out = `${out.slice(0, mid)}<br>${out.slice(mid)}`;
+        }
+      }
+    }
+
+    const prevPairs = [...prevStr.matchAll(/\[([^\[\]]*)\]/g)];
+    const nextPairs = [...out.matchAll(/\[([^\[\]]*)\]/g)];
+    if (prevPairs.length > 0 && nextPairs.length < prevPairs.length) {
+      const keptInners = nextPairs.map((x) => x[1] ?? '');
+      while (keptInners.length < prevPairs.length) {
+        keptInners.push(prevPairs[keptInners.length]![1] ?? '');
+      }
+      const prefix = out
+        .replace(/\[[^\[\]]*\]/g, '')
+        .replace(/[\[\]]/g, '')
+        .trimEnd();
+      out = `${prefix}${keptInners.map((inner) => `[${inner}]`).join('')}`;
+    }
+    return out;
+  }
   /** Mixed sq দ্রষ্টব্য rows (textarea indices 7–8): default sidebar/preview font. */
   private static readonly HEADER_MIXED_SQ_NOTICE_FONT_DEFAULT_PX = 10;
   /** Creative-only: combined সময়+পূর্ণমান row (canonical `examSqMetaCombinedLineCreative`) — 14px, not 3rd-line 21px. */
@@ -344,21 +450,34 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       .replace(/\s+/g, ' ')
       .trim();
   }
-  pageSize = 'A4';
+  /**
+   * Common sheet controls are stored per CQ/MCQ so changing page size, margins, header LH,
+   * padding, column gap, sections, or dividers while the focus slider is on one kind does not
+   * overwrite the other. Public getters/setters expose the active kind for the aside UI.
+   */
+  pageSizeCreative = 'A4';
+  pageSizeMcq = 'A4';
   pageOrientation: PageOrientation = 'portrait';
   /** Board only: CQ sheet orientation (per-page based on kind). */
   cqPageOrientation: PageOrientation = 'landscape';
   /** MCQ sheet orientation (per-page based on kind). */
   mcqPageOrientation: PageOrientation = 'portrait';
-  /** Custom paper size in inches (portrait width × height before orientation swap). Defaults match A4. */
-  customPageWidthIn = QuestionCreatorComponent.a4WidthInDefault();
-  customPageHeightIn = QuestionCreatorComponent.a4HeightInDefault();
-  marginPreset: MarginPreset = 'narrow';
-  marginTop = 12.7;
-  marginRight = 12.7;
-  marginBottom = 12.7;
-  marginLeft = 12.7;
-  questionsPadding = QuestionCreatorComponent.QUESTIONS_PADDING_DEFAULT_PX;
+  customPageWidthInCreative = QuestionCreatorComponent.a4WidthInDefault();
+  customPageHeightInCreative = QuestionCreatorComponent.a4HeightInDefault();
+  customPageWidthInMcq = QuestionCreatorComponent.a4WidthInDefault();
+  customPageHeightInMcq = QuestionCreatorComponent.a4HeightInDefault();
+  marginPresetCreative: MarginPreset = 'narrow';
+  marginPresetMcq: MarginPreset = 'narrow';
+  marginTopCreative = 12.7;
+  marginRightCreative = 12.7;
+  marginBottomCreative = 12.7;
+  marginLeftCreative = 12.7;
+  marginTopMcq = 12.7;
+  marginRightMcq = 12.7;
+  marginBottomMcq = 12.7;
+  marginLeftMcq = 12.7;
+  questionsPaddingCreative = QuestionCreatorComponent.QUESTIONS_PADDING_DEFAULT_PX;
+  questionsPaddingMcq = QuestionCreatorComponent.QUESTIONS_PADDING_DEFAULT_PX;
   /** Vertical gap below MCQ / non-creative preview blocks (margin-bottom). */
   questionsGap = QuestionCreatorComponent.QUESTIONS_GAP_MCQ_DEFAULT_PX;
   /** Vertical gap below CQ (সৃজনশীল) preview blocks. */
@@ -495,11 +614,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Multi-column layout for sheets that use the সৃজনশীল (creative) header block: 1–10. */
   layoutColumnsCreative = 2;
 
-  /** Gap between columns in px (stepper or number input). */
-  layoutColumnGapPx = 12;
+  /** Gap between columns in px (stepper or number input) — per kind. */
+  layoutColumnGapPxCreative = 12;
+  layoutColumnGapPxMcq = 12;
 
-  /** Show vertical rule between columns in preview. */
-  showColumnDivider = false;
+  /** Show vertical rule between columns in preview — per kind. */
+  showColumnDividerCreative = false;
+  showColumnDividerMcq = false;
 
   /** MCQ option rows: grid columns (1–5), stepper in sidebar. */
   optionsColumns = 2;
@@ -517,8 +638,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Next layout pass only remeasures option grids — do not re-run sheet auto-fit (Working Download pipeline). */
   private optionsLayoutRelayoutPending = false;
 
-  /** Unitless line-height for sheet header preview lines (PDF header uses separate pipeline). */
-  previewHeaderLineHeight = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
+  /** Unitless line-height for sheet header preview lines — per kind. */
+  previewHeaderLineHeightCreative = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
+  previewHeaderLineHeightMcq = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
 
   /** Unitless line-height for question stem, subparts, and MCQ options in preview. */
   previewQuestionsLineHeight = QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT;
@@ -526,11 +648,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   previewQuestionsLineHeightCreative = QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT;
   previewQuestionsLineHeightMcq = QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT;
 
-  /** Horizontal page bands (1 = none; 2+ splits height like multiple rows). */
-  pageSections = 1;
+  /** Horizontal page bands (1 = none; 2+ splits height like multiple rows) — per kind. */
+  pageSectionsCreative = 1;
+  pageSectionsMcq = 1;
 
-  /** Gap between page sections in px (like column gap); used when pageSections > 1. */
-  sectionGapPx = 24;
+  /** Gap between page sections in px — per kind. */
+  sectionGapPxCreative = 24;
+  sectionGapPxMcq = 24;
 
   private static readonly LAYOUT_COLUMNS_MIN = 1;
   private static readonly LAYOUT_COLUMNS_MAX = 10;
@@ -789,8 +913,29 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Paginated live preview (recomputed from measured heights). */
   paginatedPages: PreviewPage[] = [];
-  /** Mixed types + one-page fit: render one merged header block. */
+  /**
+   * Mixed CQ+MCQ merged single-sheet header — permanently disabled.
+   * Preview switches via {@link previewKindFocus} instead of combining headers.
+   */
   mixedTypesSinglePageMergedHeader = false;
+  /**
+   * When both CQ and MCQ exist: which kind the live preview / type-specific settings show.
+   * Hidden when only one kind is present.
+   */
+  previewKindFocus: 'creative' | 'mcq' = 'creative';
+  /**
+   * Last export page plan per focus (indices relative to {@link allLayoutMeasureQuestions}).
+   * Lets split CQ/MCQ PDF export keep both layouts while the live preview shows one kind.
+   */
+  private lastFocusExportPagePlan: Partial<
+    Record<'creative' | 'mcq', Record<string, unknown>[]>
+  > = {};
+  /**
+   * While building split PDF header strings, force {@link headerVariantForPage} and skip aside
+   * focus filtering so CQ/MCQ headers match the visible sheets regardless of slider focus.
+   */
+  private exportHeaderVariantOverride: 'creative' | 'mcq' | null = null;
+  private exportHeaderBuildIgnoreFocusFilter = false;
   /** First page should reserve an empty leading column (content starts at column 2). */
   leadEmptyFirstPageActive = false;
   /** Last measured header height used for page-fit calculations (CQ / page-0 rail). */
@@ -1164,27 +1309,56 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * Forced preview auto-fit only (no factory reset). Used internally after {@link resetCreatorSettings}.
+   * When both CQ and MCQ exist, fits each kind in turn (background for the non-focused kind) so
+   * save/export has both layouts; then restores the user's focus.
    */
   private async runForcedPreviewAutoFitOnly(): Promise<void> {
     try {
       this.clearManualOptionsColumnsOverride();
-      this.previewAutoFitForceOneLayoutChain = true;
-      this.applyHardAutoFitBaselineMinimumsSync();
-      this.maybeBootstrapAutoFitOverlayProgress();
-      this.onPreviewLayoutChange({ suppressAutoFit: false });
-      // After resetAutoFitBaselineCalibration (inside onPreviewLayoutChange): defer MCQ gap until option grids remeasure.
-      this.autoFitDeferMcqGapUntilOptionsSync = this.selectionHasMcqType();
-      this.autoFitMcqGapNeedsPostOptionsPass = false;
-      await this.waitForLayoutIdle(90_000);
+      this.commonLayoutProgrammaticWrite = true;
+      if (this.selectionHasBothHeaderTypes()) {
+        const restoreFocus = this.previewKindFocus;
+        const order: Array<'creative' | 'mcq'> =
+          restoreFocus === 'mcq' ? ['mcq', 'creative'] : ['creative', 'mcq'];
+        for (const kind of order) {
+          this.previewKindFocus = kind;
+          this.cdr.markForCheck();
+          await this.runForcedPreviewAutoFitPassForCurrentFocus();
+        }
+        this.previewKindFocus = restoreFocus;
+        this.cdr.markForCheck();
+        this.onPreviewLayoutChange({ suppressAutoFit: true });
+        await this.waitForLayoutIdle(90_000);
+        return;
+      }
+      await this.runForcedPreviewAutoFitPassForCurrentFocus();
+    } catch {
+      this.previewAutoFitForceOneLayoutChain = false;
+    } finally {
+      this.commonLayoutProgrammaticWrite = false;
+      this.clearCommonLayoutTouchedFlags();
+      this.previewAutoFitForceOneLayoutChain = false;
+    }
+  }
+
+  private async runForcedPreviewAutoFitPassForCurrentFocus(): Promise<void> {
+    this.previewAutoFitForceOneLayoutChain = true;
+    this.applyHardAutoFitBaselineMinimumsSync();
+    this.maybeBootstrapAutoFitOverlayProgress();
+    this.onPreviewLayoutChange({ suppressAutoFit: false });
+    this.autoFitDeferMcqGapUntilOptionsSync =
+      this.previewKindFocus === 'mcq' || this.selectionHasMcqType();
+    if (this.previewKindSliderVisible()) {
+      this.autoFitDeferMcqGapUntilOptionsSync = this.previewKindFocus === 'mcq';
+    }
+    this.autoFitMcqGapNeedsPostOptionsPass = false;
+    await this.waitForLayoutIdle(90_000);
+    if (!this.previewKindSliderVisible() || this.previewKindFocus === 'mcq') {
       await this.syncMcqOptionsLayoutAfterAutoFit();
       if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen) {
         this.invalidateMcqSetOrders();
         await this.runMcqSetOrderResolutionWhenIdle();
       }
-    } catch {
-      this.previewAutoFitForceOneLayoutChain = false;
-    } finally {
-      this.previewAutoFitForceOneLayoutChain = false;
     }
   }
 
@@ -1256,6 +1430,27 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Freeze pagination for export after aside/header edits: flush header model, wait for layout +
    * deferred MCQ option measure passes, then capture {@link buildLayoutSettingsForPersist}.
    */
+  /** Layout each CQ|MCQ focus once and cache both export page plans (indices on full measure list). */
+  private async cacheBothFocusExportPagePlans(): Promise<void> {
+    if (!this.previewKindSliderVisible() || this.pageSections > 1) {
+      return;
+    }
+    const restoreFocus = this.previewKindFocus;
+    const order: Array<'creative' | 'mcq'> =
+      restoreFocus === 'mcq' ? ['mcq', 'creative'] : ['creative', 'mcq'];
+    for (const kind of order) {
+      this.previewKindFocus = kind;
+      this.cdr.detectChanges();
+      this.scheduleLayout({ allowDuringExport: true });
+      await this.waitForLayoutIdle(90_000);
+      this.cacheFocusExportPagePlanFromPages(this.paginatedPages);
+    }
+    this.previewKindFocus = restoreFocus;
+    this.cdr.detectChanges();
+    this.scheduleLayout({ allowDuringExport: true });
+    await this.waitForLayoutIdle(90_000);
+  }
+
   private async prepareExportLayoutSnapshot(): Promise<void> {
     this.runHeaderTextareaSyncs();
     this.syncHeaderFontSizesToLineCount();
@@ -1266,8 +1461,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
     await this.waitForMeasureRailImagesBeforeExport();
     await this.syncMcqOptionsLayoutForExport();
-    this.scheduleLayout({ allowDuringExport: true });
-    await this.waitForLayoutIdle(90_000);
+    if (this.previewKindSliderVisible() && this.pageSections <= 1) {
+      await this.cacheBothFocusExportPagePlans();
+    } else {
+      this.scheduleLayout({ allowDuringExport: true });
+      await this.waitForLayoutIdle(90_000);
+    }
     this.flushPendingOptionsLayoutMeasureTimer();
     if (this.selectionHasMcqType() && !this.optionsColumnsManualOverride) {
       this.previewOptionsLayoutStale = true;
@@ -1275,6 +1474,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.optionsLayoutRelayoutPending = true;
         this.scheduleLayout({ allowDuringExport: true });
         await this.waitForLayoutIdle(90_000);
+        // MCQ option heights can change pagination — refresh both focus plans.
+        if (this.previewKindSliderVisible() && this.pageSections <= 1) {
+          await this.cacheBothFocusExportPagePlans();
+        }
       }
     }
   }
@@ -1446,9 +1649,21 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     opts?: { trustSavedHeader?: boolean; layoutOnly?: boolean }
   ): void {
     const qhParsed = parsed['questionHeader'];
-    const ps = parsed['pageSize'];
-    if (ps != null && typeof ps === 'string') {
-      this.pageSize = ps;
+    const applyPageSize = (v: string, kind?: 'creative' | 'mcq') => {
+      if (kind === 'mcq') this.pageSizeMcq = v;
+      else if (kind === 'creative') this.pageSizeCreative = v;
+      else {
+        this.pageSizeCreative = v;
+        this.pageSizeMcq = v;
+      }
+    };
+    const psC = parsed['pageSizeCreative'];
+    const psM = parsed['pageSizeMcq'];
+    if (typeof psC === 'string') applyPageSize(psC, 'creative');
+    if (typeof psM === 'string') applyPageSize(psM, 'mcq');
+    if (typeof psC !== 'string' && typeof psM !== 'string') {
+      const ps = parsed['pageSize'];
+      if (ps != null && typeof ps === 'string') applyPageSize(ps);
     }
     const po = parsed['pageOrientation'];
     if (po === 'landscape' || po === 'portrait') {
@@ -1462,40 +1677,130 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (mqo === 'landscape' || mqo === 'portrait') {
       this.mcqPageOrientation = mqo;
     }
-    const cw = parsed['customPageWidthIn'];
-    if (cw != null && typeof cw === 'number') {
-      this.customPageWidthIn = cw;
+    const readNumPair = (
+      key: string,
+      keyC: string,
+      keyM: string,
+      applyBoth: (n: number) => void,
+      applyC: (n: number) => void,
+      applyM: (n: number) => void
+    ) => {
+      const c = parsed[keyC];
+      const m = parsed[keyM];
+      const legacy = parsed[key];
+      if (typeof c === 'number') applyC(c);
+      if (typeof m === 'number') applyM(m);
+      if (typeof c !== 'number' && typeof m !== 'number' && typeof legacy === 'number') {
+        applyBoth(legacy);
+      }
+    };
+    readNumPair(
+      'customPageWidthIn',
+      'customPageWidthInCreative',
+      'customPageWidthInMcq',
+      (n) => {
+        this.customPageWidthInCreative = n;
+        this.customPageWidthInMcq = n;
+      },
+      (n) => (this.customPageWidthInCreative = n),
+      (n) => (this.customPageWidthInMcq = n)
+    );
+    readNumPair(
+      'customPageHeightIn',
+      'customPageHeightInCreative',
+      'customPageHeightInMcq',
+      (n) => {
+        this.customPageHeightInCreative = n;
+        this.customPageHeightInMcq = n;
+      },
+      (n) => (this.customPageHeightInCreative = n),
+      (n) => (this.customPageHeightInMcq = n)
+    );
+    const applyMarginPreset = (mp: MarginPreset, kind?: 'creative' | 'mcq') => {
+      if (kind === 'mcq') this.marginPresetMcq = mp;
+      else if (kind === 'creative') this.marginPresetCreative = mp;
+      else {
+        this.marginPresetCreative = mp;
+        this.marginPresetMcq = mp;
+      }
+    };
+    const mpC = parsed['marginPresetCreative'];
+    const mpM = parsed['marginPresetMcq'];
+    if (mpC === 'narrow' || mpC === 'standard' || mpC === 'wide' || mpC === 'custom') {
+      applyMarginPreset(mpC, 'creative');
     }
-    const ch = parsed['customPageHeightIn'];
-    if (ch != null && typeof ch === 'number') {
-      this.customPageHeightIn = ch;
+    if (mpM === 'narrow' || mpM === 'standard' || mpM === 'wide' || mpM === 'custom') {
+      applyMarginPreset(mpM, 'mcq');
     }
-    const mp = parsed['marginPreset'];
-    if (mp === 'narrow' || mp === 'standard' || mp === 'wide' || mp === 'custom') {
-      this.marginPreset = mp;
+    if (
+      (mpC !== 'narrow' && mpC !== 'standard' && mpC !== 'wide' && mpC !== 'custom') &&
+      (mpM !== 'narrow' && mpM !== 'standard' && mpM !== 'wide' && mpM !== 'custom')
+    ) {
+      const mp = parsed['marginPreset'];
+      if (mp === 'narrow' || mp === 'standard' || mp === 'wide' || mp === 'custom') {
+        applyMarginPreset(mp);
+      }
     }
-    const mt = parsed['marginTop'];
-    if (mt != null && typeof mt === 'number') this.marginTop = mt;
-    const mr = parsed['marginRight'];
-    if (mr != null && typeof mr === 'number') {
-      this.marginRight = mr;
-    }
-    const mb = parsed['marginBottom'];
-    if (mb != null && typeof mb === 'number') {
-      this.marginBottom = mb;
-    }
-    const ml = parsed['marginLeft'];
-    if (ml != null && typeof ml === 'number') {
-      this.marginLeft = ml;
-    }
+    readNumPair(
+      'marginTop',
+      'marginTopCreative',
+      'marginTopMcq',
+      (n) => {
+        this.marginTopCreative = n;
+        this.marginTopMcq = n;
+      },
+      (n) => (this.marginTopCreative = n),
+      (n) => (this.marginTopMcq = n)
+    );
+    readNumPair(
+      'marginRight',
+      'marginRightCreative',
+      'marginRightMcq',
+      (n) => {
+        this.marginRightCreative = n;
+        this.marginRightMcq = n;
+      },
+      (n) => (this.marginRightCreative = n),
+      (n) => (this.marginRightMcq = n)
+    );
+    readNumPair(
+      'marginBottom',
+      'marginBottomCreative',
+      'marginBottomMcq',
+      (n) => {
+        this.marginBottomCreative = n;
+        this.marginBottomMcq = n;
+      },
+      (n) => (this.marginBottomCreative = n),
+      (n) => (this.marginBottomMcq = n)
+    );
+    readNumPair(
+      'marginLeft',
+      'marginLeftCreative',
+      'marginLeftMcq',
+      (n) => {
+        this.marginLeftCreative = n;
+        this.marginLeftMcq = n;
+      },
+      (n) => (this.marginLeftCreative = n),
+      (n) => (this.marginLeftMcq = n)
+    );
+    const qpadC = parsed['questionsPaddingCreative'];
+    const qpadM = parsed['questionsPaddingMcq'];
     const qpad = parsed['questionsPadding'];
-    if (qpad != null) {
+    const clampPad = (p: number) =>
+      Math.max(
+        QuestionCreatorComponent.QUESTIONS_PADDING_MIN_PX,
+        Math.min(QuestionCreatorComponent.QUESTIONS_PADDING_MAX_PX, Math.round(p))
+      );
+    if (typeof qpadC === 'number') this.questionsPaddingCreative = clampPad(qpadC);
+    if (typeof qpadM === 'number') this.questionsPaddingMcq = clampPad(qpadM);
+    if (typeof qpadC !== 'number' && typeof qpadM !== 'number' && qpad != null) {
       const p = Math.round(Number(qpad));
       if (Number.isFinite(p)) {
-        this.questionsPadding = Math.max(
-          QuestionCreatorComponent.QUESTIONS_PADDING_MIN_PX,
-          Math.min(QuestionCreatorComponent.QUESTIONS_PADDING_MAX_PX, p)
-        );
+        const c = clampPad(p);
+        this.questionsPaddingCreative = c;
+        this.questionsPaddingMcq = c;
       }
     }
     const qgap = parsed['questionsGap'];
@@ -1569,15 +1874,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     } else {
       this.layoutColumnsCreative = this.layoutColumns;
     }
-    const lcg = parsed['layoutColumnGapPx'];
-    if (lcg != null && typeof lcg === 'number') {
-      this.layoutColumnGapPx = Math.max(
+    const clampGap = (g: number) =>
+      Math.max(
         QuestionCreatorComponent.LAYOUT_GAP_MIN_PX,
-        Math.min(QuestionCreatorComponent.LAYOUT_GAP_MAX_PX, Math.round(lcg))
+        Math.min(QuestionCreatorComponent.LAYOUT_GAP_MAX_PX, Math.round(g))
       );
+    const lcgC = parsed['layoutColumnGapPxCreative'];
+    const lcgM = parsed['layoutColumnGapPxMcq'];
+    const lcg = parsed['layoutColumnGapPx'];
+    if (typeof lcgC === 'number') this.layoutColumnGapPxCreative = clampGap(lcgC);
+    if (typeof lcgM === 'number') this.layoutColumnGapPxMcq = clampGap(lcgM);
+    if (typeof lcgC !== 'number' && typeof lcgM !== 'number' && typeof lcg === 'number') {
+      const g = clampGap(lcg);
+      this.layoutColumnGapPxCreative = g;
+      this.layoutColumnGapPxMcq = g;
     }
+    const scdC = parsed['showColumnDividerCreative'];
+    const scdM = parsed['showColumnDividerMcq'];
     const scd = parsed['showColumnDivider'];
-    if (scd != null) this.showColumnDivider = !!scd;
+    if (scdC != null) this.showColumnDividerCreative = !!scdC;
+    if (scdM != null) this.showColumnDividerMcq = !!scdM;
+    if (scdC == null && scdM == null && scd != null) {
+      this.showColumnDividerCreative = !!scd;
+      this.showColumnDividerMcq = !!scd;
+    }
     const oc = parsed['optionsColumns'];
     if (oc != null && typeof oc === 'number') {
       this.optionsColumns = Math.max(
@@ -1585,14 +1905,28 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         Math.min(QuestionCreatorComponent.OPTIONS_COLUMNS_MAX, Math.floor(oc))
       );
     }
+    const clampHdrLh = (n: number) =>
+      QuestionCreatorComponent.clampPreviewLineHeight(
+        n,
+        QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT
+      );
+    const phlhC = parsed['previewHeaderLineHeightCreative'];
+    const phlhM = parsed['previewHeaderLineHeightMcq'];
     const phlh = parsed['previewHeaderLineHeight'];
-    if (phlh != null) {
+    if (phlhC != null) {
+      const n = typeof phlhC === 'number' ? phlhC : Number(phlhC);
+      if (Number.isFinite(n)) this.previewHeaderLineHeightCreative = clampHdrLh(n);
+    }
+    if (phlhM != null) {
+      const n = typeof phlhM === 'number' ? phlhM : Number(phlhM);
+      if (Number.isFinite(n)) this.previewHeaderLineHeightMcq = clampHdrLh(n);
+    }
+    if (phlhC == null && phlhM == null && phlh != null) {
       const n = typeof phlh === 'number' ? phlh : Number(phlh);
       if (Number.isFinite(n)) {
-        this.previewHeaderLineHeight = QuestionCreatorComponent.clampPreviewLineHeight(
-          n,
-          QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT
-        );
+        const c = clampHdrLh(n);
+        this.previewHeaderLineHeightCreative = c;
+        this.previewHeaderLineHeightMcq = c;
       }
     }
     const pqlh = parsed['previewQuestionsLineHeight'];
@@ -1629,24 +1963,42 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     } else {
       this.previewQuestionsLineHeightMcq = this.previewQuestionsLineHeight;
     }
-    const psec = parsed['pageSections'];
-    if (psec != null && typeof psec === 'number') {
-      this.pageSections = Math.max(
+    const clampSec = (n: number) =>
+      Math.max(
         QuestionCreatorComponent.PAGE_SECTIONS_MIN,
-        Math.min(QuestionCreatorComponent.PAGE_SECTIONS_MAX, Math.floor(psec))
+        Math.min(QuestionCreatorComponent.PAGE_SECTIONS_MAX, Math.floor(n))
       );
+    const psecC = parsed['pageSectionsCreative'];
+    const psecM = parsed['pageSectionsMcq'];
+    const psec = parsed['pageSections'];
+    if (typeof psecC === 'number') this.pageSectionsCreative = clampSec(psecC);
+    if (typeof psecM === 'number') this.pageSectionsMcq = clampSec(psecM);
+    if (typeof psecC !== 'number' && typeof psecM !== 'number' && typeof psec === 'number') {
+      const s = clampSec(psec);
+      this.pageSectionsCreative = s;
+      this.pageSectionsMcq = s;
     }
-    const sg = parsed['sectionGapPx'];
-    if (sg != null && typeof sg === 'number') {
-      this.sectionGapPx = Math.max(
+    const clampSg = (n: number) =>
+      Math.max(
         QuestionCreatorComponent.LAYOUT_GAP_MIN_PX,
-        Math.min(QuestionCreatorComponent.LAYOUT_GAP_MAX_PX, Math.round(sg))
+        Math.min(QuestionCreatorComponent.LAYOUT_GAP_MAX_PX, Math.round(n))
       );
+    const sgC = parsed['sectionGapPxCreative'];
+    const sgM = parsed['sectionGapPxMcq'];
+    const sg = parsed['sectionGapPx'];
+    if (typeof sgC === 'number') this.sectionGapPxCreative = clampSg(sgC);
+    if (typeof sgM === 'number') this.sectionGapPxMcq = clampSg(sgM);
+    if (typeof sgC !== 'number' && typeof sgM !== 'number' && typeof sg === 'number') {
+      const s = clampSg(sg);
+      this.sectionGapPxCreative = s;
+      this.sectionGapPxMcq = s;
     }
 
-    const mix = parsed['mixedTypesSinglePageMergedHeader'];
-    if (mix === true || mix === false) {
-      this.mixedTypesSinglePageMergedHeader = mix;
+    // Combined headers removed — never restore a merged CQ+MCQ single-sheet header.
+    this.mixedTypesSinglePageMergedHeader = false;
+    const pk = parsed['previewKindFocus'];
+    if (pk === 'creative' || pk === 'mcq') {
+      this.previewKindFocus = pk;
     }
 
     this.mcqPageOrientation = 'portrait';
@@ -2615,13 +2967,72 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return !!t && t.includes('অনুধাবনমূলক');
   }
 
-  /** MCQ sheet / MCQ-family header totals (standard MCQ + জ্ঞানমূলক + অনুধাবনমূলক). */
+  /**
+   * Non-MCQ questions that sit on the CQ sheet below সৃজনশীল
+   * (জ্ঞানমূলক, অনুধাবনমূলক, and any other non-বহুনির্বাচনি type).
+   */
+  questionIsCqSheetCompanionType(q: { type?: unknown }): boolean {
+    return !this.questionIsCreativeType(q) && !this.questionIsMcqType(q);
+  }
+
+  /** Stem mark value for companion ordering / right-side marks (1 → 2 → 3). */
+  questionStemMarkValue(q: { type?: unknown; mark?: unknown; marks?: unknown }): number | null {
+    if (this.questionIsKnowledgeType(q)) {
+      return QuestionCreatorComponent.SQ_KNOWLEDGE_TYPE_MARK;
+    }
+    if (this.questionIsComprehensionType(q)) {
+      return QuestionCreatorComponent.SQ_COMPREHENSION_TYPE_MARK;
+    }
+    const t = this.normalizeQuestionType(q);
+    if (t.includes('প্রয়োগমূলক') || t.includes('উচ্চতর দক্ষতা')) {
+      return 3;
+    }
+    const raw = (q as { mark?: unknown; marks?: unknown; full_mark?: unknown; full_marks?: unknown })
+      ?.mark ??
+      (q as { marks?: unknown })?.marks ??
+      (q as { full_mark?: unknown })?.full_mark ??
+      (q as { full_marks?: unknown })?.full_marks;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) {
+      return Math.floor(n);
+    }
+    return null;
+  }
+
+  /** CQ sheet rows: সৃজনশীল + non-MCQ companions (not বহুনির্বাচনি). */
+  questionUsesCreativeSheet(q: { type?: unknown }): boolean {
+    return this.questionIsCreativeType(q) || this.questionIsCqSheetCompanionType(q);
+  }
+
+  /**
+   * Legacy name: stem-mark types that used to ride with MCQ.
+   * Prefer {@link questionIsCqSheetCompanionType} for sheet placement; MCQ sheet is pure বহুনির্বাচনি.
+   */
   questionIsMcqFamilyType(q: { type?: unknown }): boolean {
     return (
       this.questionIsMcqType(q) ||
       this.questionIsKnowledgeType(q) ||
       this.questionIsComprehensionType(q)
     );
+  }
+
+  /**
+   * Sheet / export order: সৃজনশীল, then non-MCQ by marks (1 → 2 → 3), then বহুনির্বাচনি.
+   */
+  private orderQuestionsCreativeThenCompanionsThenMcq(base: any[]): any[] {
+    const creative = base.filter((q) => this.questionIsCreativeType(q));
+    const companions = base
+      .filter((q) => this.questionIsCqSheetCompanionType(q))
+      .map((q, i) => ({ q, i }))
+      .sort((a, b) => {
+        const ma = this.questionStemMarkValue(a.q) ?? 999;
+        const mb = this.questionStemMarkValue(b.q) ?? 999;
+        if (ma !== mb) return ma - mb;
+        return a.i - b.i;
+      })
+      .map((x) => x.q);
+    const mcq = base.filter((q) => this.questionIsMcqType(q));
+    return [...creative, ...companions, ...mcq];
   }
 
   selectionHasCreativeType(): boolean {
@@ -2636,9 +3047,394 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.selectionHasCreativeType() && this.selectionHasMcqType();
   }
 
+  /** CQ|MCQ preview slider — only when the draft contains both kinds. */
+  previewKindSliderVisible(): boolean {
+    return this.selectionHasBothHeaderTypes();
+  }
+
+  /**
+   * Which kind's common sheet controls (page size, margins, padding, …) the aside UI edits.
+   * Single-kind drafts always use that kind's store.
+   */
+  private commonLayoutKind(): 'creative' | 'mcq' {
+    if (this.previewKindSliderVisible()) {
+      return this.previewKindFocus;
+    }
+    if (this.selectionHasMcqType() && !this.selectionHasCreativeType()) {
+      return 'mcq';
+    }
+    return 'creative';
+  }
+
+  /**
+   * User has manually edited common sheet controls for this kind (since last reset/autofit/reload).
+   * Untouched kinds inherit from the touched sibling when sliding, so autofit defaults do not
+   * flash back until reload / Reset / forced autofit.
+   */
+  private commonLayoutTouchedCreative = false;
+  private commonLayoutTouchedMcq = false;
+  /** Skip touch/propagate while applying factory defaults, autofit, or focus-switch copies. */
+  private commonLayoutProgrammaticWrite = false;
+  /** Ignore ngModel setter echoes while the CQ|MCQ focus slider is switching. */
+  private previewKindFocusSwitching = false;
+
+  private clearCommonLayoutTouchedFlags(): void {
+    this.commonLayoutTouchedCreative = false;
+    this.commonLayoutTouchedMcq = false;
+  }
+
+  private copyCommonLayoutBetweenKinds(from: 'creative' | 'mcq', to: 'creative' | 'mcq'): void {
+    if (from === to) return;
+    this.commonLayoutProgrammaticWrite = true;
+    try {
+      if (to === 'mcq') {
+        this.pageSizeMcq = this.pageSizeCreative;
+        this.customPageWidthInMcq = this.customPageWidthInCreative;
+        this.customPageHeightInMcq = this.customPageHeightInCreative;
+        this.marginPresetMcq = this.marginPresetCreative;
+        this.marginTopMcq = this.marginTopCreative;
+        this.marginRightMcq = this.marginRightCreative;
+        this.marginBottomMcq = this.marginBottomCreative;
+        this.marginLeftMcq = this.marginLeftCreative;
+        this.questionsPaddingMcq = this.questionsPaddingCreative;
+        this.layoutColumnGapPxMcq = this.layoutColumnGapPxCreative;
+        this.showColumnDividerMcq = this.showColumnDividerCreative;
+        this.previewHeaderLineHeightMcq = this.previewHeaderLineHeightCreative;
+        this.pageSectionsMcq = this.pageSectionsCreative;
+        this.sectionGapPxMcq = this.sectionGapPxCreative;
+      } else {
+        this.pageSizeCreative = this.pageSizeMcq;
+        this.customPageWidthInCreative = this.customPageWidthInMcq;
+        this.customPageHeightInCreative = this.customPageHeightInMcq;
+        this.marginPresetCreative = this.marginPresetMcq;
+        this.marginTopCreative = this.marginTopMcq;
+        this.marginRightCreative = this.marginRightMcq;
+        this.marginBottomCreative = this.marginBottomMcq;
+        this.marginLeftCreative = this.marginLeftMcq;
+        this.questionsPaddingCreative = this.questionsPaddingMcq;
+        this.layoutColumnGapPxCreative = this.layoutColumnGapPxMcq;
+        this.showColumnDividerCreative = this.showColumnDividerMcq;
+        this.previewHeaderLineHeightCreative = this.previewHeaderLineHeightMcq;
+        this.pageSectionsCreative = this.pageSectionsMcq;
+        this.sectionGapPxCreative = this.sectionGapPxMcq;
+      }
+    } finally {
+      this.commonLayoutProgrammaticWrite = false;
+    }
+  }
+
+  /**
+   * Write a common-layout field for the active kind. On real user edits, also mirror into the
+   * other kind while it remains untouched (so sliding does not show stale autofit defaults).
+   */
+  private writeCommonLayoutValue<T>(
+    apply: (kind: 'creative' | 'mcq', value: T) => void,
+    value: T,
+    current: T
+  ): void {
+    if (this.previewKindFocusSwitching) {
+      return;
+    }
+    if (Object.is(current, value)) {
+      return;
+    }
+    const kind = this.commonLayoutKind();
+    apply(kind, value);
+    if (this.commonLayoutProgrammaticWrite) {
+      return;
+    }
+    if (kind === 'mcq') {
+      this.commonLayoutTouchedMcq = true;
+      if (!this.commonLayoutTouchedCreative) {
+        apply('creative', value);
+      }
+    } else {
+      this.commonLayoutTouchedCreative = true;
+      if (!this.commonLayoutTouchedMcq) {
+        apply('mcq', value);
+      }
+    }
+  }
+
+  get pageSize(): string {
+    return this.commonLayoutKind() === 'mcq' ? this.pageSizeMcq : this.pageSizeCreative;
+  }
+  set pageSize(v: string) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.pageSizeMcq = val;
+        else this.pageSizeCreative = val;
+      },
+      v,
+      this.pageSize
+    );
+  }
+
+  get customPageWidthIn(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.customPageWidthInMcq : this.customPageWidthInCreative;
+  }
+  set customPageWidthIn(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.customPageWidthInMcq = val;
+        else this.customPageWidthInCreative = val;
+      },
+      v,
+      this.customPageWidthIn
+    );
+  }
+
+  get customPageHeightIn(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.customPageHeightInMcq : this.customPageHeightInCreative;
+  }
+  set customPageHeightIn(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.customPageHeightInMcq = val;
+        else this.customPageHeightInCreative = val;
+      },
+      v,
+      this.customPageHeightIn
+    );
+  }
+
+  get marginPreset(): MarginPreset {
+    return this.commonLayoutKind() === 'mcq' ? this.marginPresetMcq : this.marginPresetCreative;
+  }
+  set marginPreset(v: MarginPreset) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.marginPresetMcq = val;
+        else this.marginPresetCreative = val;
+      },
+      v,
+      this.marginPreset
+    );
+  }
+
+  get marginTop(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.marginTopMcq : this.marginTopCreative;
+  }
+  set marginTop(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.marginTopMcq = val;
+        else this.marginTopCreative = val;
+      },
+      v,
+      this.marginTop
+    );
+  }
+
+  get marginRight(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.marginRightMcq : this.marginRightCreative;
+  }
+  set marginRight(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.marginRightMcq = val;
+        else this.marginRightCreative = val;
+      },
+      v,
+      this.marginRight
+    );
+  }
+
+  get marginBottom(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.marginBottomMcq : this.marginBottomCreative;
+  }
+  set marginBottom(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.marginBottomMcq = val;
+        else this.marginBottomCreative = val;
+      },
+      v,
+      this.marginBottom
+    );
+  }
+
+  get marginLeft(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.marginLeftMcq : this.marginLeftCreative;
+  }
+  set marginLeft(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.marginLeftMcq = val;
+        else this.marginLeftCreative = val;
+      },
+      v,
+      this.marginLeft
+    );
+  }
+
+  get questionsPadding(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.questionsPaddingMcq : this.questionsPaddingCreative;
+  }
+  set questionsPadding(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.questionsPaddingMcq = val;
+        else this.questionsPaddingCreative = val;
+      },
+      v,
+      this.questionsPadding
+    );
+  }
+
+  get layoutColumnGapPx(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.layoutColumnGapPxMcq : this.layoutColumnGapPxCreative;
+  }
+  set layoutColumnGapPx(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.layoutColumnGapPxMcq = val;
+        else this.layoutColumnGapPxCreative = val;
+      },
+      v,
+      this.layoutColumnGapPx
+    );
+  }
+
+  get showColumnDivider(): boolean {
+    return this.commonLayoutKind() === 'mcq' ? this.showColumnDividerMcq : this.showColumnDividerCreative;
+  }
+  set showColumnDivider(v: boolean) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.showColumnDividerMcq = val;
+        else this.showColumnDividerCreative = val;
+      },
+      v,
+      this.showColumnDivider
+    );
+  }
+
+  get previewHeaderLineHeight(): number {
+    return this.commonLayoutKind() === 'mcq'
+      ? this.previewHeaderLineHeightMcq
+      : this.previewHeaderLineHeightCreative;
+  }
+  set previewHeaderLineHeight(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.previewHeaderLineHeightMcq = val;
+        else this.previewHeaderLineHeightCreative = val;
+      },
+      v,
+      this.previewHeaderLineHeight
+    );
+  }
+
+  get pageSections(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.pageSectionsMcq : this.pageSectionsCreative;
+  }
+  set pageSections(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.pageSectionsMcq = val;
+        else this.pageSectionsCreative = val;
+      },
+      v,
+      this.pageSections
+    );
+  }
+
+  get sectionGapPx(): number {
+    return this.commonLayoutKind() === 'mcq' ? this.sectionGapPxMcq : this.sectionGapPxCreative;
+  }
+  set sectionGapPx(v: number) {
+    this.writeCommonLayoutValue(
+      (k, val) => {
+        if (k === 'mcq') this.sectionGapPxMcq = val;
+        else this.sectionGapPxCreative = val;
+      },
+      v,
+      this.sectionGapPx
+    );
+  }
+
+  private marginTopForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.marginTopMcq : this.marginTopCreative;
+  }
+  private marginRightForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.marginRightMcq : this.marginRightCreative;
+  }
+  private marginBottomForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.marginBottomMcq : this.marginBottomCreative;
+  }
+  private marginLeftForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.marginLeftMcq : this.marginLeftCreative;
+  }
+  private layoutColumnGapPxForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.layoutColumnGapPxMcq : this.layoutColumnGapPxCreative;
+  }
+  private pageSectionsForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.pageSectionsMcq : this.pageSectionsCreative;
+  }
+  private sectionGapPxForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.sectionGapPxMcq : this.sectionGapPxCreative;
+  }
+  private questionsPaddingForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.questionsPaddingMcq : this.questionsPaddingCreative;
+  }
+  private previewHeaderLineHeightForKind(kind: 'creative' | 'mcq'): number {
+    return kind === 'mcq' ? this.previewHeaderLineHeightMcq : this.previewHeaderLineHeightCreative;
+  }
+  private showColumnDividerForKind(kind: 'creative' | 'mcq'): boolean {
+    return kind === 'mcq' ? this.showColumnDividerMcq : this.showColumnDividerCreative;
+  }
+
+  /** Seed both kind stores from one legacy flat value (older saves). */
+  private seedCommonLayoutBothKinds(apply: (kind: 'creative' | 'mcq') => void): void {
+    apply('creative');
+    apply('mcq');
+  }
+
+  /** Settings / Set letter: show MCQ-specific controls. */
+  previewShowsMcqSettings(): boolean {
+    return this.selectionHasMcqType() && (!this.previewKindSliderVisible() || this.previewKindFocus === 'mcq');
+  }
+
+  /** Settings: show CQ-specific controls. */
+  previewShowsCreativeSettings(): boolean {
+    return this.selectionHasCreativeType() && (!this.previewKindSliderVisible() || this.previewKindFocus === 'creative');
+  }
+
+  setPreviewKindFocus(kind: 'creative' | 'mcq'): void {
+    if (this.previewKindFocus === kind) {
+      return;
+    }
+    const from = this.previewKindFocus;
+    // If the destination kind was never manually edited, carry over the source kind's
+    // common controls so autofit defaults do not reappear after a user edit.
+    if (
+      from === 'creative' &&
+      kind === 'mcq' &&
+      this.commonLayoutTouchedCreative &&
+      !this.commonLayoutTouchedMcq
+    ) {
+      this.copyCommonLayoutBetweenKinds('creative', 'mcq');
+    } else if (
+      from === 'mcq' &&
+      kind === 'creative' &&
+      this.commonLayoutTouchedMcq &&
+      !this.commonLayoutTouchedCreative
+    ) {
+      this.copyCommonLayoutBetweenKinds('mcq', 'creative');
+    }
+    this.previewKindFocusSwitching = true;
+    this.previewKindFocus = kind;
+    this.cdr.detectChanges();
+    this.previewKindFocusSwitching = false;
+    // Relayout only — never re-run autofit / factory defaults on a slider click.
+    this.onPreviewLayoutChange({ suppressAutoFit: true });
+  }
+
   /**
    * Structured CQ + MCQ: one shared textarea (7+ rows; plain বিষয় কোড row at index 6; sq দ্রষ্টব্য rows at 7–8 when eligible).
-   * True even when the preview merges CQ+MCQ onto one header block ({@link mixedTypesSinglePageMergedHeader}) — slicing and font slots must stay aligned with MCQ / CQ previews.
+   * Preview no longer merges both kinds onto one sheet ({@link mixedTypesSinglePageMergedHeader} stays false);
+   * storage still uses this unified line model so switching {@link previewKindFocus} keeps both meta lines.
    */
   mixedUnifiedHeaderTextareaLayoutActive(): boolean {
     return (
@@ -3221,7 +4017,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (t === p || t === w) {
       return true;
     }
-    return /\(সৃজনশীল\)\s*$/.test(t);
+    if (/\(সৃজনশীল\)\s*$/.test(t)) {
+      return true;
+    }
+    if (QuestionCreatorComponent.mixedSubjectCompositeSuffixPresent(t)) {
+      return true;
+    }
+    const stripped = this.plainSubjectTextForFocusAside(t);
+    return !!p && stripped === p;
   }
 
   /**
@@ -3722,10 +4525,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * (must match pagination `creativeCount`, not canonical question count).
    */
   previewCreativeBlockQuestionCount(): number {
-    if (!this.selectionHasCreativeType()) {
+    if (!this.selectionHasCreativeType() && !this.questions.some((q) => this.questionIsCqSheetCompanionType(q))) {
       return 0;
     }
-    return this.layoutMeasureQuestions.filter((q) => this.questionIsCreativeType(q)).length;
+    // CQ header covers সৃজনশীল + non-MCQ companions (same sheet block before বহুনির্বাচনি).
+    return this.layoutMeasureQuestions.filter((q) => this.questionUsesCreativeSheet(q)).length;
   }
 
   /** First sheet that contains any সৃজনশীল layout row (CQ header). */
@@ -3760,22 +4564,28 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return pageList.length > 1 ? 1 : 0;
   }
 
-  /** Sheet preview / pagination: canonical order until a set is chosen; then shuffled or frozen saved order. */
-  get canonicalPreviewQuestions(): any[] {
+  /** Full CQ→companions→MCQ order (no focus filter) — export / split layouts / set shuffle. */
+  get allCanonicalPreviewQuestions(): any[] {
     const base =
       !this.selectionHasMcqType() || this.selectedMcqSetLetter == null
         ? this.questions
         : this.buildQuestionsOrderedForMcqSet(this.selectedMcqSetLetter);
-    if (!this.selectionHasBothHeaderTypes()) {
-      return base;
+    return this.orderQuestionsCreativeThenCompanionsThenMcq(base);
+  }
+
+  /**
+   * Sheet preview / pagination: when both CQ and MCQ exist, only the {@link previewKindFocus} kind
+   * is shown (slider). Export still uses {@link allCanonicalPreviewQuestions}.
+   */
+  get canonicalPreviewQuestions(): any[] {
+    const ordered = this.allCanonicalPreviewQuestions;
+    if (!this.previewKindSliderVisible()) {
+      return ordered;
     }
-    const creative = base.filter((q) => this.questionIsCreativeType(q));
-    const mcq = base.filter((q) => this.questionIsMcqFamilyType(q));
-    const others = base.filter(
-      (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqFamilyType(q)
-    );
-    // Mixed mode order: সৃজনশীল first, then বহুনির্বাচনি.
-    return [...creative, ...mcq, ...others];
+    if (this.previewKindFocus === 'creative') {
+      return ordered.filter((q) => this.questionUsesCreativeSheet(q));
+    }
+    return ordered.filter((q) => this.questionIsMcqType(q));
   }
 
   get previewQuestions(): any[] {
@@ -3785,6 +4595,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Measure rail + pagination: one block per stem/part/option (and answer tails on answers sheet). */
   get layoutMeasureQuestions(): any[] {
     return buildPreviewLayoutMeasureRows(this.canonicalPreviewQuestions, this.layoutSegmentSplitOpts());
+  }
+
+  /** Unfiltered measure rows for split CQ/MCQ export when the preview is focus-filtered. */
+  private allLayoutMeasureQuestions(): any[] {
+    return buildPreviewLayoutMeasureRows(this.allCanonicalPreviewQuestions, this.layoutSegmentSplitOpts());
   }
 
   private layoutSegmentSplitOpts() {
@@ -3898,19 +4713,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return null;
   }
 
-  /** Right-aligned stem marks for জ্ঞানমূলক (১) and অনুধাবনমূলক (২) — same placement as CQ subparts. */
-  mcqFamilyQuestionMarkBn(q: { type?: unknown }): string | null {
-    if (this.questionIsKnowledgeType(q)) {
-      return QuestionCreatorComponent.toBengaliDigits(
-        String(QuestionCreatorComponent.SQ_KNOWLEDGE_TYPE_MARK)
-      );
+  /** Right-aligned stem marks for জ্ঞানমূলক (১), অনুধাবনমূলক (২), 3-mark types — same placement as CQ subparts. */
+  mcqFamilyQuestionMarkBn(q: { type?: unknown; mark?: unknown; marks?: unknown }): string | null {
+    const n = this.questionStemMarkValue(q);
+    if (n == null || this.questionIsMcqType(q) || this.questionIsCreativeType(q)) {
+      return null;
     }
-    if (this.questionIsComprehensionType(q)) {
-      return QuestionCreatorComponent.toBengaliDigits(
-        String(QuestionCreatorComponent.SQ_COMPREHENSION_TYPE_MARK)
-      );
-    }
-    return null;
+    return QuestionCreatorComponent.toBengaliDigits(String(n));
   }
 
   /** Preview serial with Bengali digits (e.g. ১, ১০) for stem prefix. */
@@ -3965,18 +4774,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.previewQuestions.filter((q) => this.questionIsCreativeType(q));
   }
 
-  /** Sidebar list: MCQ rows in preview order (SL ১… separate from CQ). */
+  /** Sidebar list: pure বহুনির্বাচনি (SL ১… separate from CQ). */
   get creatorSidebarMcqQuestions(): any[] {
-    return this.previewQuestions.filter(
-      (q) => !this.questionIsCreativeType(q) && this.questionIsMcqFamilyType(q)
-    );
+    return this.previewQuestions.filter((q) => this.questionIsMcqType(q));
   }
 
-  /** Neither CQ nor MCQ-family (rare); SL matches global position in preview order. */
+  /**
+   * Non-MCQ companions (জ্ঞানমূলক / অনুধাবনমূলক / …) — shown with CQ on the sheet, below সৃজনশীল,
+   * ordered 1→2→3 marks.
+   */
   get creatorSidebarOtherQuestions(): any[] {
-    return this.previewQuestions.filter(
-      (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqFamilyType(q)
-    );
+    return this.previewQuestions.filter((q) => this.questionIsCqSheetCompanionType(q));
   }
 
   navigateToAddMoreQuestions(): void {
@@ -4028,10 +4836,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const preview = this.previewQuestions.slice();
     moveItemInArray(preview, fromG, toG);
     const qids = preview.map((q) => q.qid);
-    this.questions = this.reorderQuestionsFromQidList(qids);
+    // Enforce CQ → 1/2/3-mark companions → MCQ after any sidebar drag.
+    this.questions = this.orderQuestionsCreativeThenCompanionsThenMcq(
+      this.reorderQuestionsFromQidList(qids)
+    );
     if (this.selectionHasMcqType() && this.selectedMcqSetLetter != null) {
       const L = this.selectedMcqSetLetter;
-      this.persistedMcqOrderBySet = { ...this.persistedMcqOrderBySet, [L]: qids };
+      this.persistedMcqOrderBySet = {
+        ...this.persistedMcqOrderBySet,
+        [L]: this.questions.map((q) => q.qid).filter((id) => id != null) as (string | number)[],
+      };
       this.mcqOrdersFrozen = true;
     }
     this.scheduleLayout();
@@ -4239,31 +5053,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.mcqOrdersFrozen || this.mcqSetOrdersResolved;
   }
 
-  /** Canonical question order (no set shuffle) — mixed mode keeps CQ before MCQ. */
+  /** Canonical question order (no set shuffle) — CQ, then non-MCQ by marks, then MCQ. */
   private buildCanonicalQuestionsForSetShuffleTarget(): any[] {
-    const base = this.questions.slice();
-    if (!this.selectionHasBothHeaderTypes()) {
-      return base;
-    }
-    const creative = base.filter((q) => this.questionIsCreativeType(q));
-    const mcq = base.filter((q) => this.questionIsMcqFamilyType(q));
-    const others = base.filter(
-      (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqFamilyType(q)
-    );
-    return [...creative, ...mcq, ...others];
+    return this.orderQuestionsCreativeThenCompanionsThenMcq(this.questions.slice());
   }
 
-  /** Replace MCQ slots with `shuffledMcqs` while preserving CQ / other positions. */
+  /** Replace MCQ slots with `shuffledMcqs` while preserving CQ / companion positions. */
   private buildFullQuestionListWithMcqPermutation(shuffledMcqs: any[]): any[] {
     let mi = 0;
     const mixed = this.questions.map((q) => (this.questionIsMcqType(q) ? shuffledMcqs[mi++]! : q));
-    if (!this.selectionHasBothHeaderTypes()) {
-      return mixed;
-    }
-    const creative = mixed.filter((q) => this.questionIsCreativeType(q));
-    const mcq = mixed.filter((q) => this.questionIsMcqType(q));
-    const others = mixed.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q));
-    return [...creative, ...mcq, ...others];
+    return this.orderQuestionsCreativeThenCompanionsThenMcq(mixed);
   }
 
   private mcqPermutationKeyFromQuestions(mcqList: any[]): string {
@@ -4276,15 +5075,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!ctx || this.layoutSegmentHeightByQid.size === 0) {
       return [];
     }
-    let ordered = fullQuestions;
-    if (this.selectionHasBothHeaderTypes()) {
-      const creative = fullQuestions.filter((q) => this.questionIsCreativeType(q));
-      const mcq = fullQuestions.filter((q) => this.questionIsMcqType(q));
-      const others = fullQuestions.filter(
-        (q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q)
-      );
-      ordered = [...creative, ...mcq, ...others];
-    }
+    let ordered = this.orderQuestionsCreativeThenCompanionsThenMcq(fullQuestions);
     const segments = buildPreviewLayoutMeasureRows(ordered, this.layoutSegmentSplitOpts());
     if (!segments.length) {
       return [];
@@ -4558,13 +5349,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const shuffled = this.shuffleArrayDeterministic(mcqInOrder, seed);
     let mi = 0;
     const mixed = this.questions.map((q) => (this.questionIsMcqType(q) ? shuffled[mi++]! : q));
-    if (!this.selectionHasBothHeaderTypes()) {
-      return mixed;
-    }
-    const creative = mixed.filter((q) => this.questionIsCreativeType(q));
-    const mcq = mixed.filter((q) => this.questionIsMcqType(q));
-    const others = mixed.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q));
-    return [...creative, ...mcq, ...others];
+    return this.orderQuestionsCreativeThenCompanionsThenMcq(mixed);
   }
 
   /**
@@ -4580,6 +5365,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const pi = pageIndex == null || !Number.isFinite(Number(pageIndex)) ? 0 : Number(pageIndex);
     const pageList = pages ?? this.paginatedPages;
     if (!this.paperSubjectMetaLinesEligible()) return 'mcq';
+    if (this.exportHeaderVariantOverride) {
+      return this.exportHeaderVariantOverride;
+    }
+    // CQ|MCQ slider: each focus is a single-kind sheet (no combined header).
+    if (this.previewKindSliderVisible()) {
+      return this.previewKindFocus;
+    }
     if (this.selectionHasBothHeaderTypes() && this.mixedTypesSinglePageMergedHeader) {
       return 'creative';
     }
@@ -4607,6 +5399,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!(this.questionHeader || '').trim()) return false;
     if (this.headerUseLegacyQuestionHeader) return pageIndex === 0;
     if (!this.paperSubjectMetaLinesEligible()) return pageIndex === 0;
+    if (this.previewKindSliderVisible()) {
+      return pageIndex === 0;
+    }
     const pageList = pages ?? this.paginatedPages;
     if (this.selectionHasBothHeaderTypes()) {
       if (this.mixedTypesSinglePageMergedHeader || pageList.length <= 1) {
@@ -4638,6 +5433,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   measureCreativeHeaderRailVisible(): boolean {
     if (!(this.questionHeader || '').trim()) return false;
     if (!this.paperSubjectMetaLinesEligible()) return true;
+    // Focus slider: single-kind preview — always measure the focused header via the primary rail.
+    if (this.previewKindSliderVisible()) return true;
     if (!this.selectionHasBothHeaderTypes()) return true;
     if (this.mixedTypesSinglePageMergedHeader || this.paginatedPages.length <= 1) return true;
     return this.paperHeaderVisibleForSheetPage(this.firstCreativeHeaderSheetPageIndex());
@@ -4947,12 +5744,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return null;
   }
 
-  /** Counts MCQ-family and CQ (সৃজনশীল) in the active creator list for sq header math. */
+  /** Counts pure MCQ and CQ (সৃজনশীল) in the active creator list for sq header math. */
   private sqMcqCreativeQuestionCounts(): { mcq: number; cq: number } {
     let mcq = 0;
     let cq = 0;
     for (const q of this.questions ?? []) {
-      if (this.questionIsMcqFamilyType(q)) {
+      if (this.questionIsMcqType(q)) {
         mcq++;
       } else if (this.questionIsCreativeType(q)) {
         cq++;
@@ -4962,8 +5759,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * sq 25/30 MCQ-family header totals: standard MCQ 1m/1 mark;
-   * জ্ঞানমূলক 2m/1 mark; অনুধাবনমূলক 5m/2 marks per question.
+   * sq 25/30 MCQ header totals: standard বহুনির্বাচনি 1m/1 mark each.
+   * জ্ঞানমূলক / অনুধাবনমূলক sit on the CQ sheet (stem marks only; not in MCQ header totals).
    */
   private sqMcqExamMetaTotals(): { minutes: number; marks: number } {
     let minutes = 0;
@@ -4972,12 +5769,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (this.questionIsMcqType(q)) {
         minutes += 1;
         marks += 1;
-      } else if (this.questionIsKnowledgeType(q)) {
-        minutes += QuestionCreatorComponent.SQ_KNOWLEDGE_TYPE_MINUTES;
-        marks += QuestionCreatorComponent.SQ_KNOWLEDGE_TYPE_MARK;
-      } else if (this.questionIsComprehensionType(q)) {
-        minutes += QuestionCreatorComponent.SQ_COMPREHENSION_TYPE_MINUTES;
-        marks += QuestionCreatorComponent.SQ_COMPREHENSION_TYPE_MARK;
       }
     }
     return { minutes, marks };
@@ -5430,15 +6221,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (v && !v.toLowerCase().includes('<hr')) out.push(L[5] ?? '');
       }
       if (this.mixedSqNoticeLinesEligible()) {
+        // CQ sheet: only creative দ্রষ্টব্য (physical index 7). Never include MCQ notice (index 8).
         if (L.length > 7) {
-          out.push(L[7] ?? '');
+          const cqNotice = (L[7] ?? '').trim();
+          if (cqNotice) out.push(L[7] ?? '');
         }
-        return out;
+        return this.filterSqNoticeLinesForPreviewFocus(out);
       }
       for (let i = 7; i < L.length; i++) {
         out.push(L[i] ?? '');
       }
-      return out;
+      return this.filterSqNoticeLinesForPreviewFocus(out);
     }
     /**
      * CQ-only: index 4 = HR beside grid; index 5 = plain বিষয় কোড (digits already in
@@ -5458,6 +6251,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return L
       .slice(4)
       .filter((s) => !/বিষ[য়য]\s*কোড/.test(String(s ?? '').trim()));
+  }
+
+  /** Drop the other kind's দ্রষ্টব্য when the CQ|MCQ focus slider is active (preview only). */
+  private filterSqNoticeLinesForPreviewFocus(lines: string[]): string[] {
+    if (this.exportHeaderBuildIgnoreFocusFilter || !this.previewKindSliderVisible()) {
+      return lines;
+    }
+    const cre = this.normalizeSqMetaWhitespace(this.mixedSqNoticeCreativeLineBn());
+    const mcq = this.normalizeSqMetaWhitespace(this.mixedSqNoticeMcqLineBn());
+    return lines.filter((ln) => {
+      const t = this.normalizeSqMetaWhitespace(ln);
+      if (!t) return false;
+      if (this.previewKindFocus === 'creative') {
+        return !(mcq && t === mcq);
+      }
+      return !(cre && t === cre);
+    });
   }
 
   /**
@@ -5690,10 +6500,36 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private creativeQuestionsForSplitExport(): any[] {
-    return [
-      ...this.questions.filter((q) => this.questionIsCreativeType(q)),
-      ...this.questions.filter((q) => !this.questionIsCreativeType(q) && !this.questionIsMcqType(q)),
-    ];
+    return this.orderQuestionsCreativeThenCompanionsThenMcq(this.questions.slice()).filter((q) =>
+      this.questionUsesCreativeSheet(q)
+    );
+  }
+
+  private projectCommonLayoutOntoExport(
+    layout: Record<string, unknown>,
+    kind: 'creative' | 'mcq'
+  ): Record<string, unknown> {
+    const isMcq = kind === 'mcq';
+    return {
+      ...layout,
+      pageSize: isMcq ? this.pageSizeMcq : this.pageSizeCreative,
+      customPageWidthIn: isMcq ? this.customPageWidthInMcq : this.customPageWidthInCreative,
+      customPageHeightIn: isMcq ? this.customPageHeightInMcq : this.customPageHeightInCreative,
+      marginPreset: isMcq ? this.marginPresetMcq : this.marginPresetCreative,
+      marginTop: isMcq ? this.marginTopMcq : this.marginTopCreative,
+      marginRight: isMcq ? this.marginRightMcq : this.marginRightCreative,
+      marginBottom: isMcq ? this.marginBottomMcq : this.marginBottomCreative,
+      marginLeft: isMcq ? this.marginLeftMcq : this.marginLeftCreative,
+      questionsPadding: isMcq ? this.questionsPaddingMcq : this.questionsPaddingCreative,
+      layoutColumnGapPx: isMcq ? this.layoutColumnGapPxMcq : this.layoutColumnGapPxCreative,
+      showColumnDivider: isMcq ? this.showColumnDividerMcq : this.showColumnDividerCreative,
+      previewHeaderLineHeight: isMcq
+        ? this.previewHeaderLineHeightMcq
+        : this.previewHeaderLineHeightCreative,
+      pageSections: isMcq ? this.pageSectionsMcq : this.pageSectionsCreative,
+      sectionGapPx: isMcq ? this.sectionGapPxMcq : this.sectionGapPxCreative,
+      pageOrientation: isMcq ? this.mcqPageOrientation : this.cqPageOrientation,
+    };
   }
 
   private buildKindFilteredExportLayout(
@@ -5703,12 +6539,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   ): Record<string, unknown> {
     const filtered = filterExportLayoutForKind(sourceLayout, fullSegmentRows, kind);
     const filteredRows = fullSegmentRows.filter((seg) =>
-      kind === 'creative' ? this.questionIsCreativeType(seg) : this.questionIsMcqType(seg)
+      kind === 'creative' ? this.questionUsesCreativeSheet(seg) : this.questionIsMcqType(seg)
     );
-    return {
-      ...filtered,
-      previewSerialByIndex: this.buildPreviewSerialByIndexForMeasureRows(filteredRows),
-    };
+    return this.projectCommonLayoutOntoExport(
+      {
+        ...filtered,
+        previewSerialByIndex: this.buildPreviewSerialByIndexForMeasureRows(filteredRows),
+      },
+      kind
+    );
   }
 
   private buildSaveExportTargets(
@@ -5751,13 +6590,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           canonicalQuestions:
             setLetter != null
               ? this.reorderQuestionsFromQidList(this.persistedMcqOrderBySet[setLetter])
-              : this.canonicalPreviewQuestions,
+              : this.allCanonicalPreviewQuestions,
         })),
         splitPersist: {},
       };
     }
 
-    const fullSegmentRows = this.layoutMeasureQuestions.slice();
+    const fullSegmentRows = this.allLayoutMeasureQuestions().slice();
     const exportCreativeLayout = this.buildKindFilteredExportLayout(
       layoutSettingsForCreate,
       fullSegmentRows,
@@ -6184,19 +7023,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     /**
      * Mixed CQ+MCQ aside row 3 only: append two editable trailing brackets so users can
      * override the otherwise-hidden CQ subtitle and MCQ band title from the same input.
-     * Row 3's `modelIndex` and every other row's text/modelIndex stay exactly as the
-     * unmodified `out` had them — only the displayed string for visible Row 3 changes.
-     * Bracket parsing on edit lives in {@link onHeaderEditorLineChange}.
-     *
-     * Legacy MCQ-only-style saves leave the literal `বহুনির্বাচনি অভীক্ষা` in `lines[2]`
-     * because the older 6→7 migration kept it there instead of the subject. For those
-     * saves we substitute the displayed prefix with the canonical subject from
-     * `creatorSubjectLabel` so the user sees `Subject[(সৃজনশীল)][বহুনির্বাচনি অভীক্ষা]`
-     * instead of the placeholder — storage is untouched until the user actually edits
-     * the row, at which point {@link onHeaderEditorLineChange} writes the typed bare
-     * prefix back to `lines[2]`.
+     * Skipped when the CQ|MCQ focus slider is active — each focus shows a single-kind subject line.
      */
-    if (this.mixedUnifiedHeaderTextareaLayoutActive() && out.length >= 3) {
+    if (
+      this.mixedUnifiedHeaderTextareaLayoutActive() &&
+      !this.previewKindSliderVisible() &&
+      out.length >= 3
+    ) {
       const r = out[2]!;
       let subjectText = r.text;
       if (subjectText.trim() === QuestionCreatorComponent.HEADER_MCQ_TITLE_LINE_BN) {
@@ -6211,6 +7044,56 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           text: `${subjectText}[${this.mixedCqSubtitleOverride}][${this.mixedMcqSubtitleOverride}]`,
         };
       }
+    }
+    // Focus slider: hide the other kind's সময়/পূর্ণমান and দ্রষ্টব্য rows in the aside.
+    // modelIndex is filtered-editor index (HR rows removed) — map from physical preview indices.
+    if (this.previewKindSliderVisible()) {
+      const hide = new Set<number>();
+      if (this.previewKindFocus === 'creative') {
+        const mcqMetaFi = this.filteredEditorIndexForPreviewLineIndex(3);
+        const mcqNoticeFi = this.filteredEditorIndexForPreviewLineIndex(8);
+        if (mcqMetaFi >= 0) hide.add(mcqMetaFi);
+        if (mcqNoticeFi >= 0) hide.add(mcqNoticeFi);
+      } else {
+        const cqMetaFi = this.filteredEditorIndexForPreviewLineIndex(4);
+        const cqNoticeFi = this.filteredEditorIndexForPreviewLineIndex(7);
+        if (cqMetaFi >= 0) hide.add(cqMetaFi);
+        if (cqNoticeFi >= 0) hide.add(cqNoticeFi);
+      }
+      const creNotice = this.normalizeSqMetaWhitespace(this.mixedSqNoticeCreativeLineBn());
+      const mcqNotice = this.normalizeSqMetaWhitespace(this.mixedSqNoticeMcqLineBn());
+      const creMeta = this.normalizeSqMetaWhitespace(this.examSqMetaCombinedLineCreative());
+      const mcqMeta = this.normalizeSqMetaWhitespace(this.examSqMetaCombinedLineMcq());
+      const subjectFi = this.filteredEditorIndexForPreviewLineIndex(2);
+      const filtered = out.filter((r) => {
+        if (hide.has(r.modelIndex)) return false;
+        const t = this.normalizeSqMetaWhitespace(r.text);
+        if (!t) return true;
+        if (this.previewKindFocus === 'creative') {
+          if (mcqNotice && t === mcqNotice) return false;
+          if (mcqMeta && t === mcqMeta) return false;
+        } else {
+          if (creNotice && t === creNotice) return false;
+          if (creMeta && t === creMeta) return false;
+        }
+        return true;
+      });
+      // Subject row: CQ → Subject (সৃজনশীল); MCQ → Subject[বহুনির্বাচনি অভীক্ষা] (editable overrides).
+      // Keep the row even when storage is blank so the kind suffix stays editable.
+      if (subjectFi >= 0) {
+        const display = this.focusAsideSubjectDisplayText(
+          out.find((r) => r.modelIndex === subjectFi)?.text ?? all[subjectFi] ?? ''
+        );
+        const existing = filtered.findIndex((r) => r.modelIndex === subjectFi);
+        if (existing >= 0) {
+          filtered[existing] = { modelIndex: subjectFi, text: display };
+        } else if (display.trim()) {
+          let insertAt = filtered.findIndex((r) => r.modelIndex > subjectFi);
+          if (insertAt < 0) insertAt = filtered.length;
+          filtered.splice(insertAt, 0, { modelIndex: subjectFi, text: display });
+        }
+      }
+      return filtered;
     }
     return out;
   }
@@ -6358,34 +7241,75 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   onHeaderEditorLineChange(index: number, value: string): void {
     /**
-     * Mixed CQ+MCQ aside row 3 carries two trailing `[...]` brackets that override the
-     * otherwise-hidden CQ subtitle and MCQ band title. Strip those brackets here and
-     * route them into the session-scoped override fields, so only the bare subject text
-     * is committed to the model — every other row's storage path stays unchanged.
-     * `compositeParsed` blocks the default empty-line splice below (otherwise a user who
-     * types only brackets would have row 3 removed from storage, shifting every row 4+).
+     * Mixed CQ+MCQ subject row carries trailing kind markers that override sheet labels:
+     * - No slider: `Subject[CQ][MCQ]` dual brackets
+     * - CQ focus: `Subject (সৃজনশীল)` → {@link mixedCqSubtitleOverride}
+     * - MCQ focus: `Subject[বহুনির্বাচনি অভীক্ষা]` → {@link mixedMcqSubtitleOverride}
+     * Only the bare subject is committed to storage. `kindParsed` blocks empty-line removal when
+     * the user clears subject text but leaves structural markers.
      */
-    let compositeParsed = false;
-    if (this.mixedUnifiedHeaderTextareaLayoutActive()) {
-      const rows = this.getHeaderEditorSidebarRows();
-      const row3 = rows[2];
-      if (row3 && row3.modelIndex === index) {
-        const m = value.match(QuestionCreatorComponent.HEADER_MIXED_SUBJECT_COMPOSITE_RE);
+    let kindParsed = false;
+    const subjectFi = this.filteredEditorIndexForPreviewLineIndex(2);
+    const editingSubject =
+      this.mixedUnifiedHeaderTextareaLayoutActive() && subjectFi >= 0 && index === subjectFi;
+    const prevStored = this.getHeaderEditorLinesRaw()[index] ?? '';
+    let working = value ?? '';
+
+    // Protect `[]` / `<br>` that already exist on this aside row (inner text may be cleared).
+    if (editingSubject && this.previewKindSliderVisible()) {
+      working = this.preserveAsideStructuralMarkers(
+        this.focusAsideSubjectDisplayText(prevStored),
+        working
+      );
+    } else if (editingSubject && !this.previewKindSliderVisible()) {
+      const plain = this.plainSubjectTextForFocusAside(prevStored);
+      working = this.preserveAsideStructuralMarkers(
+        `${plain}[${this.mixedCqSubtitleOverride}][${this.mixedMcqSubtitleOverride}]`,
+        working
+      );
+    } else {
+      working = this.preserveAsideStructuralMarkers(prevStored, working);
+    }
+
+    if (editingSubject) {
+      if (this.previewKindSliderVisible()) {
+        const applied = this.applyFocusAsideSubjectEdit(working);
+        working = applied.plain;
+        kindParsed = applied.parsed;
+      } else {
+        const m = working.match(QuestionCreatorComponent.HEADER_MIXED_SUBJECT_COMPOSITE_RE);
         if (m) {
           this.mixedCqSubtitleOverride =
             (m[2] ?? '').trim() ||
             QuestionCreatorComponent.HEADER_MIXED_CQ_SUBTITLE_DEFAULT_BN;
           this.mixedMcqSubtitleOverride =
             (m[3] ?? '').trim() || QuestionCreatorComponent.HEADER_MCQ_TITLE_LINE_BN;
-          value = (m[1] ?? '').trimEnd();
-          compositeParsed = true;
+          working = (m[1] ?? '').trimEnd();
+          kindParsed = true;
         }
       }
     }
+
     const lines = [...this.getHeaderEditorLinesRaw()];
     while (lines.length <= index) lines.push('');
-    const normalized = QuestionCreatorComponent.normalizeHeaderLineRawForPreview(value);
-    if (!normalized.trim() && !compositeParsed) {
+    const normalized = QuestionCreatorComponent.normalizeHeaderLineRawForPreview(working);
+    if (!normalized.trim() && !kindParsed) {
+      // Structured headers: clear in place so modelIndex / physical slots stay stable when
+      // sync or the user restores content (splice would shift later rows into wrong slots).
+      if (
+        this.mixedUnifiedHeaderTextareaLayoutActive() ||
+        this.paperSubjectMetaLinesEligible()
+      ) {
+        lines[index] = '';
+        this.headerManualEditSinceRebuild = true;
+        this.commitHeaderEditorLines(lines);
+        this.onPreviewLayoutChange();
+        queueMicrotask(() => {
+          this.cdr.detectChanges();
+          this.focusHeaderEditorInput(Math.max(0, index - 1));
+        });
+        return;
+      }
       if (lines.length > 1) {
         lines.splice(index, 1);
         if (index < this.headerLineFontSizes.length) {
@@ -6424,6 +7348,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (lines[index] !== '') return;
       if (lines.length <= 1) return;
       event.preventDefault();
+      // Structured: empty slot already cleared in place — just move focus (do not splice).
+      if (
+        this.mixedUnifiedHeaderTextareaLayoutActive() ||
+        this.paperSubjectMetaLinesEligible()
+      ) {
+        this.focusAdjacentHeaderEditorSidebar(index, -1);
+        return;
+      }
       const next = [...lines];
       next.splice(index, 1);
       if (index < this.headerLineFontSizes.length) {
@@ -6703,18 +7635,21 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.mcqSetOrdersResolved = false;
     this.persistedMcqOrderBySet = {};
     this.questionHeaderByMcqSet = {};
-    this.pageSize = 'A4';
+    this.pageSizeCreative = 'A4';
+    this.pageSizeMcq = 'A4';
     this.pageOrientation = 'portrait';
     this.cqPageOrientation = 'landscape';
     this.mcqPageOrientation = 'portrait';
-    this.customPageWidthIn = QuestionCreatorComponent.a4WidthInDefault();
-    this.customPageHeightIn = QuestionCreatorComponent.a4HeightInDefault();
-    this.marginPreset = 'narrow';
-    this.marginTop = 12.7;
-    this.marginRight = 12.7;
-    this.marginBottom = 12.7;
-    this.marginLeft = 12.7;
-    this.questionsPadding = QuestionCreatorComponent.QUESTIONS_PADDING_DEFAULT_PX;
+    this.customPageWidthInCreative = QuestionCreatorComponent.a4WidthInDefault();
+    this.customPageHeightInCreative = QuestionCreatorComponent.a4HeightInDefault();
+    this.customPageWidthInMcq = QuestionCreatorComponent.a4WidthInDefault();
+    this.customPageHeightInMcq = QuestionCreatorComponent.a4HeightInDefault();
+    this.marginPresetCreative = 'narrow';
+    this.marginPresetMcq = 'narrow';
+    this.marginTopCreative = this.marginRightCreative = this.marginBottomCreative = this.marginLeftCreative = 12.7;
+    this.marginTopMcq = this.marginRightMcq = this.marginBottomMcq = this.marginLeftMcq = 12.7;
+    this.questionsPaddingCreative = QuestionCreatorComponent.QUESTIONS_PADDING_DEFAULT_PX;
+    this.questionsPaddingMcq = QuestionCreatorComponent.QUESTIONS_PADDING_DEFAULT_PX;
     this.questionsGap = QuestionCreatorComponent.QUESTIONS_GAP_MCQ_DEFAULT_PX;
     this.questionsGapCreative = QuestionCreatorComponent.QUESTIONS_GAP_CQ_DEFAULT_PX;
     this.previewQuestionsFontPx = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_DEFAULT_PX;
@@ -6722,18 +7657,24 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.previewQuestionsFontPxMcq = this.previewQuestionsFontPx;
     this.layoutColumns = 2;
     this.layoutColumnsCreative = 2;
-    this.layoutColumnGapPx = 12;
-    this.showColumnDivider = false;
+    this.layoutColumnGapPxCreative = 12;
+    this.layoutColumnGapPxMcq = 12;
+    this.showColumnDividerCreative = false;
+    this.showColumnDividerMcq = false;
     this.optionsColumns = 2;
     this.previewOptionsLayoutByQid = {};
     this.previewOptionsMeasureMode = false;
     this.clearManualOptionsColumnsOverride();
-    this.previewHeaderLineHeight = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
+    this.previewHeaderLineHeightCreative = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
+    this.previewHeaderLineHeightMcq = QuestionCreatorComponent.PREVIEW_HEADER_LINE_HEIGHT_DEFAULT;
     this.previewQuestionsLineHeight = QuestionCreatorComponent.PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT;
     this.previewQuestionsLineHeightCreative = this.previewQuestionsLineHeight;
     this.previewQuestionsLineHeightMcq = this.previewQuestionsLineHeight;
-    this.pageSections = 1;
-    this.sectionGapPx = 24;
+    this.pageSectionsCreative = 1;
+    this.pageSectionsMcq = 1;
+    this.sectionGapPxCreative = 24;
+    this.sectionGapPxMcq = 24;
+    this.clearCommonLayoutTouchedFlags();
     this.mixedTypesSinglePageMergedHeader = false;
     this.previewFitScale = 0.5;
     this.magnifierActive = false;
@@ -6986,20 +7927,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * {@link headerVariantForPage} only selects which header block is drawn; do not use it for sheet size.
    * CQ/MCQ sheets use {@link previewBottomMarginMmForKind} (MCQ uses {@link MCQ_SHEET_BOTTOM_MARGIN_MM}).
    */
-  private previewKindForSheetPage(pageIndex: number): 'creative' | 'mcq' {
-    const k = this.sheetPreviewKindKey(pageIndex);
+  private previewKindForSheetPage(pageIndex: number, pages?: PreviewPage[]): 'creative' | 'mcq' {
+    const k = this.sheetPreviewKindKey(pageIndex, pages);
     if (k === 'creative' || k === 'mcq') {
       return k;
     }
-    return this.headerVariantForPage(pageIndex);
+    return this.headerVariantForPage(pageIndex, pages);
   }
 
-  /** Preview/pagination bottom (mm): user marginBottom setting. */
-  private previewBottomMarginMmForKind(_kind: 'creative' | 'mcq'): number {
-    return Math.max(0, this.marginBottom);
+  /** Preview/pagination bottom (mm): that kind's marginBottom. */
+  private previewBottomMarginMmForKind(kind: 'creative' | 'mcq'): number {
+    return Math.max(0, this.marginBottomForKind(kind));
   }
 
-  /** Bottom margin (mm) sent on save/export: same value for all modes. */
+  /** Bottom margin (mm) sent on save/export: focused/legacy flat value for combined payloads. */
   private marginBottomMmForPersistAndExportPayload(): number {
     return this.marginBottom;
   }
@@ -7229,8 +8170,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.autoFitMcqFontDecreaseUsed = false;
     this.autoFitForcedGapBinaryKind = null;
     this.autoFitForcedGapBinaryAwaitProbe = false;
-    this.autoFitMixedKindPhase =
-      this.selectionHasMcqType() && this.selectionHasCreativeType() ? 'cq' : null;
+    this.autoFitMixedKindPhase = this.previewKindSliderVisible()
+      ? this.previewKindFocus === 'mcq'
+        ? 'mcq'
+        : 'cq'
+      : this.selectionHasMcqType() && this.selectionHasCreativeType()
+        ? 'cq'
+        : null;
     this.autoFitLayoutDeferrals = 0;
   }
 
@@ -7273,6 +8219,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** After CQ font + CQ gaps are settled, run MCQ-only auto-fit. */
   private maybeAdvanceAutoFitMixedKindPhase(candidatePages: PreviewPage[]): void {
+    // Focus slider: only fit the visible kind — do not advance into the hidden kind.
+    if (this.previewKindSliderVisible()) {
+      return;
+    }
     if (this.autoFitMixedKindPhase !== 'cq') {
       return;
     }
@@ -7307,11 +8257,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private isAtHardAutoFitBaselineMinimum(): boolean {
     const H = QuestionCreatorComponent;
     const minPx = H.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
-    if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) return false;
-    if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) return false;
-    if (this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) return false;
-    if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) return false;
-    if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) return false;
+    const focusOnly = this.previewKindSliderVisible();
+    const doCq = !focusOnly || this.previewKindFocus === 'creative';
+    const doMcq = !focusOnly || this.previewKindFocus === 'mcq';
+    if (doCq && this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) return false;
+    if (doMcq && this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) return false;
+    if (doCq && this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) return false;
+    if (doMcq && this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) return false;
+    if (doCq && this.questionsPaddingCreative > H.QUESTIONS_PADDING_MIN_PX) return false;
+    if (doMcq && this.questionsPaddingMcq > H.QUESTIONS_PADDING_MIN_PX) return false;
     return true;
   }
 
@@ -7324,12 +8278,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     const H = QuestionCreatorComponent;
     const minPx = H.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
+    const focusOnly = this.previewKindSliderVisible();
+    const doCq = !focusOnly || this.previewKindFocus === 'creative';
+    const doMcq = !focusOnly || this.previewKindFocus === 'mcq';
     let fontChanged = false;
-    if (this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) {
+    if (doCq && this.selectionHasCreativeType() && this.previewQuestionsFontPxCreative > minPx) {
       this.previewQuestionsFontPxCreative = minPx;
       fontChanged = true;
     }
-    if (this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) {
+    if (doMcq && this.selectionHasMcqType() && this.previewQuestionsFontPxMcq > minPx) {
       this.previewQuestionsFontPxMcq = minPx;
       fontChanged = true;
     }
@@ -7338,14 +8295,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         skipBumpHeaderTrackedLinesToQuestionBody: true,
       });
     }
-    if (this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) {
+    if (doCq && this.selectionHasCreativeType() && this.questionsGapCreative > H.QUESTIONS_GAP_MIN_PX) {
       this.questionsGapCreative = H.QUESTIONS_GAP_MIN_PX;
     }
-    if (this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) {
+    if (doMcq && this.selectionHasMcqType() && this.questionsGap > H.QUESTIONS_GAP_MIN_PX) {
       this.questionsGap = H.QUESTIONS_GAP_MIN_PX;
     }
-    if (this.questionsPadding > H.QUESTIONS_PADDING_MIN_PX) {
-      this.questionsPadding = H.QUESTIONS_PADDING_MIN_PX;
+    if (doCq && this.questionsPaddingCreative > H.QUESTIONS_PADDING_MIN_PX) {
+      this.questionsPaddingCreative = H.QUESTIONS_PADDING_MIN_PX;
+    }
+    if (doMcq && this.questionsPaddingMcq > H.QUESTIONS_PADDING_MIN_PX) {
+      this.questionsPaddingMcq = H.QUESTIONS_PADDING_MIN_PX;
     }
     return true;
   }
@@ -7956,6 +8916,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     this.paginatedPages = pages;
+    this.cacheFocusExportPagePlanFromPages(pages);
     this.updatePreviewFitScale();
   }
 
@@ -8334,6 +9295,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * (`paperHeaderVisibleForSheetPage(0)`), so MCQ sheets must not reuse that height for pagination / preview-questions.
    */
   measureMcqHeaderRailVisible(): boolean {
+    // Focus slider: only one kind is on-sheet — primary measure rail is enough.
+    if (this.previewKindSliderVisible()) {
+      return false;
+    }
     return (
       !!(this.questionHeader || '').trim() &&
       this.selectionHasBothHeaderTypes() &&
@@ -9155,7 +10120,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** CQ segment padding: one block pad top/bottom per merged PDF .q-item, not per segment. */
   private previewQuestionBlockPaddingPx(q: { type?: unknown }): { top: number; bottom: number } {
-    const p = this.questionsPadding;
+    const padKind: 'creative' | 'mcq' = this.questionIsCreativeType(q) ? 'creative' : 'mcq';
+    const p = this.questionsPaddingForKind(padKind);
     const row = q as {
       answerSheetContinuation?: boolean;
       answerSheetSegmentKind?: string;
@@ -9380,6 +10346,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.applyLeadEmptyTreatFirstColumnAsLast(candidatePages);
         // Show the current pagination immediately; auto-fit may still adjust typography and re-layout.
         this.paginatedPages = candidatePages;
+        this.cacheFocusExportPagePlanFromPages(candidatePages);
         this.updatePreviewFitScale();
         this.cdr.markForCheck();
         // --- Auto-fit: min font/gaps → snapshot required MCQ/CQ pages → grow fonts within that → widen gaps.
@@ -9667,38 +10634,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     headerMcqPx: number,
     questionList: any[]
   ): void {
-    if (!this.paperSubjectMetaLinesEligible() || !this.selectionHasBothHeaderTypes()) {
-      this.mixedTypesSinglePageMergedHeader = false;
-      return;
-    }
-
+    // Combined CQ+MCQ single-sheet header removed — preview uses {@link previewKindFocus} instead.
+    void heights;
+    void innerH;
+    void headerCreativePx;
+    void headerMcqPx;
+    void questionList;
     this.mixedTypesSinglePageMergedHeader = false;
-
-    const probeSplit = this.splitIntoPages(
-      heights,
-      innerH,
-      headerCreativePx,
-      headerMcqPx,
-      this.pageSections,
-      questionList
-    );
-
-    if (probeSplit.length <= 1) {
-      this.mixedTypesSinglePageMergedHeader = true;
-      const probeMerged = this.splitIntoPages(
-        heights,
-        innerH,
-        headerCreativePx,
-        headerMcqPx,
-        this.pageSections,
-        questionList
-      );
-      if (probeMerged.length > 1) {
-        this.mixedTypesSinglePageMergedHeader = false;
-      }
-    } else {
-      this.mixedTypesSinglePageMergedHeader = false;
-    }
   }
 
   /** One vertical canvas: multi-column column-major fill (no horizontal page bands). */
@@ -9889,26 +10831,33 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return pages;
   }
 
-  /** Paper dimensions in mm as defined for portrait (before orientation swap). */
+  /** Paper dimensions in mm as defined for portrait (before orientation swap) — active focus kind. */
   get paperSizeMmPortrait(): { w: number; h: number } {
-    if (this.pageSize === 'Custom') {
+    return this.paperSizeMmPortraitForKind(this.commonLayoutKind());
+  }
+
+  private paperSizeMmPortraitForKind(kind: 'creative' | 'mcq'): { w: number; h: number } {
+    const pageSize = kind === 'mcq' ? this.pageSizeMcq : this.pageSizeCreative;
+    const customW = kind === 'mcq' ? this.customPageWidthInMcq : this.customPageWidthInCreative;
+    const customH = kind === 'mcq' ? this.customPageHeightInMcq : this.customPageHeightInCreative;
+    if (pageSize === 'Custom') {
       const wi = Math.max(
         QuestionCreatorComponent.CUSTOM_PAGE_MIN_IN,
         Math.min(
           QuestionCreatorComponent.CUSTOM_PAGE_MAX_IN,
-          Number(this.customPageWidthIn) || QuestionCreatorComponent.a4WidthInDefault()
+          Number(customW) || QuestionCreatorComponent.a4WidthInDefault()
         )
       );
       const hi = Math.max(
         QuestionCreatorComponent.CUSTOM_PAGE_MIN_IN,
         Math.min(
           QuestionCreatorComponent.CUSTOM_PAGE_MAX_IN,
-          Number(this.customPageHeightIn) || QuestionCreatorComponent.a4HeightInDefault()
+          Number(customH) || QuestionCreatorComponent.a4HeightInDefault()
         )
       );
       return { w: wi * QuestionCreatorComponent.INCH_TO_MM, h: hi * QuestionCreatorComponent.INCH_TO_MM };
     }
-    return QuestionCreatorComponent.PAPER_MM[this.pageSize] ?? QuestionCreatorComponent.PAPER_MM['A4'];
+    return QuestionCreatorComponent.PAPER_MM[pageSize] ?? QuestionCreatorComponent.PAPER_MM['A4'];
   }
 
   /** Paper dimensions in mm after orientation (canvas size). */
@@ -9920,9 +10869,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return { w: p.w, h: p.h };
   }
 
-  /** Per-kind paper size (mm) based on CQ/MCQ orientation selectors. */
+  /** Per-kind paper size (mm) based on CQ/MCQ page size + orientation selectors. */
   private paperSizeMmForKind(kind: 'creative' | 'mcq'): { w: number; h: number } {
-    const p = this.paperSizeMmPortrait;
+    const p = this.paperSizeMmPortraitForKind(kind);
     const o = kind === 'creative' ? this.cqPageOrientation : this.mcqPageOrientation;
     if (o === 'landscape') {
       return { w: p.h, h: p.w };
@@ -9959,7 +10908,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private contentInnerWidthPxForKind(kind: 'creative' | 'mcq'): number {
     const paper = this.paperSizeMmForKind(kind);
-    return Math.max(0, (paper.w - this.marginLeft - this.marginRight) * QuestionCreatorComponent.MM_TO_PX);
+    return Math.max(
+      0,
+      (paper.w - this.marginLeftForKind(kind) - this.marginRightForKind(kind)) *
+        QuestionCreatorComponent.MM_TO_PX
+    );
   }
 
   private clampPreviewQuestionFontPx(v: number): number {
@@ -9996,7 +10949,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const bottom = this.previewBottomMarginMmForKind(kind);
     const h = Math.max(
       0,
-      (paper.h - this.marginTop - bottom) * QuestionCreatorComponent.MM_TO_PX
+      (paper.h - this.marginTopForKind(kind) - bottom) * QuestionCreatorComponent.MM_TO_PX
     );
     return Math.max(1, h);
   }
@@ -10014,11 +10967,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   marginTopPxForPage(pageIndex: number): number {
-    return this.marginTopPx;
+    const kind = this.previewKindForSheetPage(pageIndex);
+    return this.marginTopForKind(kind) * QuestionCreatorComponent.MM_TO_PX;
   }
 
   marginRightPxForPage(pageIndex: number): number {
-    return this.marginRightPx;
+    const kind = this.previewKindForSheetPage(pageIndex);
+    return this.marginRightForKind(kind) * QuestionCreatorComponent.MM_TO_PX;
   }
 
   marginBottomPxForPage(pageIndex: number): number {
@@ -10029,13 +10984,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   marginLeftPxForPage(pageIndex: number): number {
-    return this.marginLeftPx;
+    const kind = this.previewKindForSheetPage(pageIndex);
+    return this.marginLeftForKind(kind) * QuestionCreatorComponent.MM_TO_PX;
   }
 
   contentInnerWidthPxForPage(pageIndex: number): number {
     const kind = this.previewKindForSheetPage(pageIndex);
-    const paper = this.paperSizeMmForKind(kind);
-    return Math.max(0, (paper.w - this.marginLeft - this.marginRight) * QuestionCreatorComponent.MM_TO_PX);
+    return this.contentInnerWidthPxForKind(kind);
   }
 
   contentInnerHeightPxForPage(pageIndex: number): number {
@@ -10044,7 +10999,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const bottom = this.previewBottomMarginMmForKind(kind);
     return Math.max(
       0,
-      (paper.h - this.marginTop - bottom) * QuestionCreatorComponent.MM_TO_PX
+      (paper.h - this.marginTopForKind(kind) - bottom) * QuestionCreatorComponent.MM_TO_PX
     );
   }
 
@@ -10324,29 +11279,100 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * the textarea is rebuilt for the *current* selection instead. The Created-Questions save
    * path leaves it false so the saved set still re-renders identically.
    */
+  private buildExportPagePlanFromPages(pages: PreviewPage[]): Record<string, unknown>[] {
+    if (this.pageSections > 1) {
+      return [];
+    }
+    return pages.map((page, pi) => ({
+      kind: this.previewKindForSheetPage(pi, pages),
+      headerKind: this.headerVariantForPage(pi, pages),
+      leadEmpty: this.landscapeLeadEmptyFirstColumnForSheetPage(pi),
+      headerVisible: this.paperHeaderVisibleForSheetPage(pi, pages),
+      headerInFirstColumn: this.headerInFirstColumnLandscape(pi, pages),
+      questionColumnIndexes: (page.questionColumns ?? [page.items]).map((col) =>
+        col.map((it) => it.index)
+      ),
+      leadBindingIndexes: (page.leadBindingItems ?? []).map((it) => it.index),
+    }));
+  }
+
+  /**
+   * Cache the current focus's page plan with indices remapped onto {@link allLayoutMeasureQuestions}
+   * so split CQ/MCQ export still has both kinds after the slider filters the live preview.
+   */
+  private cacheFocusExportPagePlanFromPages(pages: PreviewPage[]): void {
+    if (!this.previewKindSliderVisible() || this.pageSections > 1) {
+      return;
+    }
+    const plan = this.buildExportPagePlanFromPages(pages).map((pg, i) => ({
+      ...pg,
+      // Focus preview is single-kind: page 0 always carries that kind's visible header.
+      headerVisible: i === 0 ? true : Boolean(pg['headerVisible']),
+      headerKind: this.previewKindFocus,
+      kind: this.previewKindFocus,
+    }));
+    if (this.previewKindFocus === 'creative') {
+      this.lastFocusExportPagePlan.creative = plan;
+      return;
+    }
+    // MCQ preview indices are 0-based within the MCQ-only rail; shift onto the full
+    // CQ+companions+MCQ measure list (companions sit on the CQ sheet before MCQ).
+    const offset = this.allLayoutMeasureQuestions().filter((q) =>
+      this.questionUsesCreativeSheet(q)
+    ).length;
+    if (offset <= 0) {
+      this.lastFocusExportPagePlan.mcq = plan;
+      return;
+    }
+    const shift = (idxs: unknown): number[] => {
+      if (!Array.isArray(idxs)) return [];
+      return idxs.map((x) => Number(x) + offset).filter((n) => Number.isFinite(n) && n >= 0);
+    };
+    this.lastFocusExportPagePlan.mcq = plan.map((pg) => {
+      const cols = Array.isArray(pg['questionColumnIndexes'])
+        ? (pg['questionColumnIndexes'] as unknown[]).map((col) => shift(col))
+        : [];
+      const lead = shift(pg['leadBindingIndexes']);
+      return {
+        ...pg,
+        questionColumnIndexes: cols,
+        ...(lead.length ? { leadBindingIndexes: lead } : {}),
+      };
+    });
+  }
+
   private buildLayoutSettingsForPersist(opts?: { stripHeaderState?: boolean }): Record<string, unknown> {
     const previewSerialByIndex: Record<string, number> = {};
-    const measureRows = this.layoutMeasureQuestions;
+    const measureRows = this.previewKindSliderVisible()
+      ? this.allLayoutMeasureQuestions()
+      : this.layoutMeasureQuestions;
+    const serialSource = this.previewKindSliderVisible()
+      ? this.allCanonicalPreviewQuestions
+      : this.canonicalPreviewQuestions;
     for (let i = 0; i < measureRows.length; i++) {
       const q = measureRows[i]!;
-      previewSerialByIndex[String(i)] = this.previewQuestionDisplaySerialOneBased(i, q);
+      const parentIdx = (q as { answerSheetParentIndex?: number })?.answerSheetParentIndex;
+      const listIndex =
+        parentIdx != null && parentIdx >= 0
+          ? parentIdx
+          : Math.max(
+              0,
+              serialSource.findIndex((cq) => cq?.qid != null && cq.qid === q?.qid)
+            );
+      previewSerialByIndex[String(i)] = this.previewQuestionDisplaySerialOneBased(
+        listIndex >= 0 ? listIndex : i,
+        q
+      );
     }
-    const exportPreviewPagePlan =
-      this.pageSections <= 1
-        ? this.paginatedPages.map((page, pi) => ({
-            // Sheet content kind (CQ vs MCQ): must match pagination/preview margins and column basis.
-            kind: this.previewKindForSheetPage(pi),
-            // Header block variant (creative vs MCQ styling): can differ from kind when meta lines are off, etc.
-            headerKind: this.headerVariantForPage(pi),
-            leadEmpty: this.landscapeLeadEmptyFirstColumnForSheetPage(pi),
-            headerVisible: this.paperHeaderVisibleForSheetPage(pi),
-            headerInFirstColumn: this.headerInFirstColumnLandscape(pi),
-            questionColumnIndexes: (page.questionColumns ?? [page.items]).map((col) =>
-              col.map((it) => it.index)
-            ),
-            leadBindingIndexes: (page.leadBindingItems ?? []).map((it) => it.index),
-          }))
-        : [];
+    this.cacheFocusExportPagePlanFromPages(this.paginatedPages);
+    let exportPreviewPagePlan =
+      this.pageSections <= 1 ? this.buildExportPagePlanFromPages(this.paginatedPages) : [];
+    if (this.previewKindSliderVisible() && this.pageSections <= 1) {
+      exportPreviewPagePlan = [
+        ...(this.lastFocusExportPagePlan.creative ?? []),
+        ...(this.lastFocusExportPagePlan.mcq ?? []),
+      ];
+    }
     const leadBindingItemIndexes =
       this.leadEmptyFirstPageActive && this.paginatedPages?.length
         ? (this.paginatedPages[0]?.leadBindingItems ?? [])
@@ -10355,17 +11381,35 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         : [];
     return {
       pageSize: this.pageSize,
+      pageSizeCreative: this.pageSizeCreative,
+      pageSizeMcq: this.pageSizeMcq,
       pageOrientation: this.pageOrientation,
       cqPageOrientation: this.cqPageOrientation,
       mcqPageOrientation: this.mcqPageOrientation,
       customPageWidthIn: this.customPageWidthIn,
       customPageHeightIn: this.customPageHeightIn,
+      customPageWidthInCreative: this.customPageWidthInCreative,
+      customPageHeightInCreative: this.customPageHeightInCreative,
+      customPageWidthInMcq: this.customPageWidthInMcq,
+      customPageHeightInMcq: this.customPageHeightInMcq,
       marginPreset: this.marginPreset,
+      marginPresetCreative: this.marginPresetCreative,
+      marginPresetMcq: this.marginPresetMcq,
       marginTop: this.marginTop,
       marginRight: this.marginRight,
       marginBottom: this.marginBottomMmForPersistAndExportPayload(),
       marginLeft: this.marginLeft,
+      marginTopCreative: this.marginTopCreative,
+      marginRightCreative: this.marginRightCreative,
+      marginBottomCreative: this.marginBottomCreative,
+      marginLeftCreative: this.marginLeftCreative,
+      marginTopMcq: this.marginTopMcq,
+      marginRightMcq: this.marginRightMcq,
+      marginBottomMcq: this.marginBottomMcq,
+      marginLeftMcq: this.marginLeftMcq,
       questionsPadding: this.questionsPadding,
+      questionsPaddingCreative: this.questionsPaddingCreative,
+      questionsPaddingMcq: this.questionsPaddingMcq,
       questionsGap: this.questionsGap,
       questionsGapCreative: this.questionsGapCreative,
       previewQuestionsFontPx: this.previewQuestionsFontPx,
@@ -10374,19 +11418,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       layoutColumns: this.layoutColumns,
       layoutColumnsCreative: this.layoutColumnsCreative,
       layoutColumnGapPx: this.layoutColumnGapPx,
+      layoutColumnGapPxCreative: this.layoutColumnGapPxCreative,
+      layoutColumnGapPxMcq: this.layoutColumnGapPxMcq,
       showColumnDivider: this.showColumnDivider,
+      showColumnDividerCreative: this.showColumnDividerCreative,
+      showColumnDividerMcq: this.showColumnDividerMcq,
       optionsColumns: this.optionsColumns,
       previewHeaderLineHeight: this.previewHeaderLineHeight,
+      previewHeaderLineHeightCreative: this.previewHeaderLineHeightCreative,
+      previewHeaderLineHeightMcq: this.previewHeaderLineHeightMcq,
       previewQuestionsLineHeight: this.previewQuestionsLineHeight,
       previewQuestionsLineHeightCreative: this.previewQuestionsLineHeightCreative,
       previewQuestionsLineHeightMcq: this.previewQuestionsLineHeightMcq,
       pageSections: this.pageSections,
+      pageSectionsCreative: this.pageSectionsCreative,
+      pageSectionsMcq: this.pageSectionsMcq,
       sectionGapPx: this.sectionGapPx,
+      sectionGapPxCreative: this.sectionGapPxCreative,
+      sectionGapPxMcq: this.sectionGapPxMcq,
       leadEmptyFirstPageActive: this.leadEmptyFirstPageActive,
       ...(leadBindingItemIndexes.length > 0 ? { leadBindingItemIndexes } : {}),
       previewSerialByIndex,
       ...(exportPreviewPagePlan.length > 0 ? { exportPreviewPagePlan } : {}),
-      mixedTypesSinglePageMergedHeader: this.mixedTypesSinglePageMergedHeader,
+      mixedTypesSinglePageMergedHeader: false,
+      previewKindFocus: this.previewKindFocus,
       headerEiin: this.headerEiin,
       headerInstitute: this.headerInstitute,
       headerExamTypeKey: this.headerExamTypeKey,
@@ -10405,7 +11460,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         ? { questionHeaderByMcqSet: { ...this.questionHeaderByMcqSet } }
         : {}),
       /** Same order as PDF export (`previewQuestions`); draft `questions` may differ. */
-      exportPreviewQuestionQids: this.layoutMeasureQuestions.map((q) => q.qid),
+      exportPreviewQuestionQids: this.allLayoutMeasureQuestions().map((q) => q.qid),
       previewOptionsLayoutByQid: { ...this.previewOptionsLayoutByQid },
       optionsColumnsManualOverride: this.optionsColumnsManualOverride,
     };
@@ -10980,59 +12035,85 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           const s = (raw ?? '').trim();
           return s.length ? s : fallback;
         };
-        if (kind === 'creative') {
-          const piCq = firstPageIndexForVariant('creative');
-          const topLines = this.creativeHeaderTopLinesPadded().flatMap((ln, i) => {
-            if (this.creativeShowSqSplitTopRow(i, ln)) {
-              return [this.creativeSqSplitLineFirst(ln), this.creativeSqSplitLineSecond(ln)];
-            }
-            return [ln ?? ''];
-          });
-          const band = this.creativeHeaderBandLeftLines();
-          // CQ-only: `mixedUnifiedCodeGridPlainLine()` (preview L[6]) is the দ্রষ্টব্য notice, not
-          // a বিষয় কোড line, so always use the canonical `paperHeaderLine4Plain` here.
-          const codeLine = this.mixedUnifiedHeaderTextareaLayoutActive()
-            ? ensureCodeLine(
-                this.mixedUnifiedCodeGridPlainLine(),
-                this.paperHeaderLine4Plain(piCq, setL)
-              )
-            : this.paperHeaderLine4Plain(piCq, setL);
-          // Backend turns first "বিষয় কোড" line into the code grid; keep exactly one such line here.
-          /* Do not trimEnd — it strips trailing newline runs and collapses \\n-split line count vs the font array
-           * built in {@link buildPdfHeaderLineFontPxListForSplitExport} (দ্রষ্টব্য notices would mismatch → larger PDF fallback fonts). */
-          return (band.length
-            ? [...topLines, band[0] ?? '', codeLine, ...band.slice(1)]
-            : [...topLines, codeLine]
-          ).join('\n');
-        }
-
-        const piMcq = firstPageIndexForVariant('mcq');
-        const slots = this.mcqHeaderUpperLineSlots(piMcq);
-        const upper: string[] = [];
-        for (let i = 0; i < slots.length; i++) {
-          const s = slots[i]!;
-          let txt = '';
-          if (s.kind === 'text') txt = s.text ?? '';
-          else if (s.kind === 'mcqTitle') txt = 'বহুনির্বাচনি অভীক্ষা';
-          else if (s.kind === 'mcqSubject') txt = this.creatorSubjectLabel || '';
-          if (this.mcqShowSqSplitMcqBandRow(piMcq, i, s as any)) {
-            upper.push(this.mcqSqSplitLineFirst(txt), this.mcqSqSplitLineSecond(txt));
-          } else {
-            upper.push(txt);
+        this.exportHeaderVariantOverride = kind;
+        this.exportHeaderBuildIgnoreFocusFilter = true;
+        try {
+          if (kind === 'creative') {
+            const piCq = firstPageIndexForVariant('creative');
+            const topLines = this.creativeHeaderTopLinesPadded().flatMap((ln, i) => {
+              if (this.creativeShowSqSplitTopRow(i, ln)) {
+                return [this.creativeSqSplitLineFirst(ln), this.creativeSqSplitLineSecond(ln)];
+              }
+              return [ln ?? ''];
+            });
+            const band = this.creativeHeaderBandLeftLines();
+            // CQ-only: `mixedUnifiedCodeGridPlainLine()` (preview L[6]) is the দ্রষ্টব্য notice, not
+            // a বিষয় কোড line, so always use the canonical `paperHeaderLine4Plain` here.
+            const codeLine = this.mixedUnifiedHeaderTextareaLayoutActive()
+              ? ensureCodeLine(
+                  this.mixedUnifiedCodeGridPlainLine(),
+                  this.paperHeaderLine4Plain(piCq, setL)
+                )
+              : this.paperHeaderLine4Plain(piCq, setL);
+            // Backend turns first "বিষয় কোড" line into the code grid; keep exactly one such line here.
+            /* Do not trimEnd — it strips trailing newline runs and collapses \\n-split line count vs the font array
+             * built in {@link buildPdfHeaderLineFontPxListForSplitExport} (দ্রষ্টব্য notices would mismatch → larger PDF fallback fonts). */
+            return (band.length
+              ? [...topLines, band[0] ?? '', codeLine, ...band.slice(1)]
+              : [...topLines, codeLine]
+            ).join('\n');
           }
+
+          const piMcq = firstPageIndexForVariant('mcq');
+          const slots = this.mcqHeaderUpperLineSlots(piMcq);
+          const upper: string[] = [];
+          for (let i = 0; i < slots.length; i++) {
+            const s = slots[i]!;
+            let txt = '';
+            if (s.kind === 'text') txt = s.text ?? '';
+            else if (s.kind === 'mcqTitle') txt = this.mcqBandTitleDisplayBn();
+            else if (s.kind === 'mcqSubject') txt = this.creatorSubjectLabel || '';
+            if (this.mcqShowSqSplitMcqBandRow(piMcq, i, s as any)) {
+              upper.push(this.mcqSqSplitLineFirst(txt), this.mcqSqSplitLineSecond(txt));
+            } else {
+              upper.push(txt);
+            }
+          }
+          const codeLine = this.paperHeaderLine4Plain(piMcq, setL);
+          const lower = this.mcqHeaderLowerLines();
+          return [...upper, codeLine, ...lower].join('\n');
+        } finally {
+          this.exportHeaderVariantOverride = null;
+          this.exportHeaderBuildIgnoreFocusFilter = false;
         }
-        const codeLine = this.paperHeaderLine4Plain(piMcq, setL);
-        const lower = this.mcqHeaderLowerLines();
-        return [...upper, codeLine, ...lower].join('\n');
       };
       const headerCreative = useSplitCreativeHeaderForPdf ? buildHeaderForPdfKind('creative') : undefined;
       const headerMcq = useSplitMcqHeaderForPdf ? buildHeaderForPdfKind('mcq') : undefined;
-      let pdfHeaderLineFontPxCreative = useSplitCreativeHeaderForPdf
-        ? this.buildPdfHeaderLineFontPxListForSplitExport('creative', setLetter)
-        : [];
-      let pdfHeaderLineFontPxMcq = useSplitMcqHeaderForPdf
-        ? this.buildPdfHeaderLineFontPxListForSplitExport('mcq', setLetter)
-        : [];
+      let pdfHeaderLineFontPxCreative: number[] = [];
+      let pdfHeaderLineFontPxMcq: number[] = [];
+      if (useSplitCreativeHeaderForPdf) {
+        this.exportHeaderVariantOverride = 'creative';
+        this.exportHeaderBuildIgnoreFocusFilter = true;
+        try {
+          pdfHeaderLineFontPxCreative = this.buildPdfHeaderLineFontPxListForSplitExport(
+            'creative',
+            setLetter
+          );
+        } finally {
+          this.exportHeaderVariantOverride = null;
+          this.exportHeaderBuildIgnoreFocusFilter = false;
+        }
+      }
+      if (useSplitMcqHeaderForPdf) {
+        this.exportHeaderVariantOverride = 'mcq';
+        this.exportHeaderBuildIgnoreFocusFilter = true;
+        try {
+          pdfHeaderLineFontPxMcq = this.buildPdfHeaderLineFontPxListForSplitExport('mcq', setLetter);
+        } finally {
+          this.exportHeaderVariantOverride = null;
+          this.exportHeaderBuildIgnoreFocusFilter = false;
+        }
+      }
       const alignPdfHeaderFontsToNewlineCount = (hdr: string | undefined, px: number[]): number[] => {
         if (!hdr || !px.length) return px;
         const n = hdr.replace(/\r\n/g, '\n').split('\n').length;

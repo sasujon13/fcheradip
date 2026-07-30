@@ -54,3 +54,43 @@ echo
 # scp -r "D:\VSCode\cheradip\bcheradip\ailt_api\grammar_books\*" sasha@163.227.144.146:~/apps/cheradip/bcheradip/ailt_api/grammar_books/
 # On server: sudo systemctl restart cheradip-ailt
 # curl -s https://cheradip.com/ailt/api/health | grep grammar_books_available
+
+#Upload language packs
+#==================================
+cd D:\VSCode\android\ailanguagetutor
+
+.\tools\pack-builder\scripts\build-all-packs.ps1 -Clean -RefetchKaikki -Jobs 8
+
+python tools/pack-builder/scripts/enrich-pack-lexicons.py --mode all --jobs 8
+python tools/pack-builder/scripts/enrich-pack-lexicons.py --mode thin --jobs 8
+.\tools\pack-builder\scripts\build-all-packs.ps1 -SkipGenerate
+
+#optional
+python tools/pack-builder/scripts/enrich-pack-lexicons.py --codes ar,zh,ja --force --jobs 8
+python tools/pack-builder/scripts/enrich-pack-lexicons.py --mode all --skip-translation --jobs 8
+python tools/pack-builder/scripts/enrich-pack-lexicons.py --mode all --skip-dictionary --jobs 8
+
+
+.\tools\pack-builder\scripts\sync-packs-to-server.ps1 -RestartApi
+
+
+
+
+python tools/pack-builder/scripts/generate_dictionary_dbs.py --clean --force --jobs 8
+python tools/pack-builder/scripts/generate_translation_dbs.py --clean --force --jobs 8
+
+python tools/pack-builder/scripts/verify_translation_design.py
+.\tools\pack-builder\scripts\build-all-packs.ps1 -SkipGenerate
+.\tools\pack-builder\scripts\sync-packs-to-server.ps1 -RestartApi
+
+
+
+$env:PYTHONIOENCODING='utf-8'
+python tools/pack-builder/scripts/generate_dictionary_dbs.py --clean --force --jobs 4 --pack-timeout 6000
+python tools/pack-builder/scripts/generate_translation_dbs.py --clean --force --jobs 4 --pack-timeout 6000
+
+python tools/pack-builder/scripts/generate_dictionary_dbs.py --retry-failed --force --jobs 2 --pack-timeout 6000
+python tools/pack-builder/scripts/generate_translation_dbs.py --retry-failed --force --jobs 2 --pack-timeout 6000
+
+
+python D:\VSCode\cheradip\bcheradip\ailt_api\scripts\seed_teen_voice_templates.py --force

@@ -384,7 +384,7 @@
       </h2>
       <div class="settings-row settings-row--full" *ngIf="headerUseLegacyQuestionHeader">
         <div class="setting-field setting-field--grow">
-          <label for="questionHeader">Question header</label>
+          <label for="questionHeader">Question Header</label>
           <textarea
             id="questionHeader"
             class="header-textarea"
@@ -414,14 +414,14 @@
             <p class="field-hint field-hint--error" *ngIf="instituteLookupError">{{ instituteLookupError }}</p>
           </div>
           <div class="setting-field setting-field-header-exam">
-            <label for="headerExamType">Exam name</label>
+            <label for="headerExamType">Exam Name</label>
             <select id="headerExamType" [(ngModel)]="headerExamTypeKey" (ngModelChange)="onHeaderExamTypeChange($event)">
               <option *ngFor="let o of examTypeOptions" [value]="o.key">{{ o.label }}</option>
             </select>
           </div>
           <div
             class="setting-field setting-field-header-set"
-            *ngIf="paperSubjectMetaLinesEligible() && selectionHasMcqType()"
+            *ngIf="paperSubjectMetaLinesEligible() && previewShowsMcqSettings()"
           >
             <label for="mcqSetLetter">Set</label>
             <select id="mcqSetLetter" class="setk" [(ngModel)]="selectedMcqSetLetter" (ngModelChange)="onMcqSetLetterChange()">
@@ -494,7 +494,7 @@
       </div>
       <div class="settings-row settings-row--layout-flow">
         <div class="setting-field setting-field--columns">
-          <label for="pageSize">Page size</label>
+          <label for="pageSize">Page Size</label>
           <select id="pageSize" [(ngModel)]="pageSize" (ngModelChange)="onPreviewLayoutChange()">
             <option *ngFor="let p of pageSizes" [value]="p.value">{{ p.label }}</option>
           </select>
@@ -597,14 +597,14 @@
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">Header line height</span>
-          <div class="setting-stepper" role="group" aria-label="Sheet header line height in preview">
+          <span class="setting-label-text">Header Line Height</span>
+          <div class="setting-stepper" role="group" aria-label="Sheet Header Line Height In Preview">
             <button
               type="button"
               class="stepper-btn"
               (click)="decPreviewHeaderLineHeight()"
               [disabled]="previewHeaderLineHeight <= previewLineHeightMin"
-              aria-label="Decrease header line height"
+              aria-label="Decrease Header Line Height"
             >
               −
             </button>
@@ -618,23 +618,23 @@
               [max]="previewLineHeightMax"
               step="0.1"
               inputmode="decimal"
-              aria-label="Header line height"
+              aria-label="Header Line Height"
             />
             <button
               type="button"
               class="stepper-btn"
               (click)="incPreviewHeaderLineHeight()"
               [disabled]="previewHeaderLineHeight >= previewLineHeightMax"
-              aria-label="Increase header line height"
+              aria-label="Increase Header Line Height"
             >
               +
             </button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">Questions padding</span>
-          <div class="setting-stepper" role="group" aria-label="Vertical padding in pixels for each question block">
-            <button type="button" class="stepper-btn" (click)="decQuestionsPadding()" [disabled]="questionsPadding <= questionsPaddingMin" aria-label="Decrease questions padding">−</button>
+          <span class="setting-label-text">Questions Padding</span>
+          <div class="setting-stepper" role="group" aria-label="Vertical Padding In Pixels For Each Question Block">
+            <button type="button" class="stepper-btn" (click)="decQuestionsPadding()" [disabled]="questionsPadding <= questionsPaddingMin" aria-label="Decrease Questions Padding">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -645,15 +645,15 @@
               [max]="questionsPaddingMax"
               step="1"
               inputmode="numeric"
-              aria-label="Questions padding in pixels"
+              aria-label="Questions Padding In Pixels"
             />
-            <button type="button" class="stepper-btn" (click)="incQuestionsPadding()" [disabled]="questionsPadding >= questionsPaddingMax" aria-label="Increase questions padding">+</button>
+            <button type="button" class="stepper-btn" (click)="incQuestionsPadding()" [disabled]="questionsPadding >= questionsPaddingMax" aria-label="Increase Questions Padding">+</button>
           </div>
         </div>
         <div *ngIf="multiColumnPreviewActive" class="setting-field setting-field--columns">
-          <span class="setting-label-text">Column gap</span>
-          <div class="setting-stepper" role="group" aria-label="Horizontal gap in pixels between preview columns">
-            <button type="button" class="stepper-btn" (click)="decLayoutColumnGap()" [disabled]="layoutColumnGapPx <= layoutColumnGapMin" aria-label="Decrease column gap">−</button>
+          <span class="setting-label-text">Column Gap</span>
+          <div class="setting-stepper" role="group" aria-label="Horizontal Gap In Pixels Between Preview Columns">
+            <button type="button" class="stepper-btn" (click)="decLayoutColumnGap()" [disabled]="layoutColumnGapPx <= layoutColumnGapMin" aria-label="Decrease Column Gap">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -664,15 +664,15 @@
               [max]="layoutColumnGapMax"
               step="1"
               inputmode="numeric"
-              aria-label="Column gap in pixels"
+              aria-label="Column Gap In Pixels"
             />
-            <button type="button" class="stepper-btn" (click)="incLayoutColumnGap()" [disabled]="layoutColumnGapPx >= layoutColumnGapMax" aria-label="Increase column gap">+</button>
+            <button type="button" class="stepper-btn" (click)="incLayoutColumnGap()" [disabled]="layoutColumnGapPx >= layoutColumnGapMax" aria-label="Increase Column Gap">+</button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
           <span class="setting-label-text">Page Divider</span>
-          <div class="setting-stepper" role="group" aria-label="Number of horizontal page bands">
-            <button type="button" class="stepper-btn" (click)="decPageSections()" [disabled]="pageSections <= pageSectionsMin" aria-label="Decrease page divider count">−</button>
+          <div class="setting-stepper" role="group" aria-label="Number Of Horizontal Page Bands">
+            <button type="button" class="stepper-btn" (click)="decPageSections()" [disabled]="pageSections <= pageSectionsMin" aria-label="Decrease Page Divider Count">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -683,15 +683,15 @@
               [max]="pageSectionsMax"
               step="1"
               inputmode="numeric"
-              aria-label="Page divider count"
+              aria-label="Page Divider Count"
             />
-            <button type="button" class="stepper-btn" (click)="incPageSections()" [disabled]="pageSections >= pageSectionsMax" aria-label="Increase page divider count">+</button>
+            <button type="button" class="stepper-btn" (click)="incPageSections()" [disabled]="pageSections >= pageSectionsMax" aria-label="Increase Page Divider Count">+</button>
           </div>
         </div>
         <div *ngIf="pageSections > 1" class="setting-field setting-field--columns">
-          <span class="setting-label-text">Section gap</span>
-          <div class="setting-stepper" role="group" aria-label="Gap in pixels between page sections">
-            <button type="button" class="stepper-btn" (click)="decSectionGap()" [disabled]="sectionGapPx <= sectionGapMin" aria-label="Decrease section gap">−</button>
+          <span class="setting-label-text">Section Gap</span>
+          <div class="setting-stepper" role="group" aria-label="Gap In Pixels Between Page Sections">
+            <button type="button" class="stepper-btn" (click)="decSectionGap()" [disabled]="sectionGapPx <= sectionGapMin" aria-label="Decrease Section Gap">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -702,28 +702,29 @@
               [max]="sectionGapMax"
               step="1"
               inputmode="numeric"
-              aria-label="Section gap in pixels"
+              aria-label="Section Gap In Pixels"
             />
-            <button type="button" class="stepper-btn" (click)="incSectionGap()" [disabled]="sectionGapPx >= sectionGapMax" aria-label="Increase section gap">+</button>
+            <button type="button" class="stepper-btn" (click)="incSectionGap()" [disabled]="sectionGapPx >= sectionGapMax" aria-label="Increase Section Gap">+</button>
           </div>
         </div>
-        <!-- MCQ Options Grid -->
+        <!-- Kind-specific options (CQ|MCQ slider selects which block is shown) -->
+        <ng-container *ngIf="previewShowsMcqSettings()">
         <div class="setting-field setting-field--columns">
-          <label for="mcqPageOrientation">MCQ Orientation</label>
+          <label for="mcqPageOrientation">Orientation</label>
           <select id="mcqPageOrientation" [(ngModel)]="mcqPageOrientation" (ngModelChange)="onPreviewLayoutChange()">
             <option value="portrait">Portrait</option>
             <option value="landscape">Landscape</option>
           </select>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">MCQ Font Size</span>
-          <div class="setting-stepper" role="group" aria-label="Font size in pixels for MCQ questions in the preview">
+          <span class="setting-label-text">Font Size</span>
+          <div class="setting-stepper" role="group" aria-label="Font Size In Pixels For Questions In The Preview">
             <button
               type="button"
               class="stepper-btn"
               (click)="decPreviewQuestionsFontPxMcq()"
               [disabled]="previewQuestionsFontPxMcq <= previewQuestionsFontMin"
-              aria-label="Decrease MCQ font size"
+              aria-label="Decrease Font Size"
             >
               −
             </button>
@@ -738,23 +739,23 @@
               [max]="previewQuestionsFontMax"
               step="1"
               inputmode="numeric"
-              aria-label="MCQ font size in pixels"
+              aria-label="Font Size In Pixels"
             />
             <button
               type="button"
               class="stepper-btn"
               (click)="incPreviewQuestionsFontPxMcq()"
               [disabled]="previewQuestionsFontPxMcq >= previewQuestionsFontMax"
-              aria-label="Increase MCQ font size"
+              aria-label="Increase Font Size"
             >
               +
             </button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">MCQ questions gap</span>
-          <div class="setting-stepper" role="group" aria-label="Vertical gap in pixels below MCQ and non-creative question blocks">
-            <button type="button" class="stepper-btn" (click)="decQuestionsGap()" [disabled]="questionsGap <= questionsGapMin" aria-label="Decrease MCQ questions gap">−</button>
+          <span class="setting-label-text">Questions Gap</span>
+          <div class="setting-stepper" role="group" aria-label="Vertical Gap In Pixels Below Question Blocks">
+            <button type="button" class="stepper-btn" (click)="decQuestionsGap()" [disabled]="questionsGap <= questionsGapMin" aria-label="Decrease Questions Gap">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -765,15 +766,15 @@
               [max]="questionsGapMax"
               step="1"
               inputmode="numeric"
-              aria-label="MCQ questions gap in pixels"
+              aria-label="Questions Gap In Pixels"
             />
-            <button type="button" class="stepper-btn" (click)="incQuestionsGap()" [disabled]="questionsGap >= questionsGapMax" aria-label="Increase MCQ questions gap">+</button>
+            <button type="button" class="stepper-btn" (click)="incQuestionsGap()" [disabled]="questionsGap >= questionsGapMax" aria-label="Increase Questions Gap">+</button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">MCQ Columns</span>
-          <div class="setting-stepper" role="group" aria-label="Number of columns">
-            <button type="button" class="stepper-btn" (click)="decLayoutColumns()" [disabled]="layoutColumns <= layoutColumnsMin" aria-label="Decrease columns">−</button>
+          <span class="setting-label-text">Columns</span>
+          <div class="setting-stepper" role="group" aria-label="Number Of Columns">
+            <button type="button" class="stepper-btn" (click)="decLayoutColumns()" [disabled]="layoutColumns <= layoutColumnsMin" aria-label="Decrease Columns">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -784,15 +785,15 @@
               [max]="layoutColumnsMax"
               step="1"
               inputmode="numeric"
-              aria-label="Column count"
+              aria-label="Column Count"
             />
-            <button type="button" class="stepper-btn" (click)="incLayoutColumns()" [disabled]="layoutColumns >= layoutColumnsMax" aria-label="Increase columns">+</button>
+            <button type="button" class="stepper-btn" (click)="incLayoutColumns()" [disabled]="layoutColumns >= layoutColumnsMax" aria-label="Increase Columns">+</button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
           <span class="setting-label-text">Options Column</span>
-          <div class="setting-stepper" role="group" aria-label="MCQ options grid columns">
-            <button type="button" class="stepper-btn" (click)="decOptionsColumns()" [disabled]="optionsColumns <= optionsColumnsMin" aria-label="Decrease options columns">−</button>
+          <div class="setting-stepper" role="group" aria-label="Options Grid Columns">
+            <button type="button" class="stepper-btn" (click)="decOptionsColumns()" [disabled]="optionsColumns <= optionsColumnsMin" aria-label="Decrease Options Columns">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -803,20 +804,20 @@
               [max]="optionsColumnsMax"
               step="1"
               inputmode="numeric"
-              aria-label="Options column count"
+              aria-label="Options Column Count"
             />
-            <button type="button" class="stepper-btn" (click)="incOptionsColumns()" [disabled]="optionsColumns >= optionsColumnsMax" aria-label="Increase options columns">+</button>
+            <button type="button" class="stepper-btn" (click)="incOptionsColumns()" [disabled]="optionsColumns >= optionsColumnsMax" aria-label="Increase Options Columns">+</button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">MCQ Line Height</span>
-          <div class="setting-stepper" role="group" aria-label="MCQ question line height in preview">
+          <span class="setting-label-text">Line Height</span>
+          <div class="setting-stepper" role="group" aria-label="Question Line Height In Preview">
             <button
               type="button"
               class="stepper-btn"
               (click)="decPreviewQuestionsLineHeightMcq()"
               [disabled]="previewQuestionsLineHeightMcq <= previewQuestionsLineHeightMin"
-              aria-label="Decrease MCQ line height"
+              aria-label="Decrease Line Height"
             >
               −
             </button>
@@ -830,36 +831,37 @@
               [max]="previewLineHeightMax"
               step="0.1"
               inputmode="decimal"
-              aria-label="MCQ line height"
+              aria-label="Line Height"
             />
             <button
               type="button"
               class="stepper-btn"
               (click)="incPreviewQuestionsLineHeightMcq()"
               [disabled]="previewQuestionsLineHeightMcq >= previewLineHeightMax"
-              aria-label="Increase MCQ line height"
+              aria-label="Increase Line Height"
             >
               +
             </button>
           </div>
         </div>
-        <!-- CQ Options Grid -->
+        </ng-container>
+        <ng-container *ngIf="previewShowsCreativeSettings()">
         <div class="setting-field setting-field--columns">
-          <label for="cqPageOrientation">CQ Orientation</label>
+          <label for="cqPageOrientation">Orientation</label>
           <select id="cqPageOrientation" [(ngModel)]="cqPageOrientation" (ngModelChange)="onPreviewLayoutChange()">
             <option value="portrait">Portrait</option>
             <option value="landscape">Landscape</option>
           </select>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">CQ Font Size</span>
-          <div class="setting-stepper" role="group" aria-label="Font size in pixels for creative questions in the preview">
+          <span class="setting-label-text">Font Size</span>
+          <div class="setting-stepper" role="group" aria-label="Font Size In Pixels For Questions In The Preview">
             <button
               type="button"
               class="stepper-btn"
               (click)="decPreviewQuestionsFontPxCreative()"
               [disabled]="previewQuestionsFontPxCreative <= previewQuestionsFontMin"
-              aria-label="Decrease CQ font size"
+              aria-label="Decrease Font Size"
             >
               −
             </button>
@@ -874,23 +876,23 @@
               [max]="previewQuestionsFontMax"
               step="1"
               inputmode="numeric"
-              aria-label="CQ font size in pixels"
+              aria-label="Font Size In Pixels"
             />
             <button
               type="button"
               class="stepper-btn"
               (click)="incPreviewQuestionsFontPxCreative()"
               [disabled]="previewQuestionsFontPxCreative >= previewQuestionsFontMax"
-              aria-label="Increase CQ font size"
+              aria-label="Increase Font Size"
             >
               +
             </button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">CQ questions gap</span>
-          <div class="setting-stepper" role="group" aria-label="Vertical gap in pixels below creative (CQ) question blocks">
-            <button type="button" class="stepper-btn" (click)="decQuestionsGapCreative()" [disabled]="questionsGapCreative <= questionsGapMin" aria-label="Decrease CQ questions gap">−</button>
+          <span class="setting-label-text">Questions Gap</span>
+          <div class="setting-stepper" role="group" aria-label="Vertical Gap In Pixels Below Question Blocks">
+            <button type="button" class="stepper-btn" (click)="decQuestionsGapCreative()" [disabled]="questionsGapCreative <= questionsGapMin" aria-label="Decrease Questions Gap">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -901,15 +903,15 @@
               [max]="questionsGapMax"
               step="1"
               inputmode="numeric"
-              aria-label="CQ questions gap in pixels"
+              aria-label="Questions Gap In Pixels"
             />
-            <button type="button" class="stepper-btn" (click)="incQuestionsGapCreative()" [disabled]="questionsGapCreative >= questionsGapMax" aria-label="Increase CQ questions gap">+</button>
+            <button type="button" class="stepper-btn" (click)="incQuestionsGapCreative()" [disabled]="questionsGapCreative >= questionsGapMax" aria-label="Increase Questions Gap">+</button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">CQ Columns</span>
-          <div class="setting-stepper" role="group" aria-label="CQ sheet column count (সৃজনশীল header pages)">
-            <button type="button" class="stepper-btn" (click)="decLayoutColumnsCreative()" [disabled]="layoutColumnsCreative <= layoutColumnsMin" aria-label="Decrease CQ columns">−</button>
+          <span class="setting-label-text">Columns</span>
+          <div class="setting-stepper" role="group" aria-label="Sheet Column Count">
+            <button type="button" class="stepper-btn" (click)="decLayoutColumnsCreative()" [disabled]="layoutColumnsCreative <= layoutColumnsMin" aria-label="Decrease Columns">−</button>
             <input
               class="stepper-input stepper-input2"
               type="number"
@@ -920,20 +922,20 @@
               [max]="layoutColumnsMax"
               step="1"
               inputmode="numeric"
-              aria-label="CQ column count"
+              aria-label="Column Count"
             />
-            <button type="button" class="stepper-btn" (click)="incLayoutColumnsCreative()" [disabled]="layoutColumnsCreative >= layoutColumnsMax" aria-label="Increase CQ columns">+</button>
+            <button type="button" class="stepper-btn" (click)="incLayoutColumnsCreative()" [disabled]="layoutColumnsCreative >= layoutColumnsMax" aria-label="Increase Columns">+</button>
           </div>
         </div>
         <div class="setting-field setting-field--columns">
-          <span class="setting-label-text">CQ Line Height</span>
-          <div class="setting-stepper" role="group" aria-label="Creative question line height in preview">
+          <span class="setting-label-text">Line Height</span>
+          <div class="setting-stepper" role="group" aria-label="Question Line Height In Preview">
             <button
               type="button"
               class="stepper-btn"
               (click)="decPreviewQuestionsLineHeightCreative()"
               [disabled]="previewQuestionsLineHeightCreative <= previewQuestionsLineHeightMin"
-              aria-label="Decrease CQ line height"
+              aria-label="Decrease Line Height"
             >
               −
             </button>
@@ -947,19 +949,20 @@
               [max]="previewLineHeightMax"
               step="0.1"
               inputmode="decimal"
-              aria-label="CQ line height"
+              aria-label="Line Height"
             />
             <button
               type="button"
               class="stepper-btn"
               (click)="incPreviewQuestionsLineHeightCreative()"
               [disabled]="previewQuestionsLineHeightCreative >= previewLineHeightMax"
-              aria-label="Increase CQ line height"
+              aria-label="Increase Line Height"
             >
               +
             </button>
           </div>
         </div>
+        </ng-container>
         <div class="setting-field setting-field--divider-check">
           <label class="checkbox-label checkbox-label--column-divider">
             <input
@@ -1049,7 +1052,32 @@
       </div>
     </aside>
     <div class="creator-preview-col" #previewCol>
-      <h2>Live preview</h2>
+      <div class="creator-preview-heading-row">
+        <h2>Live Preview</h2>
+        <div
+          class="preview-kind-slider"
+          *ngIf="previewKindSliderVisible()"
+          role="group"
+          aria-label="Switch between CQ and MCQ preview"
+        >
+          <button
+            type="button"
+            class="preview-kind-slider-btn"
+            [class.preview-kind-slider-btn--active]="previewKindFocus === 'creative'"
+            (click)="setPreviewKindFocus('creative')"
+          >
+            CQ
+          </button>
+          <button
+            type="button"
+            class="preview-kind-slider-btn"
+            [class.preview-kind-slider-btn--active]="previewKindFocus === 'mcq'"
+            (click)="setPreviewKindFocus('mcq')"
+          >
+            MCQ
+          </button>
+        </div>
+      </div>
       <div
         class="preview-live-stage"
         #previewStage
@@ -1476,24 +1504,17 @@
       </ul>
     </ng-container>
 
-    <ng-container *ngIf="creatorSidebarMcqQuestions.length">
+    <ng-container *ngIf="creatorSidebarOtherQuestions.length">
       <h3 class="creator-questions-type-heading">
-        {{ isEnglishSubject() ? 'Multiple choice (MCQ)' : 'বহুনির্বাচনি' }} ({{ creatorSidebarMcqQuestions.length }})
-        <button
-          type="button"
-          class="creator-add-more-questions"
-          (click)="navigateToAddMoreQuestions()"
-        >
-          Add More Questions
-        </button>
+        {{ isEnglishSubject() ? 'Other (with CQ)' : 'অন্যান্য (সৃজনশীলের সাথে)' }} ({{ creatorSidebarOtherQuestions.length }})
       </h3>
       <ul
         class="creator-questions-list"
         cdkDropList
-        (cdkDropListDropped)="onCreatorSidebarDropped($event, 'mcq')"
+        (cdkDropListDropped)="onCreatorSidebarDropped($event, 'other')"
       >
         <li
-          *ngFor="let q of creatorSidebarMcqQuestions; trackBy: trackCreatorQuestionQid"
+          *ngFor="let q of creatorSidebarOtherQuestions; trackBy: trackCreatorQuestionQid"
           cdkDrag
           class="creator-question-item"
           title="Drag to reorder"
@@ -1521,17 +1542,24 @@
       </ul>
     </ng-container>
 
-    <ng-container *ngIf="creatorSidebarOtherQuestions.length">
-      <h3 *ngIf="creatorSidebarCreativeQuestions.length || creatorSidebarMcqQuestions.length" class="creator-questions-type-heading">
-        {{ isEnglishSubject() ? 'Other' : 'অন্যান্য' }} ({{ creatorSidebarOtherQuestions.length }})
+    <ng-container *ngIf="creatorSidebarMcqQuestions.length">
+      <h3 class="creator-questions-type-heading">
+        {{ isEnglishSubject() ? 'Multiple choice (MCQ)' : 'বহুনির্বাচনি' }} ({{ creatorSidebarMcqQuestions.length }})
+        <button
+          type="button"
+          class="creator-add-more-questions"
+          (click)="navigateToAddMoreQuestions()"
+        >
+          Add More Questions
+        </button>
       </h3>
       <ul
         class="creator-questions-list"
         cdkDropList
-        (cdkDropListDropped)="onCreatorSidebarDropped($event, 'other')"
+        (cdkDropListDropped)="onCreatorSidebarDropped($event, 'mcq')"
       >
         <li
-          *ngFor="let q of creatorSidebarOtherQuestions; trackBy: trackCreatorQuestionQid"
+          *ngFor="let q of creatorSidebarMcqQuestions; trackBy: trackCreatorQuestionQid"
           cdkDrag
           class="creator-question-item"
           title="Drag to reorder"

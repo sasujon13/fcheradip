@@ -99,6 +99,49 @@ export function questionIsCreativeType(q: { type?: unknown }): boolean {
   return !!t && (t === 'সৃজনশীল' || t.includes('সৃজনশীল'));
 }
 
+/** Non-MCQ / non-CQ — ride on the CQ sheet below সৃজনশীল. */
+export function questionIsCqSheetCompanionType(q: { type?: unknown }): boolean {
+  return !questionIsCreativeType(q) && !questionIsMcqType(q);
+}
+
+export function questionUsesCreativeSheet(q: { type?: unknown }): boolean {
+  return questionIsCreativeType(q) || questionIsCqSheetCompanionType(q);
+}
+
+/** Stem mark rank for companion ordering (জ্ঞানমূলক=1, অনুধাবনমূলক=2, …). */
+export function questionStemMarkValue(q: {
+  type?: unknown;
+  mark?: unknown;
+  marks?: unknown;
+  full_mark?: unknown;
+  full_marks?: unknown;
+}): number | null {
+  const t = (q?.type ?? '').toString().trim();
+  if (t.includes('জ্ঞানমূলক')) return 1;
+  if (t.includes('অনুধাবনমূলক')) return 2;
+  if (t.includes('প্রয়োগমূলক') || t.includes('উচ্চতর দক্ষতা')) return 3;
+  const raw = q?.mark ?? q?.marks ?? q?.full_mark ?? q?.full_marks;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 0) return Math.floor(n);
+  return null;
+}
+
+export function orderQuestionsCreativeThenCompanionsThenMcq(base: any[]): any[] {
+  const creative = base.filter((q) => questionIsCreativeType(q));
+  const companions = base
+    .filter((q) => questionIsCqSheetCompanionType(q))
+    .map((q, i) => ({ q, i }))
+    .sort((a, b) => {
+      const ma = questionStemMarkValue(a.q) ?? 999;
+      const mb = questionStemMarkValue(b.q) ?? 999;
+      if (ma !== mb) return ma - mb;
+      return a.i - b.i;
+    })
+    .map((x) => x.q);
+  const mcq = base.filter((q) => questionIsMcqType(q));
+  return [...creative, ...companions, ...mcq];
+}
+
 export function selectionHasMcqType(questions: unknown[]): boolean {
   return questions.some((q) => questionIsMcqType(q as { type?: unknown }));
 }
@@ -161,11 +204,9 @@ export function hasPersistedSplitCreativeMcqExport(ls: Record<string, unknown> |
 }
 
 export function creativeParentQuestionsFromList(questions: unknown[]): any[] {
-  const creative = questions.filter((q) => questionIsCreativeType(q as { type?: unknown }));
-  const others = questions.filter(
-    (q) => !questionIsCreativeType(q as { type?: unknown }) && !questionIsMcqType(q as { type?: unknown })
+  return orderQuestionsCreativeThenCompanionsThenMcq(questions as any[]).filter((q) =>
+    questionUsesCreativeSheet(q)
   );
-  return [...creative, ...others];
 }
 
 export function mcqParentQuestionsFromList(questions: unknown[]): any[] {
@@ -179,7 +220,7 @@ export function filterExportLayoutForKind(
   kind: 'creative' | 'mcq'
 ): Record<string, unknown> {
   const matchesKind = (seg: Record<string, unknown>): boolean =>
-    kind === 'creative' ? questionIsCreativeType(seg) : questionIsMcqType(seg);
+    kind === 'creative' ? questionUsesCreativeSheet(seg) : questionIsMcqType(seg);
 
   const oldToNew = new Map<number, number>();
   const filteredRows: typeof fullSegmentRows = [];
