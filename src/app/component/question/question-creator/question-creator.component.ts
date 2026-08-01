@@ -37,6 +37,8 @@ import {
   attachExportMcqOptionsColumnsToQuestions,
   buildSequentialAnswersExplanationsExportLayout,
   filterExportLayoutForKind,
+  injectCompanionTypeHeadingRows,
+  isTypeHeadingQuestion,
 } from '../../../shared/question-answer-sheet-export';
 import {
   buildAnswerLayoutMeasureRows,
@@ -708,9 +710,53 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Shave this many px from each sheet’s pack budget so Playwright PDF (slightly taller lines / breaks)
    * does not spill the last few lines onto an extra page when preview looks full but not overflowing.
    */
-  private static readonly PREVIEW_PDF_PACKING_SAFETY_PX = 10;
+  private static readonly PREVIEW_PDF_PACKING_SAFETY_PX = 18;
+  /** Matches `.preview-header--landscape-first-col { margin-bottom: 8px }`. */
+  private static readonly PREVIEW_HEADER_FIRST_COL_MB_PX = 8;
   /** Floor for CQ/MCQ question-body line height (steppers + clamp); auto-fit never tightens or expands toward this. */
   private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_MIN = 1.0;
+
+  private measureBlockHeightForPagination(el: HTMLElement, q?: { type?: unknown } | null): number {
+    const box = el.getBoundingClientRect();
+    const hostTop = box.top;
+    const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+    // Largest box metric so mixed text+image / option wraps are fully counted.
+    let h = Math.max(
+      Math.ceil(el.offsetHeight || 0),
+      Math.ceil(el.scrollHeight || 0),
+      Math.ceil(box.height || 0),
+      Math.ceil(box.bottom - hostTop)
+    );
+    const content = el.querySelector<HTMLElement>('.preview-q-content');
+    if (content) {
+      const cb = content.getBoundingClientRect();
+      h = Math.max(h, Math.ceil(cb.bottom - hostTop + padBottom));
+    }
+    if (q && this.questionIsMcqType(q)) {
+      const opts = el.querySelector<HTMLElement>('.preview-q-options');
+      if (opts) {
+        h = Math.max(h, Math.ceil(opts.getBoundingClientRect().bottom - hostTop + padBottom));
+      }
+    }
+    return h;
+  }
+
+  private paginationContextIsMcq(startQ: number, questionList: any[]): boolean {
+    const q = questionList[Math.max(0, Math.min(startQ, questionList.length - 1))];
+    return !!q && this.questionIsMcqType(q) && !this.questionUsesCreativeSheet(q);
+  }
+
+  /**
+   * Per-sheet vertical shave from pack budget.
+   * MCQ gets a little extra so the last option row stays above the bottom margin.
+   */
+  private paginationPackingSafetyPx(startQ: number, questionList: any[]): number {
+    let s = QuestionCreatorComponent.PREVIEW_PDF_PACKING_SAFETY_PX;
+    if (this.paginationContextIsMcq(startQ, questionList)) {
+      s += 6;
+    }
+    return s;
+  }
 
   private static clampPreviewLineHeight(v: number, fallback: number): number {
     if (!Number.isFinite(v)) return fallback;
@@ -893,7 +939,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * When CQ+MCQ are both in the set: extra bottom strip on the **last MCQ preview sheet** only (live preview).
    * Added equally to sheet height and bottom padding so {@link contentInnerHeightPxForPage} / pagination / export are unchanged.
    */
-  private static readonly PREVIEW_ONLY_MIXED_CQ_MCQ_BOTTOM_EXTRA_IN = 0.5;
+  /** Preview-only bottom band on the last MCQ sheet when CQ+MCQ are both present (px). Keep 0 so pack vs margin agree. */
+  private static readonly PREVIEW_ONLY_MIXED_CQ_MCQ_BOTTOM_EXTRA_IN = 0;
 
   /**
    * Maximum “zoom out” (overview) vs true print width: 50% when the column is wide enough.
@@ -1482,9 +1529,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
   }
 
-  /** After forced auto-fit: remeasure options, tune MCQ gap, then resolve set orders if needed. */
+  /** After forced auto-fit: remeasure options, refresh heights, then tune MCQ gap to fill the page. */
   private async syncMcqOptionsLayoutAfterAutoFit(): Promise<void> {
     await this.syncMcqOptionsLayoutForExport();
+    // Always remasure once so gap fill uses heights that include final option wraps (not stale cache).
+    this.previewAutoFitSuppressNextLayoutRun = true;
+    this.scheduleLayout({ allowDuringExport: this.saveExportLayoutBusy });
+    await this.waitForLayoutIdle(90_000);
     await this.runMcqGapAutoFitAfterOptionsSync();
   }
 
@@ -2971,7 +3022,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Non-MCQ questions that sit on the CQ sheet below সৃজনশীল
    * (জ্ঞানমূলক, অনুধাবনমূলক, and any other non-বহুনির্বাচনি type).
    */
-  questionIsCqSheetCompanionType(q: { type?: unknown }): boolean {
+  questionIsCqSheetCompanionType(q: {
+    type?: unknown;
+    answerSheetSegmentKind?: unknown;
+    qid?: unknown;
+  }): boolean {
+    if (isTypeHeadingQuestion(q)) return false;
     return !this.questionIsCreativeType(q) && !this.questionIsMcqType(q);
   }
 
@@ -3000,7 +3056,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /** CQ sheet rows: সৃজনশীল + non-MCQ companions (not বহুনির্বাচনি). */
-  questionUsesCreativeSheet(q: { type?: unknown }): boolean {
+  questionUsesCreativeSheet(q: {
+    type?: unknown;
+    answerSheetSegmentKind?: unknown;
+    qid?: unknown;
+  }): boolean {
+    if (isTypeHeadingQuestion(q)) return true;
     return this.questionIsCreativeType(q) || this.questionIsCqSheetCompanionType(q);
   }
 
@@ -4594,12 +4655,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Measure rail + pagination: one block per stem/part/option (and answer tails on answers sheet). */
   get layoutMeasureQuestions(): any[] {
-    return buildPreviewLayoutMeasureRows(this.canonicalPreviewQuestions, this.layoutSegmentSplitOpts());
+    return this.withCompanionTypeHeadings(
+      buildPreviewLayoutMeasureRows(this.canonicalPreviewQuestions, this.layoutSegmentSplitOpts())
+    );
   }
 
   /** Unfiltered measure rows for split CQ/MCQ export when the preview is focus-filtered. */
   private allLayoutMeasureQuestions(): any[] {
-    return buildPreviewLayoutMeasureRows(this.allCanonicalPreviewQuestions, this.layoutSegmentSplitOpts());
+    return this.withCompanionTypeHeadings(
+      buildPreviewLayoutMeasureRows(this.allCanonicalPreviewQuestions, this.layoutSegmentSplitOpts())
+    );
   }
 
   private layoutSegmentSplitOpts() {
@@ -4612,7 +4677,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private expandQuestionsIntoLayoutSegments(questions: any[]): any[] {
-    return buildPreviewLayoutMeasureRows(questions, this.layoutSegmentSplitOpts());
+    return this.withCompanionTypeHeadings(
+      buildPreviewLayoutMeasureRows(questions, this.layoutSegmentSplitOpts())
+    );
+  }
+
+  /** CQ sheet: heading row before each companion mark group (জ্ঞানমূলক / অনুধাবনমূলক / …). */
+  private withCompanionTypeHeadings(rows: any[]): any[] {
+    return injectCompanionTypeHeadingRows(rows as any, {
+      isCreativeType: (q) => this.questionIsCreativeType(q as { type?: unknown }),
+      isMcqType: (q) => this.questionIsMcqType(q as { type?: unknown }),
+      stemMarkValue: (q) => this.questionStemMarkValue(q as { type?: unknown }),
+      typeLabel: (q) => this.normalizeQuestionType(q as { type?: unknown }),
+    });
   }
 
   /** Per-question MCQ option grid columns for PDF/DOCX (matches preview measure / stepper). */
@@ -4729,7 +4806,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /** Question index prefix on preview/PDF — only on the main stem row, not part/option/tail continuations. */
-  previewQuestionShowsIndex(q: { answerSheetContinuation?: boolean; answerSheetSegmentKind?: string }): boolean {
+  previewQuestionShowsIndex(q: {
+    answerSheetContinuation?: boolean;
+    answerSheetSegmentKind?: string;
+    qid?: unknown;
+  }): boolean {
+    if (isTypeHeadingQuestion(q)) {
+      return false;
+    }
     if (q?.answerSheetContinuation) {
       return false;
     }
@@ -4738,35 +4822,60 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * 1-based number shown before each stem: সৃজনশীল and বহুনির্বাচনি each count from ১ in `previewQuestions` order;
-   * other types keep the global position (১…N in sheet order).
+   * Parent list for sheet serials: full CQ→companions→MCQ order when the focus slider filters the
+   * live preview, so MCQ/companion export serials stay correct.
+   */
+  private serialNumberingParentList(): any[] {
+    return this.previewKindSliderVisible()
+      ? this.allCanonicalPreviewQuestions
+      : this.canonicalPreviewQuestions;
+  }
+
+  /**
+   * 1-based number before each stem: সৃজনশীল and বহুনির্বাচনি each restart at ১;
+   * companions restart at ১ within each mark group (১-mark, ২-mark, …).
    */
   previewQuestionDisplaySerialOneBased(listIndex: number, q: { type?: unknown }): number {
+    if (isTypeHeadingQuestion(q)) {
+      return 1;
+    }
+    const parents = this.serialNumberingParentList();
     const parentIdx = (q as { answerSheetParentIndex?: number })?.answerSheetParentIndex;
-    if (parentIdx != null && parentIdx >= 0) {
-      const parents = this.canonicalPreviewQuestions;
-      if (parentIdx < parents.length) {
-        return answerSheetParentQuestionSerialOneBased(
-          parents,
-          parentIdx,
-          (x) => this.questionIsCreativeType(x as { type?: unknown }),
-          (x) => this.questionIsMcqType(x as { type?: unknown })
-        );
-      }
+    if (parentIdx != null && parentIdx >= 0 && parentIdx < parents.length) {
+      return answerSheetParentQuestionSerialOneBased(
+        parents,
+        parentIdx,
+        (x) => this.questionIsCreativeType(x as { type?: unknown }),
+        (x) => this.questionIsMcqType(x as { type?: unknown }),
+        (x) => this.questionStemMarkValue(x as { type?: unknown })
+      );
     }
+    // `listIndex` is into the live preview list (sidebar / non-segment rows), not always `parents`.
     const list = this.previewQuestions;
-    if (listIndex < 0 || listIndex >= list.length) return Math.max(1, listIndex + 1);
-    const isCreative = this.questionIsCreativeType(q);
-    const isMcq = !isCreative && this.questionIsMcqType(q);
-    if (!isCreative && !isMcq) return listIndex + 1;
-    let prior = 0;
-    for (let i = 0; i < listIndex; i++) {
-      const qi = list[i];
-      if (isCreative) {
-        if (this.questionIsCreativeType(qi)) prior++;
-      } else if (this.questionIsMcqType(qi)) prior++;
+    if (listIndex >= 0 && listIndex < list.length) {
+      return answerSheetParentQuestionSerialOneBased(
+        list,
+        listIndex,
+        (x) => this.questionIsCreativeType(x as { type?: unknown }),
+        (x) => this.questionIsMcqType(x as { type?: unknown }),
+        (x) => this.questionStemMarkValue(x as { type?: unknown })
+      );
     }
-    return prior + 1;
+    if (listIndex >= 0 && listIndex < parents.length) {
+      return answerSheetParentQuestionSerialOneBased(
+        parents,
+        listIndex,
+        (x) => this.questionIsCreativeType(x as { type?: unknown }),
+        (x) => this.questionIsMcqType(x as { type?: unknown }),
+        (x) => this.questionStemMarkValue(x as { type?: unknown })
+      );
+    }
+    return Math.max(1, listIndex + 1);
+  }
+
+  /** Companion type-group heading on the CQ sheet (type label only). */
+  isCompanionTypeHeadingRow(q: { answerSheetSegmentKind?: string; qid?: unknown }): boolean {
+    return isTypeHeadingQuestion(q);
   }
 
   /** Sidebar list: CQ rows in preview order (same SL stream as the sheet). */
@@ -5076,7 +5185,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return [];
     }
     let ordered = this.orderQuestionsCreativeThenCompanionsThenMcq(fullQuestions);
-    const segments = buildPreviewLayoutMeasureRows(ordered, this.layoutSegmentSplitOpts());
+    const segments = this.withCompanionTypeHeadings(
+      buildPreviewLayoutMeasureRows(ordered, this.layoutSegmentSplitOpts())
+    );
     if (!segments.length) {
       return [];
     }
@@ -5143,7 +5254,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const fullQuestions = qids?.length
       ? this.reorderQuestionsFromQidList(qids)
       : this.buildQuestionsOrderedForMcqSet(setLetter);
-    const measureRows = buildPreviewLayoutMeasureRows(fullQuestions, this.layoutSegmentSplitOpts());
+    const measureRows = this.withCompanionTypeHeadings(
+      buildPreviewLayoutMeasureRows(fullQuestions, this.layoutSegmentSplitOpts())
+    );
     const pages = this.probePaginatedPagesForQuestionOrder(fullQuestions);
     return {
       ...baseLayout,
@@ -9341,7 +9454,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return true;
     }
     if (this.selectionHasBothHeaderTypes() && !this.mixedTypesSinglePageMergedHeader) {
-      return this.questionIsCreativeType(q);
+      return this.questionUsesCreativeSheet(q);
     }
     if (this.selectionHasCreativeType() && !this.selectionHasMcqType()) {
       return true;
@@ -10278,21 +10391,21 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       requestAnimationFrame(() => {
         try {
         this.layoutDidCommitPaginatedPages = false;
+        const pqNow = this.layoutMeasureQuestions;
         const blocksNow = this.measureBlocks?.toArray() ?? [];
+        if (pqNow.length > 0 && blocksNow.length !== pqNow.length) {
+          setTimeout(() => this.scheduleLayout(), layoutRetryMs);
+          return;
+        }
         // Register image load/error listeners so late image dimensions trigger a follow-up pagination pass.
         // Do not block this pass; otherwise preview can stay empty while media is still loading.
         this.scheduleLayoutForPendingMeasureImages(blocksNow);
-        const heights = blocksNow.map((ref) => {
-          const el = ref.nativeElement;
-          // Use the largest box metric so mixed text+image content is fully counted for pagination.
-          const rendered = Math.ceil(el.getBoundingClientRect().height || 0);
-          const content = Math.max(el.offsetHeight || 0, el.scrollHeight || 0, rendered);
-          // Keep `heights[]` as pure content height; packing logic adds per-question gaps between stacked blocks.
-          return content;
-        });
+        const heights = blocksNow.map((ref, hi) =>
+          this.measureBlockHeightForPagination(ref.nativeElement, pqNow[hi])
+        );
         if (
-          pq.length > 0 &&
-          blocksNow.length === pq.length &&
+          pqNow.length > 0 &&
+          blocksNow.length === pqNow.length &&
           heights.every((h) => h === 0)
         ) {
           setTimeout(() => this.scheduleLayout(), layoutRetryMs);
@@ -10302,15 +10415,24 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.questionHeader?.trim() && this.measureHeader && this.measureCreativeHeaderRailVisible()
             ? this.measureHeader.nativeElement.offsetHeight
             : 0;
-        const headerMcqPx =
+        let headerMcqPx =
           this.questionHeader?.trim() && this.measureHeaderMcq && this.measureMcqHeaderRailVisible()
             ? this.measureHeaderMcq.nativeElement.offsetHeight
             : 0;
+        // Slider MCQ focus: MCQ header is on the primary rail; secondary MCQ rail is off.
+        if (
+          headerMcqPx <= 0 &&
+          headerCreativePx > 0 &&
+          this.previewKindSliderVisible() &&
+          this.previewKindFocus === 'mcq'
+        ) {
+          headerMcqPx = headerCreativePx;
+        }
         this.measuredHeaderHeightPx = headerCreativePx;
         this.measuredMcqHeaderHeightPx = headerMcqPx;
         this.layoutSegmentHeightByQid.clear();
-        for (let hi = 0; hi < pq.length; hi++) {
-          const seg = pq[hi];
+        for (let hi = 0; hi < pqNow.length; hi++) {
+          const seg = pqNow[hi];
           const qid = seg?.qid != null ? String(seg.qid) : String(hi);
           this.layoutSegmentHeightByQid.set(qid, heights[hi] ?? 0);
         }
@@ -10325,14 +10447,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           innerH,
           headerCreativePx,
           headerMcqPx,
-          pq
+          pqNow
         );
         this.resolveLeadEmptyFirstPageActiveFromProbe(
           heights,
           innerH,
           headerCreativePx,
           headerMcqPx,
-          pq
+          pqNow
         );
 
         const candidatePages = this.splitIntoPages(
@@ -10341,7 +10463,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           headerCreativePx,
           headerMcqPx,
           this.pageSections,
-          pq
+          pqNow
         );
         this.applyLeadEmptyTreatFirstColumnAsLast(candidatePages);
         // Show the current pagination immediately; auto-fit may still adjust typography and re-layout.
@@ -10431,9 +10553,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     const dimsForKind = (kind: 'creative' | 'mcq') => {
       const paper = this.paperSizeMmForKind(kind);
-      const w = Math.max(0, (paper.w - this.marginLeft - this.marginRight) * QuestionCreatorComponent.MM_TO_PX);
+      const w = Math.max(
+        0,
+        (paper.w - this.marginLeftForKind(kind) - this.marginRightForKind(kind)) *
+          QuestionCreatorComponent.MM_TO_PX
+      );
       const bottom = this.previewBottomMarginMmForKind(kind);
-      const h = Math.max(0, (paper.h - this.marginTop - bottom) * QuestionCreatorComponent.MM_TO_PX);
+      const h = Math.max(
+        0,
+        (paper.h - this.marginTopForKind(kind) - bottom) * QuestionCreatorComponent.MM_TO_PX
+      );
       return { w, h };
     };
 
@@ -10660,7 +10789,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.selectionHasBothHeaderTypes() &&
       !this.mixedTypesSinglePageMergedHeader;
     const creativeCount = breakAtMixedBoundary
-      ? questionList.filter((qq) => this.questionIsCreativeType(qq)).length
+      ? questionList.filter((qq) => this.questionUsesCreativeSheet(qq)).length
       : 0;
 
     const headerBudgetForPage = (startQ: number, si: number) => {
@@ -10673,7 +10802,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         if (!show) {
           return 0;
         }
-        const px = inCreative ? headerCreativePx : headerMcqPx;
+        // MCQ measure rail may be absent; fall back to primary header height.
+        const px = inCreative ? headerCreativePx : headerMcqPx > 0 ? headerMcqPx : headerCreativePx;
         return px > 0 ? px : 0;
       }
       const px = this.paperHeaderVisibleForSheetPage(si) ? headerCreativePx : 0;
@@ -10698,7 +10828,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const capRaw = pageInnerH - (headerInFirstCol ? 0 : headerPx);
       const cap = Math.max(
         1,
-        capRaw - QuestionCreatorComponent.PREVIEW_PDF_PACKING_SAFETY_PX
+        capRaw - this.paginationPackingSafetyPx(q, questionList)
       );
       const mixedBoundary = breakAtMixedBoundary && q < creativeCount ? creativeCount : n;
       const packed = this.packQuestionsColumnMajor(
@@ -10708,7 +10838,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         cap,
         cols,
         mixedBoundary,
-        headerInFirstCol ? headerPx : 0
+        headerInFirstCol
+          ? headerPx + QuestionCreatorComponent.PREVIEW_HEADER_FIRST_COL_MB_PX
+          : 0
       );
       if (packed.flatItems.length === 0) {
         break;
@@ -10751,7 +10883,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.selectionHasBothHeaderTypes() &&
       !this.mixedTypesSinglePageMergedHeader;
     const creativeCount = breakAtMixedBoundary
-      ? questionList.filter((qq) => this.questionIsCreativeType(qq)).length
+      ? questionList.filter((qq) => this.questionUsesCreativeSheet(qq)).length
       : 0;
 
     while (q < n) {
@@ -10768,14 +10900,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const headerPxChosen = breakAtMixedBoundary
         ? q < creativeCount
           ? headerCreativePx
-          : headerMcqPx
+          : headerMcqPx > 0
+            ? headerMcqPx
+            : headerCreativePx
         : headerCreativePx;
       const showHeaderThisPage =
         !!(this.questionHeader || '').trim() && boundaryShow && headerPxChosen > 0;
       const headerPerSection = showHeaderThisPage ? headerPxChosen : 0;
       const sectionCap = Math.max(
         1,
-        band - headerPerSection - QuestionCreatorComponent.PREVIEW_PDF_PACKING_SAFETY_PX
+        band - headerPerSection - this.paginationPackingSafetyPx(q, questionList)
       );
 
       if (band <= 0) {
@@ -10943,7 +11077,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return Math.max(1, this.contentInnerHeightPx);
     }
 
-    const kind = this.questionIsCreativeType(questionList[startQ]) ? 'creative' : 'mcq';
+    // Companions + type headings share the CQ sheet; only pure MCQ uses MCQ paper/margins.
+    const kind = this.questionIsMcqType(questionList[startQ]) ? 'mcq' : 'creative';
 
     const paper = this.paperSizeMmForKind(kind);
     const bottom = this.previewBottomMarginMmForKind(kind);
@@ -11304,13 +11439,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.previewKindSliderVisible() || this.pageSections > 1) {
       return;
     }
-    const plan = this.buildExportPagePlanFromPages(pages).map((pg, i) => ({
-      ...pg,
-      // Focus preview is single-kind: page 0 always carries that kind's visible header.
-      headerVisible: i === 0 ? true : Boolean(pg['headerVisible']),
-      headerKind: this.previewKindFocus,
-      kind: this.previewKindFocus,
-    }));
+    // Explicit Record return: spreading Record<string, unknown> otherwise collapses to only the
+    // overwritten keys and TS7053 rejects questionColumnIndexes / leadBindingIndexes access.
+    const plan = this.buildExportPagePlanFromPages(pages).map(
+      (pg, i): Record<string, unknown> => ({
+        ...pg,
+        // Focus preview is single-kind: page 0 always carries that kind's visible header.
+        headerVisible: i === 0 ? true : Boolean(pg['headerVisible']),
+        headerKind: this.previewKindFocus,
+        kind: this.previewKindFocus,
+      })
+    );
     if (this.previewKindFocus === 'creative') {
       this.lastFocusExportPagePlan.creative = plan;
       return;
@@ -11541,7 +11680,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       exportQuestions,
       answerQuestions,
       (x) => this.questionIsCreativeType(x as { type?: unknown }),
-      (x) => this.questionIsMcqType(x as { type?: unknown })
+      (x) => this.questionIsMcqType(x as { type?: unknown }),
+      (x) => this.questionStemMarkValue(x as { type?: unknown })
     );
     return { layout, exportQuestions };
   }

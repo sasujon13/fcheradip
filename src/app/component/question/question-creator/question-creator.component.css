@@ -1241,6 +1241,25 @@
   line-height: var(--preview-question-lh, 1.4);
 }
 
+.preview-q-type-heading-wrap {
+  margin: 0 0 0.35em;
+}
+
+.preview-q-type-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35em;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: var(--preview-question-lh, 1.4);
+  color: var(--color_primary_black);
+}
+
+.preview-q-type-heading-label {
+  font-weight: 600;
+}
+
 .preview-q-text {
   /* flow-root: next to floated index, *all* wrapped lines stay in the text column (not only the first). */
   display: flow-root;

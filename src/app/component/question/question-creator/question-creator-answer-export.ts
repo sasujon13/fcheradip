@@ -8,7 +8,7 @@ export const ANSWER_SHEET_SEG_QID_PREFIX = 'ans-seg-';
 /** Prefix for main question-sheet layout/export segment rows. */
 export const LAYOUT_SEG_QID_PREFIX = 'layout-seg-';
 
-export type AnswerSheetSegmentKind = 'intro' | 'part' | 'option' | 'tail';
+export type AnswerSheetSegmentKind = 'intro' | 'part' | 'option' | 'tail' | 'typeHeading';
 
 export type AnswerSheetMeasureRow = Record<string, unknown> & {
   answerSheetContinuation?: boolean;
@@ -16,6 +16,8 @@ export type AnswerSheetMeasureRow = Record<string, unknown> & {
   answerSheetSegmentKind?: AnswerSheetSegmentKind;
   answerSheetPartIndex?: number;
   answerSheetPartCount?: number;
+  /** Bold mark shown on companion type headings (1 / 2 / 3). */
+  typeHeadingMark?: number;
 };
 
 export function hasNonEmptyField(v: unknown): boolean {

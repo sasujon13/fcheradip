@@ -100,11 +100,29 @@ export function questionIsCreativeType(q: { type?: unknown }): boolean {
 }
 
 /** Non-MCQ / non-CQ — ride on the CQ sheet below সৃজনশীল. */
-export function questionIsCqSheetCompanionType(q: { type?: unknown }): boolean {
+export function questionIsCqSheetCompanionType(q: {
+  type?: unknown;
+  answerSheetSegmentKind?: unknown;
+  qid?: unknown;
+}): boolean {
+  if (isTypeHeadingQuestion(q)) return false;
   return !questionIsCreativeType(q) && !questionIsMcqType(q);
 }
 
-export function questionUsesCreativeSheet(q: { type?: unknown }): boolean {
+/** True for synthetic companion type-group headings on the CQ sheet. */
+export function isTypeHeadingQuestion(q: unknown): boolean {
+  const row = q as { answerSheetSegmentKind?: unknown; qid?: unknown };
+  if (String(row?.answerSheetSegmentKind ?? '').trim() === 'typeHeading') return true;
+  const qid = String(row?.qid ?? '');
+  return qid.startsWith('type-hdr-') || qid.includes('/type-hdr-') || qid.includes('type-hdr-mark-');
+}
+
+export function questionUsesCreativeSheet(q: {
+  type?: unknown;
+  answerSheetSegmentKind?: unknown;
+  qid?: unknown;
+}): boolean {
+  if (isTypeHeadingQuestion(q)) return true;
   return questionIsCreativeType(q) || questionIsCqSheetCompanionType(q);
 }
 
@@ -525,25 +543,42 @@ function remapExportPreviewPagePlanForAnswerSheet(
   return out;
 }
 
-/** Same CQ/MCQ numbering as question-creator preview (১…N per kind). */
+/** Same CQ / MCQ / companion-by-mark numbering as question-creator preview. */
 export function answerSheetParentQuestionSerialOneBased(
   parentQuestions: unknown[],
   parentIndex: number,
   isCreativeType: (q: unknown) => boolean,
-  isMcqType: (q: unknown) => boolean
+  isMcqType: (q: unknown) => boolean,
+  stemMarkValue?: (q: unknown) => number | null
 ): number {
   if (parentIndex < 0 || parentIndex >= parentQuestions.length) {
     return Math.max(1, parentIndex + 1);
   }
   const q = parentQuestions[parentIndex];
+  if (isTypeHeadingQuestion(q)) {
+    return 1;
+  }
   const isCreative = isCreativeType(q);
   const isMcq = !isCreative && isMcqType(q);
+  const isCompanion = !isCreative && !isMcq;
+  if (isCompanion && stemMarkValue) {
+    const mark = stemMarkValue(q);
+    let prior = 0;
+    for (let i = 0; i < parentIndex; i++) {
+      const qi = parentQuestions[i];
+      if (isTypeHeadingQuestion(qi)) continue;
+      if (isCreativeType(qi) || isMcqType(qi)) continue;
+      if (stemMarkValue(qi) === mark) prior++;
+    }
+    return prior + 1;
+  }
   if (!isCreative && !isMcq) {
     return parentIndex + 1;
   }
   let prior = 0;
   for (let i = 0; i < parentIndex; i++) {
     const qi = parentQuestions[i];
+    if (isTypeHeadingQuestion(qi)) continue;
     if (isCreative) {
       if (isCreativeType(qi)) prior++;
     } else if (isMcqType(qi)) {
@@ -553,29 +588,89 @@ export function answerSheetParentQuestionSerialOneBased(
   return prior + 1;
 }
 
+/**
+ * Insert a type heading before the first stem of each companion mark group
+ * (১-mark জ্ঞানমূলক, ২-mark অনুধাবনমূলক, …).
+ */
+export function injectCompanionTypeHeadingRows(
+  rows: AnswerSheetMeasureRow[],
+  opts: {
+    isCreativeType: (q: unknown) => boolean;
+    isMcqType: (q: unknown) => boolean;
+    stemMarkValue: (q: unknown) => number | null;
+    typeLabel: (q: unknown) => string;
+  }
+): AnswerSheetMeasureRow[] {
+  const out: AnswerSheetMeasureRow[] = [];
+  let lastMark: number | null = null;
+  for (const row of rows) {
+    if (isTypeHeadingQuestion(row)) {
+      out.push(row);
+      continue;
+    }
+    const kind = String(row.answerSheetSegmentKind ?? '').trim();
+    const isStem =
+      !row.answerSheetContinuation && kind !== 'part' && kind !== 'option' && kind !== 'tail';
+    const isCompanion = isStem && !opts.isCreativeType(row) && !opts.isMcqType(row);
+    if (isCompanion) {
+      const mark = opts.stemMarkValue(row);
+      if (mark != null && mark !== lastMark) {
+        lastMark = mark;
+        const label = (opts.typeLabel(row) || '').trim() || 'প্রশ্ন';
+        out.push({
+          qid: `type-hdr-mark-${mark}`,
+          type: label,
+          question: label,
+          option_1: '',
+          option_2: '',
+          option_3: '',
+          option_4: '',
+          answerSheetContinuation: false,
+          answerSheetSegmentKind: 'typeHeading',
+          typeHeadingMark: mark,
+        });
+      }
+    }
+    out.push(row);
+  }
+  return out;
+}
+
 function buildAnswerExportSerialByIndex(
   exportQuestions: any[],
   parentQuestions: unknown[],
   isCreativeType: (q: unknown) => boolean,
-  isMcqType: (q: unknown) => boolean
+  isMcqType: (q: unknown) => boolean,
+  stemMarkValue?: (q: unknown) => number | null
 ): Record<string, number> {
   const serialByIndex: Record<string, number> = {};
   for (let i = 0; i < exportQuestions.length; i++) {
-    const row = exportQuestions[i] as { answerSheetParentIndex?: number; answerSheetContinuation?: boolean };
+    const row = exportQuestions[i] as {
+      answerSheetParentIndex?: number;
+      answerSheetContinuation?: boolean;
+    };
+    if (isTypeHeadingQuestion(row)) {
+      serialByIndex[String(i)] = 1;
+      continue;
+    }
     const p = row.answerSheetParentIndex;
     if (row.answerSheetContinuation && p != null) {
-      serialByIndex[String(i)] = serialByIndex[String(i - 1)] ?? answerSheetParentQuestionSerialOneBased(
-        parentQuestions,
-        p,
-        isCreativeType,
-        isMcqType
-      );
+      serialByIndex[String(i)] =
+        serialByIndex[String(i - 1)] ??
+        answerSheetParentQuestionSerialOneBased(
+          parentQuestions,
+          p,
+          isCreativeType,
+          isMcqType,
+          stemMarkValue
+        );
     } else if (p != null) {
       serialByIndex[String(i)] = answerSheetParentQuestionSerialOneBased(
         parentQuestions,
         p,
         isCreativeType,
-        isMcqType
+        isMcqType,
+        stemMarkValue
       );
     } else {
       serialByIndex[String(i)] = i + 1;
@@ -593,7 +688,8 @@ export function buildSequentialAnswersExplanationsExportLayout(
   exportQuestions: any[],
   parentQuestions: unknown[],
   isCreativeType: (q: unknown) => boolean,
-  isMcqType: (q: unknown) => boolean
+  isMcqType: (q: unknown) => boolean,
+  stemMarkValue?: (q: unknown) => number | null
 ): Record<string, unknown> {
   const creativeIdx: number[] = [];
   const mcqIdx: number[] = [];
@@ -645,7 +741,8 @@ export function buildSequentialAnswersExplanationsExportLayout(
       exportQuestions,
       parentQuestions,
       isCreativeType,
-      isMcqType
+      isMcqType,
+      stemMarkValue
     ),
   };
 }
@@ -663,7 +760,8 @@ function fallbackAnswersExplanationsLayout(
     exportQuestions,
     answerQuestions,
     (q) => questionIsCreativeType(q as { type?: unknown }),
-    (q) => questionIsMcqType(q as { type?: unknown })
+    (q) => questionIsMcqType(q as { type?: unknown }),
+    (q) => questionStemMarkValue(q as { type?: unknown })
   );
 }
 
