@@ -709,8 +709,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /**
    * Shave this many px from each sheet’s pack budget so Playwright PDF (slightly taller lines / breaks)
    * does not spill the last few lines onto an extra page when preview looks full but not overflowing.
+   * Keep small: too large forces a 2nd MCQ page at min font and locks auto-fit to that budget.
    */
-  private static readonly PREVIEW_PDF_PACKING_SAFETY_PX = 18;
+  private static readonly PREVIEW_PDF_PACKING_SAFETY_PX = 10;
   /** Matches `.preview-header--landscape-first-col { margin-bottom: 8px }`. */
   private static readonly PREVIEW_HEADER_FIRST_COL_MB_PX = 8;
   /** Floor for CQ/MCQ question-body line height (steppers + clamp); auto-fit never tightens or expands toward this. */
@@ -718,21 +719,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private measureBlockHeightForPagination(el: HTMLElement, q?: { type?: unknown } | null): number {
     const box = el.getBoundingClientRect();
-    const hostTop = box.top;
-    const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-    // Largest box metric so mixed text+image / option wraps are fully counted.
+    // Largest box metric so mixed text+image content is fully counted (margin is added by packing).
     let h = Math.max(
       Math.ceil(el.offsetHeight || 0),
       Math.ceil(el.scrollHeight || 0),
-      Math.ceil(box.height || 0),
-      Math.ceil(box.bottom - hostTop)
+      Math.ceil(box.height || 0)
     );
-    const content = el.querySelector<HTMLElement>('.preview-q-content');
-    if (content) {
-      const cb = content.getBoundingClientRect();
-      h = Math.max(h, Math.ceil(cb.bottom - hostTop + padBottom));
-    }
+    // MCQ option grids can paint taller than the host box metrics in the measure rail.
     if (q && this.questionIsMcqType(q)) {
+      const hostTop = box.top;
+      const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
       const opts = el.querySelector<HTMLElement>('.preview-q-options');
       if (opts) {
         h = Math.max(h, Math.ceil(opts.getBoundingClientRect().bottom - hostTop + padBottom));
@@ -748,12 +744,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * Per-sheet vertical shave from pack budget.
-   * MCQ gets a little extra so the last option row stays above the bottom margin.
+   * Small MCQ extra only — large values force an unnecessary second page at auto-fit minimums.
    */
   private paginationPackingSafetyPx(startQ: number, questionList: any[]): number {
     let s = QuestionCreatorComponent.PREVIEW_PDF_PACKING_SAFETY_PX;
     if (this.paginationContextIsMcq(startQ, questionList)) {
-      s += 6;
+      s += 4;
     }
     return s;
   }
@@ -1561,6 +1557,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.setAutoFitKindGapPx('mcq', best);
     this.autoFitExpandStepBlocked.add('mcqGap');
     this.reassignPaginatedPagesFromCachedHeights();
+    this.shrinkKindGapUntilNoBottomMarginClip('mcq');
     this.cdr.markForCheck();
   }
 
@@ -8526,15 +8523,55 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return false;
   }
 
+  /**
+   * True when any live preview question paints past the sheet body into the bottom margin
+   * (`.preview-sheet-body` is the printable height; overflow-visible lets content enter paddingBottom).
+   */
+  private previewContentClipsIntoBottomMargin(): boolean {
+    const root = this.previewStage?.nativeElement ?? this.previewCol?.nativeElement;
+    if (!root) {
+      return false;
+    }
+    const sheets = root.querySelectorAll<HTMLElement>(
+      '.preview-sheet-paginated:not(.preview-sheet-mirror) .preview-sheet-body'
+    );
+    const eps = 1;
+    for (const body of Array.from(sheets)) {
+      const bodyBottom = body.getBoundingClientRect().bottom;
+      if (!(bodyBottom > 0)) {
+        continue;
+      }
+      for (const node of Array.from(body.querySelectorAll('.preview-q'))) {
+        const el = node as HTMLElement;
+        if (el.getBoundingClientRect().bottom > bodyBottom + eps) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /** Shrink CQ/MCQ body font by 1px when sheet counts exceed baseline budgets captured at minimum layout. */
   private maybeShrinkFontsToFitBaselineBudget(candidatePages: PreviewPage[]): boolean {
     if (!this.autoFitBaselineBudgetsCaptured) return false;
     const counts = this.countKindsInCandidatePages(candidatePages);
     const minQAuto = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
+    const clips = this.previewContentClipsIntoBottomMargin();
+    const focusMcq =
+      !this.selectionHasCreativeType() ||
+      this.autoFitMixedKindPhase === 'mcq' ||
+      (this.previewKindSliderVisible() && this.previewKindFocus === 'mcq');
+    const focusCq =
+      !this.selectionHasMcqType() ||
+      this.autoFitMixedKindPhase === 'cq' ||
+      (this.previewKindSliderVisible() && this.previewKindFocus === 'creative');
 
-    const mcqOver = this.selectionHasMcqType() && this.autoFitMcqSheetsOverBaselineBudget(candidatePages, counts);
+    const mcqOver =
+      (this.selectionHasMcqType() && this.autoFitMcqSheetsOverBaselineBudget(candidatePages, counts)) ||
+      (clips && this.selectionHasMcqType() && focusMcq);
     const cqOver =
-      this.selectionHasCreativeType() && this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts);
+      (this.selectionHasCreativeType() && this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts)) ||
+      (clips && this.selectionHasCreativeType() && focusCq);
     const phase = this.autoFitMixedKindPhase;
 
     if (cqOver && phase !== 'mcq' && !this.autoFitCqFontDecreaseUsed && this.previewQuestionsFontPxCreative > minQAuto) {
@@ -8594,14 +8631,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return false;
   }
 
-  /** MCQ question font: +1px trial while MCQ sheet count stays ≤ baseline budget; revert and lock if it would add a sheet. */
+  /** MCQ question font: +1px trial; revert/lock if it adds a sheet or clips into the bottom margin. */
   private maybeAutoFitMcqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
     if (!this.selectionHasMcqType() || !this.autoFitBaselineBudgetsCaptured) return false;
     const seq = this.previewLayoutChangeSeq;
-    const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
     const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
     const counts = this.countKindsInCandidatePages(candidatePages);
     const mcqOverflow = this.autoFitMcqSheetsOverBaselineBudget(candidatePages, counts);
+    const clips = this.previewContentClipsIntoBottomMargin();
     const cur = this.previewQuestionsFontPxMcq;
     const finish = (): boolean => {
       this.scheduleLayout();
@@ -8609,7 +8646,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     };
 
     if (
-      mcqOverflow &&
+      (mcqOverflow || clips) &&
       this.autoFitMcqLastGrowSeq === seq &&
       cur === this.autoFitMcqLastGrowPrevFontPx + 1
     ) {
@@ -8626,6 +8663,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.autoFitMcqFontLockedThisRun) return false;
     if (this.autoFitMcqFontDecreaseUsed) return false;
     if (this.autoFitMcqGrowBlockedSeq === seq) return false;
+    if (clips) {
+      // Already clipping at current font — do not grow further (shrink path handles −1px).
+      this.autoFitMcqFontLockedThisRun = true;
+      return false;
+    }
     if (cur >= maxQ) return false;
 
     this.autoFitMcqLastGrowSeq = seq;
@@ -8637,14 +8679,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return finish();
   }
 
-  /** CQ question font: +1px trial while creative sheet count stays ≤ baseline budget; revert and lock if it would add a sheet. */
+  /** CQ question font: +1px trial; revert/lock if it adds a sheet or clips into the bottom margin. */
   private maybeAutoFitCqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
     if (!this.selectionHasCreativeType() || !this.autoFitBaselineBudgetsCaptured) return false;
     const seq = this.previewLayoutChangeSeq;
-    const minQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX;
     const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
     const counts = this.countKindsInCandidatePages(candidatePages);
     const cqOverflow = this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts);
+    const clips = this.previewContentClipsIntoBottomMargin();
     const cur = this.previewQuestionsFontPxCreative;
     const finish = (): boolean => {
       this.scheduleLayout();
@@ -8652,7 +8694,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     };
 
     if (
-      cqOverflow &&
+      (cqOverflow || clips) &&
       this.autoFitCqLastGrowSeq === seq &&
       cur === this.autoFitCqLastGrowPrevFontPx + 1
     ) {
@@ -8669,6 +8711,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.autoFitCqFontLockedThisRun) return false;
     if (this.autoFitCqFontDecreaseUsed) return false;
     if (this.autoFitCqGrowBlockedSeq === seq) return false;
+    if (clips) {
+      this.autoFitCqFontLockedThisRun = true;
+      return false;
+    }
     if (cur >= maxQ) return false;
 
     this.autoFitCqLastGrowSeq = seq;
@@ -8910,7 +8956,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return false;
     }
     const counts = this.countKindsInCandidatePages(candidatePages);
-    const ok = this.autoFitSpacingExpandOkAfterKindBump(counts, candidatePages.length, p.kind);
+    const ok =
+      this.autoFitSpacingExpandOkAfterKindBump(counts, candidatePages.length, p.kind) &&
+      !this.previewContentClipsIntoBottomMargin();
     if (ok) {
       this.autoFitExpandPending = null;
       this.advanceAutoFitExpandPhaseAfterBump(p.stepIndex);
@@ -9077,6 +9125,24 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /**
    * Forced auto-fit: binary-search the largest gap for the active kind that keeps sheet counts ≤ baseline.
    */
+  /**
+   * After an offline gap commit, step gap down while live preview still paints into the bottom margin.
+   */
+  private shrinkKindGapUntilNoBottomMarginClip(kind: 'mcq' | 'cq'): void {
+    const minG = QuestionCreatorComponent.QUESTIONS_GAP_MIN_PX;
+    this.cdr.detectChanges();
+    let guard = 0;
+    while (
+      this.autoFitKindGapPx(kind) > minG &&
+      this.previewContentClipsIntoBottomMargin() &&
+      guard++ < 120
+    ) {
+      this.setAutoFitKindGapPx(kind, this.autoFitKindGapPx(kind) - 1);
+      this.reassignPaginatedPagesFromCachedHeights();
+      this.cdr.detectChanges();
+    }
+  }
+
   private maybeAutoFitExpandSpacingForcedBinary(_candidatePages: PreviewPage[]): boolean {
     const target = this.autoFitForcedGapBinaryTargetKind();
     if (!target) {
@@ -9109,6 +9175,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.resetAutoFitFontGrowBlocks();
     }
     this.reassignPaginatedPagesFromCachedHeights();
+    this.shrinkKindGapUntilNoBottomMarginClip(target);
     this.cdr.markForCheck();
 
     if (this.autoFitMixedMcqAndCqActive()) {
@@ -9349,7 +9416,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.paperHeaderVisibleForSheetPage(sheetPageIndex)) {
       return false;
     }
-    if (breakAtMixedBoundary && startQ >= creativeCount) {
+    if (breakAtMixedBoundary && creativeCount > 0 && startQ >= creativeCount) {
       return false;
     }
     if (this.landscapeSheetPageForPreview(sheetPageIndex) && !this.landscapeLeadEmptyFirstColumnForSheetPage(sheetPageIndex)) {
@@ -10470,7 +10537,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         this.paginatedPages = candidatePages;
         this.cacheFocusExportPagePlanFromPages(candidatePages);
         this.updatePreviewFitScale();
-        this.cdr.markForCheck();
+        // Flush live preview DOM so bottom-margin clip checks see the pages just assigned.
+        this.cdr.detectChanges();
         // --- Auto-fit: min font/gaps → snapshot required MCQ/CQ pages → grow fonts within that → widen gaps.
         let suppressAutoFit = false;
         if (this.optionsLayoutRelayoutPending && !this.previewAutoFitForceOneLayoutChain) {
@@ -10732,7 +10800,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const addGap =
         lastIdx >= 0 ? this.questionBlockMarginBottomPx(questionList[lastIdx]) : 0;
       const nextH = colHeights[c] + addGap + hq;
-      if (nextH <= cap) {
+      // Trailing marginBottom of this block is not in heights[] (packing adds it only before the next
+      // item). Require it to fit so the last question in a column cannot paint into the bottom margin.
+      const trail = this.questionBlockMarginBottomPx(questionList[q]);
+      if (nextH + trail <= cap) {
         colItems[c].push({ q: questionList[q], index: q, previewGridCol: c + 1 });
         colHeights[c] = nextH;
         q++;
@@ -10787,7 +10858,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const breakAtMixedBoundary =
       this.paperSubjectMetaLinesEligible() &&
       this.selectionHasBothHeaderTypes() &&
-      !this.mixedTypesSinglePageMergedHeader;
+      !this.mixedTypesSinglePageMergedHeader &&
+      // Focus slider already filters to one kind — mixed CQ|MCQ boundary math would set
+      // creativeCount=0 on an MCQ-only list and over-reserve header / force an extra page.
+      !this.previewKindSliderVisible();
+    // CQ sheet block = সৃজনশীল + companions (not pure CQ only).
     const creativeCount = breakAtMixedBoundary
       ? questionList.filter((qq) => this.questionUsesCreativeSheet(qq)).length
       : 0;
@@ -10806,7 +10881,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         const px = inCreative ? headerCreativePx : headerMcqPx > 0 ? headerMcqPx : headerCreativePx;
         return px > 0 ? px : 0;
       }
-      const px = this.paperHeaderVisibleForSheetPage(si) ? headerCreativePx : 0;
+      const px = this.paperHeaderVisibleForSheetPage(si)
+        ? headerCreativePx > 0
+          ? headerCreativePx
+          : headerMcqPx
+        : 0;
       return px > 0 ? px : 0;
     };
 
@@ -10881,7 +10960,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const breakAtMixedBoundary =
       this.paperSubjectMetaLinesEligible() &&
       this.selectionHasBothHeaderTypes() &&
-      !this.mixedTypesSinglePageMergedHeader;
+      !this.mixedTypesSinglePageMergedHeader &&
+      // Focus slider already filters to one kind — mixed CQ|MCQ boundary math would set
+      // creativeCount=0 on an MCQ-only list and over-reserve header / force an extra page.
+      !this.previewKindSliderVisible();
+    // CQ sheet block = সৃজনশীল + companions (not pure CQ only).
     const creativeCount = breakAtMixedBoundary
       ? questionList.filter((qq) => this.questionUsesCreativeSheet(qq)).length
       : 0;
@@ -10903,7 +10986,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           : headerMcqPx > 0
             ? headerMcqPx
             : headerCreativePx
-        : headerCreativePx;
+        : headerCreativePx > 0
+          ? headerCreativePx
+          : headerMcqPx;
       const showHeaderThisPage =
         !!(this.questionHeader || '').trim() && boundaryShow && headerPxChosen > 0;
       const headerPerSection = showHeaderThisPage ? headerPxChosen : 0;
