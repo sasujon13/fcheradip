@@ -254,12 +254,47 @@ export function buildMcqAnswerKeyExportPayload(
   return { questions, exportPreviewPagePlan, previewSerialByIndex };
 }
 
+/** Split a CQ answer string into (ক)(খ)(গ)(ঘ) labeled parts. */
+function formatCreativeAnswerParts(rawAnswer: string): string[] {
+  const answer = String(rawAnswer ?? '').trim();
+  if (!answer) return [];
+  // Normalize dotted markers (ক. / খ. / গ. / ঘ.) to parenthesized (ক) / (খ) / (গ) / (ঘ).
+  const normalized = answer
+    .replace(/ক\./g, '(ক)')
+    .replace(/খ\./g, '(খ)')
+    .replace(/গ\./g, '(গ)')
+    .replace(/ঘ\./g, '(ঘ)');
+  const pK = normalized.indexOf('(ক)');
+  const pKh = normalized.indexOf('(খ)');
+  const pG = normalized.indexOf('(গ)');
+  const pGh = normalized.indexOf('(ঘ)');
+  if (pK < 0 || pKh < 0 || pG < 0 || !(pK < pKh && pKh < pG)) {
+    // No (ক)(খ)(গ) structure — return the whole answer as one labeled block.
+    return [`উত্তর: ${answer}`];
+  }
+  const intro = normalized.slice(0, pK).trim();
+  const parts: string[] = [];
+  if (intro) parts.push(intro);
+  if (pGh >= 0 && pGh > pG) {
+    parts.push(`(ক) উত্তর: ${normalized.slice(pK, pKh).replace(/^\(ক\)\s*/, '').trim()}`);
+    parts.push(`(খ) উত্তর: ${normalized.slice(pKh, pG).replace(/^\(খ\)\s*/, '').trim()}`);
+    parts.push(`(গ) উত্তর: ${normalized.slice(pG, pGh).replace(/^\(গ\)\s*/, '').trim()}`);
+    parts.push(`(ঘ) উত্তর: ${normalized.slice(pGh).replace(/^\(ঘ\)\s*/, '').trim()}`);
+  } else {
+    parts.push(`(ক) উত্তর: ${normalized.slice(pK, pKh).replace(/^\(ক\)\s*/, '').trim()}`);
+    parts.push(`(খ) উত্তর: ${normalized.slice(pKh, pG).replace(/^\(খ\)\s*/, '').trim()}`);
+    parts.push(`(গ) উত্তর: ${normalized.slice(pG).replace(/^\(গ\)\s*/, '').trim()}`);
+  }
+  return parts.filter((p) => p.trim().length > 0);
+}
+
 /** Full stem + Answer line + explanations (options cleared for export). */
 export function buildAnswerExplanationExportQuestion(
   q: Record<string, unknown>,
   opts: {
     formatOption: (raw: string) => string;
     isMcqType: (q: unknown) => boolean;
+    isCreativeType?: (q: unknown) => boolean;
     displayStem: string;
   }
 ): Record<string, unknown> {
@@ -280,6 +315,9 @@ export function buildAnswerExplanationExportQuestion(
       const raw = String(q['answer']).trim();
       const show = label && (label !== raw || /[\\$]|\\boxed\b|<\s*(span|img|br|code)\b/i.test(raw));
       tail.push(show ? `Answer: ${raw}` : `Answer: ${label || raw}`);
+    } else if (opts.isCreativeType?.(q)) {
+      // CQ answers: split into (ক)(খ)(গ)(ঘ) labeled parts for well-formatted output.
+      tail.push(...formatCreativeAnswerParts(String(q['answer']).trim()));
     } else {
       tail.push(`Answer: ${String(q['answer']).trim()}`);
     }
@@ -298,7 +336,7 @@ export function buildAnswerExplanationExportQuestion(
   return clone;
 }
 
-/** CQ block + MCQ blocks (per set when multiSet); mirrors mixed preview order. */
+/** MCQ answers first, then CQ answers (per set when multiSet). */
 export function buildAnswersExplanationsExportQuestions(opts: {
   multiSet: boolean;
   mcqSetLetters: readonly McqSetLetter[];
@@ -313,6 +351,7 @@ export function buildAnswersExplanationsExportQuestions(opts: {
     buildAnswerExplanationExportQuestion(q as Record<string, unknown>, {
       formatOption: opts.formatOption,
       isMcqType: opts.isMcqType,
+      isCreativeType: opts.isCreativeType,
       displayStem: opts.displayStem(q),
     });
 
@@ -321,7 +360,8 @@ export function buildAnswersExplanationsExportQuestions(opts: {
     (q) => !opts.isCreativeType(q) && !opts.isMcqType(q)
   ).map(mapOne);
 
-  const out: Record<string, unknown>[] = [...creative];
+  // MCQ answers first, then CQ answers.
+  const out: Record<string, unknown>[] = [];
 
   if (opts.multiSet) {
     for (const L of opts.mcqSetLetters) {
@@ -336,6 +376,7 @@ export function buildAnswersExplanationsExportQuestions(opts: {
     out.push(...mcqs);
   }
 
+  out.push(...creative);
   out.push(...others);
   return out;
 }

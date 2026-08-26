@@ -896,6 +896,7 @@ export class ApiService {
     sources?: string[];
     years?: string[];
     types?: string[];
+    search?: string;
   }): Observable<{
     questions: any[];
     count: number;
@@ -915,6 +916,7 @@ export class ApiService {
     (params.sources || []).forEach((s) => { httpParams = httpParams.append('source', s); });
     (params.years || []).forEach((y) => { httpParams = httpParams.append('year', y); });
     (params.types || []).forEach((t) => { httpParams = httpParams.append('type', t); });
+    if (params.search) httpParams = httpParams.set('search', params.search);
     return this.http
       .get<{
         questions: any[];

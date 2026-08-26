@@ -12,3 +12,11 @@
   --color_primary_shadow: rgba(0, 0, 0, 0.15);
   --color_primary_transparent: rgba(0, 128, 128, 0.12);
 }
+
+/* Search highlight: golden background, visible on both white and black text */
+mark.highlight-match {
+  background-color: #e6a817;
+  color: inherit;
+  padding: 0 0.1em;
+  border-radius: 2px;
+}

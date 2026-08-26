@@ -20,6 +20,7 @@ import { FilterPipe } from './shared/filter.pipe';
 import { SafeUrlPipe } from './shared/safe-url.pipe';
 import { WrapRomanLinesPipe } from './shared/wrap-roman-lines.pipe';
 import { FormatQuestionMediaPipe } from './shared/format-question-media.pipe';
+import { HighlightMatchPipe } from './shared/highlight-match.pipe';
 import { QuestionRichImgObserveDirective } from './shared/question-rich-img-observe.directive';
 import { OrderByPipe } from './shared/orderBy.pipe';
 import { hDirective } from './shared/hfilter.directive';
@@ -113,6 +114,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
     SafeUrlPipe,
     WrapRomanLinesPipe,
     FormatQuestionMediaPipe,
+    HighlightMatchPipe,
     QuestionRichImgObserveDirective,
     OrderByPipe,
     hDirective,

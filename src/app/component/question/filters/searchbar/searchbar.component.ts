@@ -7,6 +7,7 @@ import { Component, Output, EventEmitter } from '@angular/core';
 })
 export class SearchBarComponent {
   @Output() searchChange = new EventEmitter<string>();
+  @Output() searchSubmit = new EventEmitter<string>();
   
   searchTerm: string = '';
 
@@ -16,6 +17,11 @@ export class SearchBarComponent {
 
   onInputChange(): void {
     this.onSearch();
+  }
+
+  onSubmit(): void {
+    this.onSearch();
+    this.searchSubmit.emit(this.searchTerm);
   }
 }
 

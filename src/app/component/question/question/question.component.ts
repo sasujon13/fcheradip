@@ -11,7 +11,7 @@ import {
   ChangeDetectorRef,
 } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { firstValueFrom, forkJoin, Subscription } from 'rxjs';
+import { firstValueFrom, forkJoin, Observable, of, Subject, Subscription } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
 import { resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
@@ -35,7 +35,7 @@ import {
   QuestionFilterOptionsData,
   setCachedQuestionFilterOptions,
 } from '../../../shared/question-filter-options-cache';
-import { filter, map } from 'rxjs/operators';
+import { catchError, filter, finalize, map, switchMap } from 'rxjs/operators';
 import { QUESTION_CREATOR_INCOMING_NAV_KEY } from '../question-creator/question-creator.component';
 
 /** Exam keys aligned with question-creator structured header (BN labels on /question modal). */
@@ -279,6 +279,30 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   private readonly questionPageCache = new PagedWindowCache<any>(30, 3);
   private questionListCacheKey = '';
 
+  /**
+   * Live search from the searchbar. Behaviour:
+   * 1) Always search the already-loaded questions (the 3-page sliding cache, max 90).
+   * 2) If none of the loaded questions match, request the backend to filter all
+   *    questions in the selected subject and show the circular loader with
+   *    "Searching ..." below it until the response arrives.
+   * 3) Results are ordered best-match-first and never exceed the max loaded count (90).
+   */
+  private readonly searchMaxLoaded = this.questionPageCache.maxItems; // 30 * 3
+  private readonly searchSubject = new Subject<string>();
+  private searchSub: Subscription | null = null;
+  private searchRequestSeq = 0;
+  currentSearchTerm = '';
+  searchResults: { q: any; fullIndex: number }[] | null = null;
+  searchLoading = false;
+  /** Set true once a server search resolves for the current term (drives the "no results" message). */
+  serverSearchArrived = false;
+  /** 3s inactivity debounce before a server search fires. */
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  get isSearchActive(): boolean {
+    return this.currentSearchTerm.trim().length > 0;
+  }
+
   get retrievedCount(): number {
     return this.questionListTotalCount;
   }
@@ -330,6 +354,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!sub) {
       return;
     }
+    this.resetSearchState();
     if (page === 1) {
       if (this._pendingFilterState) {
         this.applyPendingFilterStateSourcesYearsQuestions();
@@ -948,6 +973,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.loadingService.setTotal(2);
     this.disappearedQuestions.load();
+    this.setupQuestionSearch();
     this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
     this.loadUnlockedQidsFromServer();
     this.loadQuestionLevels();
@@ -983,8 +1009,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnDestroy(): void {
     if (this.dropdownLeaveTimer) clearTimeout(this.dropdownLeaveTimer);
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
     this.questionListNavSub?.unsubscribe();
     this.questionListNavSub = null;
+    this.searchRequestSeq++;
+    if (this.searchLoading) this.loadingService.endPdfDocxExport();
+    this.searchSub?.unsubscribe();
+    this.searchSub = null;
     this.teardownFixedFilterBarResizeObserver();
   }
 
@@ -2805,8 +2839,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.getTopicQuestionsFilteredSortedCore(true);
   }
 
-  /** Displayed list: current API page (30 items) with fullIndex for layout. */
+  /** Displayed list: current API page (30 items) with fullIndex for layout; search results during search. */
   getDisplayedQuestions(): { q: any; fullIndex: number }[] {
+    if (this.isSearchActive) {
+      return this.searchResults ?? [];
+    }
     const start = (this.effectiveTopicQuestionsPage - 1) * this.questionListPageSize;
     return this.pagedTopicQuestions.map((q: any, i: number) => ({ q, fullIndex: start + i }));
   }
@@ -3445,7 +3482,230 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onSearch(searchTerm: string): void {
-    // Implement search functionality
+    const term = (searchTerm ?? '').trim();
+    if (!term) {
+      this.resetSearchState();
+      return;
+    }
+    this.currentSearchTerm = term;
+    this.serverSearchArrived = false;
+    // Invalidate any in-flight server search for a previous term and hide its
+    // loader -> a fresh request for this term starts only after the 3s debounce.
+    this.searchRequestSeq++;
+    if (this.searchLoading) {
+      this.searchLoading = false;
+      this.loadingService.endPdfDocxExport();
+    }
+    // Instant local search over the already-loaded questions (max 90 loaded),
+    // shown immediately on every keystroke.
+    this.searchResults = this.searchLoadedQuestions(term);
+    this.cdr.detectChanges();
+    // (Re)arm the server call: it fires 3 seconds after typing stops.
+    this.scheduleServerSearch(term);
+  }
+
+  /** Search-icon click: search the whole subject right away (skips the 3s debounce). */
+  onSearchSubmit(): void {
+    const term = this.currentSearchTerm.trim();
+    if (!term) return;
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+    this.runServerSearch(term);
+  }
+
+  /** (Re)arm the 3s inactivity debounce before a server search fires. */
+  private scheduleServerSearch(term: string): void {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+    }
+    this.searchDebounceTimer = setTimeout(() => {
+      this.searchDebounceTimer = null;
+      this.runServerSearch(term);
+    }, 3000);
+  }
+
+  /** Emit the term so the server-stream requests the exact / best matches. */
+  private runServerSearch(term: string): void {
+    if (!term || !this.primarySubject) return;
+    this.searchSubject.next(term);
+  }
+
+  /** Clear search UI and invalidate any in-flight backend search requests. */
+  private resetSearchState(): void {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+    this.searchRequestSeq++;
+    if (this.searchLoading) {
+      this.loadingService.endPdfDocxExport();
+    }
+    this.currentSearchTerm = '';
+    this.searchResults = null;
+    this.serverSearchArrived = false;
+    this.searchLoading = false;
+    this.cdr.detectChanges();
+  }
+
+  /** Already-loaded questions eligible for local search (respects disappeared / source/year / type filters). */
+  private searchLoadedPool(): any[] {
+    return this.questionPageCache.allCachedItems().filter((q: any) => {
+      if (this.disappearedQuestions.isDisappeared(q?.qid)) return false;
+      if (!this.questionMatchesSourceYear(q)) return false;
+      if (this.selectedQuestionTypes.size === 0) return true;
+      return this.selectedQuestionTypes.has(this.normalizeQuestionTypeLabel(q?.type));
+    });
+  }
+
+  /** Fuzzy match + best-first ranking over the already-loaded questions (max 90). */
+  private searchLoadedQuestions(term: string): { q: any; fullIndex: number }[] {
+    const ranked = this.rankQuestionsForSearch(this.searchLoadedPool(), term);
+    return ranked.slice(0, this.searchMaxLoaded).map((q, i) => ({ q, fullIndex: i }));
+  }
+
+  /** Sort questions by descending relevance score; only true matches (score > 0) are kept. */
+  private rankQuestionsForSearch(rows: any[], term: string): any[] {
+    const t = term.toLowerCase();
+    return rows
+      .map((q) => ({ q, score: this.searchScoreForQuestion(q, t) }))
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((s) => s.q);
+  }
+
+  /** Concatenated searchable text of a question (question, answers, options, explanations, topic, chapter, subject, qid). */
+  private searchableQuestionText(q: any): string {
+    if (!q || typeof q !== 'object') return '';
+    const parts = [
+      q.question, q.answer,
+      q.option_1, q.option_2, q.option_3, q.option_4,
+      q.explanation, q.explanation2, q.explanation3,
+      q.topic, q.chapter, q.subject, q.qid,
+    ];
+    return parts.map((v) => (v == null ? '' : String(v))).join(' ');
+  }
+
+  /**
+   * Rank by number of matched characters (not by repeated matches).
+   *
+   * Score breakdown (mirrors backend `_search_match_score`):
+   * - full contiguous match (ignoring whitespace) -> 1_000_000 + length
+   * - otherwise: matched-characters-in-order (LCS) * 1000
+   *              + longest contiguous run (tie-break)
+   * Each character of the query is counted at most once.
+   */
+  private searchScoreForQuestion(q: any, t: string): number {
+    if (!t) return 0;
+    const text = this.searchableQuestionText(q).toLowerCase();
+    const rawLower = t.toLowerCase();
+    const nterm = rawLower.replace(/\s+/g, '');
+    const ntext = text.replace(/\s+/g, '');
+    if (!nterm || !ntext) return 0;
+    if (ntext.includes(nterm)) return 1000000 + nterm.length;
+    const lcsSeq = this.lcsSubsequenceLen(nterm, ntext);
+    if (lcsSeq === 0) return 0;
+    const lcsStr = this.lcsSubstringLen(nterm, ntext);
+    return lcsSeq * 1000 + lcsStr;
+  }
+
+  /** Length of the longest common subsequence (matched characters in order). */
+  private lcsSubsequenceLen(a: string, b: string): number {
+    if (!a || !b) return 0;
+    let prev = new Array<number>(b.length + 1).fill(0);
+    for (const ca of a) {
+      const cur = new Array<number>(b.length + 1).fill(0);
+      for (let j = 1; j <= b.length; j++) {
+        if (ca === b[j - 1]) {
+          cur[j] = prev[j - 1] + 1;
+        } else {
+          cur[j] = prev[j] >= cur[j - 1] ? prev[j] : cur[j - 1];
+        }
+      }
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+
+  /** Length of the longest common contiguous substring. */
+  private lcsSubstringLen(a: string, b: string): number {
+    if (!a || !b) return 0;
+    let prev = new Array<number>(b.length + 1).fill(0);
+    let best = 0;
+    for (const ca of a) {
+      const cur = new Array<number>(b.length + 1).fill(0);
+      for (let j = 1; j <= b.length; j++) {
+        if (ca === b[j - 1]) {
+          const v = prev[j - 1] + 1;
+          cur[j] = v;
+          if (v > best) best = v;
+        }
+      }
+      prev = cur;
+    }
+    return best;
+  }
+
+  /** Server search stream: switchMap keeps only the latest in-flight request. */
+  private setupQuestionSearch(): void {
+    this.searchSub = this.searchSubject
+      .pipe(
+        switchMap((term) => this.runServerSearchInner(term))
+      )
+      .subscribe((out) => {
+        if (!out || out.seq !== this.searchRequestSeq) return;
+        if (this.currentSearchTerm.trim() !== out.term) return;
+        this.searchResults = out.items;
+        this.serverSearchArrived = true;
+        this.cdr.detectChanges();
+      });
+  }
+
+  /** Performs a server search, showing the circular loader with "Searching ...". */
+  private runServerSearchInner(
+    term: string
+  ): Observable<{ seq: number; term: string; items: { q: any; fullIndex: number }[] } | null> {
+    const sub = this.primarySubject;
+    if (!term || !sub) {
+      return of(null);
+    }
+    const seq = ++this.searchRequestSeq;
+    this.searchLoading = true;
+    this.loadingService.beginPdfDocxExport('pdf', 'Searching ...');
+    this.cdr.detectChanges();
+    return this.apiService
+      .getQuestionListPaged({
+        level_tr: sub.level_tr,
+        class_level: sub.class_level,
+        subject_tr: sub.subject_tr,
+        page: 1,
+        page_size: this.searchMaxLoaded,
+        topics: this.topicQueryValues(),
+        chapters: this.chapterQueryValues(),
+        sources: Array.from(this.selectedSources),
+        years: Array.from(this.selectedYears),
+        types: Array.from(this.selectedQuestionTypes),
+        search: term,
+      })
+      .pipe(
+        map((res) => {
+          let rows = this.applyUserEditsToQuestions(res.questions || []);
+          rows = rows.filter((q) => !this.disappearedQuestions.isDisappeared(q?.qid));
+          const items = this.rankQuestionsForSearch(rows, term)
+            .slice(0, this.searchMaxLoaded)
+            .map((q, i) => ({ q, fullIndex: i }));
+          return { seq, term, items };
+        }),
+        catchError(() => of({ seq, term, items: [] as { q: any; fullIndex: number }[] })),
+        finalize(() => {
+          if (seq === this.searchRequestSeq) {
+            this.searchLoading = false;
+            this.loadingService.endPdfDocxExport();
+            this.cdr.detectChanges();
+          }
+        })
+      );
   }
 
   /** Navigate to question-creator page with no selection (from "Create Question" button when nothing selected). */

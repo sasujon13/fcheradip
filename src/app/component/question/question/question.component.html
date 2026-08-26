@@ -270,7 +270,7 @@
           <button type="button" class="btn-clear-all-filters" *ngIf="hasAnyFilterSelection"
             (click)="clearAllFilterSelections()" title="Clear all filter selections">✕</button>
           <div class="action-bar">
-            <app-searchbar (searchChange)="onSearch($any($event))"></app-searchbar>
+            <app-searchbar (searchChange)="onSearch($any($event))" (searchSubmit)="onSearchSubmit()"></app-searchbar>
           </div>
         </div>
       </div>
@@ -379,7 +379,7 @@
 
   <!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
   <div class="question-container2" [class.question-container2--filter-collapsed]="filtersCollapsedToIcon">
-    <div class="topic-questions-section" *ngIf="primarySubject && topicQuestions.length > 0" appQuestionRichImgHost>
+    <div class="topic-questions-section" *ngIf="primarySubject && (topicQuestions.length > 0 || isSearchActive)" appQuestionRichImgHost>
       <div class="topic-questions-header" style="display: none;">
         <div class="topic-questions-actions">
           <label class="select-all-label">
@@ -432,13 +432,13 @@
                 (click)="onQuestionRowClick($event, item.q.qid, item.q); $event.preventDefault(); $event.stopPropagation()">
                 <ng-container *ngIf="getQuestionDisplayStructure(item.q) as struct">
                   <span class="topic-question-text" *ngIf="struct.parts.length === 0"
-                    [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"></span>
+                    [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></span>
                   <ng-container *ngIf="struct.parts.length > 0">
                     <span class="topic-question-text topic-question-intro"
-                      [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines"></span>
+                      [innerHTML]="struct.intro | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></span>
                     <div *ngFor="let part of struct.parts; let pi = index" class="topic-question-subpart-wrap"
                       [class.topic-question-subpart-wrap--has-marks]="creativeSubpartMarkBn(struct.parts.length, pi)">
-                      <div class="topic-question-subpart" [innerHTML]="part | formatQuestionMedia | wrapRomanLines">
+                      <div class="topic-question-subpart" [innerHTML]="part | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm">
                       </div>
                       <span class="topic-question-subpart-marks"
                         *ngIf="creativeSubpartMarkBn(struct.parts.length, pi) as mk">{{ mk }}</span>
@@ -452,13 +452,13 @@
                 [class.topic-question-options-4row]="optionsLayouts[item.fullIndex] === '4row'"
                 *ngIf="item.q.option_1 || item.q.option_2">
                 <span *ngIf="item.q.option_1" class="topic-question-opt">(ক) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+                    [innerHTML]="getOptionDisplayText(item.q.option_1) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
                   <span *ngIf="item.q.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+                    [innerHTML]="getOptionDisplayText(item.q.option_2) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
                   <span *ngIf="item.q.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+                    [innerHTML]="getOptionDisplayText(item.q.option_3) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
                   <span *ngIf="item.q.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html"
-                    [innerHTML]="getOptionDisplayText(item.q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+                    [innerHTML]="getOptionDisplayText(item.q.option_4) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
               </div>
             </ng-container>
             <div class="topic-question-edit" *ngIf="isEditingItem(item.q.qid)" (click)="$event.stopPropagation()">
@@ -488,14 +488,14 @@
               <span class="topic-question-answer" *ngIf="hasNonEmptyUnlockField(item.q.answer)">
                 <span class="topic-question-answer-label">Answer: </span>
                 <span class="topic-question-answer-html"
-                  [innerHTML]="getUnlockAnswerSource(item.q) | formatQuestionMedia | wrapRomanLines"></span>
+                  [innerHTML]="getUnlockAnswerSource(item.q) | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></span>
               </span>
               <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation)"
-                [innerHTML]="item.q.explanation | formatQuestionMedia | wrapRomanLines"></div>
+                [innerHTML]="item.q.explanation | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></div>
               <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation2)"
-                [innerHTML]="item.q.explanation2 | formatQuestionMedia | wrapRomanLines"></div>
+                [innerHTML]="item.q.explanation2 | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></div>
               <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation3)"
-                [innerHTML]="item.q.explanation3 | formatQuestionMedia | wrapRomanLines"></div>
+                [innerHTML]="item.q.explanation3 | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></div>
             </div>
             <div class="topic-question-item-actions" *ngIf="!isEditingItem(item.q.qid)"
               (click)="$event.stopPropagation()">
@@ -524,10 +524,15 @@
           </div>
         </li>
       </ul>
-      <p *ngIf="(selectedSources.size > 0 || selectedYears.size > 0) && getDisplayedQuestions().length === 0"
+      <p *ngIf="isSearchActive && searchLoading" class="no-topic-questions">Searching ...</p>
+      <p *ngIf="isSearchActive && serverSearchArrived && !searchLoading && searchResults && searchResults.length === 0"
+        class="no-topic-questions">No matching questions found.</p>
+      <p *ngIf="isSearchActive && !serverSearchArrived && searchResults && searchResults.length === 0"
+        class="no-topic-questions">Loading more results...</p>
+      <p *ngIf="!isSearchActive && (selectedSources.size > 0 || selectedYears.size > 0) && getDisplayedQuestions().length === 0"
         class="no-topic-questions">No questions for selected source/year.</p>
       <!-- Pagination: same markup and classes as merit5 -->
-      <div class="pagination mt-4" *ngIf="topicQuestionsTotalPages > 1">
+      <div class="pagination mt-4" *ngIf="!isSearchActive && topicQuestionsTotalPages > 1">
         <button class="newButton2 btn btn-secondary"
           (click)="onTopicQuestionsPageChange(effectiveTopicQuestionsPage - 1)"
           [disabled]="effectiveTopicQuestionsPage <= 1">Previous</button>
@@ -538,7 +543,7 @@
       </div>
 
     </div>
-    <p *ngIf="selectedTopicIds.size > 0 && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode"
+    <p *ngIf="!isSearchActive && selectedTopicIds.size > 0 && topicQuestionsLoaded && topicQuestions.length === 0 && !isFormMode"
       class="no-topic-questions">No questions found for selected topic(s).</p>
 
     <div class="question-layout">

@@ -201,4 +201,12 @@ input:disabled {
   z-index: 10050 !important;
 }
 
+/* Search highlight: golden background, visible on both white and black text */
+mark.highlight-match {
+  background-color: #e6a817;
+  color: inherit;
+  padding: 0 0.1em;
+  border-radius: 2px;
+}
+
 
