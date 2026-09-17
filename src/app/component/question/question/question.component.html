@@ -483,13 +483,35 @@
                       class="topic-question-edit-opt-label topic-question-option-marker">ঘ</span> <input
                       type="text" [(ngModel)]="editForm.option_4" class="topic-question-edit-input" /></span>
                 </div>
+                <span class="topic-question-edit-field-label">Topic</span>
+                <span class="topic-question-edit-opt">
+                  <select *ngIf="!topicEditMode" [(ngModel)]="editForm.topic" class="topic-question-edit-input topic-question-edit-select">
+                    <option *ngFor="let t of getEditTopicOptions()" [value]="t">{{ t }}</option>
+                  </select>
+                  <input *ngIf="topicEditMode" type="text" [(ngModel)]="editForm.topic" class="topic-question-edit-input" />
+                  <button type="button" class="topic-question-edit-btn topic-question-edit-confirm" (click)="topicEditMode = false" [class.active]="topicEditMode" title="Keep edited topic">
+                    <i *ngIf="topicEditMode" class="fa fa-check"></i>
+                    <span *ngIf="!topicEditMode">Edit Topic</span>
+                  </button>
+                  <button *ngIf="topicEditMode" type="button" class="topic-question-edit-btn topic-question-edit-revert" (click)="revertEditTopic()" title="Clear edited topic back to original">
+                    <i class="fa fa-times"></i>
+                  </button>
+                  <button type="button" class="topic-question-edit-btn" (click)="editForm.addTopic = !editForm.addTopic" [class.active]="editForm.addTopic" title="Add a brand-new topic for this question">+ Add Topic</button>
+                </span>
+                <input *ngIf="editForm.addTopic" type="text" [(ngModel)]="editForm.newTopic" class="topic-question-edit-input" placeholder="New topic name" />
+                <span class="topic-question-edit-field-label">Answer</span>
+                <input type="text" [(ngModel)]="editForm.answer" class="topic-question-edit-input" />
+                <span class="topic-question-edit-field-label">Explanation</span>
+                <textarea [(ngModel)]="editForm.explanation" class="topic-question-edit-textarea" rows="3"></textarea>
+                <span class="topic-question-edit-field-label">Subsource</span>
+                <input type="text" [(ngModel)]="editForm.subsource" class="topic-question-edit-input" />
               </div>
               <div class="topic-question-edit-actions">
                 <button type="button" class="btn-update-pending" (click)="submitPendingEdit($event)">Update</button>
                 <button type="button" class="btn-cancel-edit" (click)="cancelEdit($event)">Cancel</button>
               </div>
             </div>
-            <span class="topic-question-subsource" *ngIf="getSubsourceDisplay(item.q)">{{ getSubsourceDisplay(item.q)
+            <span class="topic-question-subsource" *ngIf="!isEditingItem(item.q.qid) && getSubsourceDisplay(item.q)">{{ getSubsourceDisplay(item.q)
               }}</span>
             <div class="topic-question-extra"
               *ngIf="isQuestionRevealed(item.q.qid) && hasUnlockableExtraContent(item.q)">

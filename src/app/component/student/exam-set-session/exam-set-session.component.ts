@@ -23,8 +23,11 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
   explanationOpen: Record<string, boolean> = {};
   allExplanationsOpen = false;
   editingQid: string | null = null;
+  topicEditMode = false;
+  originalTopic = '';
   editForm: any = { question: '', option_1: '', option_2: '', option_3: '', option_4: '', answer: '', explanation: '' };
   editStatus = '';
+  editTopics: string[] = [];
   timeRemaining = EXAM_DURATION_SEC;
   private deadlineTs = Date.now() + EXAM_DURATION_SEC * 1000;
   timerSub?: Subscription;
@@ -790,7 +793,11 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     if (ev) { ev.preventDefault(); ev.stopPropagation(); }
     if (!q) return;
     this.editingQid = q.qid;
+    this.topicEditMode = false;
+    this.originalTopic = q.topic != null ? String(q.topic).trim() : '';
     this.editStatus = '';
+    this.editTopics = q.topic ? [String(q.topic).trim()] : [];
+    this.loadEditTopics(q);
     this.editForm = {
       question: (q.question != null ? String(q.question) : '').trim(),
       option_1: (q.option_1 != null ? String(q.option_1) : '').trim(),
@@ -799,12 +806,47 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       option_4: (q.option_4 != null ? String(q.option_4) : '').trim(),
       answer: (q.answer != null ? String(q.answer) : '').trim(),
       explanation: (q.explanation != null ? String(q.explanation) : '').trim(),
+      topic: (q.topic != null ? String(q.topic) : '').trim(),
+      subsource: (q.subsource != null ? String(q.subsource) : '').trim(),
+      addTopic: false,
+      newTopic: '',
     };
   }
 
   cancelEdit(): void {
     this.editingQid = null;
+    this.topicEditMode = false;
     this.editStatus = '';
+  }
+
+  /** Revert the edited topic back to the question's original topic. */
+  revertEditTopic(): void {
+    if (this.originalTopic) this.editForm.topic = this.originalTopic;
+    this.topicEditMode = false;
+  }
+
+  /** Fetch all topics under the question's chapter for the edit dropdown. */
+  private loadEditTopics(q: any): void {
+    const level = this.set?.level_tr || q.level_tr || '';
+    const cls = this.set?.class_level || q.class_level || '';
+    const sub = this.set?.subject_tr || q.subject_tr || q.subject || '';
+    const chapter = q.chapter || '';
+    if (!level || !sub) return;
+    this.api.getQuestionTopics({
+      level_tr: level,
+      class_level: cls,
+      subject_tr: sub,
+      chapter: chapter || undefined,
+    }).subscribe({
+      next: (r: any) => {
+        const ts = (r && r.topics) ? r.topics : (Array.isArray(r) ? r : []);
+        const names = Array.from(new Set((ts as any[]).map((t: any) => String(t?.name || t?.topic || '').trim()).filter(Boolean)));
+        const cur = (this.editForm?.topic || q.topic || '').trim();
+        if (cur && !names.includes(cur)) names.unshift(cur);
+        this.editTopics = names;
+      },
+      error: () => { /* keep default = question's topic */ },
+    });
   }
 
   /** Same table slug as the /question page edits so admin approve writes to the right table. */
@@ -828,6 +870,36 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     if (!this.editingQid) return;
     const q = this.questions.find((x: any) => x.qid === this.editingQid);
     if (!q) { this.cancelEdit(); return; }
+    const origTopic = (q.topic || '').trim();
+    const newTopicName = (this.editForm.topic || '').trim();
+    // "Edit Topic" rename: table-wide topic rename request for admin approval
+    if (this.topicEditMode && !this.editForm.addTopic && newTopicName && newTopicName !== origTopic) {
+      const tblQue = q.table || this.subjectQuestionTableNameForPayload();
+      const rp: any = {
+        qid: this.editingQid,
+        question: this.editForm.question || ' ',
+        status: 'Topic Update',
+        topic: newTopicName,
+        subsource: JSON.stringify({ old_topic: origTopic, table: tblQue }),
+        table: tblQue,
+        type: q.type || '',
+        level_tr: this.set?.level_tr || '',
+        class_level: this.set?.class_level || '',
+        subject_tr: (this.set?.subject_tr || q.subject_tr || q.subject) || '',
+        chapter_no: q.chapter_no || '',
+        chapter: q.chapter || '',
+        topic_no: q.topic_no || '',
+      };
+      this.api.submitPendingQuestionRequest(rp).subscribe({
+        next: () => {
+          this.editStatus = 'Topic update submitted for review — all questions under this topic will be renamed once approved.';
+          this.editingQid = null;
+          this.topicEditMode = false;
+        },
+        error: () => { this.editStatus = 'Could not submit the topic update. Please try again.'; },
+      });
+      return;
+    }
     const payload: any = {
       qid: this.editingQid,
       question: this.editForm.question || '',
@@ -837,6 +909,10 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       option_4: this.editForm.option_4 || '',
       answer: this.editForm.answer || '',
       explanation: this.editForm.explanation || '',
+      topic: (this.editForm.addTopic && (this.editForm.newTopic || '').trim())
+        ? this.editForm.newTopic.trim()
+        : (this.editForm.topic || q.topic || ''),
+      subsource: this.editForm.subsource || '',
       type: q.type || '',
       level_tr: this.set?.level_tr || '',
       class_level: this.set?.class_level || '',
@@ -845,8 +921,6 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       chapter_no: q.chapter_no || '',
       chapter: q.chapter || '',
       topic_no: q.topic_no || '',
-      topic: q.topic || '',
-      subsource: q.subsource || '',
       level: q.level || '',
       status: 'Update',
     };

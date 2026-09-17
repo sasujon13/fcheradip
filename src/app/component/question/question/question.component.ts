@@ -188,8 +188,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   private selectedQuestionsByQid = new Map<number | string, any>();
   /** Qid currently in inline-edit mode (change icon). */
   editingQid: number | string | null = null;
+  /** Topic rename mode: turns the topic dropdown into an editable text field. */
+  topicEditMode = false;
+  /** Original topic of the question being edited (for the ✕ revert). */
+  originalTopic = '';
   /** Inline-edit form values (question text, option_1..4). */
-  editForm: { question: string; option_1: string; option_2: string; option_3: string; option_4: string } = { question: '', option_1: '', option_2: '', option_3: '', option_4: '' };
+  editForm: any = { question: '', option_1: '', option_2: '', option_3: '', option_4: '', answer: '', explanation: '', topic: '', subsource: '', addTopic: false, newTopic: '' };
   /** Success alert (same app-alert as Apply TrxID): message and visibility. */
   successAlertMessage = '';
   showSuccessAlert = false;
@@ -504,7 +508,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private patchQuestionInMemoryCaches(
     qid: number | string,
-    patch: { question: string; option_1: string; option_2: string; option_3: string; option_4: string }
+    patch: Record<string, any>
   ): void {
     const matchQid = (q: any) => q?.qid != null && q.qid == qid;
     this.pagedTopicQuestions = this.pagedTopicQuestions.map((q) =>
@@ -2685,12 +2689,20 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     const q = item.q;
     this.editingQid = q != null ? q.qid : null;
+    this.topicEditMode = false;
+    this.originalTopic = q.topic != null ? String(q.topic).trim() : '';
     this.editForm = {
       question: (q.question != null ? String(q.question) : '').trim(),
       option_1: (q.option_1 != null ? String(q.option_1) : '').trim(),
       option_2: (q.option_2 != null ? String(q.option_2) : '').trim(),
       option_3: (q.option_3 != null ? String(q.option_3) : '').trim(),
-      option_4: (q.option_4 != null ? String(q.option_4) : '').trim()
+      option_4: (q.option_4 != null ? String(q.option_4) : '').trim(),
+      answer: (q.answer != null ? String(q.answer) : '').trim(),
+      explanation: (q.explanation != null ? String(q.explanation) : '').trim(),
+      topic: (q.topic != null ? String(q.topic) : '').trim(),
+      subsource: (q.subsource != null ? String(q.subsource) : '').trim(),
+      addTopic: false,
+      newTopic: ''
     };
     this.cdr.detectChanges();
   }
@@ -2698,7 +2710,30 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   cancelEdit(event?: Event): void {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     this.editingQid = null;
+    this.topicEditMode = false;
     this.cdr.detectChanges();
+  }
+
+  /** Revert the edited topic back to the question's original topic. */
+  revertEditTopic(): void {
+    const original = this.getTopicQuestionsFilteredSorted().find((q: any) => q?.qid === this.editingQid);
+    const orig = (original && original.topic != null) ? String(original.topic).trim() : this.originalTopic;
+    if (orig) this.editForm.topic = orig;
+    this.topicEditMode = false;
+    this.cdr.detectChanges();
+  }
+
+  /** All topic names under the current chapter, with the question's assigned topic
+   *  guaranteed to be present so the dropdown defaults to it. */
+  getEditTopicOptions(): string[] {
+    const names = new Set<string>();
+    (this.topics || []).forEach((t: any) => {
+      const n = (t?.name || t?.topic || '').trim();
+      if (n) names.add(n);
+    });
+    const cur = (this.editForm?.topic || '').trim();
+    if (cur) names.add(cur);
+    return Array.from(names);
   }
 
   /** Escape HTML so diff markup is safe. */
@@ -2761,14 +2796,22 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const origOpt2 = original ? oq(original.option_2) : '';
     const origOpt3 = original ? oq(original.option_3) : '';
     const origOpt4 = original ? oq(original.option_4) : '';
+    const origTopic = original ? oq(original.topic) : '';
+    const origSubsource = original ? oq(original.subsource) : '';
+    const origAnswer = original ? oq(original.answer) : '';
+    const origExplanation = original ? oq(original.explanation) : '';
     if (original) {
       const noChange =
         this.editForm.question === origQuestion &&
         this.editForm.option_1 === origOpt1 &&
         this.editForm.option_2 === origOpt2 &&
         this.editForm.option_3 === origOpt3 &&
-        this.editForm.option_4 === origOpt4;
-      if (noChange) return;
+        this.editForm.option_4 === origOpt4 &&
+        this.editForm.answer === origAnswer &&
+        this.editForm.explanation === origExplanation &&
+        this.editForm.topic === origTopic &&
+        this.editForm.subsource === origSubsource;
+      if (!this.editForm.addTopic && noChange) return;
     }
     const sub = this.primarySubject;
     const str = (v: any) => (v != null ? String(v).trim() : '') || '';
@@ -2777,6 +2820,40 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const opt2 = this.editForm.option_2 ?? '';
     const opt3 = this.editForm.option_3 ?? '';
     const opt4 = this.editForm.option_4 ?? '';
+    const newTopic = this.editForm.addTopic ? str(this.editForm.newTopic) : '';
+    const topic = newTopic || str(this.editForm.topic) || origTopic;
+    // "Edit Topic" rename: submit a Topic Update request – on approval ALL questions
+    // under the old topic get renamed (backend handles the table-wide UPDATE).
+    if (this.topicEditMode && !this.editForm.addTopic && str(this.editForm.topic) && str(this.editForm.topic) !== origTopic) {
+      const tNew = str(this.editForm.topic);
+      const tblRename = sub ? this.subjectQuestionTableName(sub.level_tr, sub.class_level, sub.subject_tr) : '';
+      const rp: any = {
+        qid: String(this.editingQid),
+        question: q || ' ',
+        status: 'Topic Update',
+        topic: tNew,
+        subsource: JSON.stringify({ old_topic: origTopic || '', table: tblRename }),
+        table: tblRename,
+        type: original ? str(original.type) : '',
+        level_tr: sub ? sub.level_tr : '',
+        class_level: sub ? sub.class_level : '',
+        subject_tr: sub ? sub.subject_tr : '',
+        chapter_no: original ? str(original.chapter_no) : '',
+        chapter: this.currentChapter || '',
+        topic_no: original ? str(original.topic_no) : '',
+      };
+      this.apiService.submitPendingQuestionRequest(rp).subscribe({
+        next: () => {
+          this.showSuccessAlert = true;
+          this.successAlertMessage = 'Topic update submitted for review — all questions under this topic will be renamed once approved.';
+          this.editingQid = null;
+          this.topicEditMode = false;
+          this.cdr.detectChanges();
+        },
+        error: () => this.cdr.detectChanges(),
+      });
+      return;
+    }
     const payload: any = {
       qid: this.editingQid != null ? String(this.editingQid) : '',
       status: 'Update',
@@ -2785,16 +2862,17 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       option_2: this.pendingEditFieldValue(origOpt2, opt2, !!original),
       option_3: this.pendingEditFieldValue(origOpt3, opt3, !!original),
       option_4: this.pendingEditFieldValue(origOpt4, opt4, !!original),
-      explanation: original ? str(original.explanation) : '',
+      answer: this.pendingEditFieldValue(origAnswer, str(this.editForm.answer), !!original),
+      explanation: this.pendingEditFieldValue(origExplanation, str(this.editForm.explanation), !!original),
+      topic: this.pendingEditFieldValue(origTopic, topic, !!original),
+      subsource: this.pendingEditFieldValue(origSubsource, str(this.editForm.subsource), !!original),
       explanation2: original ? str(original.explanation2) : '',
       explanation3: original ? str(original.explanation3) : ''
     };
     if (original) {
-      if (original.answer != null) payload.answer = str(original.answer);
       if (original.type != null) payload.type = str(original.type);
       if (original.chapter_no != null) payload.chapter_no = str(original.chapter_no);
       if (original.topic_no != null) payload.topic_no = str(original.topic_no);
-      if (original.subsource != null) payload.subsource = str(original.subsource);
       if (original.level != null) payload.level = str(original.level);
     }
     if (sub) {
@@ -2803,9 +2881,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       payload.subject_tr = sub.subject_tr;
       payload.table = this.subjectQuestionTableName(sub.level_tr, sub.class_level, sub.subject_tr);
       payload.chapter = this.currentChapter || undefined;
-      payload.topic = this.topics.find(t => this.selectedTopicIds.has(t.id))?.name || (this.topics[0]?.name) || undefined;
+      if (!topic) payload.topic = undefined;
     }
-    const userPatch = { question: q, option_1: opt1, option_2: opt2, option_3: opt3, option_4: opt4 };
+    const userPatch: any = {
+      question: q, option_1: opt1, option_2: opt2, option_3: opt3, option_4: opt4,
+      answer: str(this.editForm.answer), explanation: str(this.editForm.explanation),
+      topic, subsource: str(this.editForm.subsource),
+    };
     const savedQid = this.editingQid;
     this.apiService.submitPendingQuestionRequest(payload).subscribe({
       next: () => {

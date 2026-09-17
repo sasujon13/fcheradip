@@ -155,14 +155,14 @@
               <span class="exam-opt-text">{{ getOptionText(q, key) }}</span>
             </span>
           </div>
-          <div class="exam-question-actions">
+          <div class="exam-question-actions" *ngIf="editingQid !== q.qid">
             <button type="button" class="exam-q-action" [class.loved]="isLoved(q)" (click)="toggleLove(q, $event)" title="Like for later review">
               <i class="fa fa-heart"></i>
             </button>
-            <button type="button" class="exam-q-action" (click)="startEdit(q, $event)" title="Suggest an edit">
-              <i class="fa fa-pencil"></i>
+            <button type="button" class="exam-q-action" (click)="startEdit(q, $event)" title="Edit / Change">
+              <i class="fa fa-edit"></i>
             </button>
-            <button type="button" class="exam-explanation-toggle" (click)="toggleExplanation(q.qid)">
+            <button type="button" class="exam-explanation-toggle" [class.open]="isExplanationOpen(q.qid)" (click)="toggleExplanation(q.qid)">
               {{ isExplanationOpen(q.qid) ? 'Hide Explanation' : 'Explanation' }}
             </button>
           </div>
@@ -183,6 +183,24 @@
                     class="topic-question-edit-opt-label topic-question-option-marker">ঘ</span> <input
                     type="text" [value]="editForm.option_4" (input)="editForm.option_4 = $any($event.target).value" class="topic-question-edit-input" /></span>
               </div>
+              <span class="exam-edit-field-label">Topic</span>
+              <span class="topic-question-edit-opt">
+                <select *ngIf="!topicEditMode" [value]="editForm.topic" (change)="editForm.topic = $any($event.target).value" class="topic-question-edit-input topic-question-edit-select">
+                  <option *ngFor="let t of editTopics" [value]="t">{{ t }}</option>
+                </select>
+                <input *ngIf="topicEditMode" type="text" [value]="editForm.topic" (input)="editForm.topic = $any($event.target).value" class="topic-question-edit-input" />
+                <button type="button" class="topic-question-edit-btn topic-question-edit-confirm" (click)="topicEditMode = false" [class.active]="topicEditMode" title="Keep edited topic">
+                  <i *ngIf="topicEditMode" class="fa fa-check"></i>
+                  <span *ngIf="!topicEditMode">Edit Topic</span>
+                </button>
+                <button *ngIf="topicEditMode" type="button" class="topic-question-edit-btn topic-question-edit-revert" (click)="revertEditTopic()" title="Clear edited topic back to original">
+                  <i class="fa fa-times"></i>
+                </button>
+                <button type="button" class="topic-question-edit-btn" (click)="editForm.addTopic = !editForm.addTopic" [class.active]="editForm.addTopic" title="Add a brand-new topic for this question">+ Add Topic</button>
+              </span>
+              <input *ngIf="editForm.addTopic" type="text" [value]="editForm.newTopic" (input)="editForm.newTopic = $any($event.target).value" class="topic-question-edit-input" placeholder="New topic name" />
+              <span class="exam-edit-field-label">Subsource</span>
+              <input type="text" [value]="editForm.subsource" (input)="editForm.subsource = $any($event.target).value" class="topic-question-edit-input" />
               <span class="exam-edit-field-label">Answer</span>
               <textarea [value]="editForm.answer" (input)="editForm.answer = $any($event.target).value" class="topic-question-edit-textarea" rows="2"></textarea>
               <span class="exam-edit-field-label">Explanation</span>
@@ -200,7 +218,7 @@
               [innerHTML]="q.explanation | formatQuestionMedia | wrapRomanLines"></span>
             <span class="topic-question-explanation-none" *ngIf="!q.explanation">No explanation available for this question.</span>
           </div>
-          <span class="topic-question-subsource" *ngIf="q.subsource">{{ q.subsource }}</span>
+          <span class="topic-question-subsource" *ngIf="editingQid !== q.qid && q.subsource">{{ q.subsource }}</span>
         </div>
       </li>
     </ul>
