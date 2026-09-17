@@ -20,6 +20,7 @@ import { normalizeQuestionListFromApi } from '../../../shared/question-api-norma
 import { LoadingService } from '../../../service/loading.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../../service/login-redirect.session';
 import { DisappearedQuestionsService } from '../../../service/disappeared-questions.service';
+import { LovedQuestionsService } from '../../../service/loved-questions.service';
 import {
   QuestionUnlockItem,
   QuestionUnlockService,
@@ -198,8 +199,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Disappear feedback (snackbar like Apply TrxID). */
   disappearAlertMessage = '';
   showDisappearAlert = false;
-  /** Loved/favourite qids (client-side only). */
+  /** Loved/favourite qids (persisted via LovedQuestionsService). */
   lovedQids: Set<number | string> = new Set();
+  /** When true (route /liked-questions), only loved questions are shown/filtered. */
+  likedOnly = false;
   /** Paid unlocks persisted on server (re-unlock never charges again). */
   purchasedUnlockedQids = new Set<string>();
   /** Qids currently showing answer/explanation (toggle lock without losing purchase). */
@@ -400,7 +403,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
             })
           ),
       onDisplay: (rows) => {
-        this.pagedTopicQuestions = rows;
+        this.pagedTopicQuestions = this.filterLikedOnly(rows);
         this.topicQuestionsLoaded = true;
         this.syncSelectionRowsFromLoadedPages();
         this.cdr.detectChanges();
@@ -746,6 +749,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     private apiService: ApiService,
     private loadingService: LoadingService,
     private disappearedQuestions: DisappearedQuestionsService,
+    private lovedService: LovedQuestionsService,
     private questionUnlock: QuestionUnlockService,
     private questionUnlockedQids: QuestionUnlockedQidsService,
     private trxUnlock: TrxUnlockService,
@@ -974,6 +978,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.loadingService.setTotal(2);
     this.disappearedQuestions.load();
+    this.lovedQids = new Set(this.lovedService.qids());
+    this.likedOnly = !!this.route.snapshot.data['likedOnly'];
     this.setupQuestionSearch();
     this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
     this.loadUnlockedQidsFromServer();
@@ -1106,7 +1112,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
               (Array.isArray(stored.selectedQuestions) && stored.selectedQuestions.length > 0) ||
               stored.instituteType != null);
           this._pendingFilterState =
-            stateMatchesUrl && stored && urlHasSubject ? stored : null;
+            this.likedOnly ? null : (stateMatchesUrl && stored && urlHasSubject ? stored : null);
           this._restoreChapterTopicAfterSubjectLoad = !!(this._pendingFilterState && hasDownstream);
           this.applyFiltersFromUrl(
             qLevel,
@@ -1117,7 +1123,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           this.loadingService.completeOne();
           return;
         }
-        this._pendingFilterState = this.loadFilterState();
+        this._pendingFilterState = this.likedOnly ? null : this.loadFilterState();
         if (!this.isFormMode && this._pendingFilterState?.level && this.levels.some(l => l.level_tr === this._pendingFilterState!.level)) {
           this.selectedLevel = this._pendingFilterState.level;
           this.apiService.getQuestionClasses(this.selectedLevel).subscribe({
@@ -1200,6 +1206,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** Keep /question URL in sync with filters (bookmarkable; matches API query shape). */
   private syncQuestionRouteQueryParams(): void {
+    if (this.likedOnly) return; // /liked-questions stays on its own URL; no redirect, no saved filters
     if (!this.selectedLevel) {
       this.router.navigate(['/question']);
       return;
@@ -2608,12 +2615,35 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.lovedQids.has(qid);
   }
 
-  toggleLove(qid: number | string, event?: Event): void {
+  toggleLove(qidOrQ: number | string | any, event?: Event): void {
     if (event) { event.preventDefault(); event.stopPropagation(); }
-    if (this.lovedQids.has(qid)) this.lovedQids.delete(qid);
-    else this.lovedQids.add(qid);
-    this.lovedQids = new Set(this.lovedQids);
+    const q = qidOrQ && typeof qidOrQ === 'object' ? qidOrQ : null;
+    const qid = q ? q.qid : qidOrQ;
+    if (q) {
+      const level = this.selectedLevel || q.level_tr || '';
+      const cls = this.selectedClass || q.class_level || '';
+      const sub = this.selectedSubjectTr || q.subject_tr || q.subject || '';
+      const meta: any = {
+        qid,
+        question: q.question, option_1: q.option_1, option_2: q.option_2,
+        option_3: q.option_3, option_4: q.option_4, answer: q.answer,
+        explanation: q.explanation, explanation2: q.explanation2, explanation3: q.explanation3,
+        subsource: q.subsource, type: q.type, level: q.level,
+        chapter_no: q.chapter_no, chapter: q.chapter, topic_no: q.topic_no, topic: q.topic,
+        level_tr: level, class_level: cls, subject_tr: sub,
+        table: this.subjectQuestionTableName(level, cls, sub),
+      };
+      this.lovedService.toggle(qid, meta);
+    } else {
+      this.lovedService.toggle(qid);
+    }
+    this.lovedQids = new Set(this.lovedService.qids());
     this.cdr.detectChanges();
+  }
+
+  private filterLikedOnly(list: any[]): any[] {
+    if (!this.likedOnly) return list;
+    return list.filter((q: any) => this.lovedQids.has(q?.qid));
   }
 
   /** Disappear question: hide from list until user restores it from Disappeared Questions (Live). Stored in user settings by qid. */
@@ -2890,12 +2920,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       const pool = useFullSubjectCache
         ? this.questionPageCache.allCachedItems()
         : this.pagedTopicQuestions;
-      return filterDisappeared(filterByType(pool));
+      return this.filterLikedOnly(filterDisappeared(filterByType(pool)));
     }
     const list = (this.selectedSources.size === 0 && this.selectedYears.size === 0)
       ? this.topicQuestions
       : this.topicQuestions.filter((q: any) => this.questionMatchesSourceYear(q));
-    return this.applyUserEditsToQuestions(filterDisappeared(filterByType(list)));
+    return this.applyUserEditsToQuestions(this.filterLikedOnly(filterDisappeared(filterByType(list))));
   }
 
   getTopicQuestionsFilteredSorted(): any[] {
@@ -2905,10 +2935,18 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Displayed list: current API page (30 items) with fullIndex for layout; search results during search. */
   getDisplayedQuestions(): { q: any; fullIndex: number }[] {
     if (this.isSearchActive) {
-      return this.searchResults ?? [];
+      const sr = this.searchResults ?? [];
+      return this.likedOnly ? sr.filter((q: any) => this.lovedQids.has(q?.qid)) : sr;
     }
     const start = (this.effectiveTopicQuestionsPage - 1) * this.questionListPageSize;
-    return this.pagedTopicQuestions.map((q: any, i: number) => ({ q, fullIndex: start + i }));
+    let pool = this.pagedTopicQuestions;
+    if (this.likedOnly) {
+      // Default: show ALL liked questions (from saved snapshots) until a filter
+      // picks a subject — the loader then replaces this with that subject's liked rows.
+      pool = pool && pool.length ? pool : this.lovedService.lovedQuestions();
+      pool = pool.filter((q: any) => this.lovedQids.has(q?.qid));
+    }
+    return pool.map((q: any, i: number) => ({ q, fullIndex: start + i }));
   }
 
   get allSourcesSelected(): boolean {

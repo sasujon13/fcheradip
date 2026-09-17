@@ -523,7 +523,7 @@
                 <ng-template #questionLockNeedsCoins>🔒</ng-template>
               </button>
               <button type="button" class="topic-question-action-btn" [class.loved]="isLoved(item.q.qid)"
-                (click)="toggleLove(item.q.qid, $event)" title="Like"> <i class="fa fa-heart" aria-hidden="true"></i>
+                (click)="toggleLove(item.q, $event)" title="Like"> <i class="fa fa-heart" aria-hidden="true"></i>
               </button>
               <button type="button" class="topic-question-action-btn topic-question-action-disappear"
                 (click)="onDisappearTopicQuestion(item, $event)"

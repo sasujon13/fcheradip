@@ -179,6 +179,7 @@ const routes: Routes = [
   {path: 'settings', component: SettingsComponent, canActivate: [AuthGuard]},
   {path: 'disappeared-questions', component: DisappearedQuestionsComponent, canActivate: [AuthGuard]},
   {path: 'created-questions', component: CreatedQuestionsComponent, canActivate: [AuthGuard]},
+  {path: 'liked-questions', component: QuestionComponent, data: {likedOnly: true}, canActivate: [AuthGuard]},
   {path: 'password', component: PasswordComponent, canActivate: [AuthGuard]},
   {path: 'mobile', component: MobileComponent, canActivate: [AuthGuard]},
   {path: 'question', component: QuestionComponent},

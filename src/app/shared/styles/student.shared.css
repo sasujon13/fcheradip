@@ -30,10 +30,10 @@
   justify-content: center;
   gap: 0.5rem;
   background: linear-gradient(135deg, var(--student-primary) 0%, var(--student-primary-dark) 100%);
-  color: #fff;
-  border: none;
-  border-radius: var(--student-radius-sm);
-  padding: 0.625rem 1.25rem;
+  color: teal;
+  border: 2px solid teal;
+  border-radius: 20px;
+  padding: 5px 14px;
   font-family: 'Roboto', sans-serif;
   font-size: 0.9375rem;
   font-weight: 500;

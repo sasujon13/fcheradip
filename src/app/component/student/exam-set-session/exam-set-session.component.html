@@ -120,9 +120,13 @@
             <h3 class="result-heading">Exam Results â€” {{ set?.name_label || 'Exam' }}</h3>
       <div class="topic-questions-actions">
         <span class="selected-count">{{ result.correct }} Correct of {{ result.total }} â€” Score {{ result.score }}%</span>
+        <button type="button" class="btn-toggle-explanation" (click)="toggleAllExplanations()">
+          {{ allExplanationsOpen ? 'Hide All Explanations' : 'Open Explanations' }}
+        </button>
         <button type="button" class="btn-student-primary" (click)="backToRegularExam()">Back to Regular Exams</button>
       </div>
     </div>
+    <p class="exam-edit-status exam-edit-message" *ngIf="editStatus">{{ editStatus }}</p>
     <ul class="topic-questions-list">
       <li *ngFor="let q of questions; let i = index" class="topic-question-item" [class.exam-item-wrong]="!isUserCorrect(q)">
         <div class="topic-question-sl-col">
@@ -151,15 +155,50 @@
               <span class="exam-opt-text">{{ getOptionText(q, key) }}</span>
             </span>
           </div>
-          <div class="topic-question-explanation-area" *ngIf="q.explanation">
+          <div class="exam-question-actions">
+            <button type="button" class="exam-q-action" [class.loved]="isLoved(q)" (click)="toggleLove(q, $event)" title="Like for later review">
+              <i class="fa fa-heart"></i>
+            </button>
+            <button type="button" class="exam-q-action" (click)="startEdit(q, $event)" title="Suggest an edit">
+              <i class="fa fa-pencil"></i>
+            </button>
             <button type="button" class="exam-explanation-toggle" (click)="toggleExplanation(q.qid)">
               {{ isExplanationOpen(q.qid) ? 'Hide Explanation' : 'Explanation' }}
             </button>
-            <div class="topic-question-explanation" *ngIf="isExplanationOpen(q.qid)">
-              <span class="topic-question-explanation-label">Explanation:</span>
-              <span class="topic-question-explanation-html"
-                [innerHTML]="q.explanation | formatQuestionMedia | wrapRomanLines"></span>
+          </div>
+          <div class="topic-question-edit" *ngIf="editingQid === q.qid" (click)="$event.stopPropagation()">
+            <div class="topic-question-edit-fields">
+              <textarea [value]="editForm.question" (input)="editForm.question = $any($event.target).value" class="topic-question-edit-textarea" rows="2" placeholder="Question text"></textarea>
+              <div class="topic-question-edit-options">
+                <span class="topic-question-edit-opt"><span
+                    class="topic-question-edit-opt-label topic-question-option-marker">ক</span> <input
+                    type="text" [value]="editForm.option_1" (input)="editForm.option_1 = $any($event.target).value" class="topic-question-edit-input" /></span>
+                <span class="topic-question-edit-opt"><span
+                    class="topic-question-edit-opt-label topic-question-option-marker">খ</span> <input
+                    type="text" [value]="editForm.option_2" (input)="editForm.option_2 = $any($event.target).value" class="topic-question-edit-input" /></span>
+                <span class="topic-question-edit-opt"><span
+                    class="topic-question-edit-opt-label topic-question-option-marker">গ</span> <input
+                    type="text" [value]="editForm.option_3" (input)="editForm.option_3 = $any($event.target).value" class="topic-question-edit-input" /></span>
+                <span class="topic-question-edit-opt"><span
+                    class="topic-question-edit-opt-label topic-question-option-marker">ঘ</span> <input
+                    type="text" [value]="editForm.option_4" (input)="editForm.option_4 = $any($event.target).value" class="topic-question-edit-input" /></span>
+              </div>
+              <span class="exam-edit-field-label">Answer</span>
+              <textarea [value]="editForm.answer" (input)="editForm.answer = $any($event.target).value" class="topic-question-edit-textarea" rows="2"></textarea>
+              <span class="exam-edit-field-label">Explanation</span>
+              <textarea [value]="editForm.explanation" (input)="editForm.explanation = $any($event.target).value" class="topic-question-edit-textarea" rows="3"></textarea>
             </div>
+            <div class="topic-question-edit-actions">
+              <button type="button" class="btn-update-pending" (click)="submitEditRequest()">Update</button>
+              <button type="button" class="btn-cancel-edit" (click)="cancelEdit()">Cancel</button>
+            </div>
+            <p class="exam-edit-status" *ngIf="editStatus">{{ editStatus }}</p>
+          </div>
+          <div class="topic-question-explanation" *ngIf="isExplanationOpen(q.qid)">
+            <span class="topic-question-explanation-label">Explanation:</span>
+            <span class="topic-question-explanation-html" *ngIf="q.explanation"
+              [innerHTML]="q.explanation | formatQuestionMedia | wrapRomanLines"></span>
+            <span class="topic-question-explanation-none" *ngIf="!q.explanation">No explanation available for this question.</span>
           </div>
           <span class="topic-question-subsource" *ngIf="q.subsource">{{ q.subsource }}</span>
         </div>

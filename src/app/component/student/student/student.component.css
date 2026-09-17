@@ -4,9 +4,10 @@
 
 /* Student component-specific styles */
 .student-container {
-  min-height: 100vh;
-  padding-top: 62px;
-  margin: 50px auto;
+  /* padding-top: 62px;
+  margin: 50px auto; */
+  padding-top: 97px;
+  margin: 15px auto;
 }
 
 

@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../service/api.service';
+import { LovedQuestionsService } from '../../../service/loved-questions.service';
 import { interval, Subscription } from 'rxjs';
 
 const OPTION_KEYS = ['ক', 'খ', 'গ', 'ঘ'] as const;
@@ -20,7 +21,12 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
   questions: any[] = [];
   answers: Record<string, string> = {};
   explanationOpen: Record<string, boolean> = {};
+  allExplanationsOpen = false;
+  editingQid: string | null = null;
+  editForm: any = { question: '', option_1: '', option_2: '', option_3: '', option_4: '', answer: '', explanation: '' };
+  editStatus = '';
   timeRemaining = EXAM_DURATION_SEC;
+  private deadlineTs = Date.now() + EXAM_DURATION_SEC * 1000;
   timerSub?: Subscription;
   isSubmitted = false;
   result: { score: number; correct: number; total: number } | null = null;
@@ -45,7 +51,8 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private api: ApiService,
-    private el: ElementRef
+    private el: ElementRef,
+    private lovedService: LovedQuestionsService
   ) {}
 
   ngOnInit(): void {
@@ -61,6 +68,9 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       this.asideOpen = false;
       this.timeRemaining = EXAM_DURATION_SEC;
       this.explanationOpen = {};
+      this.allExplanationsOpen = false;
+      this.editingQid = null;
+      this.editStatus = '';
       // (Re)arm the secure-exam guards for this attempt.
       this.disableAntiCheat();
       this.enableAntiCheat();
@@ -212,7 +222,7 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     style.id = 'cheradip-exam-lock-style';
     style.textContent = [
       'body.cheradip-exam-lock { user-select: none !important; -webkit-user-select: none !important; -webkit-touch-callout: none !important; }',
-      '.cheradip-secure-overlay { position: fixed; inset: 0; z-index: 2147483646; background: rgba(15,23,42,.92); display: flex; align-items: center; justify-content: center; }',
+      '.cheradip-secure-overlay { position: fixed; inset: 0; z-index: 2147483646; background: rgba(0, 128, 128, 0.95); display: flex; align-items: center; justify-content: center; }',
       '.cheradip-secure-card { position: relative; background: #fff; border-radius: 16px; padding: 28px 24px; max-width: 380px; width: calc(100vw - 40px); box-sizing: border-box; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.35); animation: cheradip-slide-in .25s ease; }',
       '@keyframes cheradip-slide-in { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }',
       '.cheradip-secure-x { position: absolute; top: 10px; right: 12px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; color: #64748b; font-size: 20px; line-height: 1; cursor: pointer; }',
@@ -322,22 +332,24 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
         if (fromCache && fromCache.length > 0) {
           this.questions = fromCache.slice(0, MAX_QUESTIONS);
           this.restoreSession();
-          if (this.isSubmitted) { this.loading = false; this.scheduleFit(); return; }
-          if (this.timeRemaining <= 0) { this.submitExam(); this.loading = false; this.scheduleFit(); return; }
+          if (this.isSubmitted) { this.loading = false; this.disableAntiCheat(); this.scheduleFit(); return; }
+          if (this.timeRemaining <= 0) { this.submitExam(); this.loading = false; this.scheduleFit(); this.scheduleFullscreen(); return; }
           this.startTimer();
           this.loading = false;
           this.scheduleFit();
+          this.scheduleFullscreen();
           return;
         }
         this.api.getExamSetQuestions(this.setId).subscribe({
           next: (q: any) => {
             this.questions = (q.questions || []).slice(0, MAX_QUESTIONS);
             this.restoreSession();
-            if (this.isSubmitted) { this.loading = false; this.scheduleFit(); return; }
-            if (this.timeRemaining <= 0) { this.submitExam(); this.loading = false; this.scheduleFit(); return; }
+            if (this.isSubmitted) { this.loading = false; this.disableAntiCheat(); this.scheduleFit(); return; }
+            if (this.timeRemaining <= 0) { this.submitExam(); this.loading = false; this.scheduleFit(); this.scheduleFullscreen(); return; }
             this.startTimer();
             this.loading = false;
             this.scheduleFit();
+            this.scheduleFullscreen();
           },
           error: () => {
             this.error = 'Could not load questions.';
@@ -424,13 +436,16 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
 
   startTimer(): void {
     this.timerSub?.unsubscribe();
-    this.timerSub = interval(1000).subscribe(() => {
-      if (this.timeRemaining > 0) {
-        this.timeRemaining--;
+    // Anchor the countdown to the wall clock so leaving/hiding the tab still
+    // consumes real time (browsers throttle background timers, not Date.now()).
+    this.deadlineTs = Date.now() + this.timeRemaining * 1000;
+    this.timerSub = interval(500).subscribe(() => {
+      const left = Math.max(0, Math.round((this.deadlineTs - Date.now()) / 1000));
+      if (left !== this.timeRemaining) {
+        this.timeRemaining = left;
         this.persistSession();
-      } else {
-        this.submitExam();
       }
+      if (left <= 0) this.submitExam();
     });
   }
 
@@ -668,6 +683,25 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
 
   toggleAside(): void {
     this.asideOpen = !this.asideOpen;
+    if (this.asideOpen) this.positionAsideBelowHeader();
+  }
+
+  /** On small screens the aside is an absolute panel: anchor it just below the
+   *  exam header row (under the hamburger) instead of the top of the viewport. */
+  private positionAsideBelowHeader(): void {
+    const host = this.el.nativeElement as HTMLElement;
+    const aside = host.querySelector('.exam-aside') as HTMLElement | null;
+    if (!aside || window.innerWidth > 1000) return;
+    const header = host.querySelector('.topic-questions-header') as HTMLElement | null;
+    const container = host.querySelector('.session-container') as HTMLElement | null;
+    if (!header || !container) {
+      aside.style.top = '0px';
+      return;
+    }
+    try {
+      const top = header.getBoundingClientRect().bottom - container.getBoundingClientRect().top;
+      aside.style.top = Math.max(0, Math.floor(top)) + 'px';
+    } catch { /* ignore */ }
   }
 
   toggleAsideCard(key: string): void {
@@ -694,6 +728,22 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     window.setTimeout(() => this.fitSessionHeight(), 60);
   }
 
+  /** Enter fullscreen as early as possible once the exam has started. If the
+   *  browser rejects it (needs a user gesture), the gesture listener in
+   *  enableAntiCheat() retries on the first click/keypress. */
+  private autoEnterFullscreen(): void {
+    try {
+      const docEl: any = document.documentElement;
+      if (docEl && docEl.requestFullscreen && !document.fullscreenElement && !this.isSubmitted) {
+        docEl.requestFullscreen().then(() => { this.everFullscreen = true; }).catch(() => { /* fallback: first user gesture */ });
+      }
+    } catch { /* ignore */ }
+  }
+
+  private scheduleFullscreen(): void {
+    window.setTimeout(() => this.autoEnterFullscreen(), 120);
+  }
+
   toggleExplanation(qid: string): void {
     this.explanationOpen[qid] = !this.explanationOpen[qid];
   }
@@ -702,6 +752,114 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     return !!this.explanationOpen[qid];
   }
 
+  /** Open / hide the explanation of EVERY question with one click. */
+  toggleAllExplanations(): void {
+    this.allExplanationsOpen = !this.allExplanationsOpen;
+    const open = this.allExplanationsOpen;
+    this.questions.forEach((q: any) => {
+      this.explanationOpen[q.qid] = open;
+    });
+  }
+
+  /* ------------------------------------------------- love & edit request */
+
+  isLoved(q: any): boolean {
+    return !!this.lovedService.has(q?.qid);
+  }
+
+  toggleLove(q: any, ev?: Event): void {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (!q) return;
+    const level = this.set?.level_tr || q.level_tr || '';
+    const cls = this.set?.class_level || q.class_level || '';
+    const sub = this.set?.subject_tr || q.subject_tr || q.subject || '';
+    const meta: any = {
+      qid: q.qid,
+      question: q.question, option_1: q.option_1, option_2: q.option_2,
+      option_3: q.option_3, option_4: q.option_4, answer: q.answer,
+      explanation: q.explanation, explanation2: q.explanation2, explanation3: q.explanation3,
+      subsource: q.subsource, type: q.type, level: q.level,
+      chapter_no: q.chapter_no, chapter: q.chapter, topic_no: q.topic_no, topic: q.topic,
+      level_tr: level, class_level: cls, subject_tr: sub,
+      table: q.table || this.subjectQuestionTableNameForPayload(),
+    };
+    this.lovedService.toggle(q.qid, meta);
+  }
+
+  startEdit(q: any, ev?: Event): void {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    if (!q) return;
+    this.editingQid = q.qid;
+    this.editStatus = '';
+    this.editForm = {
+      question: (q.question != null ? String(q.question) : '').trim(),
+      option_1: (q.option_1 != null ? String(q.option_1) : '').trim(),
+      option_2: (q.option_2 != null ? String(q.option_2) : '').trim(),
+      option_3: (q.option_3 != null ? String(q.option_3) : '').trim(),
+      option_4: (q.option_4 != null ? String(q.option_4) : '').trim(),
+      answer: (q.answer != null ? String(q.answer) : '').trim(),
+      explanation: (q.explanation != null ? String(q.explanation) : '').trim(),
+    };
+  }
+
+  cancelEdit(): void {
+    this.editingQid = null;
+    this.editStatus = '';
+  }
+
+  /** Same table slug as the /question page edits so admin approve writes to the right table. */
+  private subjectQuestionTableNameForPayload(): string {
+    const slug = (s: any) => {
+      if (s == null || typeof s !== 'string') return 'unknown';
+      let t = s.trim().toLowerCase().replace(/ /g, '_').replace(/-/g, '_');
+      t = t.replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'unknown';
+      return t;
+    };
+    const a = slug(this.set?.level_tr).slice(0, 12);
+    const b = slug(this.set?.class_level).slice(0, 8);
+    const c = slug(this.set?.subject_tr).slice(0, 36);
+    let name = `cheradip_${a}_${b}_${c}`.replace(/_+$/, '');
+    if (name.length > 64) name = name.slice(0, 64).replace(/_+$/, '');
+    return name;
+  }
+
+  /** Sends an edit request exactly like the /question page (pending admin review). */
+  submitEditRequest(): void {
+    if (!this.editingQid) return;
+    const q = this.questions.find((x: any) => x.qid === this.editingQid);
+    if (!q) { this.cancelEdit(); return; }
+    const payload: any = {
+      qid: this.editingQid,
+      question: this.editForm.question || '',
+      option_1: this.editForm.option_1 || '',
+      option_2: this.editForm.option_2 || '',
+      option_3: this.editForm.option_3 || '',
+      option_4: this.editForm.option_4 || '',
+      answer: this.editForm.answer || '',
+      explanation: this.editForm.explanation || '',
+      type: q.type || '',
+      level_tr: this.set?.level_tr || '',
+      class_level: this.set?.class_level || '',
+      subject_tr: (this.set?.subject_tr || q.subject_tr || q.subject) || '',
+      table: q.table || this.subjectQuestionTableNameForPayload(),
+      chapter_no: q.chapter_no || '',
+      chapter: q.chapter || '',
+      topic_no: q.topic_no || '',
+      topic: q.topic || '',
+      subsource: q.subsource || '',
+      level: q.level || '',
+      status: 'Update',
+    };
+    this.api.submitPendingQuestionRequest(payload).subscribe({
+      next: () => {
+        this.editStatus = 'Thanks! Your changes were submitted and are pending admin review.';
+        this.editingQid = null;
+      },
+      error: () => {
+        this.editStatus = 'Could not submit the edit request. Please try again.';
+      },
+    });
+  }
   startExam(id: number): void {
     this.asideOpen = false;
     if (id === this.setId) {
@@ -722,6 +880,8 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     // A new attempt re-arms the secure-exam guards (they were lifted on submit).
     this.disableAntiCheat();
     this.enableAntiCheat();
+    // The retake click is a user gesture, so fullscreen can be entered immediately.
+    this.autoEnterFullscreen();
     this.startTimer();
   }
 
