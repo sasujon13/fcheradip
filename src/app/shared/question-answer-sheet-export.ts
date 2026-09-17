@@ -908,6 +908,8 @@ export function buildAnswerSheetExportItems(args: {
     isCreativeType: (q) => questionIsCreativeType(q as { type?: unknown }),
     isMcqType: (q) => questionIsMcqType(q as { type?: unknown }),
     displayStem: (q) => getQuestionDisplayText(q as { question?: unknown; type?: string }),
+    // New saves persist subjectName; the header fallback keeps older saved sets localizable.
+    subjectName: ls['subjectName'] ?? questionHeader,
   });
 
   if (withAnswers.length > 0) {

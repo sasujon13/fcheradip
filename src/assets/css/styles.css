@@ -70,7 +70,7 @@
   .material-icons { font-family: 'Material Icons' !important; }
   
   html { height: 100%; }
-  body {
+body {
     /* Test: Bengali via 'Noto Sans Bengali' (loaded from Google Fonts in index.html).
        Latin still uses Roboto; Chromium picks the Bengali face per-glyph from this stack. */
     font-family: 'Roboto', 'Noto Sans Bengali', sans-serif;
@@ -134,6 +134,25 @@
   body .mat-mdc-snack-bar-label.mdc-snackbar__label {
   background-color: rgb(203, 230, 230);
     text-shadow: -0.25px 0.25px white;
+}
+
+/* Question math is document text: display formulas and their fallback stay on their own left-aligned line. */
+.katex-display,
+.katex-display > .katex {
+    text-align: left !important;
+}
+
+.question-math-fallback-display {
+    display: block;
+    margin: 0.35em 0;
+    text-align: left;
+    white-space: pre-wrap;
+}
+
+.topic-question-explanation,
+.topic-question-explanation-html,
+.preview-q-explanation-line {
+    text-align: left;
 }
 
   /* Signup/login success: Teal */

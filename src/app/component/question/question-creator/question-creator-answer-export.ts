@@ -1,6 +1,23 @@
 import { resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
+import { subjectUsesEnglishAnswerLabels } from '../../../shared/question-answer-labels';
+
+export { subjectUsesEnglishAnswerLabels } from '../../../shared/question-answer-labels';
 
 export type McqSetLetter = 'ক' | 'খ' | 'গ' | 'ঘ';
+
+const MCQ_OPTION_LABELS = ['ক', 'খ', 'গ', 'ঘ'] as const;
+const MCQ_OPTION_LABELS_EN = ['a', 'b', 'c', 'd'] as const;
+
+function mcqOptionIndexFromLabel(label: unknown): number | null {
+  const normalized = String(label ?? '')
+    .trim()
+    .replace(/^\(([\s\S])\)$/, '$1')
+    .toLowerCase();
+  const bnIndex = (MCQ_OPTION_LABELS as readonly string[]).indexOf(normalized);
+  if (bnIndex >= 0) return bnIndex;
+  const enIndex = (MCQ_OPTION_LABELS_EN as readonly string[]).indexOf(normalized);
+  return enIndex >= 0 ? enIndex : null;
+}
 
 /** Prefix for answers-sheet layout/export rows split from one logical question. */
 export const ANSWER_SHEET_SEG_QID_PREFIX = 'ans-seg-';
@@ -30,6 +47,7 @@ export function buildMcqAnswerCompactQuestion(
   label: string,
   qidSuffix: string
 ): Record<string, unknown> {
+  const optionIndex = mcqOptionIndexFromLabel(label);
   return {
     qid: `mcq-ans-${qidSuffix}`,
     type: 'বহুনির্বাচনি',
@@ -38,6 +56,12 @@ export function buildMcqAnswerCompactQuestion(
     option_2: '',
     option_3: '',
     option_4: '',
+    ...(optionIndex != null
+      ? {
+          answerSheetCorrectOptionIndex: optionIndex,
+          answerSheetCorrectOptionLabel: MCQ_OPTION_LABELS[optionIndex],
+        }
+      : {}),
   };
 }
 
@@ -255,7 +279,7 @@ export function buildMcqAnswerKeyExportPayload(
 }
 
 /** Split a CQ answer string into (ক)(খ)(গ)(ঘ) labeled parts. */
-function formatCreativeAnswerParts(rawAnswer: string): string[] {
+function formatCreativeAnswerParts(rawAnswer: string, answerLabel: string): string[] {
   const answer = String(rawAnswer ?? '').trim();
   if (!answer) return [];
   // Normalize dotted markers (ক. / খ. / গ. / ঘ.) to parenthesized (ক) / (খ) / (গ) / (ঘ).
@@ -270,20 +294,20 @@ function formatCreativeAnswerParts(rawAnswer: string): string[] {
   const pGh = normalized.indexOf('(ঘ)');
   if (pK < 0 || pKh < 0 || pG < 0 || !(pK < pKh && pKh < pG)) {
     // No (ক)(খ)(গ) structure — return the whole answer as one labeled block.
-    return [`উত্তর: ${answer}`];
+    return [`${answerLabel}: ${answer}`];
   }
   const intro = normalized.slice(0, pK).trim();
   const parts: string[] = [];
   if (intro) parts.push(intro);
   if (pGh >= 0 && pGh > pG) {
-    parts.push(`(ক) উত্তর: ${normalized.slice(pK, pKh).replace(/^\(ক\)\s*/, '').trim()}`);
-    parts.push(`(খ) উত্তর: ${normalized.slice(pKh, pG).replace(/^\(খ\)\s*/, '').trim()}`);
-    parts.push(`(গ) উত্তর: ${normalized.slice(pG, pGh).replace(/^\(গ\)\s*/, '').trim()}`);
-    parts.push(`(ঘ) উত্তর: ${normalized.slice(pGh).replace(/^\(ঘ\)\s*/, '').trim()}`);
+    parts.push(`(ক) ${answerLabel}: ${normalized.slice(pK, pKh).replace(/^\(ক\)\s*/, '').trim()}`);
+    parts.push(`(খ) ${answerLabel}: ${normalized.slice(pKh, pG).replace(/^\(খ\)\s*/, '').trim()}`);
+    parts.push(`(গ) ${answerLabel}: ${normalized.slice(pG, pGh).replace(/^\(গ\)\s*/, '').trim()}`);
+    parts.push(`(ঘ) ${answerLabel}: ${normalized.slice(pGh).replace(/^\(ঘ\)\s*/, '').trim()}`);
   } else {
-    parts.push(`(ক) উত্তর: ${normalized.slice(pK, pKh).replace(/^\(ক\)\s*/, '').trim()}`);
-    parts.push(`(খ) উত্তর: ${normalized.slice(pKh, pG).replace(/^\(খ\)\s*/, '').trim()}`);
-    parts.push(`(গ) উত্তর: ${normalized.slice(pG).replace(/^\(গ\)\s*/, '').trim()}`);
+    parts.push(`(ক) ${answerLabel}: ${normalized.slice(pK, pKh).replace(/^\(ক\)\s*/, '').trim()}`);
+    parts.push(`(খ) ${answerLabel}: ${normalized.slice(pKh, pG).replace(/^\(খ\)\s*/, '').trim()}`);
+    parts.push(`(গ) ${answerLabel}: ${normalized.slice(pG).replace(/^\(গ\)\s*/, '').trim()}`);
   }
   return parts.filter((p) => p.trim().length > 0);
 }
@@ -296,10 +320,18 @@ export function buildAnswerExplanationExportQuestion(
     isMcqType: (q: unknown) => boolean;
     isCreativeType?: (q: unknown) => boolean;
     displayStem: string;
+    subjectName?: unknown;
   }
 ): Record<string, unknown> {
   const clone: Record<string, unknown> = { ...q };
   const tail: string[] = [];
+  const subjectName = [opts.subjectName, q['subject_name'], q['subject']]
+    .filter((value) => value != null && String(value).trim() !== '')
+    .join(' ');
+  const englishSubject = subjectUsesEnglishAnswerLabels(subjectName);
+  const answerLabel = englishSubject ? 'Answer' : 'উত্তর';
+  const explanationLabel = englishSubject ? 'Explanation' : 'ব্যাখ্যা';
+  let answerBlock = '';
   if (hasNonEmptyField(q['answer'])) {
     if (opts.isMcqType(q)) {
       const label = mcqAnswerLabelForExport(
@@ -313,22 +345,54 @@ export function buildAnswerExplanationExportQuestion(
         opts.formatOption
       );
       const raw = String(q['answer']).trim();
-      const show = label && (label !== raw || /[\\$]|\\boxed\b|<\s*(span|img|br|code)\b/i.test(raw));
-      tail.push(show ? `Answer: ${raw}` : `Answer: ${label || raw}`);
+      const optionIndex = mcqOptionIndexFromLabel(label);
+      const optionKey = optionIndex != null ? `option_${optionIndex + 1}` : '';
+      const optionText = optionKey && hasNonEmptyField(q[optionKey])
+        ? String(q[optionKey]).trim()
+        : raw;
+      answerBlock = `${answerLabel}: ${optionText}`;
+      tail.push(answerBlock);
+      if (optionIndex != null) {
+        clone['answerSheetCorrectOptionIndex'] = optionIndex;
+        clone['answerSheetCorrectOptionLabel'] = MCQ_OPTION_LABELS[optionIndex];
+      }
     } else if (opts.isCreativeType?.(q)) {
       // CQ answers: split into (ক)(খ)(গ)(ঘ) labeled parts for well-formatted output.
-      tail.push(...formatCreativeAnswerParts(String(q['answer']).trim()));
+      const parts = formatCreativeAnswerParts(String(q['answer']).trim(), answerLabel);
+      tail.push(...parts);
+      answerBlock = parts[0] ?? '';
     } else {
-      tail.push(`Answer: ${String(q['answer']).trim()}`);
+      answerBlock = `${answerLabel}: ${String(q['answer']).trim()}`;
+      tail.push(answerBlock);
     }
   }
+  let explanationBlock = '';
   for (const key of ['explanation', 'explanation2', 'explanation3'] as const) {
     if (hasNonEmptyField(q[key])) {
-      tail.push(String(q[key]).trim());
+      const text = String(q[key]).trim();
+      if (!explanationBlock) {
+        explanationBlock = `${explanationLabel}: ${text}`;
+        tail.push(explanationBlock);
+      } else {
+        tail.push(text);
+      }
     }
   }
   const stem = (opts.displayStem || String(q['question'] ?? '')).trim();
   clone['question'] = tail.length ? [stem, ...tail].filter(Boolean).join('\n\n') : stem;
+  clone['answerSheetAnswerLabel'] = answerLabel;
+  clone['answerSheetExplanationLabel'] = explanationLabel;
+  if (answerBlock) {
+    clone['answerSheetAnswerBlock'] = answerBlock;
+    clone['answerSheetAnswerText'] = answerBlock.replace(new RegExp(`^${answerLabel}:\\s*`), '');
+  }
+  if (explanationBlock) {
+    clone['answerSheetExplanationBlock'] = explanationBlock;
+    clone['answerSheetExplanationText'] = explanationBlock.replace(
+      new RegExp(`^${explanationLabel}:\\s*`),
+      ''
+    );
+  }
   clone['option_1'] = '';
   clone['option_2'] = '';
   clone['option_3'] = '';
@@ -346,6 +410,7 @@ export function buildAnswersExplanationsExportQuestions(opts: {
   isCreativeType: (q: unknown) => boolean;
   isMcqType: (q: unknown) => boolean;
   displayStem: (q: unknown) => string;
+  subjectName?: unknown;
 }): Record<string, unknown>[] {
   const mapOne = (q: unknown) =>
     buildAnswerExplanationExportQuestion(q as Record<string, unknown>, {
@@ -353,6 +418,7 @@ export function buildAnswersExplanationsExportQuestions(opts: {
       isMcqType: opts.isMcqType,
       isCreativeType: opts.isCreativeType,
       displayStem: opts.displayStem(q),
+      subjectName: opts.subjectName,
     });
 
   const creative = opts.singlePreviewList.filter((q) => opts.isCreativeType(q)).map(mapOne);
@@ -536,8 +602,15 @@ export function splitQuestionIntoLayoutSegments(
     }
   }
 
+  const answerBlock = String(q['answerSheetAnswerBlock'] ?? '').trim();
+  const explanationBlock = String(q['answerSheetExplanationBlock'] ?? '').trim();
   for (const tail of tailBlocks) {
-    pushSeg(tail, 'tail', true);
+    const tailKind = answerBlock && tail === answerBlock
+      ? 'answer'
+      : explanationBlock && tail === explanationBlock
+        ? 'explanation'
+        : 'explanationContinuation';
+    pushSeg(tail, 'tail', true, { answerSheetTailKind: tailKind } as Partial<AnswerSheetMeasureRow>);
   }
 
   if (!rows.length) {

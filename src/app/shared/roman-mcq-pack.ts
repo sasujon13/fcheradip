@@ -39,8 +39,10 @@ function postIiiTailStarterPattern(word: string): string {
 
 const ROMAN_ORDER: RomanMarker[] = ['i', 'ii', 'iii'];
 
-/** Longest-first so "iii." is not parsed as "i." */
-const ROMAN_MARKER_RE = /\b(iii|ii|i)\.(?!\d)/gi;
+/** Longest-first; permits OCR-glued markers such as `2/3ii.` but not Latin words. */
+const ROMAN_MARKER_RE = /(?<![A-Za-z])(iii|ii|i)\.(?!\d)/gi;
+const ROMAN_MARKER_CANDIDATE_RE =
+  /(?<![A-Za-z])(iii|ii|i)(?:\.(?!\d)|(?=\s|$)(?![A-Za-z]))/gi;
 
 const PACK_ATTEMPTS: RomanMarker[][][] = [
   [['i', 'ii', 'iii']],
@@ -161,9 +163,39 @@ function collapseThenNormalizeNicher(text: string): string {
 
 /** API/MCQ text often has i./ii./iii. on separate lines; treat those breaks as soft spaces for packing. */
 export function normalizeRomanMcqSource(text: string): string {
-  let s = String(text ?? '').replace(/\r\n/g, '\n');
+  let s = canonicalizeRomanTripletMarkers(String(text ?? '')).replace(/\r\n/g, '\n');
   s = collapseThenNormalizeNicher(s);
   return s.replace(/\n+\s*(?=(?:iii|ii|i)\.(?!\d))/gi, ' ');
+}
+
+/** Canonicalize a complete i/ii/iii sequence, including OCR variants without periods. */
+export function canonicalizeRomanTripletMarkers(text: string): string {
+  const source = String(text ?? '');
+  const hits: { marker: RomanMarker; index: number; len: number; raw: string }[] = [];
+  ROMAN_MARKER_CANDIDATE_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = ROMAN_MARKER_CANDIDATE_RE.exec(source)) !== null) {
+    hits.push({
+      marker: match[1].toLowerCase() as RomanMarker,
+      index: match.index,
+      len: match[0].length,
+      raw: match[1],
+    });
+  }
+  ROMAN_MARKER_CANDIDATE_RE.lastIndex = 0;
+  for (let i = 0; i <= hits.length - 3; i++) {
+    const triple = hits.slice(i, i + 3);
+    if (triple.map((hit) => hit.marker).join(',') !== 'i,ii,iii') continue;
+    let out = source.slice(0, triple[0].index);
+    for (let j = 0; j < triple.length; j++) {
+      const hit = triple[j];
+      const next = triple[j + 1];
+      out += `${hit.raw}.`;
+      out += source.slice(hit.index + hit.len, next ? next.index : source.length);
+    }
+    return out;
+  }
+  return source;
 }
 
 function trimPostIiiTailLead(tail: string): string {
@@ -408,6 +440,9 @@ export function chooseRomanMcqPackLines(
   widthSlack = 1.2
 ): RomanMarker[][] {
   const present = new Set(segments.map((s) => s.marker));
+  if (present.has('i') && present.has('ii') && present.has('iii')) {
+    return [['i'], ['ii'], ['iii']];
+  }
   const byMarker = new Map(
     segments.map((s) => [s.marker, stripHtmlToPlain(compactRomanSegmentBody(s.body, true))])
   );

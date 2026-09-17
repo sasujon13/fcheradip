@@ -181,6 +181,11 @@ function resolveLayoutContext(arg: unknown): RomanMcqLayoutContext {
   return 'stem';
 }
 
+/** Roman layout must never split a complete TeX expression at i./ii./iii. markers. */
+export function containsDelimitedQuestionMath(text: string): boolean {
+  return /\$\$[\s\S]+?\$\$|\$(?!\$)[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/.test(text);
+}
+
 @Pipe({ name: 'wrapRomanLines' })
 export class WrapRomanLinesPipe implements PipeTransform {
   constructor(private sanitizer: DomSanitizer) {}
@@ -191,6 +196,16 @@ export class WrapRomanLinesPipe implements PipeTransform {
     const prepared = normalizeRomanMcqSource(
       normalizeQuestionLatexSource(formatMaybeCProgramQuestionText(String(text)))
     );
+    const hasDelimitedMath = containsDelimitedQuestionMath(prepared);
+    const parsedRoman = hasDelimitedMath ? splitHtmlAtRomanMarkers(prepared) : null;
+    if (hasDelimitedMath && !parsedRoman) {
+      const cls = ctx === 'option'
+        ? 'topic-question-line topic-question-mcq-inline'
+        : 'topic-question-line';
+      return this.sanitizer.bypassSecurityTrustHtml(
+        `<span class="${cls}">${formatHtmlFragment(prepared)}</span>`
+      );
+    }
     const nicherReady = normalizeMcqNicherText(prepared);
     const glued = nicherReady.replace(
       /([\u0980-\u09FF])(iii|ii|i)\.(?!\d)/gi,
@@ -199,7 +214,7 @@ export class WrapRomanLinesPipe implements PipeTransform {
 
     const { shielded, blocks } = shieldCodeBlocks(glued);
 
-    const parsed = splitHtmlAtRomanMarkers(shielded);
+    const parsed = parsedRoman ?? splitHtmlAtRomanMarkers(shielded);
     if (parsed && parsed.segments.length >= 1) {
       const maxW = resolveRomanMcqMaxWidthPx(ctx);
       const font = detectMcqOptionFont();

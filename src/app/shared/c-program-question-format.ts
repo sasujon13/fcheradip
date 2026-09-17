@@ -892,6 +892,39 @@ function isBnLineExcludedFromCode(line: string): boolean {
 }
 
 function extractProgramBlock(input: string): { before: string; code: string; after: string } | null {
+  /** A frequent OCR shape is Bengali prose + `{ dense C; ...; }` + Bengali prose on one line. */
+  for (let open = input.indexOf('{'); open >= 0; open = input.indexOf('{', open + 1)) {
+    let depth = 0;
+    let quote = '';
+    let escaped = false;
+    for (let i = open; i < input.length; i++) {
+      const ch = input[i]!;
+      if (quote) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === quote) quote = '';
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        quote = ch;
+        continue;
+      }
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      if (depth !== 0) continue;
+      const candidate = input.slice(open, i + 1);
+      const cSignal = /\b(?:int|char|float|double|long|short|unsigned|void|printf|scanf|for|while|if|switch|return)\b|\+\+|--/i.test(candidate);
+      if ((candidate.match(/;/g) || []).length >= 2 && cSignal) {
+        return {
+          before: input.slice(0, open).trim(),
+          code: candidate.trim(),
+          after: input.slice(i + 1).trim(),
+        };
+      }
+      break;
+    }
+  }
+
   const lines = String(input ?? '').replace(/\r\n?/g, '\n').split('\n');
   const anchorIndexes = lines
     .map((line, idx) => (isCodeAnchorLine(line) ? idx : -1))
@@ -1148,12 +1181,15 @@ export function formatMaybeCProgramQuestionText(raw: string): string {
   const hasMultiSemicolonControlFlow =
     semicolonCount >= 2 &&
     /\b(for|while|if|continue|break|switch|return)\b/i.test(codeOnlyJoined);
+  const isBraceWrappedSnippet =
+    /^\s*\{[\s\S]*\}\s*$/.test(codeOnlyJoined) && semicolonCount >= 2;
   if (
     !hasIncludeAnchor(codeOnlyJoined) &&
     hasIoAnchor(codeOnlyJoined) &&
     codeLineCount <= 4 &&
     !looksLikeFullMainProgram &&
-    !hasMultiSemicolonControlFlow
+    !hasMultiSemicolonControlFlow &&
+    !isBraceWrappedSnippet
   ) {
     return input;
   }

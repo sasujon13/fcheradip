@@ -1530,6 +1530,64 @@
   color: var(--color_primary_black);
 }
 
+/* Circled Bengali option marker; mirrors word.py's BanglaOMR K/L/M/N glyphs in HTML/PDF preview. */
+.preview-q-opt-marker,
+.preview-answer-option-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  margin-right: 0.22em;
+  border: 0.08em solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+  line-height: 1;
+  text-indent: 0;
+  vertical-align: -0.12em;
+  flex: 0 0 auto;
+}
+
+.preview-q-answer-line,
+.preview-q-explanation-line {
+  display: inline;
+}
+
+.preview-q-explanation-line {
+  text-align: left;
+}
+
+.preview-q-text ::ng-deep .katex-display,
+.preview-q-answer-text ::ng-deep .katex-display,
+.preview-q-explanation-line ::ng-deep .katex-display,
+.preview-q-opt-html ::ng-deep .katex-display,
+.preview-q-text ::ng-deep .question-math-fallback-display,
+.preview-q-answer-text ::ng-deep .question-math-fallback-display,
+.preview-q-explanation-line ::ng-deep .question-math-fallback-display,
+.preview-q-opt-html ::ng-deep .question-math-fallback-display {
+  display: block;
+  margin: 0.35em 0;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.preview-q-text ::ng-deep .katex-display > .katex,
+.preview-q-answer-text ::ng-deep .katex-display > .katex,
+.preview-q-explanation-line ::ng-deep .katex-display > .katex,
+.preview-q-opt-html ::ng-deep .katex-display > .katex {
+  text-align: left;
+}
+
+.preview-q-explanation-line ::ng-deep .topic-question-line {
+  display: block;
+  text-align: left;
+}
+
+.preview-q-answer-line > strong,
+.preview-q-explanation-line > strong {
+  margin-right: 0.3em;
+}
+
 .preview-measure-slot {
   display: block;
   width: 100%;
@@ -1843,5 +1901,3 @@
   margin: 5px !important;
   margin-top: -7px !important;
 }
-
-

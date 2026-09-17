@@ -14,7 +14,8 @@ import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { firstValueFrom, forkJoin, Observable, of, Subject, Subscription } from 'rxjs';
 import { ApiService } from '../../../service/api.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
-import { resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
+import { resolveMcqAnswerIndex, resolveMcqAnswerLabel } from '../../../shared/mcq-answer-label';
+import { subjectUsesEnglishAnswerLabels } from '../../../shared/question-answer-labels';
 import { normalizeQuestionListFromApi } from '../../../shared/question-api-normalize';
 import { LoadingService } from '../../../service/loading.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../../service/login-redirect.session';
@@ -1943,7 +1944,71 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return v != null && String(v).trim() !== '';
   }
 
-  /** Source string for answer [innerHTML] pipes (MCQ label or full stored answer). */
+  private unlockSubjectName(q?: { subject_name?: unknown; subject?: unknown }): string {
+    const subject = this.primarySubject;
+    return [
+      q?.subject_name,
+      q?.subject,
+      subject?.subject_name,
+      subject?.name,
+      subject?.subject_tr,
+      this.selectedSubjectTr,
+    ]
+      .filter((value) => value != null && String(value).trim() !== '')
+      .join(' ');
+  }
+
+  getUnlockAnswerLabel(q?: { subject_name?: unknown; subject?: unknown }): string {
+    return subjectUsesEnglishAnswerLabels(this.unlockSubjectName(q)) ? 'Answer' : 'উত্তর';
+  }
+
+  getUnlockExplanationLabel(q?: { subject_name?: unknown; subject?: unknown }): string {
+    return subjectUsesEnglishAnswerLabels(this.unlockSubjectName(q)) ? 'Explanation' : 'ব্যাখ্যা';
+  }
+
+  private unlockAnswerIsMcq(q: {
+    type?: unknown;
+    option_1?: unknown;
+    option_2?: unknown;
+  }): boolean {
+    return this.showEditOptions(q) && !!(q?.option_1 || q?.option_2) && !this.isQuestionCreative(q);
+  }
+
+  private unlockAnswerOptionIndex(q: {
+    answer?: unknown;
+    type?: unknown;
+    option_1?: unknown;
+    option_2?: unknown;
+    option_3?: unknown;
+    option_4?: unknown;
+  }): number | null {
+    if (!this.hasNonEmptyUnlockField(q?.answer) || !this.unlockAnswerIsMcq(q)) return null;
+    return resolveMcqAnswerIndex(q.answer, q, (raw) => this.getOptionDisplayText(raw));
+  }
+
+  getUnlockAnswerOptionMarker(q: {
+    answer?: unknown;
+    type?: unknown;
+    option_1?: unknown;
+    option_2?: unknown;
+    option_3?: unknown;
+    option_4?: unknown;
+  }): string {
+    const index = this.unlockAnswerOptionIndex(q);
+    return index == null ? '' : ['ক', 'খ', 'গ', 'ঘ'][index];
+  }
+
+  getUnlockExplanations(q: {
+    explanation?: unknown;
+    explanation2?: unknown;
+    explanation3?: unknown;
+  }): string[] {
+    return [q?.explanation, q?.explanation2, q?.explanation3]
+      .filter((value) => this.hasNonEmptyUnlockField(value))
+      .map((value) => String(value).trim());
+  }
+
+  /** Source string for answer [innerHTML] pipes; MCQ uses the matched option text. */
   getUnlockAnswerSource(q: {
     answer?: unknown;
     type?: unknown;
@@ -1953,13 +2018,11 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     option_4?: unknown;
   }): string {
     if (!this.hasNonEmptyUnlockField(q?.answer)) return '';
-    const isMcq =
-      this.showEditOptions(q) && !!(q?.option_1 || q?.option_2) && !this.isQuestionCreative(q);
     const raw = String(q!.answer).trim();
-    if (!isMcq) return raw;
-    const label = resolveMcqAnswerLabel(q!.answer, q!, (r) => this.getOptionDisplayText(r));
-    if (label !== raw || /[\\$]|\\boxed\b|<\s*(span|img|br|code)\b/i.test(raw)) return raw;
-    return label;
+    const optionIndex = this.unlockAnswerOptionIndex(q);
+    if (optionIndex == null) return raw;
+    const optionValue = q[`option_${optionIndex + 1}` as keyof typeof q];
+    return this.hasNonEmptyUnlockField(optionValue) ? String(optionValue).trim() : raw;
   }
 
   /** Unlocked answer line: MCQ → option key only (ক/খ/গ/ঘ or a/b/c/d); CQ/other → full text. */

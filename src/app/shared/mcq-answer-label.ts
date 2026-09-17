@@ -72,3 +72,24 @@ export function resolveMcqAnswerLabel(
 
   return raw;
 }
+
+/** Resolve the stored MCQ answer to its zero-based option index when possible. */
+export function resolveMcqAnswerIndex(
+  answer: unknown,
+  options: {
+    option_1?: unknown;
+    option_2?: unknown;
+    option_3?: unknown;
+    option_4?: unknown;
+  },
+  formatOption: (raw: string) => string
+): number | null {
+  const label = resolveMcqAnswerLabel(answer, options, formatOption)
+    .trim()
+    .replace(/^\(([\s\S])\)$/, '$1')
+    .toLowerCase();
+  const bnIndex = (MCQ_OPTION_KEYS_BN as readonly string[]).indexOf(label);
+  if (bnIndex >= 0) return bnIndex;
+  const enIndex = (MCQ_OPTION_KEYS_EN as readonly string[]).indexOf(label);
+  return enIndex >= 0 ? enIndex : null;
+}

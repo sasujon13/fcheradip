@@ -1,13 +1,303 @@
 @import '../../../shared/styles/header.shared.css';
 @import '../../../shared/styles/student.shared.css';
+@import '../../../shared/styles/question-primary-colors.css';
 
+/* App-wide layout: left aside + questions column (min 768px). The whole session is
+   pinned to the visible viewport height; ONLY the questions column and the aside
+   scroll internally (never the page itself). fitSessionHeight() overrides the height. */
 .session-container {
   max-width: 1920px;
   margin: 0 auto;
-  padding: 1.5rem;
+  height: calc(100vh - 140px); /* fallback */
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
 }
 
-/* Same section as /question topic-questions-section */
+.exam-main {
+  flex: 1 1 auto;
+  min-width: 768px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------------------------------------------------------------- aside */
+.exam-aside {
+  flex: 0 0 300px;
+  width: 300px;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+.exam-aside-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.exam-aside-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--student-primary, #008080);
+}
+
+.exam-aside-close {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.exam-aside-close:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.exam-aside-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #f8fafc;
+}
+
+.exam-aside-card h4 {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+/* aside card headers are toggle buttons with a down arrow on the right */
+.exam-aside-card-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0 0 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.exam-aside-card-toggle h4 {
+  margin: 0;
+}
+
+.exam-aside-caret {
+  flex: 0 0 auto;
+  color: #008080;
+  font-size: 13px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.exam-aside-card-toggle:not(.open) .exam-aside-caret {
+  transform: rotate(180deg);
+}
+
+.exam-aside-card-body.hidden {
+  display: none;
+}
+
+.exam-aside-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.9rem;
+}
+
+.exam-aside-stat .label {
+  color: #475569;
+}
+
+.exam-aside-stat .value {
+  font-weight: 700;
+  color: var(--student-primary-dark, #006d6d);
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-aside-stat-latest .value {
+  font-size: 1.2rem;
+  color: var(--student-primary, #008080);
+}
+
+.exam-aside-action {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--student-primary, #008080);
+  background: #fff;
+  color: var(--student-primary, #008080);
+  border-radius: 8px;
+  padding: 9px 10px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.exam-aside-action:hover {
+  background: rgba(0, 128, 128, 0.06);
+}
+
+.exam-aside-action-primary {
+  background: linear-gradient(135deg, var(--student-primary, #008080) 0%, var(--student-primary-dark, #006d6d) 100%);
+  color: #fff;
+}
+
+.exam-aside-action-primary:hover {
+  background: var(--student-primary-dark, #006d6d);
+  color: #fff;
+}
+
+.exam-aside-set {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  border-bottom: 1px dashed #e2e8f0;
+  background: transparent;
+  padding: 9px 2px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--student-text, #1e293b);
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.exam-aside-set:hover {
+  color: var(--student-primary, #008080);
+}
+
+.exam-aside-set-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exam-aside-set-id {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-aside-empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+/* Hamburger: visible only on small screens, sits left of the section header */
+.exam-hamburger {
+  display: none;
+}
+
+/* Mobile drawer fallback */
+@media (max-width: 999.98px) {
+  .session-container {
+    display: block;
+  }
+
+  .exam-main {
+    min-width: 0;
+  }
+
+  .exam-aside {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: auto;
+    max-height: none;
+    width: 320px;
+    max-width: 86vw;
+    z-index: 1500;
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    border-radius: 0 14px 14px 0;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .exam-aside.exam-aside-open {
+    transform: translateX(0);
+  }
+
+  .exam-aside-close {
+    display: inline-flex;
+  }
+
+  .exam-hamburger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 30px;
+    flex: 0 0 auto;
+    border: none;
+    background: transparent;
+    color: var(--student-primary, #008080);
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .exam-hamburger:hover {
+    background: rgba(0, 128, 128, 0.08);
+    border-radius: 6px;
+  }
+}
+
+.exam-aside-overlay {
+  display: none;
+}
+
+@media (max-width: 999.98px) {
+  .exam-aside-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 1400;
+  }
+}
+
+/* Same section as /question topic-questions-section: header fixed, list scrolls internally */
 .topic-questions-section {
   margin-bottom: 24px;
   padding: 16px;
@@ -15,6 +305,12 @@
   border-radius: 8px;
   border: 1px solid rgba(0, 128, 128, 0.3);
   width: 100%;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .topic-questions-header {
@@ -24,6 +320,16 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+/* Keep timer / answered count / submit always visible while scrolling */
+.topic-questions-header {
+  /* top: 60px; */
+  z-index: 20;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
 }
 
 .topic-questions-header .result-heading {
@@ -45,39 +351,6 @@
   color: var(--student-primary);
 }
 
-.timer-wrap-inline {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 4px 10px;
-  background: var(--student-primary-light);
-  color: var(--student-primary);
-  border-radius: 6px;
-  font-variant-numeric: tabular-nums;
-}
-
-.timer-wrap-inline.timer-warning {
-  background: #fef2f2;
-  color: #dc2626;
-  animation: exam-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes exam-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
-}
-
-.timer-wrap-inline .timer-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.timer-wrap-inline .timer-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
 .topic-questions-actions .selected-count {
   font-weight: 500;
   color: var(--student-text);
@@ -87,60 +360,61 @@
   margin-left: auto;
 }
 
-/* Sticky bar: always visible so user can submit anytime */
-.exam-submit-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+/* Submit Exam button: teal text on white, red border (overrides shared teal-gradient + white text) */
+.btn-submit-exam.btn-student-primary,
+.btn-submit-exam.btn-student-primary:disabled {
+  background: #fff !important;
+  color: var(--student-primary, #008080) !important;
+  border: 2px solid #dc2626 !important; /* red border against teal */
+  border-radius: 20px !important;
+  padding: 3px 12px !important;
+  font-weight: 600 !important;
+}
+
+.btn-submit-exam.btn-student-primary:hover:not(:disabled) {
+  background: #fef2f2 !important;
+  color: var(--student-primary-dark, #006d6d) !important;
+  border-color: #b91c1c !important;
+}
+
+/* Centered Submit Exam button after the question list */
+.exam-footer-actions {
   display: flex;
-  align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 12px 16px;
-  margin: 0 -16px 16px -16px;
-  background: linear-gradient(135deg, var(--student-primary) 0%, var(--student-primary-dark) 100%);
-  color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 128, 128, 0.35);
+  margin: 20px 0 4px;
+}
+
+.exam-footer-actions .btn-submit-exam {
+  margin-left: 0; /* override the header's margin-left: auto so it stays centred */
+}
+
+/* Remaining-time + answered-count pills (in the first header line) */
+.exam-submit-timer,
+.exam-submit-count {
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 14px;
+  color: var(--student-primary, #008080); /* default = teal */
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .exam-submit-timer {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
   font-size: 1.25rem;
-}
-
-.exam-submit-bar .timer-warning {
-  color: #fecaca;
 }
 
 .exam-submit-count {
   font-size: 0.9375rem;
-  opacity: 0.95;
-}
-
-.btn-submit-exam-fixed {
-  background: #fff !important;
-  color: var(--student-primary) !important;
-  border: 2px solid #fff !important;
-  padding: 10px 24px !important;
-  font-weight: 600 !important;
-  font-size: 1rem !important;
-  box-shadow: 0 2px 8px var(--color_primary_shadow) !important;
-}
-
-.btn-submit-exam-fixed:hover {
-  background: #f0fdfa !important;
-  color: var(--student-primary-dark) !important;
-  border-color: #fff !important;
-  transform: translateY(-1px);
 }
 
 .topic-questions-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .topic-question-item {
@@ -182,36 +456,13 @@
   padding-right: 8px;
 }
 
-.topic-question-top-badges {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  gap: 4px;
-}
-
-.topic-question-qid {
-  font-size: 12px;
-  color: white;
-  background: var(--color_primary_teal);
-  padding: 2px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  font-family: monospace;
-}
-
-.topic-question-qid-visible {
-  display: inline-block;
-}
-
+/* Subsource: bottom-right of the question block (same as /question page) */
 .topic-question-subsource {
   position: absolute;
   right: 0;
-  bottom: 40px;
+  bottom: -12px;
   font-size: 12px;
-  color: var(--color_primary_teal);
+  color: var(--student-primary, #008080);
   background: transparent;
   padding: 2px 8px;
   border-radius: 4px;
@@ -229,7 +480,7 @@
   font-size: 14px;
   line-height: 1.45;
   white-space: pre-line;
-  color: #333;
+  color: #1f2937;
 }
 
 .topic-question-text ::ng-deep .topic-question-line {
@@ -250,7 +501,7 @@
 .topic-question-options {
   margin-top: 8px;
   font-size: 13px;
-  color: #555;
+  color: #1f2937;
   display: grid;
   gap: 6px 1.5em;
   align-items: start;
@@ -268,7 +519,7 @@
 
 .exam-opt-wrap {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start; /* circle hugs the top corner of the option */
   gap: 8px;
   padding: 6px 0;
   border: none;
@@ -285,32 +536,55 @@
 }
 
 .exam-opt-circle {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--student-primary);
+  flex: 0 0 auto;
+  width: 1.55em;
+  height: 1.55em;
+  border: 0.12em solid var(--student-primary, #008080);
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  background: #fff;
+  color: var(--student-primary, #008080);
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .exam-opt-key {
-  font-size: 14px;
+  font-size: 0.95em;
+  line-height: 1;
   font-weight: 700;
-  color: var(--student-primary);
+  color: var(--student-primary, #008080);
 }
 
+/**** Option marker states — deterministic colors (independent of CSS var availability) ****/
+
+/* During exam: clicked option -> teal-filled circle + white marker */
 .exam-opt-wrap.selected .exam-opt-circle,
 .exam-opt-wrap .exam-opt-circle.filled {
-  background: var(--student-primary);
-  border-color: var(--student-primary);
+  background: #008080;
+  border-color: #008080;
 }
 
 .exam-opt-wrap.selected .exam-opt-key,
 .exam-opt-wrap .exam-opt-circle.filled .exam-opt-key {
   color: #fff;
+}
+
+/* During exam: selected option text tints teal */
+.exam-opt-wrap.selected .exam-opt-text,
+.exam-opt-wrap .exam-opt-circle.filled ~ .exam-opt-text {
+  color: #006d6d;
+  font-weight: 600;
+}
+
+/* During exam: once answered, the other options are locked and dimmed */
+.exam-opt-wrap.locked .exam-opt-circle {
+  opacity: 0.5;
+}
+
+.exam-opt-wrap.locked .exam-opt-text {
+  opacity: 0.6;
 }
 
 .exam-opt-text {
@@ -319,19 +593,40 @@
   white-space: normal;
 }
 
-/* Result view: correct = var(--color_primary_teal)/green, wrong = red fill */
+/* After submit: right answer -> teal-filled circle, white marker, teal text */
 .exam-opt-circle.correct {
-  background: var(--student-primary);
-  border-color: var(--student-primary);
+  background: #008080;
+  border-color: #008080;
 }
 
 .exam-opt-circle.correct .exam-opt-key {
   color: #fff;
 }
 
+.exam-opt-wrap.correct .exam-opt-text {
+  color: #006d6d;
+  font-weight: 600;
+}
+
+/* Correct answer that was NOT chosen (answered wrong or skipped): teal outline only, no fill */
+.exam-opt-circle.correct-not-chosen {
+  background: #fff;
+  border-color: #008080;
+}
+
+.exam-opt-circle.correct-not-chosen .exam-opt-key {
+  color: #008080;
+}
+
+.exam-opt-wrap.correct-not-chosen .exam-opt-text {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+/* After submit: wrong answer -> dark-red-filled circle, white marker, dark-red text */
 .exam-opt-circle.wrong {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .exam-opt-circle.wrong .exam-opt-key {
@@ -340,6 +635,16 @@
 
 .exam-opt-wrap.wrong .exam-opt-text {
   color: #b91c1c;
+}
+
+/* Exam (not submitted yet): pointer + gentle teal hover on the option row */
+.exam-opt-wrap:not(.exam-opt-result):not(:disabled):hover .exam-opt-circle {
+  border-color: var(--student-primary-dark, #006d6d);
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.15);
+}
+
+.exam-opt-wrap:not(.exam-opt-result):not(:disabled):hover {
+  color: var(--student-primary-dark, #006d6d);
 }
 
 .session-error,
@@ -356,6 +661,56 @@
 
 .exam-results-section .topic-questions-actions .btn-student-primary {
   margin-left: 0;
+}
+
+/* Explanation toggle inside the question block (left-aligned) */
+.topic-question-explanation-area {
+  margin-top: 10px;
+  text-align: left;
+}
+
+.exam-explanation-toggle {
+  background: #fff;
+  color: #008080;
+  border: 2px solid #008080;
+  border-radius: 20px;
+  padding: 4px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.exam-explanation-toggle:hover {
+  background: #f0fdfa;
+  color: #006d6d;
+  border-color: #006d6d;
+}
+
+.topic-question-explanation {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-left: 4px solid #008080;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1f2937;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.topic-question-explanation-label {
+  font-weight: 700;
+  color: #0f766e;
+  margin-right: 6px;
+}
+
+.topic-question-explanation-html ::ng-deep img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
 }
 
 

@@ -1,22 +1,78 @@
 <div class="session-container" *ngIf="!loading && !error">
+  <!-- Left aside: live results, scores and next exams. Sticky on wide screens, drawer on mobile. -->
+  <aside class="exam-aside" [class.exam-aside-open]="asideOpen">
+    <div class="exam-aside-header">
+      <h3>Exam Menu</h3>
+      <button type="button" class="exam-aside-close" aria-label="Close menu" (click)="asideOpen=false">×</button>
+    </div>
+
+    <div class="exam-aside-card">
+      <button type="button" class="exam-aside-card-toggle" [class.open]="isAsideCardOpen('live')" (click)="toggleAsideCard('live')">
+        <h4>Live Result</h4><span class="exam-aside-caret">&#9660;</span>
+      </button>
+      <div class="exam-aside-card-body" [class.hidden]="!isAsideCardOpen('live')">
+        <div class="exam-aside-stat exam-aside-stat-latest">
+        <span class="label">Current score</span>
+        <span class="value">{{ result ? result.score + '%' : '—' }}</span>
+      </div>
+      <div class="exam-aside-stat" *ngIf="result">
+        <span class="label">Correct</span>
+        <span class="value">{{ result.correct }} / {{ result.total }}</span>
+      </div>
+      <div class="exam-aside-stat">
+        <span class="label">Answered</span>
+        <span class="value">{{ answeredCount }} / {{ questions.length }}</span>
+      </div>
+    </div>
+
+        </div>
+
+<div class="exam-aside-card">
+      <button type="button" class="exam-aside-card-toggle" [class.open]="isAsideCardOpen('scores')" (click)="toggleAsideCard('scores')">
+        <h4>Your Scores</h4><span class="exam-aside-caret">&#9660;</span>
+      </button>
+      <div class="exam-aside-card-body" [class.hidden]="!isAsideCardOpen('scores')">
+        <div class="exam-aside-stat"><span class="label">Previous best</span><span class="value">{{ bestScoreThisSet }}%</span></div>
+      <div class="exam-aside-stat"><span class="label">Average</span><span class="value">{{ averageScoreThisSet }}%</span></div>
+      <div class="exam-aside-stat"><span class="label">Attempts</span><span class="value">{{ attemptCountThisSet }}</span></div>
+      <div class="exam-aside-stat"><span class="label">Subject top</span><span class="value">{{ subjectTopScore }}%</span></div>
+      <div class="exam-aside-stat"><span class="label">Subject avg</span><span class="value">{{ subjectAverageScore }}%</span></div>
+      <div class="exam-aside-stat"><span class="label">Exams taken</span><span class="value">{{ totalExamsTaken }}</span>
+      </div>
+    </div>
+
+        </div>
+
+<button type="button" class="exam-aside-action exam-aside-action-primary" (click)="retakeExam()">⟳ Retake This Exam</button>
+    <button *ngIf="nextExamSets.length" type="button" class="exam-aside-action" (click)="startExam(nextExamSets[0].id)">
+      Next: {{ nextExamSets[0].name_label }}
+    </button>
+
+    <div class="exam-aside-card exam-aside-next">
+      <button type="button" class="exam-aside-card-toggle" [class.open]="isAsideCardOpen('next')" (click)="toggleAsideCard('next')">
+        <h4>Next Exams</h4><span class="exam-aside-caret">&#9660;</span>
+      </button>
+      <div class="exam-aside-card-body" [class.hidden]="!isAsideCardOpen('next')">
+        <p class="exam-aside-empty" *ngIf="!nextExamSets.length">No other exams in this subject yet.</p>
+      <button *ngFor="let s of nextExamSets" type="button" class="exam-aside-set" (click)="startExam(s.id)">
+        <span class="exam-aside-set-name">{{ s.name_label }}</span>
+        <span class="exam-aside-set-id">Set {{ s.id }}</span>
+      </button>
+    </div>
+    </div>
+  </aside>
+
+  <div class="exam-main">
   <!-- Exam in progress: all questions on one page, same design as /question topic-questions-section -->
   <div class="topic-questions-section" *ngIf="!isSubmitted && questions.length > 0">
     <div class="topic-questions-header">
-      <div class="topic-questions-actions">
+      <button type="button" class="exam-hamburger" aria-label="Open exam menu" (click)="toggleAside()">☰</button>
+            <div class="topic-questions-actions">
         <span class="session-title-inline">{{ set?.name_label || 'Exam' }}</span>
-        <span class="timer-wrap-inline" [class.timer-warning]="timeRemaining <= 300">
-          <span class="timer-label">Time left</span>
-          <span class="timer-value">{{ getTimerDisplay() }}</span>
-        </span>
-        <span class="selected-count">{{ answeredCount }} Answered of {{ questions.length }} Questions</span>
+        <span class="exam-submit-timer" [style.color]="timerColor">{{ getTimerDisplay() }}</span>
+        <span class="exam-submit-count">{{ answeredCount }} / {{ questions.length }} answered</span>
         <button type="button" class="btn-student-primary btn-submit-exam" (click)="submitExam()">Submit Exam</button>
       </div>
-    </div>
-    <!-- Sticky bar so Submit is always visible -->
-    <div class="exam-submit-bar">
-      <span class="exam-submit-timer" [class.timer-warning]="timeRemaining <= 300">{{ getTimerDisplay() }}</span>
-      <span class="exam-submit-count">{{ answeredCount }} / {{ questions.length }} answered</span>
-      <button type="button" class="btn-student-primary btn-submit-exam-fixed" (click)="submitExam()">Submit Exam — End & see results</button>
     </div>
     <ul class="topic-questions-list">
       <li *ngFor="let q of questions; let i = index" class="topic-question-item" [attr.data-full-index]="i">
@@ -24,9 +80,6 @@
           <span class="topic-question-sl">{{ formatSl(i + 1) }}</span>
         </div>
         <div class="topic-question-content">
-          <div class="topic-question-top-badges">
-            <span class="topic-question-qid topic-question-qid-visible">{{ q.qid }}</span>
-          </div>
           <label class="topic-question-label">
             <span class="topic-question-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
           </label>
@@ -36,8 +89,9 @@
               type="button"
               class="topic-question-opt exam-opt-wrap"
               [class.selected]="answers[q.qid] === key"
-              [disabled]="isSubmitted"
-              (click)="!isSubmitted && selectAnswer(q.qid, key)"
+              [class.locked]="!!answers[q.qid] && answers[q.qid] !== key"
+              [disabled]="isSubmitted || !!answers[q.qid]"
+              (click)="!isSubmitted && !answers[q.qid] && selectAnswer(q.qid, key)"
             >
               <span
                 class="exam-opt-circle"
@@ -54,14 +108,18 @@
         </div>
       </li>
     </ul>
+    <div class="exam-footer-actions">
+      <button type="button" class="btn-student-primary btn-submit-exam" (click)="submitExam()">Submit Exam</button>
+    </div>
   </div>
 
   <!-- Results preview: same list with correct/wrong styling -->
   <div class="topic-questions-section exam-results-section" *ngIf="isSubmitted && result && questions.length > 0">
     <div class="topic-questions-header">
-      <h3 class="result-heading">Exam Results — {{ set?.name_label || 'Exam' }}</h3>
+      <button type="button" class="exam-hamburger" aria-label="Open exam menu" (click)="toggleAside()">☰</button>
+            <h3 class="result-heading">Exam Results â€” {{ set?.name_label || 'Exam' }}</h3>
       <div class="topic-questions-actions">
-        <span class="selected-count">{{ result.correct }} Correct of {{ result.total }} — Score {{ result.score }}%</span>
+        <span class="selected-count">{{ result.correct }} Correct of {{ result.total }} â€” Score {{ result.score }}%</span>
         <button type="button" class="btn-student-primary" (click)="backToRegularExam()">Back to Regular Exams</button>
       </div>
     </div>
@@ -71,9 +129,6 @@
           <span class="topic-question-sl">{{ formatSl(i + 1) }}</span>
         </div>
         <div class="topic-question-content">
-          <div class="topic-question-top-badges">
-            <span class="topic-question-qid topic-question-qid-visible">{{ q.qid }}</span>
-          </div>
           <label class="topic-question-label">
             <span class="topic-question-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
           </label>
@@ -82,12 +137,13 @@
               *ngFor="let key of optionKeys"
               class="topic-question-opt exam-opt-wrap exam-opt-result"
               [class.correct]="key === getCorrectAnswer(q)"
+              [class.correct-not-chosen]="key === getCorrectAnswer(q) && key !== answers[q.qid]"
               [class.wrong]="key === answers[q.qid] && key !== getCorrectAnswer(q)"
             >
               <span
                 class="exam-opt-circle"
-                [class.filled]="key === answers[q.qid] || key === getCorrectAnswer(q)"
                 [class.correct]="key === getCorrectAnswer(q)"
+                [class.correct-not-chosen]="key === getCorrectAnswer(q) && key !== answers[q.qid]"
                 [class.wrong]="key === answers[q.qid] && key !== getCorrectAnswer(q)"
               >
                 <span class="exam-opt-key">{{ key }}</span>
@@ -95,11 +151,23 @@
               <span class="exam-opt-text">{{ getOptionText(q, key) }}</span>
             </span>
           </div>
+          <div class="topic-question-explanation-area" *ngIf="q.explanation">
+            <button type="button" class="exam-explanation-toggle" (click)="toggleExplanation(q.qid)">
+              {{ isExplanationOpen(q.qid) ? 'Hide Explanation' : 'Explanation' }}
+            </button>
+            <div class="topic-question-explanation" *ngIf="isExplanationOpen(q.qid)">
+              <span class="topic-question-explanation-label">Explanation:</span>
+              <span class="topic-question-explanation-html"
+                [innerHTML]="q.explanation | formatQuestionMedia | wrapRomanLines"></span>
+            </div>
+          </div>
           <span class="topic-question-subsource" *ngIf="q.subsource">{{ q.subsource }}</span>
         </div>
       </li>
     </ul>
   </div>
+  </div>
+  <div class="exam-aside-overlay" *ngIf="asideOpen" (click)="asideOpen = false"></div>
 </div>
 
 <div class="session-error" *ngIf="error">

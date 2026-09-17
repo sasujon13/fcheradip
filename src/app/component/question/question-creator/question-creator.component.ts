@@ -8886,12 +8886,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (avg == null) {
       return Math.min(room, 1);
     }
-    const slackPct = Math.max(0, 93 - avg);
+    const slackPct = Math.max(0, 96.5 - avg);
     if (slackPct <= 0.5) {
       return Math.min(room, 1);
     }
-    const chunk = Math.max(2, Math.round(slackPct * 0.4));
-    return Math.min(room, chunk, 28);
+    const chunk = Math.max(2, Math.round(slackPct * 0.45));
+    return Math.min(room, chunk, 32);
   }
 
   private advanceAutoFitExpandPhaseAfterBump(stepIndex: number): void {
@@ -11687,6 +11687,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       exportPreviewQuestionQids: this.allLayoutMeasureQuestions().map((q) => q.qid),
       previewOptionsLayoutByQid: { ...this.previewOptionsLayoutByQid },
       optionsColumnsManualOverride: this.optionsColumnsManualOverride,
+      /** Used to localize Answer/Explanation headings on fresh and repeated exports. */
+      subjectName: this.creatorSubjectLabel,
     };
   }
 
@@ -11821,6 +11823,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       isCreativeType: (q) => this.questionIsCreativeType(q as { type?: unknown }),
       isMcqType: (q) => this.questionIsMcqType(q as { type?: unknown }),
       displayStem: (q) => this.getQuestionDisplayText(q as { question?: unknown; type?: string }),
+      subjectName: this.creatorSubjectLabel,
     });
   }
 

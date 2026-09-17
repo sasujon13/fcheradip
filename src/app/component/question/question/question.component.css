@@ -591,8 +591,36 @@
 .topic-question-answer {
   font-weight: 600;
   color: #1b5e20;
-  display: block;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35em;
   margin-bottom: 4px;
+}
+
+.topic-question-answer-label,
+.topic-question-explanation-label {
+  font-weight: 700;
+}
+
+.topic-question-option-marker,
+.topic-question-answer-option-marker {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  border: 0.08em solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+  line-height: 1;
+  text-indent: 0;
+  vertical-align: -0.12em;
+}
+
+.topic-question-answer-option-marker {
+  color: inherit;
 }
 
 .topic-question-explanation {
@@ -600,11 +628,21 @@
   white-space: pre-line;
   word-break: break-word;
   line-height: 1.4;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  text-align: left;
 }
 
 .topic-question-answer-html {
   display: inline;
   font-weight: normal;
+}
+
+.topic-question-explanation-html {
+  min-width: 0;
+  text-align: left;
 }
 
 /* Smart Question Creator modal (/question) */
@@ -1196,9 +1234,29 @@ span.mx-3 {
   text-align: left;
 }
 
+.topic-question-text ::ng-deep .question-math-fallback-display,
+.topic-question-subpart ::ng-deep .question-math-fallback-display,
+.topic-question-opt-html ::ng-deep .question-math-fallback-display,
+.topic-question-answer-html ::ng-deep .question-math-fallback-display,
+.topic-question-explanation ::ng-deep .question-math-fallback-display {
+  display: block;
+  margin: 0.35em 0;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.topic-question-text ::ng-deep .katex-display > .katex,
+.topic-question-subpart ::ng-deep .katex-display > .katex,
+.topic-question-opt-html ::ng-deep .katex-display > .katex,
+.topic-question-answer-html ::ng-deep .katex-display > .katex,
+.topic-question-explanation ::ng-deep .katex-display > .katex {
+  text-align: left;
+}
+
 .topic-question-answer-html ::ng-deep .topic-question-line,
 .topic-question-explanation ::ng-deep .topic-question-line {
   display: block;
+  text-align: left;
 }
 
 /* Lines from wrapRomanLines pipe: block so each line stacks (question text and subparts only). Use ::ng-deep so styles apply to innerHTML-inserted spans. */
@@ -1316,13 +1374,17 @@ span.mx-3 {
   white-space: normal;
   min-width: 0;
   color: var(--color_primary_black);
-  /* 22px left indent for wrapped lines (continuation lines) */
-  padding-left: 22px;
-  text-indent: -22px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35em;
+  padding-left: 0;
+  text-indent: 0;
 }
 
 .topic-question-options .topic-question-opt-html {
   color: var(--color_primary_black);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* Measure mode: force one row to read content widths */
@@ -1446,4 +1508,3 @@ span.mx-3 {
   background-color: transparent;
   border-radius: 4px;
 }
-

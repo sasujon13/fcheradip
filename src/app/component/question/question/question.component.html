@@ -451,13 +451,17 @@
                 [class.topic-question-options-2row]="optionsLayouts[item.fullIndex] === '2row' || !optionsLayouts[item.fullIndex]"
                 [class.topic-question-options-4row]="optionsLayouts[item.fullIndex] === '4row'"
                 *ngIf="item.q.option_1 || item.q.option_2">
-                <span *ngIf="item.q.option_1" class="topic-question-opt">(ক) <span class="topic-question-opt-html"
+                <span *ngIf="item.q.option_1" class="topic-question-opt"><span
+                    class="topic-question-option-marker" aria-hidden="true">ক</span> <span class="topic-question-opt-html"
                     [innerHTML]="getOptionDisplayText(item.q.option_1) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
-                  <span *ngIf="item.q.option_2" class="topic-question-opt">(খ) <span class="topic-question-opt-html"
+                  <span *ngIf="item.q.option_2" class="topic-question-opt"><span
+                    class="topic-question-option-marker" aria-hidden="true">খ</span> <span class="topic-question-opt-html"
                     [innerHTML]="getOptionDisplayText(item.q.option_2) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
-                  <span *ngIf="item.q.option_3" class="topic-question-opt">(গ) <span class="topic-question-opt-html"
+                  <span *ngIf="item.q.option_3" class="topic-question-opt"><span
+                    class="topic-question-option-marker" aria-hidden="true">গ</span> <span class="topic-question-opt-html"
                     [innerHTML]="getOptionDisplayText(item.q.option_3) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
-                  <span *ngIf="item.q.option_4" class="topic-question-opt">(ঘ) <span class="topic-question-opt-html"
+                  <span *ngIf="item.q.option_4" class="topic-question-opt"><span
+                    class="topic-question-option-marker" aria-hidden="true">ঘ</span> <span class="topic-question-opt-html"
                     [innerHTML]="getOptionDisplayText(item.q.option_4) | formatQuestionMedia | wrapRomanLines:'option' | highlightMatch:currentSearchTerm"></span></span>
               </div>
             </ng-container>
@@ -466,13 +470,17 @@
                 <textarea [(ngModel)]="editForm.question" class="topic-question-edit-textarea" rows="2"
                   placeholder="Question text"></textarea>
                 <div class="topic-question-edit-options" *ngIf="showEditOptions(item.q)">
-                  <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(ক)</span> <input
+                  <span class="topic-question-edit-opt"><span
+                      class="topic-question-edit-opt-label topic-question-option-marker">ক</span> <input
                       type="text" [(ngModel)]="editForm.option_1" class="topic-question-edit-input" /></span>
-                  <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(খ)</span> <input
+                  <span class="topic-question-edit-opt"><span
+                      class="topic-question-edit-opt-label topic-question-option-marker">খ</span> <input
                       type="text" [(ngModel)]="editForm.option_2" class="topic-question-edit-input" /></span>
-                  <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(গ)</span> <input
+                  <span class="topic-question-edit-opt"><span
+                      class="topic-question-edit-opt-label topic-question-option-marker">গ</span> <input
                       type="text" [(ngModel)]="editForm.option_3" class="topic-question-edit-input" /></span>
-                  <span class="topic-question-edit-opt"><span class="topic-question-edit-opt-label">(ঘ)</span> <input
+                  <span class="topic-question-edit-opt"><span
+                      class="topic-question-edit-opt-label topic-question-option-marker">ঘ</span> <input
                       type="text" [(ngModel)]="editForm.option_4" class="topic-question-edit-input" /></span>
                 </div>
               </div>
@@ -486,16 +494,21 @@
             <div class="topic-question-extra"
               *ngIf="isQuestionRevealed(item.q.qid) && hasUnlockableExtraContent(item.q)">
               <span class="topic-question-answer" *ngIf="hasNonEmptyUnlockField(item.q.answer)">
-                <span class="topic-question-answer-label">Answer: </span>
+                <span class="topic-question-answer-label">{{ getUnlockAnswerLabel(item.q) }}:</span>
+                <span class="topic-question-answer-option-marker"
+                  *ngIf="getUnlockAnswerOptionMarker(item.q) as marker" aria-hidden="true">{{ marker }}</span>
                 <span class="topic-question-answer-html"
                   [innerHTML]="getUnlockAnswerSource(item.q) | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></span>
               </span>
-              <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation)"
-                [innerHTML]="item.q.explanation | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></div>
-              <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation2)"
-                [innerHTML]="item.q.explanation2 | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></div>
-              <div class="topic-question-explanation" *ngIf="hasNonEmptyUnlockField(item.q.explanation3)"
-                [innerHTML]="item.q.explanation3 | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></div>
+              <div class="topic-question-explanations"
+                *ngIf="getUnlockExplanations(item.q) as explanations">
+                <div class="topic-question-explanation" *ngFor="let explanation of explanations; let first = first">
+                  <span class="topic-question-explanation-label" *ngIf="first">{{
+                    getUnlockExplanationLabel(item.q) }}:</span>
+                  <span class="topic-question-explanation-html"
+                    [innerHTML]="explanation | formatQuestionMedia | wrapRomanLines | highlightMatch:currentSearchTerm"></span>
+                </div>
+              </div>
             </div>
             <div class="topic-question-item-actions" *ngIf="!isEditingItem(item.q.qid)"
               (click)="$event.stopPropagation()">

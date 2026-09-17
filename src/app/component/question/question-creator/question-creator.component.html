@@ -80,17 +80,28 @@
               !optionsColumnsManualOverride && !previewOptionsMeasureMode && previewOptionsLayoutForQ(q) === '4row'
             "
           >
-            <span *ngIf="q.option_1" class="preview-q-opt">(ক) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
-            <span *ngIf="q.option_2" class="preview-q-opt">(খ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
-            <span *ngIf="q.option_3" class="preview-q-opt">(গ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
-            <span *ngIf="q.option_4" class="preview-q-opt">(ঘ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+            <span *ngIf="q.option_1" class="preview-q-opt"><span class="preview-q-opt-marker">ক</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+            <span *ngIf="q.option_2" class="preview-q-opt"><span class="preview-q-opt-marker">খ</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+            <span *ngIf="q.option_3" class="preview-q-opt"><span class="preview-q-opt-marker">গ</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+            <span *ngIf="q.option_4" class="preview-q-opt"><span class="preview-q-opt-marker">ঘ</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
           </div>
         </div>
       </ng-container>
       <ng-template #answerSegTailOrCreativeFull>
       <ng-container *ngIf="q.answerSheetSegmentKind === 'tail'; else answerSegFullBlock">
         <div class="preview-q-content">
-          <span class="preview-q-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
+          <ng-container [ngSwitch]="q.answerSheetTailKind">
+            <span *ngSwitchCase="'answer'" class="preview-q-text preview-q-answer-line">
+              <strong>{{ q.answerSheetAnswerLabel }}:</strong>
+              <span *ngIf="q.answerSheetCorrectOptionLabel" class="preview-answer-option-marker">{{ q.answerSheetCorrectOptionLabel }}</span>
+              <span class="preview-q-answer-text" [innerHTML]="q.answerSheetAnswerText | formatQuestionMedia | wrapRomanLines"></span>
+            </span>
+            <span *ngSwitchCase="'explanation'" class="preview-q-text preview-q-explanation-line">
+              <strong>{{ q.answerSheetExplanationLabel }}:</strong>
+              <span [innerHTML]="q.answerSheetExplanationText | formatQuestionMedia | wrapRomanLines"></span>
+            </span>
+            <span *ngSwitchDefault class="preview-q-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
+          </ng-container>
         </div>
       </ng-container>
       </ng-template>
@@ -155,10 +166,10 @@
             !optionsColumnsManualOverride && !previewOptionsMeasureMode && previewOptionsLayoutForQ(q) === '4row'
           "
         >
-          <span *ngIf="q.option_1" class="preview-q-opt">(ক) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
-          <span *ngIf="q.option_2" class="preview-q-opt">(খ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
-          <span *ngIf="q.option_3" class="preview-q-opt">(গ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
-          <span *ngIf="q.option_4" class="preview-q-opt">(ঘ) <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          <span *ngIf="q.option_1" class="preview-q-opt"><span class="preview-q-opt-marker">ক</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_1) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          <span *ngIf="q.option_2" class="preview-q-opt"><span class="preview-q-opt-marker">খ</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_2) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          <span *ngIf="q.option_3" class="preview-q-opt"><span class="preview-q-opt-marker">গ</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_3) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+          <span *ngIf="q.option_4" class="preview-q-opt"><span class="preview-q-opt-marker">ঘ</span> <span class="preview-q-opt-html" [innerHTML]="getOptionDisplayText(q.option_4) | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
         </div>
       </div>
     </ng-container>
@@ -1498,7 +1509,7 @@
         >
           <div class="creator-question-body">
             <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
-            <span class="creator-question-text">{{ q.question }}</span>
+            <span class="creator-question-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
           </div>
           <button
             type="button"
@@ -1530,12 +1541,12 @@
         >
           <div class="creator-question-body">
             <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
-            <span class="creator-question-text">{{ q.question }}</span>
+            <span class="creator-question-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
             <div class="creator-question-options" *ngIf="q.option_1 || q.option_2">
-              <span *ngIf="q.option_1">A: {{ q.option_1 }}</span>
-              <span *ngIf="q.option_2"> B: {{ q.option_2 }}</span>
-              <span *ngIf="q.option_3"> C: {{ q.option_3 }}</span>
-              <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
+              <span *ngIf="q.option_1">A: <span [innerHTML]="q.option_1 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+              <span *ngIf="q.option_2"> B: <span [innerHTML]="q.option_2 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+              <span *ngIf="q.option_3"> C: <span [innerHTML]="q.option_3 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+              <span *ngIf="q.option_4"> D: <span [innerHTML]="q.option_4 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
             </div>
           </div>
           <button
@@ -1575,12 +1586,12 @@
         >
           <div class="creator-question-body">
             <span class="creator-q-sl">{{ creatorSidebarQuestionSlBn(q) }}।</span>
-            <span class="creator-question-text">{{ q.question }}</span>
+            <span class="creator-question-text" [innerHTML]="q.question | formatQuestionMedia | wrapRomanLines"></span>
             <div class="creator-question-options" *ngIf="q.option_1 || q.option_2">
-              <span *ngIf="q.option_1">A: {{ q.option_1 }}</span>
-              <span *ngIf="q.option_2"> B: {{ q.option_2 }}</span>
-              <span *ngIf="q.option_3"> C: {{ q.option_3 }}</span>
-              <span *ngIf="q.option_4"> D: {{ q.option_4 }}</span>
+              <span *ngIf="q.option_1">A: <span [innerHTML]="q.option_1 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+              <span *ngIf="q.option_2"> B: <span [innerHTML]="q.option_2 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+              <span *ngIf="q.option_3"> C: <span [innerHTML]="q.option_3 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
+              <span *ngIf="q.option_4"> D: <span [innerHTML]="q.option_4 | formatQuestionMedia | wrapRomanLines:'option'"></span></span>
             </div>
           </div>
           <button
