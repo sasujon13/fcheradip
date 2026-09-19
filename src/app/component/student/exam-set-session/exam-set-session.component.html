@@ -189,7 +189,7 @@
                   <option *ngFor="let t of editTopics" [value]="t">{{ t }}</option>
                 </select>
                 <input *ngIf="topicEditMode" type="text" [value]="editForm.topic" (input)="editForm.topic = $any($event.target).value" class="topic-question-edit-input" />
-                <button type="button" class="topic-question-edit-btn topic-question-edit-confirm" (click)="topicEditMode = false" [class.active]="topicEditMode" title="Keep edited topic">
+                <button type="button" class="topic-question-edit-btn topic-question-edit-confirm" (click)="topicEditMode = !topicEditMode" [class.active]="topicEditMode" title="Keep edited topic">
                   <i *ngIf="topicEditMode" class="fa fa-check"></i>
                   <span *ngIf="!topicEditMode">Edit Topic</span>
                 </button>

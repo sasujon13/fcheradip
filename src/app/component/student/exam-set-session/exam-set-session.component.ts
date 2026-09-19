@@ -3,8 +3,50 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../service/api.service';
 import { LovedQuestionsService } from '../../../service/loved-questions.service';
 import { interval, Subscription } from 'rxjs';
+import { diffChars } from 'diff';
 
 const OPTION_KEYS = ['ক', 'খ', 'গ', 'ঘ'] as const;
+const CERADIP_PLAIN_PREFIX = '<!--CERADIP_PLAIN:';
+function _escapeHtml(s: any): string {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _utf8ToBase64(s: string): string {
+  try { return btoa(unescape(encodeURIComponent(s))); }
+  catch (e) {
+    const bytes = new TextEncoder().encode(s);
+    let bin = '';
+    bytes.forEach((b) => { bin += String.fromCharCode(b); });
+    return btoa(bin);
+  }
+}
+
+/** Same diff markup as the /question page: added = bold+blue, removed = bold+del darkred. */
+function _buildPendingEditDiffHtml(oldText: string, newText: string): string {
+  const parts = diffChars(oldText || '', newText || '');
+  let out = '';
+  for (const p of parts) {
+    const esc = _escapeHtml(p.value);
+    if (p.added) out += `<b style="color:blue">${esc}</b>`;
+    else if (p.removed) out += `<b><del style="color:darkred">${esc}</del></b>`;
+    else out += esc;
+  }
+  return out;
+}
+
+function _wrapPendingFieldWithPlainPlaintext(plainNew: string, diffHtml: string): string {
+  return `${CERADIP_PLAIN_PREFIX}${_utf8ToBase64(plainNew)}-->${diffHtml}`;
+}
+
+/** Value for pending row: unchanged plain, or preamble + diff HTML (same as /question). */
+function _pendingEditFieldValue(orig: any, cur: any): string {
+  const o = orig != null ? String(orig).trim() : '';
+  const c = cur != null ? String(cur).trim() : '';
+  if (c === o) return o;
+  return _wrapPendingFieldWithPlainPlaintext(c, _buildPendingEditDiffHtml(o, c));
+}
 const EXAM_DURATION_SEC = 20 * 60; // 20 minutes
 const MAX_QUESTIONS = 30;
 const SUBJECT_CACHE_PREFIX = 'cheradip_subject_all_';
@@ -900,19 +942,20 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       });
       return;
     }
+    const topicVal = (this.editForm.addTopic && (this.editForm.newTopic || '').trim())
+      ? this.editForm.newTopic.trim()
+      : (this.editForm.topic || q.topic || '');
     const payload: any = {
       qid: this.editingQid,
-      question: this.editForm.question || '',
-      option_1: this.editForm.option_1 || '',
-      option_2: this.editForm.option_2 || '',
-      option_3: this.editForm.option_3 || '',
-      option_4: this.editForm.option_4 || '',
-      answer: this.editForm.answer || '',
-      explanation: this.editForm.explanation || '',
-      topic: (this.editForm.addTopic && (this.editForm.newTopic || '').trim())
-        ? this.editForm.newTopic.trim()
-        : (this.editForm.topic || q.topic || ''),
-      subsource: this.editForm.subsource || '',
+      question: _pendingEditFieldValue(q.question, this.editForm.question),
+      option_1: _pendingEditFieldValue(q.option_1, this.editForm.option_1),
+      option_2: _pendingEditFieldValue(q.option_2, this.editForm.option_2),
+      option_3: _pendingEditFieldValue(q.option_3, this.editForm.option_3),
+      option_4: _pendingEditFieldValue(q.option_4, this.editForm.option_4),
+      answer: _pendingEditFieldValue(q.answer, this.editForm.answer),
+      explanation: _pendingEditFieldValue(q.explanation, this.editForm.explanation),
+      topic: _pendingEditFieldValue(q.topic, topicVal),
+      subsource: _pendingEditFieldValue(q.subsource, this.editForm.subsource),
       type: q.type || '',
       level_tr: this.set?.level_tr || '',
       class_level: this.set?.class_level || '',

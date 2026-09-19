@@ -489,7 +489,7 @@
                     <option *ngFor="let t of getEditTopicOptions()" [value]="t">{{ t }}</option>
                   </select>
                   <input *ngIf="topicEditMode" type="text" [(ngModel)]="editForm.topic" class="topic-question-edit-input" />
-                  <button type="button" class="topic-question-edit-btn topic-question-edit-confirm" (click)="topicEditMode = false" [class.active]="topicEditMode" title="Keep edited topic">
+                  <button type="button" class="topic-question-edit-btn topic-question-edit-confirm" (click)="topicEditMode = !topicEditMode" [class.active]="topicEditMode" title="Keep edited topic">
                     <i *ngIf="topicEditMode" class="fa fa-check"></i>
                     <span *ngIf="!topicEditMode">Edit Topic</span>
                   </button>
