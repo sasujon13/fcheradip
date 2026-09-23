@@ -8,16 +8,18 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
  */
 @Component({
   selector: 'app-ailt-page',
-  template: `<iframe class="ailt-manual-frame" [src]="src" [title]="title" allowfullscreen></iframe>`,
+  template: `<iframe class="ailt-manual-frame" [class.tutor-frame]="isTutor" [src]="src" [title]="title" allowfullscreen></iframe>`,
   styleUrls: ['./ailt-manual.component.css'],
 })
 export class AiltPageComponent {
   src: SafeResourceUrl;
   title = 'Cheradip';
+  isTutor = false;
 
   constructor(route: ActivatedRoute, sanitizer: DomSanitizer) {
     const page = (route.snapshot.data['page'] as string) || 'privacy';
     const folder = (route.snapshot.data['folder'] as string) || 'ailt';
+    this.isTutor = folder === 'tutor';
     this.title = (route.snapshot.data['title'] as string) || 'Cheradip';
     // Absolute (root-relative) path so the iframe resolves correctly at any
     // route depth (e.g. /ailt/privacy, /aicodingagent/pricing).

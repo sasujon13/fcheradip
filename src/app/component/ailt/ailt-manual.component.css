@@ -12,3 +12,10 @@
   border: 0;
   background: #f5faf9;
 }
+
+/* Keep tutor controls clear of the site's fixed header and footer. */
+.ailt-manual-frame.tutor-frame {
+  margin-top: 64px;
+  height: calc(100dvh - 98px);
+  min-height: 460px;
+}

@@ -1,156 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Cheradip AI Tutor — an AI tutor and pair-programmer for VS Code: chat, agent mode, multi-file edits, codebase search, inline edits. Same Cheradip account, no extra signup.">
-  <title>AI Tutor — Cheradip</title>
-  <link rel="stylesheet" href="manual.css">
-  <link rel="stylesheet" href="pages.css">
-  <link rel="stylesheet" href="chat.css">
-
-  <link rel="icon" type="image/png" href="cheradip-avatar.png">
-</head>
-<body>
-  <header class="site-header">
-    <div class="site-header__brand">
-      <img class="site-header__logo" src="cheradip.svg" alt="Cheradip" width="180" height="45">
-      <p class="site-header__title">AI Tutor</p>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Tutor — Cheradip</title><link rel="icon" href="cheradip-avatar.png">
+<link rel="stylesheet" href="extension-chat.css"><link rel="stylesheet" href="tutor-web.css"></head>
+<body><main class="chat-shell" id="chat-shell">
+<header class="tutor-header"><img src="cheradip-avatar.png" alt="Cheradip"><div><strong>AI Tutor</strong><small>English / বাংলা — learn with Cheradip</small></div><button id="resize-reset" title="Reset chat size" aria-label="Reset chat size">↔</button><button id="fullscreen" title="Full screen" aria-label="Full screen">⛶</button></header>
+<section class="curriculum" aria-label="Learning subjects">
+  <div class="curriculum-main">
+    <select id="level-select" aria-label="Education level"><option>SSC</option></select>
+    <div class="curriculum-rail" id="subject-rail">
+      <button type="button" class="rail-arrow" data-direction="-1" aria-label="Scroll subjects left" hidden>‹</button>
+      <div id="curriculum-list" class="rail-content" aria-live="polite">Loading subjects…</div>
+      <button type="button" class="rail-arrow" data-direction="1" aria-label="Scroll subjects right" hidden>›</button>
     </div>
-    <div class="site-header__links">
-      <a href="https://cheradip.com/aicodingagent/pricing" target="_top">Pricing</a>
-      <a href="https://cheradip.com/cheradip" target="_top">User manual</a>
-      <a href="https://cheradip.com" target="_top">Cheradip.com</a>
-    </div>
-  </header>
-
-  <section class="hero">
-    <span class="hero__badge">AI Tutor</span>
-    <div class="hero-brand">
-      <img class="hero-brand__avatar" src="cheradip-avatar.png" alt="Cheradip" width="72" height="72">
-      <div>
-        <h1>Cheradip AI Tutor</h1>
-        <p>An AI tutor for your editor: ask in English or Bangla, get step-by-step explanations, and let the agent read, search and edit your project. Built by <strong>Md. Shafikul Islam</strong> (Cheradip), Bangladesh.</p>
-      </div>
-    </div>
-    <div class="hero__cta">
-      <button class="cta cta--primary" id="open-chat" type="button">Open AI Tutor chat</button>
-      <a class="cta cta--ghost" href="https://marketplace.visualstudio.com/search?term=Cheradip&amp;target=VSCode&amp;category=All%20categories&amp;sortBy=Relevance" target="_blank" rel="noopener noreferrer">Install VS Code extension</a>
-    </div>
-
-  </section>
-
-  <div class="page-wrap">
-    <h2 id="what">1. What it does</h2>
-    <p>The AI Tutor is the Cheradip AI companion inside <strong>VS Code</strong> (and VS Code–compatible editors). It explains concepts, writes and reviews code, and works through multi-step tasks with you — using Cheradip AI by default, or your own provider keys.</p>
-    <ul class="quick-links">
-      <li>💬 <strong>Chat</strong> — ask about your codebase with <code>@</code> file / folder mentions</li>
-      <li>🧭 <strong>Tutor mode</strong> — concept explanations, exam-style MCQ help and revision notes</li>
-      <li>🤖 <strong>Agent mode</strong> — reads, searches and edits files with your permission</li>
-      <li>🧩 <strong>Composer</strong> — multi-file changes in one go, with diffs and checkpoints</li>
-      <li>✏️ <strong>Inline edit</strong> — change a selection in place (Ctrl+K style)</li>
-      <li>🔐 <strong>Your own keys</strong> — OpenAI, Anthropic, Gemini, Groq, Mistral, DeepSeek or local <strong>Ollama</strong></li>
-    </ul>
-
-
-    <h2 id="install">2. Install &amp; sign in</h2>
-    <ol>
-      <li>Open VS Code → <strong>Extensions</strong> (<code>Ctrl+Shift+X</code>)</li>
-      <li>Search for <strong>Cheradip</strong> (publisher <code>cheradip</code>) and click <strong>Install</strong></li>
-      <li>Command Palette → <strong>Cheradip: Sign In</strong></li>
-      <li>Use the <strong>same phone/email and password as cheradip.com</strong> — no second registration</li>
-    </ol>
-    <div class="callout">
-      Existing Cheradip accounts are kept in sync automatically: an account created on <a href="https://cheradip.com" target="_top">cheradip.com</a> already works in the extension, and an account created in the extension already works on the website — same credentials, both directions, no extra step.
-    </div>
-    <p>Install free from the marketplace: <a href="https://marketplace.visualstudio.com/search?term=Cheradip&amp;target=VSCode&amp;category=All%20categories&amp;sortBy=Relevance" target="_blank" rel="noopener noreferrer">Cheradip on the VS Code Marketplace</a>.</p>
-
-    <h2 id="plans">3. Plans &amp; billing</h2>
-    <p>Start free, then upgrade when you need more. Each plan meters <strong>requests</strong> and <strong>line edits</strong>; paid plans can enable <strong>pay-as-you-go</strong> ($0.02 per request, or $0.02 per 10 line edits — you are billed whichever is higher). Checkout is handled by <strong>Paddle</strong>, our Merchant of Record.</p>
-    <div class="plans">
-      <div class="plan">
-        <p class="plan__name">Free</p>
-        <p class="plan__price">$0<span> / month</span></p>
-        <ul>
-          <li>Tutor chat &amp; inline edits</li>
-          <li>Agent mode with confirmations</li>
-          <li>Bring your own API keys</li>
-        </ul>
-        <a class="plan__cta plan__cta--ghost" href="https://marketplace.visualstudio.com/search?term=Cheradip&amp;target=VSCode&amp;category=All%20categories&amp;sortBy=Relevance" target="_blank" rel="noopener noreferrer">Install free</a>
-      </div>
-      <div class="plan is-featured">
-        <span class="plan__tag">Most popular</span>
-        <p class="plan__name">Pro &amp; above</p>
-        <p class="plan__price">From $10<span> / month</span></p>
-        <ul>
-          <li>Higher request / line-edit quotas</li>
-          <li>Pay-as-you-go overage</li>
-          <li>Team billing and quotas</li>
-        </ul>
-        <a class="plan__cta" href="https://cheradip.com/aicodingagent/pricing" target="_top">See all plans</a>
-      </div>
-    </div>
-    <p>Full plan comparison: <a href="https://cheradip.com/aicodingagent/pricing" target="_top">cheradip.com/aicodingagent/pricing</a>. You can also subscribe from inside the extension (<em>Settings → Billing</em>).</p>
-
-    <h2 id="manuals">4. User manuals</h2>
-    <ul class="quick-links">
-      <li>📘 <a href="https://cheradip.com/cheradip" target="_top"><strong>Coding assistant manual</strong></a> — install, chat, agent mode, composer, providers, billing, troubleshooting</li>
-      <li>📗 <a href="https://cheradip.com/ailt" target="_top"><strong>AI Language Tutor guide</strong></a> — the Android language-learning app and its web pages</li>
-    </ul>
-
-    <h2 id="support">5. Support</h2>
-    <ul class="quick-links">
-      <li>🛟 <a href="https://cheradip.com/aicodingagent/support" target="_top">Support page</a> · <a href="mailto:support@cheradip.com">support@cheradip.com</a></li>
-      <li>💬 <a href="https://wa.me/8801722710298" target="_blank" rel="noopener noreferrer">WhatsApp 01722 710298</a></li>
-      <li>🔒 <a href="https://cheradip.com/aicodingagent/privacy" target="_top">Privacy</a> · <a href="https://cheradip.com/aicodingagent/policy" target="_top">Policy &amp; Terms</a> · <a href="https://cheradip.com/aicodingagent/refunds" target="_top">Refunds</a></li>
-    </ul>
-
-    <nav class="page-nav">
-      <a href="https://cheradip.com" target="_top">Cheradip.com</a>
-      <a href="https://cheradip.com/cheradip" target="_top">Coding Assistant Manual</a>
-      <a href="https://cheradip.com/ailt" target="_top">Language Tutor Guide</a>
-      <a href="https://cheradip.com/aicodingagent/pricing" target="_top">Pricing</a>
-      <a href="https://cheradip.com/aicodingagent/support" target="_top">Support</a>
-    </nav>
-
-    <p class="footer-note">Cheradip AI Tutor · Md. Shafikul Islam · Bangladesh</p>
   </div>
-
-  <footer class="site-footer">
-    <p>
-      <a href="https://cheradip.com" target="_top">Cheradip.com</a>
-      &nbsp;·&nbsp;
-      <a href="https://cheradip.com/aicodingagent/pricing" target="_top">Pricing</a>
-      &nbsp;·&nbsp;
-      <a href="https://cheradip.com/aicodingagent/privacy" target="_top">Privacy</a>
-      &nbsp;·&nbsp;
-      <a href="https://cheradip.com/aicodingagent/policy" target="_top">Policy</a>
-      &nbsp;·&nbsp;
-      <a href="https://cheradip.com/aicodingagent/support" target="_top">Support</a>
-    </p>
-  </footer>
-  <!-- AI Tutor chatbox: topic-suggestion chat backed by the question bank -->
-  <div class="chat-overlay" id="chat-overlay" hidden>
-    <div class="chat-shell">
-      <header class="chat-header">
-        <img class="chat-avatar" src="cheradip-avatar.png" alt="Cheradip">
-        <div class="chat-header__title">
-          <strong>AI Tutor</strong>
-          <span>English / বাংলা — ask about a topic or chapter</span>
-        </div>
-        <div class="chat-header__actions">
-          <button class="chat-icon-btn" id="chat-fullscreen" type="button" title="Full screen" aria-label="Full screen">⛶</button>
-          <button class="chat-icon-btn" id="chat-close" type="button" title="Close" aria-label="Close">✕</button>
-        </div>
-      </header>
-      <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
-      <div class="chat-composer">
-        <textarea id="chat-input" rows="1" placeholder="Type a topic or question… e.g. পদার্থবিজ্ঞান, গণিত, ICT"></textarea>
-        <button class="chat-send" id="chat-send" type="button" title="Send" aria-label="Send">➤</button>
+  <div class="curriculum-rail" id="topics-row" hidden>
+    <button type="button" class="rail-arrow" data-direction="-1" aria-label="Scroll topics left" hidden>‹</button>
+    <div id="topic-list" class="rail-content" aria-label="Available topics" aria-live="polite"></div>
+    <button type="button" class="rail-arrow" data-direction="1" aria-label="Scroll topics right" hidden>›</button>
+  </div>
+</section>
+  <div class="session-bar">
+    <div class="session-tabs-group">
+      <div id="sessionTabs" class="session-tabs" role="tablist"></div>
+      <button id="newSession" class="new-session-btn" type="button" title="New chat">+</button>
+    </div>
+    <div class="session-controls">
+      <button id="undoBtn" class="icon-btn sm" title="Undo config or closed chat" disabled>↶</button>
+      <button id="redoBtn" class="icon-btn sm" title="Redo" disabled>↷</button>
+      <button id="openConfig" class="icon-btn sm" title="Open Cheradip settings">⚙</button>
+      <button id="resetConfig" class="icon-btn sm" title="Reset config to defaults">⟲</button>
+    </div>
+  </div>
+  <div id="apiKeyRow" class="api-key-row" style="display:none">
+    <label for="apiKey">API key</label>
+    <input id="apiKey" type="password" placeholder="Paste your API key" autocomplete="off" />
+    <button id="saveKey" type="button">Save</button>
+  </div>
+  <div id="composerBanner" class="composer-banner" style="display:none">Composer — multi-file agent (Ctrl+I)</div>
+  <div id="messages"><div class="empty"><h2>Cheradip</h2><p>Choose a subject, chapter and topic, or ask a question.</p></div></div>
+  <div class="status-bar">
+    <div class="status-left">
+      <div class="status-text" id="status">Ready</div>
+      <div id="statusActions" class="status-actions" hidden>
+        <button type="button" id="applyChangesBtn" class="status-action-btn" hidden>Apply</button>
+        <button type="button" id="revertChangesBtn" class="status-action-btn" hidden>Revert</button>
+      </div>
+    </div>
+    <div class="status-right">
+      <div id="sendQueuePanel" class="send-queue-inline" hidden>
+        <div id="sendQueueHeader" class="send-queue-bar"></div>
+      </div>
+      <div class="status-selects">
+        <select id="chatMode" class="status-select" title="Mode">
+          <option value="ask">Ask</option>
+          <option value="plan">Plan</option>
+          <option value="agent">Agent</option>
+          <option value="composer">Composer</option>
+        </select>
+        <select id="provider" class="status-select" title="Provider"><option value="cheradip">Cheradip Home AI</option></select>
+        <select id="model" class="status-select" title="Model"><option value="auto">Auto</option></select>
       </div>
     </div>
   </div>
-  <script src="chat.js"></script>
-
-</body>
-</html>
+  <div class="input-area">
+    <div id="attachChips" class="attach-chips"></div>
+    <div class="composer-box">
+      <ul id="sendQueueList" class="send-queue-list" hidden></ul>
+      <div id="mentionMenu" class="mention-menu" style="display:none"></div>
+      <textarea id="prompt" rows="6" placeholder="Ask Cheradip… Enter for a new line · Ctrl+Enter to send" aria-label="Chat message" aria-keyshortcuts="Control+Enter"></textarea>
+      <div class="composer-bar">
+        <button id="attachBtn" type="button" class="composer-icon" title="Attach file">📎</button>
+        <button id="mentionBtn" type="button" class="composer-icon" title="Add @ context (file, codebase, git…)">@</button>
+        <span class="composer-bar-spacer" aria-hidden="true"></span>
+        <button id="send" type="button" class="send-btn" title="Send (Ctrl+Enter)" aria-label="Send message">↑</button>
+      </div>
+    </div>
+  </div>
+  <div id="snackbar" class="snackbar" aria-live="polite"></div>
+  <button id="resize-handle" type="button" aria-label="Resize chat width and height" title="Drag to resize; arrow keys adjust width and height">◢</button>
+  </main>
+<input type="file" id="file-picker" multiple hidden>
+<dialog id="settings-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close settings">×</button></form><h2>Cheradip settings</h2><p>Connected to the same Home AI service as your extension.</p><label>Model <select id="settings-model"></select></label><p id="connection-status" role="status"></p><button id="refresh-models" type="button">Refresh models</button><button id="export-chat" type="button">Export chat</button><p>Your chats stay in this browser, separately for each signed-in account.</p><p>Ask and Plan work here. Agent and Composer can prepare answers and code; terminal commands and workspace edits require the VS Code extension.</p><nav class="related-pages"><button data-page="manual">User manual</button><button data-page="pricing">Plans & billing</button><button data-page="support">Support</button><button data-page="privacy">Privacy</button></nav></dialog>
+<dialog id="page-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close page">×</button></form><iframe id="related-frame" title="Cheradip information"></iframe></dialog>
+<script src="tutor-format.js"></script><script src="tutor-curriculum.js"></script><script src="tutor-bridge.js"></script><script src="extension-chat.js"></script></body></html>
