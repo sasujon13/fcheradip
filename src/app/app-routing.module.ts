@@ -135,6 +135,9 @@ const routes: Routes = [
   /** Cheradip VS Code AI Coding Assistant user manual. */
   { path: 'cheradip', component: CheradipManualComponent, pathMatch: 'full' },
   { path: 'cheradip/', component: CheradipManualComponent, pathMatch: 'full' },
+  /** AI Tutor landing page (Cheradip AI tutor / coding companion for VS Code). */
+  { path: 'tutor', component: AiltPageComponent, pathMatch: 'full', data: { page: 'index', folder: 'tutor', title: 'AI Tutor — Cheradip' } },
+  { path: 'tutor/', component: AiltPageComponent, pathMatch: 'full', data: { page: 'index', folder: 'tutor', title: 'AI Tutor — Cheradip' } },
   { path: 'support', redirectTo: 'aicodingagent/support', pathMatch: 'full' },
   { path: 'support/', redirectTo: 'aicodingagent/support', pathMatch: 'full' },
   {path:'faqs', component: FaqsComponent},

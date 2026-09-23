@@ -8,7 +8,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
  */
 @Component({
   selector: 'app-ailt-page',
-  template: `<iframe class="ailt-manual-frame" [src]="src" [title]="title"></iframe>`,
+  template: `<iframe class="ailt-manual-frame" [src]="src" [title]="title" allowfullscreen></iframe>`,
   styleUrls: ['./ailt-manual.component.css'],
 })
 export class AiltPageComponent {

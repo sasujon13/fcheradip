@@ -28,6 +28,7 @@ div.profile_back{
   background-color: #ffffff;
   border-bottom-left-radius: 50%;
   z-index: 3;
+  display:none;
 }
 .navbar {
   background-color: var(--color_primary_teal);
