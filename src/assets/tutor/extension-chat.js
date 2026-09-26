@@ -659,7 +659,7 @@
   function resolveAskBlock(block) {
     if (!block || block.classList.contains("ask-block-resolved")) return;
     block.classList.add("ask-block-resolved");
-    block.querySelectorAll(".ask-option, .ask-submit-btn").forEach(function (btn) {
+    block.querySelectorAll("button, textarea, input").forEach(function (btn) {
       btn.disabled = true;
     });
     activeTextTarget = null;
@@ -975,7 +975,10 @@
     }
     for (let i = 0; i < list.length; i++) {
       const m = list[i];
-      appendMessage(m.role === "user" ? "user" : "assistant", m.content, false, i);
+      const built = appendMessage(m.role === "user" ? "user" : "assistant", m.content, false, i);
+      if (m.role === "assistant" && list.slice(i + 1).some(function (next) { return next.role === "user"; })) {
+        built.div.querySelectorAll(".ask-block").forEach(resolveAskBlock);
+      }
     }
     scrollMessagesToBottom(true);
   }

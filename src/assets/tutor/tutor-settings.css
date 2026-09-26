@@ -1,0 +1,10 @@
+:root { --vscode-foreground:#164e49; --vscode-descriptionForeground:#56716e; --vscode-editor-background:#f4fbfa; --vscode-input-background:#fff; --vscode-input-foreground:#164e49; --vscode-input-border:#b2dfdb; --vscode-button-background:#00897b; --vscode-button-foreground:#fff; --vscode-focusBorder:#00897b; }
+body { color:#164e49; background:#f4fbfa; margin:0 auto; max-width:1200px; padding:20px; font-family:system-ui,sans-serif; scrollbar-color:#00897b #e0f2f1; }
+.hd { position:sticky; top:0; background:#f4fbfa; z-index:1; }
+.card { background:white; border:1px solid #b2dfdb; }
+button,input,select,textarea { font:inherit; } button { cursor:pointer; }
+input:disabled,select:disabled,textarea:disabled { opacity:.6; cursor:not-allowed; }
+.row-control>input,.row-control>select,.row-control>textarea { max-width:100%; box-sizing:border-box; }
+.browser-note { color:#56716e; font-size:12px; } .settings-nav { display:flex; flex-wrap:wrap; gap:16px; }
+dialog { width:min(800px,90vw); background:#fff; color:#164e49; border:1px solid #00897b; } #config-json { width:100%; box-sizing:border-box; }
+@media(max-width:600px) { body{padding:10px} .hd,.row{flex-wrap:wrap} .row-control{width:100%} }

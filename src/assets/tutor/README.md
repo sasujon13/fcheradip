@@ -50,7 +50,7 @@ SSE responses disable buffering; reverse proxies should honor `X-Accel-Buffering
 Every chat request sends a structured snapshot of its selected curriculum. Django looks up
 matching records through `TutorTopicIndex`, then reads the published subject question tables.
 References contain the question, answer choices, saved answer, and all three explanation fields.
-At most eight records / approximately 16,000 characters are included. Typed questions use
+Every published record for a resolved topic is read, including all explanation fields. Large topics are reviewed in bounded batches and cached as study notes before answering; progress is shown in chat. This is slower on the first request. Typed questions use
 bounded topic matching (including common Bengali/English aliases); if necessary a selected
 subject gets a bounded question-text lookup. Unmatched queries never use popular unrelated records.
 No pending/private submissions are read and no source records are changed.
@@ -69,7 +69,7 @@ Records are evidence, not infallible instructions: the tutor checks contradictio
 the input language. Retrieval improves grounding but does not guarantee model correctness.
 
 Choose **Auto · curriculum + specialists** for adaptive routing (default for new browser histories).
-Simple questions use Qwen 7B directly. Complex coding questions use a brief Qwen 7B outline then
+The local Ollama connection uses Qwen 14B for Auto answers. Hosted Home AI deployments retain their configured routing; simple hosted questions use Qwen 7B directly. Complex coding questions use a brief Qwen 7B outline then
 Qwen Coder 14B; complex general/reasoning questions use Qwen 14B after the outline. Runs are
 sequential to avoid launching multiple large models together on a 16 GB GPU. The outline is
 capped at 256 tokens and times out after 30 seconds; failure still permits a direct answer.
@@ -80,7 +80,7 @@ Server settings: `TUTOR_FAST_MODEL`, `TUTOR_CODING_MODEL`, `TUTOR_REASONING_MODE
 and `TUTOR_PLANNING_ENABLED` (defaults documented above). No model installation or index rebuild
 is performed by chat requests. Keep the existing topic index updated through the site's normal workflow.
 
-There are no sample/model fallback answers. Connection errors are displayed in chat.
+There are no sample/model fallback answers. Unrecoverable generation failures offer smaller steps through a clarification card.
 The old `chat.js` question-search implementation remains in Git/workspace but is no longer loaded.
 
 ## Browser limits
@@ -88,7 +88,7 @@ The old `chat.js` question-search implementation remains in Git/workspace but is
 VS Code's terminal, workspace edits, Git operations and provider secret storage cannot
 be cloned into a normal browser page. This host uses Home AI; Agent/Composer modes
 prepare explanations/code and do not execute desktop operations. Apply exports code.
-The current extension API accepts text file context, so PDF/media OCR needs a separate
+The current tutor file upload accepts text context, so PDF/media OCR needs a separate
 extraction service. This host reports that limit rather than sending binary files as text.
 Levels absent from the catalog show an empty-state message, never invented subjects.
 
@@ -97,4 +97,30 @@ Levels absent from the catalog show an empty-state message, never invented subje
 Frontend: `node node_modules/@angular/cli/bin/ng.js build --configuration=development`
 Formatter: `node --test scripts/test-tutor-format.cjs`
 Curriculum: `node --test scripts/test-tutor-curriculum.cjs`
-Backend: `venv\Scripts\python.exe manage.py test cheradip.tests.test_tutor_chat cheradip.tests.test_tutor_knowledge cheradip.tests.test_tutor_stream cheradip.tests.test_tutor_clarification`
+Backend: `venv\Scripts\python.exe manage.py test cheradip.tests.test_tutor_chat cheradip.tests.test_tutor_knowledge cheradip.tests.test_tutor_stream cheradip.tests.test_tutor_clarification cheradip.tests.test_tutor_research`
+
+## Research, recovery and full settings
+
+Local development can set `TUTOR_HOME_AI_URL=http://127.0.0.1:8787` and
+`TUTOR_OLLAMA_URL=http://127.0.0.1:11434` in the server environment. The latter
+uses Ollama structured chat roles, an 8K context and bounded generation settings.
+An empty Ollama URL retains the hosted Home AI adapter. No browser-supplied upstream URL is accepted.
+
+Resolved lesson topics query public web search and read up to three public HTML pages.
+Private/local destinations, credentials in URLs and non-HTTP schemes are blocked.
+Sources distinguish full article reads from search excerpts; unavailable search is reported.
+The model must check that results match the lesson identity and must not invent authors or quotations.
+Web lookup can be disabled in Tutor research settings.
+
+Repeated or unreadable output is retried once with another model. If generation or
+reference review still fails, a transparent clarification card offers smaller sequential
+steps and free-text input instead of a dead-end error. A follow-up retains the original topic scope.
+
+Settings now opens a full page using the extension's settings stylesheet and all 32
+original field definitions. Model, chat mode, prompt preparation, related-topic footer,
+user rules and web research work in the browser and are saved per account. Git,
+workspace tools, cloud API keys and desktop background processes require their
+respective extension/server integrations and are explicitly marked unavailable here.
+The page does not pretend these desktop operations ran or store provider secrets.
+
+Reference review notes and individual completed batches are cached for seven days under the ignored `.tutor-cache/notes` server directory. Keys include the model and exact source content, so changed explanations automatically trigger a new review. Completed batches survive server restarts and partial failures. The initial review can take several minutes for a large topic; cached follow-ups skip that work.

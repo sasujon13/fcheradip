@@ -1,0 +1,555 @@
+:root {
+  --teal: #4db6ac;
+  --teal-dark: #00897b;
+  --border: var(--vscode-panel-border, #333);
+  --muted: var(--vscode-descriptionForeground, #999);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 0 40px;
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+
+.hd {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--vscode-editor-background);
+  border-bottom: 1px solid var(--border);
+}
+
+.hd h1 {
+  font-size: 16px;
+  margin: 0;
+  color: var(--teal);
+}
+
+.hd-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#app {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.02));
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--teal);
+}
+
+.hint {
+  margin: -6px 0 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+
+.row:first-of-type {
+  border-top: none;
+}
+
+.row-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-title {
+  font-weight: 500;
+}
+
+.row-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.row-control {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  min-width: 180px;
+}
+
+textarea {
+  width: 100%;
+  min-width: 320px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 1px solid var(--teal);
+  border-color: var(--teal);
+}
+
+button {
+  background: var(--teal-dark);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--teal);
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--vscode-foreground);
+}
+
+button.ghost:hover {
+  border-color: var(--teal);
+  background: transparent;
+}
+
+button.danger {
+  color: #e57373;
+}
+
+/* Toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  min-width: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: 0.2s;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  top: 2px;
+  background: var(--muted);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.switch input:checked + .slider {
+  background: var(--teal-dark);
+  border-color: var(--teal);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+.badge.ok {
+  color: #81c784;
+  border-color: #388e3c;
+}
+
+.badge.warn {
+  color: #ffb74d;
+  border-color: #f57c00;
+}
+
+.badge.muted {
+  color: var(--muted);
+}
+
+.key-managed {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  opacity: 0.85;
+  letter-spacing: 0.12em;
+}
+.key-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.key-control input[type="password"] {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* Billing */
+.sub-status {
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+.plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.plan {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan.active {
+  border-color: var(--teal);
+  box-shadow: inset 0 0 0 1px var(--teal);
+}
+
+.plan-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.plan-price {
+  color: var(--teal);
+  font-size: 18px;
+  margin: 4px 0 10px;
+}
+
+.plan ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  flex: 1;
+}
+
+.plan li {
+  font-size: 11px;
+  padding: 3px 0 3px 16px;
+  position: relative;
+  color: var(--muted);
+}
+
+.plan li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--teal);
+}
+
+.plan-btn {
+  width: 100%;
+}
+
+.plan-btn.current {
+  background: transparent;
+  border: 1px solid var(--teal);
+  color: var(--teal);
+  cursor: default;
+}
+
+.license-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.license-row input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--teal-dark);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: 0.2s;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.account {
+  margin: 8px 0 12px;
+  padding: 12px;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.acct-who {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.acct-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.login-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.login-row input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.signup-fold {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.signup-fold summary {
+  cursor: pointer;
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+.signup-fold .login-row {
+  margin-bottom: 8px;
+}
+
+.license-fallback {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.license-fallback summary {
+  cursor: pointer;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.usage {
+  margin: 10px 0 14px;
+  padding: 12px;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.usage-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--teal, #17a398);
+  transition: width 0.3s;
+}
+
+.bar-fill.over {
+  background: #e0a800;
+}
+
+.usage-line {
+  font-size: 12px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.usage-line.warn {
+  color: #e0a800;
+}
+
+.usage-line.ok {
+  color: var(--teal, #17a398);
+}
+
+.plan-quota {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+
+button.small {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: 8px;
+}
+
+@media (max-width: 620px) {
+  .plans {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Connect to Git/Others */
+.git-connect .git-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+.git-status-msg {
+  flex: 1 1 100%;
+  margin-top: 2px;
+}
+
+.git-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.git-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .git-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.git-field label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.git-field input,
+.git-field select {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+}
+
+.field-hint {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.field-hint code {
+  font-size: 10px;
+}
+
+.git-actions {
+  margin-top: 4px;
+}
+
+button.git-disconnect-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid rgba(183, 28, 28, 0.5);
+  background: transparent;
+  color: #b71c1c;
+}
+
+button.git-disconnect-btn:hover {
+  background: rgba(183, 28, 28, 0.12);
+  border-color: #b71c1c;
+  color: #c62828;
+}

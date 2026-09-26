@@ -6,6 +6,7 @@
   const emit = data => window.dispatchEvent(new MessageEvent('message', { data, origin: location.origin, source: window }));
   const token = () => localStorage.getItem('isLoggedIn') === 'true' ? localStorage.getItem('authToken') || '' : '';
   const owner = () => token() ? localStorage.getItem('username') || 'account' : 'guest';
+  const preferences = () => { try { return JSON.parse(localStorage.getItem('cheradip.tutor.settings.' + owner()) || '{}'); } catch (_) { return {}; } };
   let storageKey = 'cheradip.tutor.v1.' + owner();
   let sessions = [], activeId, model = 'auto', mode = 'ask';
   let models = [], controller = null, queue = [], closed = [], redone = [], subject = null, chapter = null;
@@ -15,6 +16,13 @@
   let classChoices = [], selectedClass = '', profileClass = '';
   const catalogCache = new Map();
   let indexPromise = null;
+  let pendingSettings = false;
+  function applySettings() {
+    const settings = preferences();
+    if (models.some(m => m.id === settings.model)) model = settings.model;
+    if (['ask','plan','agent','composer'].includes(settings.chatMode)) mode = settings.chatMode;
+    pendingSettings = false; save(); init();
+  }
   const active = () => sessions.find(s => s.id === activeId);
   const newSession = () => ({ id: crypto.randomUUID(), title: 'New chat', messages: [], files: [] });
   function remember(action = { kind: 'config', model, mode }) { closed.push(action); if (closed.length > 20) closed.shift(); redone = []; }
@@ -224,9 +232,19 @@
   }
   function renderSuggestions() {
     if (!active()) return;
-    document.querySelectorAll('#messages .topic-suggestions').forEach(node => node.remove());
+    document.querySelectorAll('#messages .topic-suggestions, #messages .web-references').forEach(node => node.remove());
     const nodes = el('messages').querySelectorAll('.msg');
     active().messages.forEach((message, index) => {
+      if (message.role === 'assistant' && nodes[index] && message.webSources?.length) {
+        const sources = document.createElement('section'); sources.className = 'web-references';
+        const label = document.createElement('strong'); label.textContent = 'Web references consulted'; sources.append(label);
+        for (const source of message.webSources) {
+          if (!/^https?:\/\//i.test(source.url || '')) continue;
+          const link = document.createElement('a'); link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+          link.textContent = source.title + (source.article_read ? '' : ' (search excerpt)'); sources.append(link);
+        }
+        nodes[index].append(sources);
+      }
       if (message.role !== 'assistant' || !message.suggestions?.length || !nodes[index]) return;
       const box = document.createElement('section'); box.className = 'topic-suggestions'; box.setAttribute('aria-label', 'Suggested topics');
       const title = document.createElement('strong'); title.textContent = 'Related topics'; box.appendChild(title);
@@ -267,6 +285,7 @@
       emit({ type: 'resyncMessages', messages: session.messages });
     }
     session.messages.push({ role: 'user', content: text });
+    session.learningContext = message.learningContext || learningScope(message.selectedTopic);
     if (session.messages.length === 1) { session.title = text.slice(0, 45); init(); }
     else emit({ type: 'userMessage', text });
     const run = new AbortController(); controller = run; queueState();
@@ -278,7 +297,7 @@
     try {
       const response = await fetch(API + 'tutor/chat/', { method: 'POST', signal: run.signal,
         headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
-        body: JSON.stringify({ messages: session.messages, model, mode, file_context: files, learning_context: message.learningContext || learningScope(message.selectedTopic) }) });
+        body: JSON.stringify({ messages: session.messages, model, mode, preferences: preferences(), file_context: files, learning_context: message.learningContext || learningScope(message.selectedTopic) }) });
       if (!response.ok) { const data = await response.json(); throw new Error(data.error || data.detail || 'Chat request failed (' + response.status + ')'); }
       if (!response.body) throw new Error('Streaming is unavailable in this browser.');
       const reader = response.body.getReader(), decoder = new TextDecoder(); let buffer = '';
@@ -287,6 +306,7 @@
         const payload = value.slice(5).trim(); if (!payload || payload === '[DONE]') return;
         let data; try { data = JSON.parse(payload); } catch (_) { throw new Error('Invalid response from Home AI.'); }
         if (data.error) throw new Error(data.error);
+        if (data.status) emit({ type: 'statusUpdate', text: data.status });
         if (data.reset) { full = ''; emit({ type: 'assistantChunk', text: '' }); }
         if (data.tutor) {
           responseInfo = data.tutor;
@@ -307,10 +327,12 @@
       else full += '\n\nUnable to complete this response: ' + error.message;
       emit({ type: 'assistantChunk', text: full });
     } finally {
-      const responseMessage = { role: 'assistant', content: full, references: responseInfo?.references || [] };
+      const responseMessage = { role: 'assistant', content: full, references: responseInfo?.references || [], webSources: responseInfo?.web_sources || [] };
       session.messages.push(responseMessage);
       emit({ type: 'assistantEnd', model: responseInfo?.answer_model || model }); controller = null; save(); queueState();
-      if (!run.signal.aborted && !full.includes('Unable to complete this response:') && !full.includes('```cheradip-ask')) void suggest(session, responseMessage, text, message.selectedTopic, suggestionPool);
+      renderSuggestions();
+      if (pendingSettings) applySettings();
+      if (preferences().taskWrapUpEnabled !== false && !run.signal.aborted && !full.includes('Unable to complete this response:') && !full.includes('```cheradip-ask')) void suggest(session, responseMessage, text, message.selectedTopic, suggestionPool);
       if (queue.length) { const next = queue.shift(); queueState(); void send(next); }
     }
   }
@@ -323,7 +345,13 @@
     if (controller && ['newSession','switchSession','closeSession','undo','redo','deleteMessage','resetConfig','setModel','setChatMode'].includes(msg.type)) { notice('Stop the current response before changing chats or settings.'); return; }
     switch (msg.type) {
       case 'ready': if (!initialized) { initialized = true; restore(); init(); await Promise.all([refreshModels(), loadSubjects()]); } break;
-      case 'send': { const selectedTopic = pendingTopic; pendingTopic = null; void send({ ...msg, text: catalog.discussionPrompt(msg.text), selectedTopic, learningContext: learningScope(selectedTopic) }); break; }
+      case 'send': {
+        const selectedTopic = pendingTopic; pendingTopic = null;
+        const previous = active().messages.at(-1);
+        const continuing = !selectedTopic && previous?.role === 'assistant' && previous.content.includes('```cheradip-ask');
+        void send({ ...msg, text: catalog.discussionPrompt(msg.text), selectedTopic,
+          learningContext: continuing && active().learningContext ? active().learningContext : learningScope(selectedTopic) }); break;
+      }
       case 'stopGeneration': queue = []; controller?.abort(); queueState(); break;
       case 'newSession': { const session = newSession(); sessions.push(session); activeId = session.id; context = ''; init(); save(); break; }
       case 'switchSession': if (sessions.some(s => s.id === msg.sessionId)) { activeId = msg.sessionId; context = active().context || ''; init(); save(); } break;
@@ -337,7 +365,7 @@
       case 'setProvider': init(); break;
       case 'setChatMode': remember(); mode = msg.mode; init(); save(); if (['agent','composer'].includes(mode)) notice('Web mode prepares answers and code. Workspace execution is available in the VS Code extension.'); break;
       case 'resetConfig': remember(); model = 'auto'; mode = 'ask'; init(); save(); break;
-      case 'openSettings': el('settings-dialog').showModal(); break;
+      case 'openSettings': el('related-frame').src = 'settings.html'; el('page-dialog').classList.add('settings-page'); el('page-dialog').showModal(); break;
       case 'copyText': await navigator.clipboard.writeText(msg.text || ''); break;
       case 'attachMedia': el('file-picker').click(); break;
       case 'removeAttachment': active().files = active().files.filter(f => f.path !== msg.path); emit({ type: 'attachments', files: active().files.map(f => f.path) }); break;
@@ -418,4 +446,13 @@
       queue = []; controller?.abort(); location.reload();
     }
   });
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || event.source !== el('related-frame').contentWindow) return;
+    if (event.data?.type === 'closeTutorSettings') el('page-dialog').close();
+    if (event.data?.type === 'tutorSettingsChanged') {
+      if (controller) { pendingSettings = true; notice('Settings saved; they will apply after this reply.'); }
+      else applySettings();
+    }
+  });
+  el('page-dialog').addEventListener('close', () => el('page-dialog').classList.remove('settings-page'));
 })();

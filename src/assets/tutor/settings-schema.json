@@ -1,0 +1,337 @@
+{
+  "sections": [
+    {
+      "title": "General",
+      "fields": [
+        {
+          "key": "provider",
+          "label": "Provider",
+          "type": "select",
+          "options": [
+            {
+              "value": "cheradip",
+              "label": "Cheradip Home AI"
+            }
+          ]
+        },
+        {
+          "key": "model",
+          "label": "Model",
+          "type": "text"
+        },
+        {
+          "key": "apiUrl",
+          "label": "Cheradip AI URL",
+          "type": "text"
+        },
+        {
+          "key": "demoMode",
+          "label": "Demo mode (offline)",
+          "type": "bool",
+          "desc": "Use bundled demo responses instead of live ai.cheradip.com — turn OFF for real AI"
+        },
+        {
+          "key": "inlineCompletion",
+          "label": "Inline completion",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "title": "Agent",
+      "fields": [
+        {
+          "key": "agentMode",
+          "label": "Agent tools enabled",
+          "type": "bool"
+        },
+        {
+          "key": "chatMode",
+          "label": "Default chat mode",
+          "type": "select",
+          "options": [
+            {
+              "value": "ask",
+              "label": "Ask (read-only)"
+            },
+            {
+              "value": "plan",
+              "label": "Plan (design first)"
+            },
+            {
+              "value": "agent",
+              "label": "Agent (autonomous)"
+            },
+            {
+              "value": "composer",
+              "label": "Composer (multi-file)"
+            }
+          ]
+        },
+        {
+          "key": "agentAutoLoop",
+          "label": "Autonomous loop",
+          "type": "bool"
+        },
+        {
+          "key": "promptReadyEnabled",
+          "label": "Prompt preparation (Cursor-style)",
+          "type": "bool",
+          "desc": "Analyze request in background before agent runs"
+        },
+        {
+          "key": "promptReadyModel",
+          "label": "Prompt prep model",
+          "type": "text",
+          "desc": "Fast model for planning (empty = auto)"
+        },
+        {
+          "key": "taskWrapUpEnabled",
+          "label": "Summary + next steps footer",
+          "type": "bool",
+          "desc": "End completed tasks with a Summary and clickable A/B/C (or Yes/No) follow-up choices"
+        },
+        {
+          "key": "taskWrapUpPostProcess",
+          "label": "Auto-add footer if missing",
+          "type": "bool",
+          "desc": "Use a fast model to append summary + next-step ask when the agent omitted them"
+        },
+        {
+          "key": "projectMdEnabled",
+          "label": "project.md knowledge map",
+          "type": "bool",
+          "desc": "Auto-create/refresh project.md at workspace root"
+        },
+        {
+          "key": "projectKnowledgeSync",
+          "label": "Cloud project metadata sync",
+          "type": "bool",
+          "desc": "When signed in, sync compact path aliases + project.md excerpt to extcheradip (KB only, non-blocking)"
+        },
+        {
+          "key": "gitSyncEnabled",
+          "label": "Git sync (agent tasks)",
+          "type": "bool",
+          "desc": "Smart pull before agent/composer, commit+push after"
+        },
+        {
+          "key": "gitPullBeforeAgent",
+          "label": "Git pull when behind",
+          "type": "bool"
+        },
+        {
+          "key": "gitPushAfterAgent",
+          "label": "Git push after agent",
+          "type": "select",
+          "options": [
+            {
+              "value": "ask",
+              "label": "Ask each time"
+            },
+            {
+              "value": "allow",
+              "label": "Always push"
+            },
+            {
+              "value": "deny",
+              "label": "Commit only (no push)"
+            }
+          ]
+        },
+        {
+          "key": "gitSyncStrategy",
+          "label": "Git pull strategy",
+          "type": "select",
+          "options": [
+            {
+              "value": "rebase",
+              "label": "Rebase + autostash (recommended)"
+            },
+            {
+              "value": "merge",
+              "label": "Merge"
+            }
+          ]
+        },
+        {
+          "key": "autoVerifyAfterWrite",
+          "label": "Auto-verify after writes",
+          "type": "bool",
+          "desc": "Run tests/diagnostics after file changes"
+        },
+        {
+          "key": "expertVerifyMaxRounds",
+          "label": "Verify-fix retry rounds",
+          "type": "number",
+          "min": 0,
+          "max": 8
+        },
+        {
+          "key": "agentDiffReview",
+          "label": "Diff review before writes",
+          "type": "bool"
+        },
+        {
+          "key": "agentYoloMode",
+          "label": "YOLO mode (auto-approve)",
+          "type": "bool"
+        },
+        {
+          "key": "agentMaxIterations",
+          "label": "Max agent steps",
+          "type": "number",
+          "min": 1,
+          "max": 50
+        },
+        {
+          "key": "composerMaxIterations",
+          "label": "Max composer steps",
+          "type": "number",
+          "min": 1,
+          "max": 80
+        },
+        {
+          "key": "backgroundAgentMaxIterations",
+          "label": "Max background steps",
+          "type": "number",
+          "min": 1,
+          "max": 80
+        },
+        {
+          "key": "agentUsePythonTools",
+          "label": "Use Python tools when available",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "title": "Background tasks",
+      "fields": [
+        {
+          "key": "backgroundTasksSurviveClose",
+          "label": "Continue after VS Code closes",
+          "type": "bool",
+          "desc": "Spawn tools/background-worker/worker.mjs on exit to finish in-flight tasks (requires permission)"
+        },
+        {
+          "key": "backgroundTasksEnabled",
+          "label": "Run tasks in background",
+          "type": "bool",
+          "desc": "Track chat/agent work as background tasks while you edit files or switch panels"
+        }
+      ]
+    },
+    {
+      "title": "Codebase & AI",
+      "fields": [
+        {
+          "key": "codebaseSearchMode",
+          "label": "Codebase search",
+          "type": "select",
+          "options": [
+            {
+              "value": "keyword",
+              "label": "Keyword (fast, offline)"
+            },
+            {
+              "value": "embedding",
+              "label": "Embedding (semantic)"
+            },
+            {
+              "value": "auto",
+              "label": "Auto (recommended)"
+            }
+          ]
+        },
+        {
+          "key": "embeddingBackend",
+          "label": "Embedding backend",
+          "type": "select",
+          "options": [
+            {
+              "value": "auto",
+              "label": "Auto"
+            },
+            {
+              "value": "openai",
+              "label": "OpenAI"
+            },
+            {
+              "value": "cheradip",
+              "label": "Cheradip AI"
+            },
+            {
+              "value": "local",
+              "label": "Local (offline, private)"
+            }
+          ]
+        },
+        {
+          "key": "nativeToolCalls",
+          "label": "Native tool calling",
+          "type": "select",
+          "options": [
+            {
+              "value": "auto",
+              "label": "Auto"
+            },
+            {
+              "value": "on",
+              "label": "On"
+            },
+            {
+              "value": "off",
+              "label": "Off (text tools)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Rules",
+      "fields": [
+        {
+          "key": "userRules",
+          "label": "User rules",
+          "type": "textarea",
+          "desc": "Injected into every agent turn"
+        }
+      ]
+    }
+  ],
+  "values": {
+    "provider": "cheradip",
+    "model": "auto",
+    "apiUrl": "https://ai.cheradip.com",
+    "demoMode": false,
+    "inlineCompletion": true,
+    "agentMode": true,
+    "chatMode": "agent",
+    "agentAutoLoop": true,
+    "promptReadyEnabled": true,
+    "promptReadyModel": "",
+    "taskWrapUpEnabled": true,
+    "taskWrapUpPostProcess": true,
+    "projectMdEnabled": true,
+    "projectKnowledgeSync": true,
+    "gitSyncEnabled": true,
+    "gitPullBeforeAgent": true,
+    "gitPushAfterAgent": "ask",
+    "gitSyncStrategy": "rebase",
+    "autoVerifyAfterWrite": true,
+    "expertVerifyMaxRounds": 3,
+    "agentDiffReview": true,
+    "agentYoloMode": false,
+    "agentMaxIterations": 25,
+    "composerMaxIterations": 40,
+    "backgroundAgentMaxIterations": 30,
+    "agentUsePythonTools": true,
+    "backgroundTasksSurviveClose": true,
+    "backgroundTasksEnabled": true,
+    "codebaseSearchMode": "auto",
+    "embeddingBackend": "auto",
+    "nativeToolCalls": "auto",
+    "userRules": ""
+  }
+}
