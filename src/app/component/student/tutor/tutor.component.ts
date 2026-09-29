@@ -8,7 +8,7 @@ import { LoadingService } from 'src/app/service/loading.service';
   styleUrls: ['./tutor.component.css']
 })
 export class TutorComponent implements OnInit, AfterViewInit {
-  selectedLevel: string = 'HSC';
+  selectedLevel: string = 'Higher Secondary';
   selectedGroup: string = '';
   selectedSubject: string = '';
   selectedTopic: string = '';
@@ -18,14 +18,12 @@ export class TutorComponent implements OnInit, AfterViewInit {
   newMessage: string = '';
   currentMessage: string = '';
   loading: boolean = false;
-  levels = ['PSC', 'JSC', 'SSC', 'HSC'];
+  errorMessage: string = '';
+  levels = ['Higher Secondary'];
   groups = [
-    { value: 'S', label: 'Science' },
-    { value: 'A', label: 'Arts' },
-    { value: 'B', label: 'Business Studies' },
-    { value: 'I', label: 'Islamic Studies' },
-    { value: 'H', label: 'Humanities' },
-    { value: 'M', label: 'Music' }
+    { value: 'Science', label: 'Science' },
+    { value: 'Humanities', label: 'Humanities' },
+    { value: 'Business Studies', label: 'Business Studies' }
   ];
 
   constructor(
@@ -43,10 +41,12 @@ export class TutorComponent implements OnInit, AfterViewInit {
   }
 
   loadSubjects(): void {
+    this.errorMessage = '';
     this.tutorService.getSubjects(this.selectedLevel, this.selectedGroup).subscribe(
       (data: any) => {
-        this.subjects = data;
-      }
+        this.subjects = Array.isArray(data) ? data : [];
+      },
+      () => { this.subjects = []; this.errorMessage = 'Subjects could not be loaded. Please try again.'; }
     );
   }
 
@@ -94,6 +94,7 @@ export class TutorComponent implements OnInit, AfterViewInit {
     if (!this.currentMessage.trim() || !this.selectedSubject) return;
 
     this.loading = true;
+    this.errorMessage = '';
     const message = {
       text: this.currentMessage,
       type: 'user',
@@ -118,7 +119,7 @@ export class TutorComponent implements OnInit, AfterViewInit {
       },
       (error: any) => {
         this.loading = false;
-        console.error('Error sending message:', error);
+        this.errorMessage = 'The tutor could not answer right now. Please try again.';
       }
     );
   }

@@ -12,7 +12,7 @@ export class LeaderboardService {
   constructor(private http: HttpClient) { }
 
   getLeaderboard(filters?: { level?: string; group?: string; subject?: string; period?: string; limit?: number }): Observable<any> {
-    let url = `${this.baseUrl}/leaderboard/`;
+    let url = `${this.baseUrl}/student/leaderboard/`;
     const params: string[] = [];
     if (filters) {
       if (filters.level) params.push(`level=${encodeURIComponent(filters.level)}`);
@@ -26,8 +26,7 @@ export class LeaderboardService {
   }
 
   getStudentRank(level?: string, group?: string, subject?: string, period?: string): Observable<any> {
-    const username = localStorage.getItem('username');
-    let url = `${this.baseUrl}/leaderboard/rank/${username}/`;
+    let url = `${this.baseUrl}/student/leaderboard/`;
     const params: string[] = [];
     if (level) params.push(`level=${level}`);
     if (group) params.push(`group=${group}`);

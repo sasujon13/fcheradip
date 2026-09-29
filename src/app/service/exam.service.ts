@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
@@ -12,24 +13,30 @@ export class ExamService {
   constructor(private http: HttpClient) { }
 
   getLiveExams(level?: string, group?: string, subject?: string): Observable<any> {
-    let url = `${this.baseUrl}/live-exams/`;
-    const params: string[] = [];
-    if (level) params.push(`level=${level}`);
-    if (group) params.push(`group=${group}`);
-    if (subject) params.push(`subject=${subject}`);
-    if (params.length > 0) url += '?' + params.join('&');
-    return this.http.get(url);
+    return this.http.get<any>(`${this.baseUrl}/exam_sets/`).pipe(map(response =>
+      this.toExamCards(response?.exam_sets || [], level, subject, 'subject')
+    ));
   }
 
   getArchiveExams(level?: string, group?: string, subject?: string, examType?: string): Observable<any> {
-    let url = `${this.baseUrl}/archive-exams/`;
-    const params: string[] = [];
-    if (level) params.push(`level=${level}`);
-    if (group) params.push(`group=${group}`);
-    if (subject) params.push(`subject=${subject}`);
-    if (examType) params.push(`type=${examType}`);
-    if (params.length > 0) url += '?' + params.join('&');
-    return this.http.get(url);
+    return this.http.get<any>(`${this.baseUrl}/exam_sets/`).pipe(map(response =>
+      this.toExamCards(response?.exam_sets || [], level, subject, examType)
+    ));
+  }
+
+  private toExamCards(sets: any[], level?: string, subject?: string, examType?: string): any[] {
+    return sets
+      .filter(set => !level || set.level_tr === level)
+      .filter(set => !subject || set.subject_tr === subject)
+      .filter(set => !examType || set.exam_type === examType)
+      .map(set => ({
+        ...set,
+        subject_name: set.subject_tr || 'Exam',
+        subject_code: set.set_key || '',
+        type: set.exam_type || 'practice',
+        duration: 20,
+        title: set.name_label || set.set_key || 'Exam'
+      }));
   }
 
   getExamById(examId: number): Observable<any> {

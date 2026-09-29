@@ -4,6 +4,8 @@
     <p class="page-desc">See how you rank. Filter by group and period.</p>
   </header>
 
+  <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
+
   <div class="filters-section">
     <select [(ngModel)]="selectedGroup" (change)="onFilterChange()" class="filter-select">
       <option value="">All Groups</option>
@@ -45,7 +47,7 @@
     </div>
   </div>
 
-  <div *ngIf="leaderboard.length === 0" class="empty-state">
+  <div *ngIf="!loading && !errorMessage && leaderboard.length === 0" class="empty-state">
     <span class="empty-icon"><i class="fa fa-trophy"></i></span>
     <h3 class="empty-title">No rankings yet</h3>
     <p class="empty-desc">Complete exams to appear on the leaderboard.</p>

@@ -198,10 +198,10 @@ const routes: Routes = [
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent, canActivate: [StudentSectionDashboardGuard] },
-      { path: 'liveexam', component: LiveexamComponent },
+      { path: 'liveexam', component: RegularexamComponent, data: { examMode: 'live' } },
       { path: 'regularexam', component: RegularexamComponent },
       { path: 'exam-set/:id', component: ExamSetSessionComponent },
-      { path: 'archive', component: ArchiveComponent },
+      { path: 'archive', component: RegularexamComponent, data: { examMode: 'practice' } },
       { path: 'exam/:id', component: ExamComponent },
       { path: 'report', component: ReportComponent },
       { path: 'stats', component: StatsComponent },

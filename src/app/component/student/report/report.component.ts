@@ -8,6 +8,8 @@ import { LoadingService } from 'src/app/service/loading.service';
   styleUrls: ['./report.component.css']
 })
 export class ReportComponent implements OnInit, AfterViewInit {
+  loading = false;
+  errorMessage = '';
   selectedPeriod: string = 'weekly';
   reportData: any = null;
   periods = [
@@ -46,15 +48,20 @@ export class ReportComponent implements OnInit, AfterViewInit {
   ];
 
   loadReport(): void {
+    this.loading = true;
+    this.errorMessage = '';
     this.reportService.getReport(
       this.selectedPeriod,
       this.selectedLevel || undefined,
       this.selectedGroup || undefined
-    ).subscribe(
-      (data: any) => {
-        this.reportData = data;
+    ).subscribe({
+      next: (data: any) => { this.reportData = data; this.loading = false; },
+      error: () => {
+        this.reportData = null;
+        this.loading = false;
+        this.errorMessage = 'The report could not be loaded. Please try again.';
       }
-    );
+    });
   }
 
   onPeriodChange(): void {
@@ -66,20 +73,22 @@ export class ReportComponent implements OnInit, AfterViewInit {
   }
 
   downloadReport(): void {
+    this.errorMessage = '';
     this.reportService.exportReportAsPDF(
       this.selectedPeriod,
       this.selectedLevel || undefined,
       this.selectedGroup || undefined
-    ).subscribe(
-      (blob: Blob) => {
+    ).subscribe({
+      next: (blob: Blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `report_${this.selectedPeriod}.pdf`;
         a.click();
         window.URL.revokeObjectURL(url);
-      }
-    );
+      },
+      error: () => { this.errorMessage = 'The PDF could not be downloaded. Please try again.'; }
+    });
   }
 }
 

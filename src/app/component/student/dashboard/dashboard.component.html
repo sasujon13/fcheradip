@@ -4,6 +4,8 @@
     <p class="dashboard-subtitle">Track your progress and access exams, reports, and more.</p>
   </header>
 
+  <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
+
   <section class="stats-grid" aria-label="Your statistics">
     <div class="stat-box stat-box--primary">
       <span class="stat-icon" aria-hidden="true"><i class="fa fa-check-circle"></i></span>

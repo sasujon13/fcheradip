@@ -313,6 +313,13 @@
   line-height: 1.3;
 }
 
+.exam-set-meta {
+  margin-top: 0.45rem;
+  color: var(--student-text-light);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
 .empty-state {
   text-align: center;
   padding: 3rem 2rem;

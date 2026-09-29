@@ -835,18 +835,18 @@ export class ApiService {
     );
   }
   /** List all exam sets from cheradip_exam_set (level_tr, class_level, subject_tr for client-side filtering). */
-  getExamSets(): Observable<{ exam_sets: Array<{ id: number; exam_type: string; set_key: string; name_label: string; level_tr?: string; class_level?: string; subject_tr?: string }>; error?: string }> {
-    return this.http.get<{ exam_sets: Array<{ id: number; exam_type: string; set_key: string; name_label: string; level_tr?: string; class_level?: string; subject_tr?: string }>; error?: string }>(
+  getExamSets(): Observable<{ exam_sets: Array<{ id: number; exam_type: string; exam_mode?: string; exam_variant?: string; set_key: string; name_label: string; level_tr?: string; class_level?: string; subject_tr?: string; duration_minutes?: number; question_count?: number; available_from?: string | null; available_until?: string | null }>; error?: string }> {
+    return this.http.get<{ exam_sets: Array<{ id: number; exam_type: string; exam_mode?: string; exam_variant?: string; set_key: string; name_label: string; level_tr?: string; class_level?: string; subject_tr?: string; duration_minutes?: number; question_count?: number; available_from?: string | null; available_until?: string | null }>; error?: string }>(
       `${this.baseUrl}/exam_sets/`
     );
   }
 
   /** Single exam set by id (for session header). */
-  getExamSetById(id: number): Observable<{ id: number; name_label: string; set_key: string; exam_type: string; error?: string }> {
+  getExamSetById(id: number): Observable<{ id: number; name_label: string; set_key: string; exam_type: string; exam_mode?: string; exam_variant?: string; duration_minutes?: number; question_count?: number; error?: string }> {
     return this.http.get<any>(`${this.baseUrl}/exam_sets/${id}/`);
   }
 
-  /** Questions for an exam set (up to 30) for taking the exam. */
+  /** Questions for an exam set (up to 100) for taking the exam. */
   getExamSetQuestions(id: number): Observable<{ questions: any[]; error?: string }> {
     return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/exam_sets/${id}/questions/`);
   }

@@ -12,8 +12,7 @@ export class ReportService {
   constructor(private http: HttpClient) { }
 
   getReport(period: string, level?: string, group?: string): Observable<any> {
-    const username = localStorage.getItem('username');
-    let url = `${this.baseUrl}/student/reports/${username}/`;
+    let url = `${this.baseUrl}/student/reports/`;
     const params: string[] = [`period=${period}`];
     if (level) params.push(`level=${level}`);
     if (group) params.push(`group=${group}`);
@@ -46,8 +45,7 @@ export class ReportService {
   }
 
   exportReportAsPDF(period: string, level?: string, group?: string): Observable<Blob> {
-    const username = localStorage.getItem('username');
-    let url = `${this.baseUrl}/student/reports/${username}/export/`;
+    let url = `${this.baseUrl}/student/reports/export/`;
     const params: string[] = [`period=${period}`];
     if (level) params.push(`level=${level}`);
     if (group) params.push(`group=${group}`);

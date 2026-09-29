@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map, of } from 'rxjs';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
@@ -16,15 +17,17 @@ export class TutorService {
   }
 
   getSubjects(level: string, group?: string): Observable<any> {
-    let url = `${this.baseUrl}/subjects/`;
-    const params: string[] = [`level=${level}`];
-    if (group) params.push(`group=${group}`);
-    if (params.length > 0) url += '?' + params.join('&');
-    return this.http.get(url);
+    const params: any = { level_tr: level };
+    if (group) params.group = group;
+    return this.http.get<any>(`${this.baseUrl}/question_subjects/`, { params }).pipe(
+      map(response => response?.subjects || [])
+    );
   }
 
   getTopics(level: string, subject: string): Observable<any> {
-    return this.http.get(`${this.baseUrl}/topics/?level=${level}&subject=${subject}`);
+    return this.http.get<any>(`${this.baseUrl}/question_topics/`, {
+      params: { level_tr: level, class_level: '11-12', subject_tr: subject }
+    }).pipe(map(response => response?.topics || []));
   }
 
   getChapters(level: string, subject: string): Observable<any> {
@@ -32,27 +35,42 @@ export class TutorService {
   }
 
   sendMessage(level: string, subject: string, message: string, conversationId?: string): Observable<any> {
-    const username = localStorage.getItem('username');
+    const topic = conversationId || '';
     return this.http.post(`${this.baseUrl}/tutor/chat/`, {
-      username,
-      level,
-      subject,
-      message,
-      conversationId
-    });
+      messages: [{ role: 'user', content: message }],
+      learning_context: {
+        level_tr: level,
+        class_level: '11-12',
+        subject_tr: subject,
+        topic
+      },
+      model: 'auto',
+      preferences: { promptReadyEnabled: false }
+    }, { responseType: 'text' }).pipe(map(body => ({ reply: this.readSseReply(body) })));
   }
 
   getConversationHistory(level?: string, subject?: string): Observable<any> {
-    const username = localStorage.getItem('username');
-    let url = `${this.baseUrl}/tutor/conversations/${username}/`;
-    const params: string[] = [];
-    if (level) params.push(`level=${level}`);
-    if (subject) params.push(`subject=${subject}`);
-    if (params.length > 0) url += '?' + params.join('&');
-    return this.http.get(url);
+    return of([]);
   }
 
   saveConversation(conversation: any): Observable<any> {
-    return this.http.post(`${this.baseUrl}/tutor/conversations/save/`, conversation);
+    return of({ saved: true });
+  }
+
+  private readSseReply(body: string): string {
+    const chunks: string[] = [];
+    for (const line of String(body || '').split(/\r?\n/)) {
+      if (!line.startsWith('data:')) continue;
+      const value = line.slice(5).trim();
+      if (!value || value === '[DONE]') continue;
+      try {
+        const event = JSON.parse(value);
+        if (typeof event.content === 'string') chunks.push(event.content);
+        else if (typeof event.error === 'string') chunks.push(event.error);
+      } catch {
+        // Ignore malformed status events while preserving valid content events.
+      }
+    }
+    return chunks.join('').trim() || 'No response was returned. Please try again.';
   }
 }

@@ -4,6 +4,8 @@
     <p class="page-desc">Select level, group, and subject to start learning. Ask questions in Bengali or English.</p>
   </header>
 
+  <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
+
   <div class="tutor-selectors">
     <div class="selector-group">
       <label>Education Level</label>
@@ -19,11 +21,11 @@
         <option *ngFor="let group of groups" [value]="group.value">{{ group.label }}</option>
       </select>
     </div>
-    <div class="selector-group" *ngIf="selectedLevel && selectedGroup">
+    <div class="selector-group" *ngIf="selectedLevel">
       <label>Subject</label>
       <select [(ngModel)]="selectedSubject" (change)="onSubjectChange()" class="student-select">
         <option value="">Select Subject</option>
-        <option *ngFor="let subject of subjects" [value]="subject.code">{{ subject.name }}</option>
+        <option *ngFor="let subject of subjects" [value]="subject.subject_tr">{{ subject.name || subject.subject_tr }}</option>
       </select>
     </div>
   </div>

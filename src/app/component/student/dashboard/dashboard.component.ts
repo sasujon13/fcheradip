@@ -1,6 +1,8 @@
 import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { StudentService } from '../../../service/student.service';
 import { LoadingService } from 'src/app/service/loading.service';
+import { of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-dashboard',
@@ -8,6 +10,7 @@ import { LoadingService } from 'src/app/service/loading.service';
   styleUrls: ['./dashboard.component.css']
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
+  errorMessage = '';
   stats: any = {
     examsCompleted: 0,
     averageScore: 0,
@@ -32,11 +35,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   loadDashboardData(): void {
-    this.studentService.getStudentStats().subscribe(
-      (data: any) => {
-        this.stats = data;
-      }
-    );
+    this.errorMessage = '';
+    this.studentService.syncLocalExamResults().pipe(
+      catchError(() => of(null)),
+      switchMap(() => this.studentService.getStudentStats())
+    ).subscribe({
+      next: (data: any) => { this.stats = { ...this.stats, ...(data || {}) }; },
+      error: () => { this.errorMessage = 'Your progress could not be loaded. Please refresh and try again.'; }
+    });
   }
 }
 

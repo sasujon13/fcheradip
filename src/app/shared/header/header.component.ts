@@ -3,7 +3,8 @@ import { ApiService } from '../../service/api.service';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { CountryService, Country } from '../../service/country.service';
 import { LoadingService } from '../../service/loading.service';
-import { Subscription } from 'rxjs';
+import { asyncScheduler, Subscription } from 'rxjs';
+import { observeOn } from 'rxjs/operators';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
@@ -176,7 +177,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private trxUnlock: TrxUnlockService) { }
 
   ngOnInit(): void {
-    this.loadingSub = this.loadingService.getState$().subscribe((s) => {
+    // Route components call setTotal() during their own ngOnInit. Deliver the
+    // shared header state on the next task so Angular does not mutate a header
+    // binding halfway through the same development-mode change-detection pass.
+    this.loadingSub = this.loadingService.getState$().pipe(observeOn(asyncScheduler)).subscribe((s) => {
       this.loadingShow = s.show;
       this.loadingProgressPercent = s.progressPercent;
       this.loadingOverlayMessage = s.message ?? this.loadingOverlayDefaultMessage;

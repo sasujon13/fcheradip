@@ -42,7 +42,6 @@ body {
 }
 
 #app {
-  max-width: 820px;
   margin: 0 auto;
   padding: 18px 20px;
   display: flex;

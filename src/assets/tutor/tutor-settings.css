@@ -5,6 +5,8 @@ body { color:#164e49; background:#f4fbfa; margin:0 auto; max-width:1200px; paddi
 button,input,select,textarea { font:inherit; } button { cursor:pointer; }
 input:disabled,select:disabled,textarea:disabled { opacity:.6; cursor:not-allowed; }
 .row-control>input,.row-control>select,.row-control>textarea { max-width:100%; box-sizing:border-box; }
+.row-control>input[type="password"] { min-width:min(420px,70vw); }
+.row-control>.ghost { margin-left:8px; }
 .browser-note { color:#56716e; font-size:12px; } .settings-nav { display:flex; flex-wrap:wrap; gap:16px; }
 dialog { width:min(800px,90vw); background:#fff; color:#164e49; border:1px solid #00897b; } #config-json { width:100%; box-sizing:border-box; }
 @media(max-width:600px) { body{padding:10px} .hd,.row{flex-wrap:wrap} .row-control{width:100%} }

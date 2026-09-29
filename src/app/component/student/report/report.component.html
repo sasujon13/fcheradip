@@ -4,6 +4,8 @@
     <p class="page-desc">View and download your performance by period and filters.</p>
   </header>
 
+  <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
+
   <div class="report-filters">
     <div class="filter-group">
       <label>Period</label>
@@ -89,7 +91,7 @@
     </div>
   </div>
 
-  <div *ngIf="!reportData" class="student-loading">
+  <div *ngIf="loading" class="student-loading">
     <div class="student-spinner"></div>
     <span>Loading report…</span>
   </div>

@@ -1,22 +1,15 @@
 <div class="liveexam-container">
   <header class="page-header">
     <h1 class="page-title">Live Exams</h1>
-    <p class="page-desc">Join scheduled exams. Filter by level and group.</p>
+    <p class="page-desc">Start a full-subject exam that is available now.</p>
   </header>
+
+  <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
 
   <div class="filters-section">
     <select [(ngModel)]="selectedLevel" (change)="onFilterChange()" class="filter-select">
       <option value="">All Levels</option>
       <option *ngFor="let level of levels" [value]="level">{{ level }}</option>
-    </select>
-    <select [(ngModel)]="selectedGroup" (change)="onFilterChange()" class="filter-select">
-      <option value="">All Groups</option>
-      <option value="S">Science</option>
-      <option value="A">Humanities</option>
-      <option value="B">Business</option>
-      <option value="I">Islamic Studies</option>
-      <option value="H">Home Economics</option>
-      <option value="M">Music</option>
     </select>
   </div>
 
@@ -24,20 +17,19 @@
     <div *ngFor="let exam of exams" class="exam-card">
       <div class="exam-header">
         <h3 class="exam-title">{{ exam.subject_name }} ({{ exam.subject_code }})</h3>
-        <span class="badge badge-primary">{{ exam.type }} Questions</span>
+        <span class="badge badge-primary">{{ exam.title }}</span>
       </div>
       <div class="exam-meta">
         <span><i class="fa fa-clock-o"></i> Duration: {{ exam.duration }} min</span>
-        <span><i class="fa fa-calendar"></i> Starts: {{ exam.start_time | date:'short' }}</span>
-        <span><i class="fa fa-calendar-times-o"></i> Ends: {{ exam.end_time | date:'short' }}</span>
+        <span><i class="fa fa-check-circle"></i> Available now</span>
       </div>
-      <a [routerLink]="['/student/exam', exam.id]" class="btn-student-primary exam-card-btn">
+      <a [routerLink]="['/student/exam-set', exam.id]" class="btn-student-primary exam-card-btn">
         <i class="fa fa-play-circle"></i> Join Exam
       </a>
     </div>
   </div>
 
-  <div *ngIf="!exams.length" class="empty-state">
+  <div *ngIf="!loading && !errorMessage && !exams.length" class="empty-state">
     <span class="empty-icon"><i class="fa fa-calendar-check-o"></i></span>
     <h3 class="empty-title">No live exams right now</h3>
     <p class="empty-desc">Check back later or try Practice Exams for unlimited practice.</p>

@@ -1,8 +1,10 @@
 <div class="archive-container">
   <header class="page-header">
     <h1 class="page-title">Practice Exams (Archive)</h1>
-    <p class="page-desc">Take practice exams anytime. Filter by level, group, and type.</p>
+    <p class="page-desc">Take topic, chapter, or full-subject practice exams anytime.</p>
   </header>
+
+  <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
 
   <!-- Filter row: same structure as /question -->
   <div class="question-filter-row">
@@ -16,19 +18,6 @@
         <div class="filter-dropdown-panel" [class.open]="levelDropdownOpen">
           <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedLevel" (click)="onLevelSelect('')">Select Level</button>
           <button type="button" *ngFor="let lvl of levels" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedLevel === lvl" (click)="onLevelSelect(lvl)">{{ lvl }}</button>
-        </div>
-      </div>
-    </div>
-    <div class="question-filter-item filter-dropdown-wrap">
-      <label class="question-filter-label">--></label>
-      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('group')">
-        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedGroup" (click)="toggleGroupDropdown($event)" [title]="selectedGroupLabel">
-          <span class="filter-dropdown-btn-label">{{ selectedGroupLabel }}</span>
-          <span class="filter-dropdown-arrow">▼</span>
-        </button>
-        <div class="filter-dropdown-panel" [class.open]="groupDropdownOpen">
-          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedGroup" (click)="onGroupSelect('')">Select Group</button>
-          <button type="button" *ngFor="let g of groups" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedGroup === g.value" (click)="onGroupSelect(g.value)">{{ g.label }}</button>
         </div>
       </div>
     </div>
@@ -51,19 +40,19 @@
     <div *ngFor="let exam of exams" class="exam-card">
       <div class="exam-header">
         <h3 class="exam-title">{{ exam.subject_name }} ({{ exam.subject_code }})</h3>
-        <span class="badge badge-primary">{{ exam.type }} Questions</span>
+        <span class="badge badge-primary">{{ exam.title }}</span>
       </div>
       <div class="exam-meta">
         <span><i class="fa fa-clock-o"></i> Duration: {{ exam.duration }} min</span>
         <span *ngIf="exam.previous_score"><i class="fa fa-star"></i> Previous: {{ exam.previous_score }}%</span>
       </div>
-      <a [routerLink]="['/student/exam', exam.id]" class="btn-student-primary exam-card-btn">
+      <a [routerLink]="['/student/exam-set', exam.id]" class="btn-student-primary exam-card-btn">
         <i class="fa fa-pencil-square-o"></i> Take Exam
       </a>
     </div>
   </div>
 
-  <div *ngIf="!exams.length" class="empty-state">
+  <div *ngIf="!loading && !errorMessage && !exams.length" class="empty-state">
     <span class="empty-icon"><i class="fa fa-archive"></i></span>
     <h3 class="empty-title">No practice exams match your filters</h3>
     <p class="empty-desc">Try changing level, group, or type above.</p>

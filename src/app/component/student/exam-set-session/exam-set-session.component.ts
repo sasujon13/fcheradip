@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../service/api.service';
 import { LovedQuestionsService } from '../../../service/loved-questions.service';
+import { StudentService } from '../../../service/student.service';
 import { interval, Subscription } from 'rxjs';
 import { diffChars } from 'diff';
 
@@ -47,8 +48,8 @@ function _pendingEditFieldValue(orig: any, cur: any): string {
   if (c === o) return o;
   return _wrapPendingFieldWithPlainPlaintext(c, _buildPendingEditDiffHtml(o, c));
 }
-const EXAM_DURATION_SEC = 20 * 60; // 20 minutes
-const MAX_QUESTIONS = 30;
+const DEFAULT_EXAM_DURATION_SEC = 20 * 60;
+const MAX_QUESTIONS = 100;
 const SUBJECT_CACHE_PREFIX = 'cheradip_subject_all_';
 const SUBJECT_LIST_CHUNK_SIZE = 200;
 
@@ -70,8 +71,9 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
   editForm: any = { question: '', option_1: '', option_2: '', option_3: '', option_4: '', answer: '', explanation: '' };
   editStatus = '';
   editTopics: string[] = [];
-  timeRemaining = EXAM_DURATION_SEC;
-  private deadlineTs = Date.now() + EXAM_DURATION_SEC * 1000;
+  private examDurationSec = DEFAULT_EXAM_DURATION_SEC;
+  timeRemaining = DEFAULT_EXAM_DURATION_SEC;
+  private deadlineTs = Date.now() + DEFAULT_EXAM_DURATION_SEC * 1000;
   timerSub?: Subscription;
   isSubmitted = false;
   result: { score: number; correct: number; total: number } | null = null;
@@ -97,7 +99,8 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     private router: Router,
     private api: ApiService,
     private el: ElementRef,
-    private lovedService: LovedQuestionsService
+    private lovedService: LovedQuestionsService,
+    private studentService: StudentService
   ) {}
 
   ngOnInit(): void {
@@ -111,7 +114,8 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       this.result = null;
       this.isSubmitted = false;
       this.asideOpen = false;
-      this.timeRemaining = EXAM_DURATION_SEC;
+      this.examDurationSec = DEFAULT_EXAM_DURATION_SEC;
+      this.timeRemaining = this.examDurationSec;
       this.explanationOpen = {};
       this.allExplanationsOpen = false;
       this.editingQid = null;
@@ -334,8 +338,8 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     this.submitExam();
   }
 
-  /** Leave the page without submitting -> end the attempt now (counted as an
-   *  iteration), clear the session so the next visit is a fresh retake. */
+  /** Leave the page without submitting -> preserve the attempt for history,
+   *  but do not count it as a completed exam in dashboard statistics. */
   private autoEndOnLeave(): void {
     if (this.destroyed || this.isSubmitted || !this.questions.length) return;
     let correct = 0;
@@ -345,7 +349,7 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       if (expected && this.answers[q.qid] === expected) correct++;
     }
     const score = total ? Math.round((correct / total) * 100) : 0;
-    this.storeExamResult(score, correct, total); // synchronous localStorage write
+    this.storeExamResult(score, correct, total, false); // synchronous localStorage write
     this.clearSession();                          // next load = retake (next iteration)
     this.isSubmitted = true;                      // avoid double counting on unload
   }
@@ -369,6 +373,9 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     this.api.getExamSetById(this.setId).subscribe({
       next: (data: any) => {
         this.set = data;
+        this.examDurationSec = Math.max(60, (Number(data?.duration_minutes) || 20) * 60);
+        this.timeRemaining = this.examDurationSec;
+        this.deadlineTs = Date.now() + this.examDurationSec * 1000;
         const qids = this.parseQidsFromSet(data);
         const levelTr = (data?.level_tr || '').trim();
         const classLevel = (data?.class_level || '').trim();
@@ -525,7 +532,7 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
 
   /** Remaining-time text color, interpolated across the gradient by elapsed fraction. */
   get timerColor(): string {
-    const total = Math.max(EXAM_DURATION_SEC, 1);
+    const total = Math.max(this.examDurationSec, 1);
     const t = Math.max(0, Math.min(this.timeRemaining, total));
     const f = (total - t) / total; // 0 = full time (teal), 1 = time up (red)
     const stops = this.TIMER_GRADIENT_STOPS;
@@ -614,29 +621,39 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     } catch { /* ignore */ }
   }
 
-  /** Persist result for history/report. Extend with API call if backend supports it. */
-  private storeExamResult(score: number, correct: number, total: number): void {
+  /** Persist locally for instant history and on the authenticated account for dashboard/report use. */
+  private storeExamResult(score: number, correct: number, total: number, completed = true): void {
+    const at = new Date().toISOString();
+    const attemptId = `${this.setId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const result = {
+      attemptId,
+      setId: this.setId,
+      setName: this.set?.name_label || '',
+      score,
+      correct,
+      total,
+      subjectTr: (this.set?.subject_tr || '').trim(),
+      levelTr: (this.set?.level_tr || '').trim(),
+      classLevel: (this.set?.class_level || '').trim(),
+      setKey: this.set?.set_key || '',
+      examType: this.set?.exam_type || '',
+      examMode: this.set?.exam_mode || 'regular',
+      examVariant: this.set?.exam_variant || '',
+      completed,
+      at
+    };
     try {
       const key = 'exam_set_results';
       const raw = localStorage.getItem(key);
       const list = raw ? JSON.parse(raw) : [];
-      list.unshift({
-        setId: this.setId,
-        setName: this.set?.name_label || '',
-        score,
-        correct,
-        total,
-        subjectTr: (this.set?.subject_tr || '').trim(),
-        levelTr: (this.set?.level_tr || '').trim(),
-        classLevel: (this.set?.class_level || '').trim(),
-        setKey: this.set?.set_key || '',
-        examType: this.set?.exam_type || '',
-        at: new Date().toISOString()
-      });
+      list.unshift(result);
       localStorage.setItem(key, JSON.stringify(list.slice(0, 100)));
     } catch {
       // ignore
     }
+    this.studentService.saveExamResult(result).subscribe({
+      error: () => { /* local history remains available if the server is temporarily unavailable */ }
+    });
   }
 
   /* ------------------------------------------------------- exam session */
@@ -678,7 +695,7 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       }
       const savedAt = Number(s.savedAt) || Date.now();
       const elapsedSec = Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
-      const left = Math.max(0, (Number(s.timeLeftSeconds) || EXAM_DURATION_SEC) - elapsedSec);
+      const left = Math.max(0, (Number(s.timeLeftSeconds) || this.examDurationSec) - elapsedSec);
       this.answers = (s.answers && typeof s.answers === 'object') ? s.answers : {};
       this.timeRemaining = left;
     } catch {
@@ -993,7 +1010,7 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     this.answers = {};
     this.result = null;
     this.isSubmitted = false;
-    this.timeRemaining = EXAM_DURATION_SEC;
+    this.timeRemaining = this.examDurationSec;
     // A new attempt re-arms the secure-exam guards (they were lifted on submit).
     this.disableAntiCheat();
     this.enableAntiCheat();

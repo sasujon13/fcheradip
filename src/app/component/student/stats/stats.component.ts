@@ -1,6 +1,8 @@
 import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { StudentService } from '../../../service/student.service';
 import { LoadingService } from 'src/app/service/loading.service';
+import { of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-stats',
@@ -41,7 +43,10 @@ export class StatsComponent implements OnInit, AfterViewInit {
   }
 
   loadStats(): void {
-    this.studentService.getStudentStats().subscribe(
+    this.studentService.syncLocalExamResults().pipe(
+      catchError(() => of(null)),
+      switchMap(() => this.studentService.getStudentStats())
+    ).subscribe(
       (data: any) => {
         this.stats = { ...this.stats, ...data };
         this.calculateAccuracy();

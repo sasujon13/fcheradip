@@ -8,6 +8,8 @@ import { LoadingService } from 'src/app/service/loading.service';
   styleUrls: ['./leaderboard.component.css']
 })
 export class LeaderboardComponent implements OnInit, AfterViewInit {
+  loading = false;
+  errorMessage = '';
   selectedGroup: string = '';
   selectedSubject: string = '';
   selectedPeriod: string = 'all-time';
@@ -31,17 +33,26 @@ export class LeaderboardComponent implements OnInit, AfterViewInit {
   }
 
   loadLeaderboard(): void {
+    this.loading = true;
+    this.errorMessage = '';
     const filters: any = {};
     if (this.selectedGroup) filters.group = this.selectedGroup;
     if (this.selectedSubject) filters.subject = this.selectedSubject;
     if (this.selectedPeriod) filters.period = this.selectedPeriod;
 
-    this.leaderboardService.getLeaderboard(filters).subscribe(
-      (data: any) => {
+    this.leaderboardService.getLeaderboard(filters).subscribe({
+      next: (data: any) => {
         this.leaderboard = data.leaderboard || [];
         this.currentUserRank = data.user_rank || 0;
+        this.loading = false;
+      },
+      error: () => {
+        this.leaderboard = [];
+        this.currentUserRank = 0;
+        this.loading = false;
+        this.errorMessage = 'The leaderboard could not be loaded. Please try again.';
       }
-    );
+    });
   }
 
   onFilterChange(): void {

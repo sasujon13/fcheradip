@@ -8,12 +8,14 @@ import { LoadingService } from 'src/app/service/loading.service';
   styleUrls: ['./archive.component.css']
 })
 export class ArchiveComponent implements OnInit, AfterViewInit {
+  loading = false;
+  errorMessage = '';
   selectedLevel: string = '';
   selectedGroup: string = '';
   selectedSubject: string = '';
   selectedType: string = '';
   exams: any[] = [];
-  levels = ['PSC', 'JSC', 'SSC', 'HSC'];
+  levels = ['Higher Secondary'];
   groups = [
     { value: 'S', label: 'Science' },
     { value: 'A', label: 'Humanities' },
@@ -23,9 +25,9 @@ export class ArchiveComponent implements OnInit, AfterViewInit {
     { value: 'M', label: 'Music' }
   ];
   examTypes = [
-    { value: '25', label: 'Short (25 questions)' },
-    { value: '50', label: 'Middle (50 questions)' },
-    { value: '100', label: 'Hard (100 questions)' }
+    { value: 'topic', label: 'Topic Exam' },
+    { value: 'chapter', label: 'Chapter Exam' },
+    { value: 'subject', label: 'Subject Exam' }
   ];
 
   levelDropdownOpen = false;
@@ -65,16 +67,24 @@ export class ArchiveComponent implements OnInit, AfterViewInit {
   }
 
   loadExams(): void {
+    this.loading = true;
+    this.errorMessage = '';
     this.examService.getArchiveExams(
       this.selectedLevel || undefined,
-      this.selectedGroup || undefined,
+      undefined,
       this.selectedSubject || undefined,
       this.selectedType || undefined
-    ).subscribe(
-      (data: any) => {
+    ).subscribe({
+      next: (data: any) => {
         this.exams = data;
+        this.loading = false;
+      },
+      error: () => {
+        this.exams = [];
+        this.loading = false;
+        this.errorMessage = 'Practice exams could not be loaded. Please try again.';
       }
-    );
+    });
   }
 
   onFilterDropdownEnter(): void {

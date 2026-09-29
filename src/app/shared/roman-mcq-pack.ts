@@ -304,7 +304,15 @@ export function splitPostIiiFollowTail(body: string): { clause: string; tail: st
 
 /** Which tail keyword matched first ({@link POST_III_TAIL_KEYWORDS} order), or null. */
 export function findPostIiiTailKeyword(text: string): PostIiiTailKeyword | null {
-  const { tail } = splitPostIiiFollowTail(text);
+  const source = collapseThenNormalizeNicher(String(text ?? ''));
+  // Callers may pass the tail itself (starting with the keyword), not only a
+  // preceding iii-clause plus tail. Honour the documented priority in both cases.
+  for (const keyword of POST_III_TAIL_KEYWORDS) {
+    if (hasStandaloneTailKeyword(source, keyword) || source.startsWith(keyword)) {
+      return keyword;
+    }
+  }
+  const { tail } = splitPostIiiFollowTail(source);
   if (!tail) return null;
   for (const keyword of POST_III_TAIL_KEYWORDS) {
     if (hasStandaloneTailKeyword(tail, keyword) || tail.startsWith(keyword)) {

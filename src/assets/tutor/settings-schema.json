@@ -11,6 +11,34 @@
             {
               "value": "cheradip",
               "label": "Cheradip Home AI"
+            },
+            {
+              "value": "openai",
+              "label": "OpenAI"
+            },
+            {
+              "value": "anthropic",
+              "label": "Anthropic"
+            },
+            {
+              "value": "google",
+              "label": "Google Gemini"
+            },
+            {
+              "value": "groq",
+              "label": "Groq"
+            },
+            {
+              "value": "mistral",
+              "label": "Mistral"
+            },
+            {
+              "value": "deepseek",
+              "label": "DeepSeek"
+            },
+            {
+              "value": "openrouter",
+              "label": "OpenRouter"
             }
           ]
         },
@@ -295,7 +323,8 @@
           "key": "userRules",
           "label": "User rules",
           "type": "textarea",
-          "desc": "Injected into every agent turn"
+          "desc": "These instructions are applied to every Tutor response.",
+          "placeholder": "Example rules:\nReply in Bengali.\nExplain difficult ideas in simple language.\nShow calculations step by step.\nKeep answers concise unless I ask for details."
         }
       ]
     }

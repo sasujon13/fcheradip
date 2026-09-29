@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { ApiService } from '../../../service/api.service';
 import { LoadingService } from '../../../service/loading.service';
+import { ActivatedRoute } from '@angular/router';
 
 export interface ExamSetItem {
   id: number;
@@ -10,6 +11,12 @@ export interface ExamSetItem {
   level_tr?: string;
   class_level?: string;
   subject_tr?: string;
+  exam_mode?: string;
+  exam_variant?: string;
+  duration_minutes?: number;
+  question_count?: number;
+  available_from?: string | null;
+  available_until?: string | null;
 }
 
 const REGULAREXAM_STORAGE_KEY = 'regularexam_filters';
@@ -40,6 +47,7 @@ interface QuestionSubject {
   styleUrls: ['./regularexam.component.css']
 })
 export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
+  examMode: 'regular' | 'live' | 'practice' = 'regular';
   /** Same filter as /question: Level → Class → Group → Subject (no questions loaded or displayed). */
   levels: QuestionLevel[] = [];
   selectedLevel = '';
@@ -49,6 +57,12 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
   selectedGroup = '';
   subjects: QuestionSubject[] = [];
   selectedSubjectTr = '';
+  selectedExamType = '';
+  readonly examTypes = [
+    { value: 'subject', label: 'Full Subject Exam' },
+    { value: 'chapter', label: 'Chapter Exam' },
+    { value: 'topic', label: 'Topic Exam' }
+  ];
 
   chapters: Array<{ id: string; name: string }> = [];
   selectedChapters: string[] = [];
@@ -61,6 +75,7 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
   subjectDropdownOpen = false;
   chapterDropdownOpen = false;
   topicDropdownOpen = false;
+  examTypeDropdownOpen = false;
   private dropdownLeaveKind: string | null = null;
   private dropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -70,8 +85,19 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
 
   constructor(
     private api: ApiService,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private route: ActivatedRoute
   ) {}
+
+  get pageTitle(): string {
+    if (this.examMode === 'live') return 'Live Exams';
+    if (this.examMode === 'practice') return 'Practice Exams';
+    return 'Regular Exams';
+  }
+
+  get pageDescription(): string {
+    return 'Filter by level, class, group, subject, chapter, topic, and exam type to find an exam quickly.';
+  }
 
   get selectedLevelLabel(): string {
     if (!this.selectedLevel) return 'Select Level';
@@ -96,6 +122,11 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
     return sub ? (sub.name || sub.subject_tr) : this.selectedSubjectTr;
   }
 
+  get selectedExamTypeLabel(): string {
+    if (!this.selectedExamType) return 'All Exam Types';
+    return this.examTypes.find(item => item.value === this.selectedExamType)?.label || this.selectedExamType;
+  }
+
   get selectedChapterLabel(): string {
     if (!this.selectedChapters.length) return 'Select Chapter';
     if (this.selectedChapters.length === 1) return this.selectedChapters[0];
@@ -109,9 +140,20 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /** Filter exam sets by Level/Class/Subject and by chapters/topics (client-side). */
+  get modeExamSets(): ExamSetItem[] {
+    let list = this.examSets.filter(set => (set.exam_mode || 'regular') === this.examMode);
+    if (this.examMode !== 'live') return list;
+    const now = Date.now();
+    return list.filter(set => {
+      const starts = set.available_from ? new Date(set.available_from).getTime() : 0;
+      const ends = set.available_until ? new Date(set.available_until).getTime() : Number.POSITIVE_INFINITY;
+      return starts <= now && ends >= now;
+    });
+  }
+
   get filteredExamSets(): ExamSetItem[] {
     if (!this.examSets.length) return [];
-    let list = this.examSets;
+    let list = this.modeExamSets;
     if (this.selectedLevel) {
       list = list.filter(set => (set.level_tr || '') === this.selectedLevel);
     }
@@ -120,6 +162,9 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     if (this.selectedSubjectTr) {
       list = list.filter(set => (set.subject_tr || '') === this.selectedSubjectTr);
+    }
+    if (this.selectedExamType) {
+      list = list.filter(set => (set.exam_type || '') === this.selectedExamType);
     }
     const chapterSet = new Set(this.selectedChapters.map(s => s.trim()).filter(Boolean));
     const topicSet = new Set(this.selectedTopics.map(s => s.trim()).filter(Boolean));
@@ -207,6 +252,8 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit(): void {
+    const mode = this.route.snapshot.data['examMode'];
+    this.examMode = mode === 'live' || mode === 'practice' ? mode : 'regular';
     this.loadingService.setTotal(1);
     this.restoreFiltersFromStorage();
     this.loadQuestionLevels();
@@ -255,13 +302,14 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private restoreFiltersFromStorage(): void {
     try {
-      const raw = localStorage.getItem(REGULAREXAM_STORAGE_KEY);
+      const raw = localStorage.getItem(this.storageKey());
       if (!raw) return;
       const data = JSON.parse(raw);
       if (data.selectedLevel != null) this.selectedLevel = String(data.selectedLevel);
       if (data.selectedClass != null) this.selectedClass = String(data.selectedClass);
       if (data.selectedGroup != null) this.selectedGroup = String(data.selectedGroup);
       if (data.selectedSubjectTr != null) this.selectedSubjectTr = String(data.selectedSubjectTr);
+      if (data.selectedExamType != null) this.selectedExamType = String(data.selectedExamType);
       if (Array.isArray(data.selectedChapters)) this.selectedChapters = data.selectedChapters;
       if (Array.isArray(data.selectedTopics)) this.selectedTopics = data.selectedTopics;
     } catch {
@@ -271,17 +319,22 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private saveFiltersToStorage(): void {
     try {
-      localStorage.setItem(REGULAREXAM_STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(this.storageKey(), JSON.stringify({
         selectedLevel: this.selectedLevel,
         selectedClass: this.selectedClass,
         selectedGroup: this.selectedGroup,
         selectedSubjectTr: this.selectedSubjectTr,
+        selectedExamType: this.selectedExamType,
         selectedChapters: this.selectedChapters,
         selectedTopics: this.selectedTopics
       }));
     } catch {
       // ignore
     }
+  }
+
+  private storageKey(): string {
+    return `${REGULAREXAM_STORAGE_KEY}_${this.examMode}`;
   }
 
   private loadCascadeForRestoredFilters(): void {
@@ -319,6 +372,7 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
       case 'subject': this.subjectDropdownOpen = false; break;
       case 'chapter': this.chapterDropdownOpen = false; break;
       case 'topic': this.topicDropdownOpen = false; break;
+      case 'examType': this.examTypeDropdownOpen = false; break;
     }
   }
 
@@ -330,6 +384,7 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
       this.subjectDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      this.examTypeDropdownOpen = false;
     }
   }
 
@@ -341,6 +396,7 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
       this.subjectDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      this.examTypeDropdownOpen = false;
     }
   }
 
@@ -352,6 +408,7 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
       this.subjectDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      this.examTypeDropdownOpen = false;
     }
   }
 
@@ -363,6 +420,7 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
       this.groupDropdownOpen = false;
       this.chapterDropdownOpen = false;
       this.topicDropdownOpen = false;
+      this.examTypeDropdownOpen = false;
     }
   }
 
@@ -374,6 +432,7 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
       this.groupDropdownOpen = false;
       this.subjectDropdownOpen = false;
       this.topicDropdownOpen = false;
+      this.examTypeDropdownOpen = false;
     }
   }
 
@@ -385,7 +444,26 @@ export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
       this.groupDropdownOpen = false;
       this.subjectDropdownOpen = false;
       this.chapterDropdownOpen = false;
+      this.examTypeDropdownOpen = false;
     }
+  }
+
+  toggleExamTypeDropdown(_event?: MouseEvent): void {
+    this.examTypeDropdownOpen = !this.examTypeDropdownOpen;
+    if (this.examTypeDropdownOpen) {
+      this.levelDropdownOpen = false;
+      this.classDropdownOpen = false;
+      this.groupDropdownOpen = false;
+      this.subjectDropdownOpen = false;
+      this.chapterDropdownOpen = false;
+      this.topicDropdownOpen = false;
+    }
+  }
+
+  onExamTypeSelect(type: string): void {
+    this.examTypeDropdownOpen = false;
+    this.selectedExamType = type || '';
+    this.saveFiltersToStorage();
   }
 
   onLevelSelect(levelTr: string): void {

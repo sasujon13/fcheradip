@@ -8,11 +8,13 @@ import { LoadingService } from 'src/app/service/loading.service';
   styleUrls: ['./liveexam.component.css']
 })
 export class LiveexamComponent implements OnInit, AfterViewInit {
+  loading = false;
+  errorMessage = '';
   selectedLevel: string = '';
   selectedGroup: string = '';
   selectedSubject: string = '';
   exams: any[] = [];
-  levels = ['PSC', 'JSC', 'SSC', 'HSC'];
+  levels = ['Higher Secondary'];
   groups = ['S', 'A', 'B', 'I', 'H', 'M'];
 
   constructor(
@@ -30,15 +32,23 @@ export class LiveexamComponent implements OnInit, AfterViewInit {
   }
 
   loadExams(): void {
+    this.loading = true;
+    this.errorMessage = '';
     this.examService.getLiveExams(
       this.selectedLevel || undefined,
-      this.selectedGroup || undefined,
+      undefined,
       this.selectedSubject || undefined
-    ).subscribe(
-      (data: any) => {
+    ).subscribe({
+      next: (data: any) => {
         this.exams = data;
+        this.loading = false;
+      },
+      error: () => {
+        this.exams = [];
+        this.loading = false;
+        this.errorMessage = 'Available exams could not be loaded. Please try again.';
       }
-    );
+    });
   }
 
   onFilterChange(): void {

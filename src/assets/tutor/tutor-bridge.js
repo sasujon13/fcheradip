@@ -7,9 +7,19 @@
   const token = () => localStorage.getItem('isLoggedIn') === 'true' ? localStorage.getItem('authToken') || '' : '';
   const owner = () => token() ? localStorage.getItem('username') || 'account' : 'guest';
   const preferences = () => { try { return JSON.parse(localStorage.getItem('cheradip.tutor.settings.' + owner()) || '{}'); } catch (_) { return {}; } };
+  const settingsKey = () => 'cheradip.tutor.settings.' + owner();
+  const savePreferences = values => {
+    localStorage.setItem(settingsKey(), JSON.stringify(values));
+    if (token()) fetch(API + 'tutor/settings/', { method: 'POST', headers: {
+      'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Bearer ' + token(),
+    }, body: JSON.stringify({ provider: values.provider || 'cheradip', model: values.model || 'auto', api_keys: {} }) }).catch(() => {});
+  };
+  const publicPreferences = () => { const value = { ...preferences() }; delete value.apiKeys; return value; };
+  const providerConfig = () => { const value = preferences(); const selected = value.provider || 'cheradip'; return { provider: selected, api_key: selected === 'cheradip' ? '' : (value.apiKeys?.[selected] || '') }; };
   let storageKey = 'cheradip.tutor.v1.' + owner();
-  let sessions = [], activeId, model = 'auto', mode = 'ask';
+  let sessions = [], activeId, model = 'auto', mode = 'ask', provider = preferences().provider || 'cheradip';
   let models = [], controller = null, queue = [], closed = [], redone = [], subject = null, chapter = null;
+  let providerCatalog = {};
   let subjects = [], catalogRequest = 0, registered = false, context = '', initialized = false;
   const catalog = window.TutorCurriculum;
   let levels = [], levelIndex = 0, chapters = [], topics = [], pendingTopic = null;
@@ -19,9 +29,10 @@
   let pendingSettings = false;
   function applySettings() {
     const settings = preferences();
-    if (models.some(m => m.id === settings.model)) model = settings.model;
+    provider = settings.provider || 'cheradip';
+    if (settings.model) model = settings.model;
     if (['ask','plan','agent','composer'].includes(settings.chatMode)) mode = settings.chatMode;
-    pendingSettings = false; save(); init();
+    pendingSettings = false; save(); void refreshModels(); init();
   }
   const active = () => sessions.find(s => s.id === activeId);
   const newSession = () => ({ id: crypto.randomUUID(), title: 'New chat', messages: [], files: [] });
@@ -57,8 +68,10 @@
     catch (_) { emit({ type: 'statusUpdate', text: 'Browser storage is full. Export this chat to keep it.' }); }
   }
   function init() {
-    emit({ type: 'init', providers: [{ id: 'cheradip', label: 'Cheradip Home AI' }],
-      activeProvider: 'cheradip', models: models.length ? models : [{ id: model, label: model }], activeModel: model,
+    const providers = [{ id: 'cheradip', label: 'Cheradip Home AI' }].concat(
+      Object.entries(providerCatalog).map(([id, info]) => ({ id, label: info.label || id })));
+    emit({ type: 'init', providers,
+      activeProvider: provider, models: models.length ? models : [{ id: model, label: model }], activeModel: model,
       sessions: sessions.map(s => ({ id: s.id, title: s.title, active: s.id === activeId })),
       messages: active().messages, attachments: active().files.map(f => f.path), chatMode: mode,
       statusLine: 'Ready', canUndo: closed.length > 0, canRedo: redone.length > 0 });
@@ -75,12 +88,22 @@
   async function refreshModels() {
     try {
       const data = await json('tutor/models/');
-      models = (data.models || []).filter(m => m.available !== false && !['vision', 'translation'].includes(m.category));
-      models = models.map(m => m.id === 'auto' ? { ...m, label: 'Auto · curriculum + specialists' } : m);
-      if (!models.some(m => m.id === model)) model = data.default_model || models[0]?.id || 'auto';
+      providerCatalog = data.providers || {};
+      if (provider === 'cheradip') {
+        models = (data.models || []).filter(m => m.available !== false && !['vision', 'translation'].includes(m.category));
+        models = models.map(m => m.id === 'auto' ? { ...m, label: 'Auto · curriculum + specialists' } : m);
+        if (!models.some(m => m.id === model)) model = data.default_model || models[0]?.id || 'auto';
+      } else {
+        const info = providerCatalog[provider] || {};
+        models = (info.models || []).map(id => ({ id, label: id }));
+        if (!models.some(m => m.id === model)) model = info.default_model || models[0]?.id || 'auto';
+      }
       emit({ type: 'updateModels', models, activeModel: model });
       el('settings-model').replaceChildren(...models.map(m => new Option(m.label, m.id, false, m.id === model)));
-      el('connection-status').textContent = 'Home AI connected'; save();
+      const config = providerConfig();
+      el('connection-status').textContent = provider === 'cheradip' ? (data.warning || 'Home AI connected') :
+        ((config.api_key ? (providerCatalog[provider]?.label || provider) + ' key configured' : 'Add this provider key in Tutor Settings'));
+      save(); init();
     } catch (error) {
       el('connection-status').textContent = error.message;
       emit({ type: 'statusUpdate', text: error.message });
@@ -240,10 +263,12 @@
         const label = document.createElement('strong'); label.textContent = 'Web references consulted'; sources.append(label);
         for (const source of message.webSources) {
           if (!/^https?:\/\//i.test(source.url || '')) continue;
+          const unsafe = /(?:porn|xxx|hentai|onlyfans)|(?:^|[./_-])(?:aebn|brazzers|hdporner|hqporner|redtube|rule34|spankbang|xhamster|xnxx|xvideos|youporn)(?:[./_?-]|$)|\b(?:adult\s*(?:star|video)|camgirl|erotic|explicit|fetish|hardcore|milf|nsfw|nude|sex\s*video|webcam)\b/i;
+          if (unsafe.test((source.url || '') + ' ' + (source.title || ''))) continue;
           const link = document.createElement('a'); link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
           link.textContent = source.title + (source.article_read ? '' : ' (search excerpt)'); sources.append(link);
         }
-        nodes[index].append(sources);
+        if (sources.querySelector('a')) nodes[index].append(sources);
       }
       if (message.role !== 'assistant' || !message.suggestions?.length || !nodes[index]) return;
       const box = document.createElement('section'); box.className = 'topic-suggestions'; box.setAttribute('aria-label', 'Suggested topics');
@@ -296,22 +321,23 @@
     if (topicContext) files.push({ path: 'Selected learning topic', language: 'text', content: topicContext });
     try {
       const response = await fetch(API + 'tutor/chat/', { method: 'POST', signal: run.signal,
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
-        body: JSON.stringify({ messages: session.messages, model, mode, preferences: preferences(), file_context: files, learning_context: message.learningContext || learningScope(message.selectedTopic) }) });
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...(token() ? { Authorization: 'Bearer ' + token() } : {}) },
+        body: JSON.stringify({ messages: session.messages, model, mode, preferences: publicPreferences(), provider_config: providerConfig(), file_context: files, learning_context: message.learningContext || learningScope(message.selectedTopic) }) });
       if (!response.ok) { const data = await response.json(); throw new Error(data.error || data.detail || 'Chat request failed (' + response.status + ')'); }
       if (!response.body) throw new Error('Streaming is unavailable in this browser.');
       const reader = response.body.getReader(), decoder = new TextDecoder(); let buffer = '';
       const line = value => {
         if (!value.startsWith('data:')) return;
         const payload = value.slice(5).trim(); if (!payload || payload === '[DONE]') return;
-        let data; try { data = JSON.parse(payload); } catch (_) { throw new Error('Invalid response from Home AI.'); }
+        let data; try { data = JSON.parse(payload); } catch (_) { throw new Error('Invalid response from the AI provider.'); }
         if (data.error) throw new Error(data.error);
         if (data.status) emit({ type: 'statusUpdate', text: data.status });
         if (data.reset) { full = ''; emit({ type: 'assistantChunk', text: '' }); }
         if (data.tutor) {
           responseInfo = data.tutor;
+          const providerName = provider === 'cheradip' ? 'Home AI' : (providerCatalog[provider]?.label || provider);
           const text = data.tutor.reference_count ? 'Using ' + data.tutor.reference_count + ' saved curriculum references' :
-            data.tutor.retrieval_unavailable ? 'Stored references unavailable · answering with Home AI' : 'Answering with Home AI';
+            data.tutor.retrieval_unavailable ? 'Stored references unavailable · answering with ' + providerName : 'Answering with ' + providerName;
           emit({ type: 'statusUpdate', text: data.status || text });
         }
         if (data.content) { full += data.content; emit({ type: 'assistantChunk', text: full }); }
@@ -321,7 +347,7 @@
         const lines = buffer.split('\n'); buffer = lines.pop(); lines.forEach(line);
         if (part.done) { if (buffer.trim()) line(buffer); break; }
       }
-      if (!full.trim()) throw new Error('Home AI returned no answer. Please retry.');
+      if (!full.trim()) throw new Error('The selected AI provider returned no answer. Please retry.');
     } catch (error) {
       if (error.name === 'AbortError') full += '\n\n[Stopped]';
       else full += '\n\nUnable to complete this response: ' + error.message;
@@ -348,7 +374,9 @@
       case 'send': {
         const selectedTopic = pendingTopic; pendingTopic = null;
         const previous = active().messages.at(-1);
-        const continuing = !selectedTopic && previous?.role === 'assistant' && previous.content.includes('```cheradip-ask');
+        // Every reply after a Tutor answer continues that lesson unless the learner
+        // explicitly selects a different topic. This keeps short follow-ups grounded.
+        const continuing = !selectedTopic && previous?.role === 'assistant';
         void send({ ...msg, text: catalog.discussionPrompt(msg.text), selectedTopic,
           learningContext: continuing && active().learningContext ? active().learningContext : learningScope(selectedTopic) }); break;
       }
@@ -362,7 +390,14 @@
       case 'undo': if (closed.length) { const inverse = applyHistory(closed.pop()); if (inverse) redone.push(inverse); init(); } break;
       case 'redo': if (redone.length) { const inverse = applyHistory(redone.pop()); if (inverse) closed.push(inverse); init(); } break;
       case 'setModel': if (model !== msg.model && models.some(m => m.id === msg.model)) { remember(); model = msg.model; el('settings-model').value = model; init(); save(); } break;
-      case 'setProvider': init(); break;
+      case 'setProvider': {
+        if (msg.provider === 'cheradip' || providerCatalog[msg.provider]) {
+          provider = msg.provider; const settings = preferences(); settings.provider = provider;
+          settings.model = provider === 'cheradip' ? 'auto' : (providerCatalog[provider]?.default_model || 'auto');
+          model = settings.model; savePreferences(settings); void refreshModels();
+        }
+        break;
+      }
       case 'setChatMode': remember(); mode = msg.mode; init(); save(); if (['agent','composer'].includes(mode)) notice('Web mode prepares answers and code. Workspace execution is available in the VS Code extension.'); break;
       case 'resetConfig': remember(); model = 'auto'; mode = 'ask'; init(); save(); break;
       case 'openSettings': el('related-frame').src = 'settings.html'; el('page-dialog').classList.add('settings-page'); el('page-dialog').showModal(); break;

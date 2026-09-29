@@ -1,7 +1,7 @@
 <div class="regularexam-container">
   <header class="page-header">
-    <h1 class="page-title">Regular Exams</h1>
-    <p class="page-desc">Practice exam sets by level, class, group, and subject. Select filters to see available sets.</p>
+    <h1 class="page-title">{{ pageTitle }}</h1>
+    <p class="page-desc">{{ pageDescription }}</p>
   </header>
 
   <!-- Filter row: exactly same design as /question (Level → Class → Group → Subject). No questions displayed. -->
@@ -100,6 +100,19 @@
         </div>
       </div>
     </div>
+    <div class="question-filter-item filter-dropdown-wrap">
+      <label class="question-filter-label">--></label>
+      <div class="filter-dropdown" (mouseenter)="onFilterDropdownEnter()" (mouseleave)="onFilterDropdownLeave('examType')">
+        <button type="button" class="filter-dropdown-btn" [class.placeholder-selected]="!selectedExamType" (click)="toggleExamTypeDropdown($event)" [title]="selectedExamTypeLabel">
+          <span class="filter-dropdown-btn-label">{{ selectedExamTypeLabel }}</span>
+          <span class="filter-dropdown-arrow">▼</span>
+        </button>
+        <div class="filter-dropdown-panel" [class.open]="examTypeDropdownOpen">
+          <button type="button" class="filter-dropdown-item filter-dropdown-item-single filter-dropdown-item-placeholder" [class.selected]="!selectedExamType" (click)="onExamTypeSelect('')">All Exam Types</button>
+          <button type="button" *ngFor="let type of examTypes" class="filter-dropdown-item filter-dropdown-item-single" [class.selected]="selectedExamType === type.value" (click)="onExamTypeSelect(type.value)">{{ type.label }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <p *ngIf="errorMessage" class="error-msg">{{ errorMessage }}</p>
@@ -111,17 +124,18 @@
         <i class="fa fa-file-text-o" aria-hidden="true"></i>
       </div>
       <div class="exam-set-label">{{ set.name_label || set.set_key }}</div>
+      <div class="exam-set-meta">{{ set.question_count || 30 }} questions · {{ set.duration_minutes || 20 }} minutes</div>
     </a>
   </div>
 
-  <div *ngIf="!loading && examSets.length > 0 && filteredExamSets.length === 0" class="empty-state">
+  <div *ngIf="!loading && modeExamSets.length > 0 && filteredExamSets.length === 0" class="empty-state">
     <span class="empty-icon"><i class="fa fa-filter"></i></span>
-    <h3 class="empty-title">No exam sets match the selected chapter/topic</h3>
-    <p class="empty-desc">Clear the chapter or topic filter to see all sets.</p>
+    <h3 class="empty-title">No exam sets match the selected filters</h3>
+    <p class="empty-desc">Clear one or more filters to see additional exam sets.</p>
   </div>
-  <div *ngIf="!loading && examSets.length === 0 && !errorMessage" class="empty-state">
+  <div *ngIf="!loading && modeExamSets.length === 0 && !errorMessage" class="empty-state">
     <span class="empty-icon"><i class="fa fa-folder-open-o"></i></span>
-    <h3 class="empty-title">No exam sets found</h3>
-    <p class="empty-desc">Try changing filters or ask an admin to create exams from Settings.</p>
+    <h3 class="empty-title">No {{ pageTitle.toLowerCase() }} have been created</h3>
+    <p class="empty-desc">Ask an admin to create this exam type from Database Settings.</p>
   </div>
 </div>
