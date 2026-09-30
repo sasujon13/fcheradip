@@ -78,7 +78,20 @@
     }).filter(result => result.score > 0).sort((a, b) => b.score - a.score || compare(a.item.topic_no, b.item.topic_no) || compare(a.item.name, b.item.name))
       .slice(0, limit).map(result => result.item);
   }
-  const api = { sortSubjects, sortChapters, defaultSubject, defaultChapter, rankTopics, key, discussionPrompt };
+  function webPrompt(question, scope = {}) {
+    const subject = scope.subject_name || scope.subject_tr;
+    const selection = [scope.level_tr && 'Level: ' + scope.level_tr, scope.class_level && 'Class: ' + scope.class_level,
+      subject && 'Subject: ' + subject, scope.chapter && 'Chapter: ' + scope.chapter,
+      scope.topic && 'Topic: ' + scope.topic].filter(Boolean).join('\n');
+    return [
+      'Act as an accurate tutor. Reply in the same language as the learner\'s question.',
+      selection ? 'Current curriculum selection:\n' + selection : 'No curriculum topic is currently selected.',
+      'Silently decide whether the learner\'s question is related to the selected level, subject, chapter, or topic. If related, use that selection as the learning context and answer at the appropriate level. If it is not related, answer the question normally without mentioning a mismatch and without showing any warning.',
+      'Do not invent authors, quotations, textbook facts, or references. If a factual detail is uncertain, say so briefly instead of guessing.',
+      'Learner question:\n' + String(question || '').trim(),
+    ].join('\n\n');
+  }
+  const api = { sortSubjects, sortChapters, defaultSubject, defaultChapter, rankTopics, key, discussionPrompt, webPrompt };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TutorCurriculum = api;
 })(typeof window === 'undefined' ? globalThis : window);

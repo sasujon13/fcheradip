@@ -4,6 +4,7 @@
   const messagesEl = document.getElementById("messages");
   const promptEl = document.getElementById("prompt");
   const sendBtn = document.getElementById("send");
+  const accessModeEl = document.getElementById("accessMode");
   const providerEl = document.getElementById("provider");
   const modelEl = document.getElementById("model");
   const chatModeEl = document.getElementById("chatMode");
@@ -1279,6 +1280,11 @@
         vscode.postMessage({ type: "setProvider", provider: providerEl.value });
       });
     }
+    if (accessModeEl) {
+      accessModeEl.addEventListener("change", function () {
+        vscode.postMessage({ type: "setAccessMode", accessMode: accessModeEl.value });
+      });
+    }
     if (modelEl) {
       modelEl.addEventListener("change", function () {
         vscode.postMessage({ type: "setModel", model: modelEl.value });
@@ -1596,8 +1602,11 @@
     if (!msg || !msg.type) return;
     switch (msg.type) {
       case "init":
+        if (accessModeEl) accessModeEl.value = msg.accessMode || "cloud";
         fillSelect(providerEl, msg.providers, msg.activeProvider);
         fillSelect(modelEl, msg.models, msg.activeModel);
+        if (providerEl) providerEl.disabled = false;
+        if (modelEl) modelEl.disabled = false;
         if (apiKeyRow) apiKeyRow.style.display = msg.needsApiKey ? "flex" : "none";
         if (apiKeyEl && msg.apiKey !== undefined) {
           apiKeyEl.value = msg.apiKey;

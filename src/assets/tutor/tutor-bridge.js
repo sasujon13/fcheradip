@@ -4,6 +4,7 @@
   const API = '/api/';
   const el = id => document.getElementById(id);
   const emit = data => window.dispatchEvent(new MessageEvent('message', { data, origin: location.origin, source: window }));
+  const normalizedAccessMode = value => value === 'api' ? 'api' : 'cloud';
   const token = () => localStorage.getItem('isLoggedIn') === 'true' ? localStorage.getItem('authToken') || '' : '';
   const owner = () => token() ? localStorage.getItem('username') || 'account' : 'guest';
   const preferences = () => { try { return JSON.parse(localStorage.getItem('cheradip.tutor.settings.' + owner()) || '{}'); } catch (_) { return {}; } };
@@ -14,12 +15,23 @@
       'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Bearer ' + token(),
     }, body: JSON.stringify({ provider: values.provider || 'cheradip', model: values.model || 'auto', api_keys: {} }) }).catch(() => {});
   };
-  const publicPreferences = () => { const value = { ...preferences() }; delete value.apiKeys; return value; };
-  const providerConfig = () => { const value = preferences(); const selected = value.provider || 'cheradip'; return { provider: selected, api_key: selected === 'cheradip' ? '' : (value.apiKeys?.[selected] || '') }; };
+  const publicPreferences = () => { const value = { ...preferences(), accessMode }; delete value.apiKeys; return value; };
+  const providerConfig = () => {
+    const value = preferences();
+    if (accessMode === 'cloud') return { provider: cloudProvider, model: cloudModel, api_key: '' };
+    const selected = apiProvider;
+    return { provider: selected || 'cheradip', api_key: selected === 'cheradip' ? '' : (value.apiKeys?.[selected] || '') };
+  };
   let storageKey = 'cheradip.tutor.v1.' + owner();
-  let sessions = [], activeId, model = 'auto', mode = 'ask', provider = preferences().provider || 'cheradip';
+  const initialSettings = preferences();
+  let accessMode = normalizedAccessMode(initialSettings.accessMode);
+  let apiProvider = initialSettings.provider || 'cheradip';
+  let apiModel = initialSettings.model || 'auto';
+  let cloudProvider = initialSettings.cloudProvider || 'auto';
+  let cloudModel = initialSettings.cloudModel || 'search-auto';
+  let sessions = [], activeId, model = accessMode === 'api' ? apiModel : cloudModel, mode = 'ask';
   let models = [], controller = null, queue = [], closed = [], redone = [], subject = null, chapter = null;
-  let providerCatalog = {};
+  let providerCatalog = {}, sharedProviders = null, authUsable = !!token();
   let subjects = [], catalogRequest = 0, registered = false, context = '', initialized = false;
   const catalog = window.TutorCurriculum;
   let levels = [], levelIndex = 0, chapters = [], topics = [], pendingTopic = null;
@@ -29,8 +41,12 @@
   let pendingSettings = false;
   function applySettings() {
     const settings = preferences();
-    provider = settings.provider || 'cheradip';
-    if (settings.model) model = settings.model;
+    apiProvider = settings.provider || 'cheradip';
+    apiModel = settings.model || apiModel;
+    cloudProvider = settings.cloudProvider || cloudProvider;
+    cloudModel = settings.cloudModel || cloudModel;
+    accessMode = normalizedAccessMode(settings.accessMode);
+    model = accessMode === 'api' ? apiModel : cloudModel;
     if (['ask','plan','agent','composer'].includes(settings.chatMode)) mode = settings.chatMode;
     pendingSettings = false; save(); void refreshModels(); init();
   }
@@ -57,27 +73,43 @@
       const data = JSON.parse(localStorage.getItem(storageKey) || 'null');
       if (data && Array.isArray(data.sessions)) {
         sessions = data.sessions.filter(s => s && typeof s.id === 'string' && Array.isArray(s.messages)).map(s => ({ ...s, files: [] }));
-        activeId = data.activeId; model = data.model || model; mode = data.mode || 'ask';
+        activeId = data.activeId; apiModel = data.model || apiModel; mode = data.mode || 'ask';
       }
     } catch (_) { /* Corrupt local history must not prevent starting a new chat. */ }
     if (!sessions.length) sessions = [newSession()];
     if (!active()) activeId = sessions[0].id;
   }
   function save() {
-    try { localStorage.setItem(storageKey, JSON.stringify({ sessions: sessions.map(s => ({ ...s, files: [] })), activeId, model, mode })); }
+    try { localStorage.setItem(storageKey, JSON.stringify({ sessions: sessions.map(s => ({ ...s, files: [] })), activeId,
+      model: apiModel, accessMode, mode })); }
     catch (_) { emit({ type: 'statusUpdate', text: 'Browser storage is full. Export this chat to keep it.' }); }
   }
   function init() {
-    const providers = [{ id: 'cheradip', label: 'Cheradip Home AI' }].concat(
-      Object.entries(providerCatalog).map(([id, info]) => ({ id, label: info.label || id })));
+    const providers = accessMode === 'cloud'
+      ? [{ id: 'auto', label: 'Automatic · Brave first' }].concat(
+        Object.entries(providerCatalog).map(([id, info]) => ({ id, label: info.label || id })))
+      : [{ id: 'cheradip', label: 'Cheradip Home AI' }].concat(
+        Object.entries(providerCatalog).map(([id, info]) => ({ id, label: info.label || id })));
     emit({ type: 'init', providers,
-      activeProvider: provider, models: models.length ? models : [{ id: model, label: model }], activeModel: model,
+      accessMode, activeProvider: accessMode === 'cloud' ? cloudProvider : apiProvider,
+      models: models.length ? models : [{ id: model, label: model }], activeModel: model,
       sessions: sessions.map(s => ({ id: s.id, title: s.title, active: s.id === activeId })),
       messages: active().messages, attachments: active().files.map(f => f.path), chatMode: mode,
       statusLine: 'Ready', canUndo: closed.length > 0, canRedo: redone.length > 0 });
     const empty = document.querySelector('#messages .empty p');
     if (empty) empty.textContent = 'Choose a subject, chapter and topic, or ask anything.';
     renderSuggestions();
+  }
+  function persistSelections() {
+    const value = preferences();
+    value.accessMode = accessMode;
+    value.provider = apiProvider;
+    value.model = apiModel;
+    value.cloudProvider = cloudProvider;
+    value.cloudModel = cloudModel;
+    delete value.freeProvider;
+    delete value.webModel;
+    savePreferences(value);
   }
   async function json(path, options = {}) {
     const response = await fetch(API + path, { ...options, headers: { Accept: 'application/json', ...(options.headers || {}) } });
@@ -89,20 +121,35 @@
     try {
       const data = await json('tutor/models/');
       providerCatalog = data.providers || {};
-      if (provider === 'cheradip') {
+      sharedProviders = Array.isArray(data.shared_providers) ? data.shared_providers : [];
+      if (accessMode === 'cloud') {
+        if (cloudProvider === 'auto') {
+          models = [{ id: 'search-auto', label: 'Brave → Cloud APIs → Home AI' }];
+          cloudModel = 'search-auto';
+        } else {
+          const info = providerCatalog[cloudProvider] || {};
+          models = (info.models || []).map(id => ({ id, label: id }));
+          if (!models.some(m => m.id === cloudModel)) cloudModel = info.default_model || models[0]?.id || 'auto';
+        }
+        model = cloudModel;
+      } else if (apiProvider === 'cheradip') {
         models = (data.models || []).filter(m => m.available !== false && !['vision', 'translation'].includes(m.category));
         models = models.map(m => m.id === 'auto' ? { ...m, label: 'Auto · curriculum + specialists' } : m);
-        if (!models.some(m => m.id === model)) model = data.default_model || models[0]?.id || 'auto';
+        if (!models.some(m => m.id === apiModel)) apiModel = data.default_model || models[0]?.id || 'auto';
+        model = apiModel;
       } else {
-        const info = providerCatalog[provider] || {};
+        const info = providerCatalog[apiProvider] || {};
         models = (info.models || []).map(id => ({ id, label: id }));
-        if (!models.some(m => m.id === model)) model = info.default_model || models[0]?.id || 'auto';
+        if (!models.some(m => m.id === apiModel)) apiModel = info.default_model || models[0]?.id || 'auto';
+        model = apiModel;
       }
       emit({ type: 'updateModels', models, activeModel: model });
       el('settings-model').replaceChildren(...models.map(m => new Option(m.label, m.id, false, m.id === model)));
       const config = providerConfig();
-      el('connection-status').textContent = provider === 'cheradip' ? (data.warning || 'Home AI connected') :
-        ((config.api_key ? (providerCatalog[provider]?.label || provider) + ' key configured' : 'Add this provider key in Tutor Settings'));
+      el('connection-status').textContent = accessMode === 'cloud' ?
+        'Brave-first search · personal keys preferred · Cloud APIs and Home AI fallback' :
+        apiProvider === 'cheradip' ? (data.warning || 'Home AI connected') :
+        ((config.api_key ? (providerCatalog[apiProvider]?.label || apiProvider) + ' key configured' : 'Add this provider key in Tutor Settings'));
       save(); init();
     } catch (error) {
       el('connection-status').textContent = error.message;
@@ -155,11 +202,15 @@
   async function loadSubjects() {
     const request = ++catalogRequest; el('curriculum-list').textContent = 'Loading subjects…';
     try {
-      const [profile, allLevels] = await Promise.all([
+      const [profileResult, levelResult] = await Promise.allSettled([
         json('tutor/profile/', { headers: token() ? { Authorization: 'Bearer ' + token() } : {} }),
         json('question_levels/')
       ]);
       if (request !== catalogRequest) return;
+      if (levelResult.status === 'rejected') throw levelResult.reason;
+      authUsable = profileResult.status === 'fulfilled';
+      const profile = profileResult.status === 'fulfilled' ? profileResult.value : { registered: false, levels: [] };
+      const allLevels = levelResult.value;
       registered = profile.registered; levels = allLevels.levels || []; profileClass = profile.levels?.[0]?.class_level || '';
       levelIndex = Math.max(0, levels.findIndex(level => level.level_tr === 'Secondary'));
       el('level-select').replaceChildren(...levels.map((level, index) => new Option(levelLabel(level), String(index), false, index === levelIndex)));
@@ -295,7 +346,8 @@
   function learningScope(selected) {
     const s = selected?.subject || subject, c = selected?.chapter || chapter;
     return { level_tr: s?.level_tr || levels[levelIndex]?.level_tr || '', class_level: s?.class_level || selectedClass || '',
-      subject_tr: s?.subject_tr || '', chapter: c?.name || '', chapter_no: String(c?.chapter_no || ''),
+      subject_tr: s?.subject_tr || '', subject_name: s?.name || s?.subject_name || s?.subject_tr || '',
+      chapter: c?.name || '', chapter_no: String(c?.chapter_no || ''),
       topic: selected?.name || '', selected_topic: !!selected };
   }
   async function send(message) {
@@ -321,7 +373,7 @@
     if (topicContext) files.push({ path: 'Selected learning topic', language: 'text', content: topicContext });
     try {
       const response = await fetch(API + 'tutor/chat/', { method: 'POST', signal: run.signal,
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...(token() ? { Authorization: 'Bearer ' + token() } : {}) },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...(authUsable && token() ? { Authorization: 'Bearer ' + token() } : {}) },
         body: JSON.stringify({ messages: session.messages, model, mode, preferences: publicPreferences(), provider_config: providerConfig(), file_context: files, learning_context: message.learningContext || learningScope(message.selectedTopic) }) });
       if (!response.ok) { const data = await response.json(); throw new Error(data.error || data.detail || 'Chat request failed (' + response.status + ')'); }
       if (!response.body) throw new Error('Streaming is unavailable in this browser.');
@@ -335,7 +387,9 @@
         if (data.reset) { full = ''; emit({ type: 'assistantChunk', text: '' }); }
         if (data.tutor) {
           responseInfo = data.tutor;
-          const providerName = provider === 'cheradip' ? 'Home AI' : (providerCatalog[provider]?.label || provider);
+          const selectedProvider = data.tutor.provider || providerConfig().provider;
+          const providerName = data.tutor.provider_label || (selectedProvider === 'cloud' ? 'Cloud AI' :
+            selectedProvider === 'cheradip' ? 'Home AI' : (providerCatalog[selectedProvider]?.label || selectedProvider));
           const text = data.tutor.reference_count ? 'Using ' + data.tutor.reference_count + ' saved curriculum references' :
             data.tutor.retrieval_unavailable ? 'Stored references unavailable · answering with ' + providerName : 'Answering with ' + providerName;
           emit({ type: 'statusUpdate', text: data.status || text });
@@ -368,17 +422,18 @@
   }
   function notice(text) { emit({ type: 'statusUpdate', text }); }
   async function handle(msg) {
-    if (controller && ['newSession','switchSession','closeSession','undo','redo','deleteMessage','resetConfig','setModel','setChatMode'].includes(msg.type)) { notice('Stop the current response before changing chats or settings.'); return; }
+    if (controller && ['newSession','switchSession','closeSession','undo','redo','deleteMessage','resetConfig','setAccessMode','setProvider','setModel','setChatMode'].includes(msg.type)) { notice('Stop the current response before changing chats or settings.'); return; }
     switch (msg.type) {
-      case 'ready': if (!initialized) { initialized = true; restore(); init(); await Promise.all([refreshModels(), loadSubjects()]); } break;
+      case 'ready': if (!initialized) { initialized = true; restore(); model = accessMode === 'api' ? apiModel : cloudModel; init(); await Promise.all([refreshModels(), loadSubjects()]); } break;
       case 'send': {
         const selectedTopic = pendingTopic; pendingTopic = null;
         const previous = active().messages.at(-1);
         // Every reply after a Tutor answer continues that lesson unless the learner
         // explicitly selects a different topic. This keeps short follow-ups grounded.
         const continuing = !selectedTopic && previous?.role === 'assistant';
-        void send({ ...msg, text: catalog.discussionPrompt(msg.text), selectedTopic,
-          learningContext: continuing && active().learningContext ? active().learningContext : learningScope(selectedTopic) }); break;
+        const request = { ...msg, text: catalog.discussionPrompt(msg.text), selectedTopic,
+          learningContext: continuing && active().learningContext ? active().learningContext : learningScope(selectedTopic) };
+        void send(request); break;
       }
       case 'stopGeneration': queue = []; controller?.abort(); queueState(); break;
       case 'newSession': { const session = newSession(); sessions.push(session); activeId = session.id; context = ''; init(); save(); break; }
@@ -389,17 +444,34 @@
       }
       case 'undo': if (closed.length) { const inverse = applyHistory(closed.pop()); if (inverse) redone.push(inverse); init(); } break;
       case 'redo': if (redone.length) { const inverse = applyHistory(redone.pop()); if (inverse) closed.push(inverse); init(); } break;
-      case 'setModel': if (model !== msg.model && models.some(m => m.id === msg.model)) { remember(); model = msg.model; el('settings-model').value = model; init(); save(); } break;
+      case 'setAccessMode': {
+        if (!['cloud', 'api'].includes(msg.accessMode) || msg.accessMode === accessMode) break;
+        remember(); if (accessMode === 'api') apiModel = model;
+        else cloudModel = model;
+        accessMode = msg.accessMode; model = accessMode === 'api' ? apiModel : cloudModel;
+        persistSelections(); void refreshModels(); break;
+      }
+      case 'setModel': if (model !== msg.model && models.some(m => m.id === msg.model)) {
+        remember(); model = msg.model;
+        if (accessMode === 'api') apiModel = model; else cloudModel = model;
+        el('settings-model').value = model; persistSelections(); init(); save();
+      } break;
       case 'setProvider': {
-        if (msg.provider === 'cheradip' || providerCatalog[msg.provider]) {
-          provider = msg.provider; const settings = preferences(); settings.provider = provider;
-          settings.model = provider === 'cheradip' ? 'auto' : (providerCatalog[provider]?.default_model || 'auto');
-          model = settings.model; savePreferences(settings); void refreshModels();
+        if (accessMode === 'cloud' && (msg.provider === 'auto' || providerCatalog[msg.provider])) {
+          cloudProvider = msg.provider;
+          cloudModel = cloudProvider === 'auto' ? 'search-auto' : (providerCatalog[cloudProvider]?.default_model || 'auto');
+          model = cloudModel; persistSelections(); void refreshModels();
+        } else if (accessMode === 'api' && (msg.provider === 'cheradip' || providerCatalog[msg.provider])) {
+          apiProvider = msg.provider;
+          apiModel = apiProvider === 'cheradip' ? 'auto' : (providerCatalog[apiProvider]?.default_model || 'auto');
+          model = apiModel; persistSelections(); void refreshModels();
         }
         break;
       }
-      case 'setChatMode': remember(); mode = msg.mode; init(); save(); if (['agent','composer'].includes(mode)) notice('Web mode prepares answers and code. Workspace execution is available in the VS Code extension.'); break;
-      case 'resetConfig': remember(); model = 'auto'; mode = 'ask'; init(); save(); break;
+      case 'setChatMode': remember(); mode = msg.mode; init(); save(); if (['agent','composer'].includes(mode)) notice('Cloud mode prepares answers and code. Workspace execution is available in the VS Code extension.'); break;
+      case 'resetConfig': remember(); accessMode = 'cloud';
+        apiProvider = 'cheradip'; apiModel = 'auto'; cloudProvider = 'auto'; cloudModel = 'search-auto';
+        model = cloudModel; mode = 'ask'; persistSelections(); void refreshModels(); save(); break;
       case 'openSettings': el('related-frame').src = 'settings.html'; el('page-dialog').classList.add('settings-page'); el('page-dialog').showModal(); break;
       case 'copyText': await navigator.clipboard.writeText(msg.text || ''); break;
       case 'attachMedia': el('file-picker').click(); break;
