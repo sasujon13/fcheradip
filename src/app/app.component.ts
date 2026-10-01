@@ -44,7 +44,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.routeProductSubdomain();
-    this.showSiteHeader = !this.isAiltManualRoute(this.router.url);
+    this.showSiteHeader = this.shouldShowSiteHeader(this.router.url);
     this.primeBrowserAudioOnFirstUserGesture();
     this.authSession.startSessionMonitor();
     if (this.authSession.hasStoredSession()) {
@@ -53,7 +53,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => {
-        this.showSiteHeader = !this.isAiltManualRoute(e.urlAfterRedirects || e.url);
+        this.showSiteHeader = this.shouldShowSiteHeader(e.urlAfterRedirects || e.url);
         this.authSession.startSessionMonitor();
         setTimeout(() => this.welcomeCeremony.tryPlayAfterNavigation(), 400);
         this.queueWatermarkMeasureAfterContent();
@@ -183,6 +183,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       path === '/support' ||
       path.startsWith('/support/')
     );
+  }
+
+  /** Product sites provide their own branded navigation instead of stacking two fixed headers. */
+  private shouldShowSiteHeader(url: string): boolean {
+    const path = (url || '').split('?')[0].split('#')[0];
+    const isCommerceRoute = path === '/ecommerce' || path.startsWith('/ecommerce/');
+    return !this.isAiltManualRoute(url) && !isCommerceRoute;
   }
 
 }

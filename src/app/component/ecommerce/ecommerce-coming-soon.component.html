@@ -1,13 +1,137 @@
-<main class="ecommerce-placeholder" aria-labelledby="ecommerce-title">
-  <section class="ecommerce-placeholder__card">
-    <span class="ecommerce-placeholder__icon" aria-hidden="true">🛒</span>
-    <p class="ecommerce-placeholder__eyebrow">Cheradip</p>
-    <h1 id="ecommerce-title">eCommerce</h1>
-    <p>
-      The product marketplace has been reserved at
-      <strong>ecommerce.cheradip.com</strong>. Product, order, payment and sales
-      features will be added only after the next development phase is approved.
-    </p>
-    <a href="https://cheradip.com/index">Return to Cheradip products</a>
+<main class="commerce-shell">
+  <header class="commerce-hero">
+    <a class="commerce-brand" routerLink="/index" aria-label="Cheradip home">
+      <img src="assets/images/cheradip.svg" alt="Cheradip logo">
+      <span><b>Cheradip</b><small>Marketplace</small></span>
+    </a>
+    <form class="commerce-search" (ngSubmit)="loadProducts()">
+      <select [(ngModel)]="selectedCategory" name="category" aria-label="Product category">
+        <option value="">All categories</option>
+        <option *ngFor="let category of categories" [value]="category.slug">{{ category.name }} ({{ category.product_count }})</option>
+      </select>
+      <input [(ngModel)]="search" name="search" placeholder="Search products, brands or SKU" aria-label="Search products">
+      <button type="submit">Search</button>
+    </form>
+    <nav class="commerce-actions" aria-label="Marketplace sections">
+      <button (click)="setView('shop')" [class.active]="activeView === 'shop'">Shop</button>
+      <button (click)="setView('track')" [class.active]="activeView === 'track'">Track order</button>
+      <button (click)="setView('cart')" [class.active]="activeView === 'cart'">Cart <span>{{ cartCount }}</span></button>
+      <button (click)="setView('admin')" [class.active]="activeView === 'admin'">Manage</button>
+    </nav>
+  </header>
+
+  <div class="feedback success" *ngIf="message">{{ message }}</div>
+  <div class="feedback error" *ngIf="error">{{ error }}</div>
+
+  <ng-container *ngIf="activeView === 'shop'">
+    <section class="market-intro">
+      <div><p class="eyebrow">Everything in one marketplace</p><h1>Shop with Cheradip confidence</h1><p>Fashion, electronics, accessories, gadgets, home, beauty, sports and more—organized for fast discovery.</p></div>
+      <div class="trust-grid"><span>✓ Order tracking</span><span>✓ Secure payment review</span><span>✓ Stock-aware checkout</span></div>
+    </section>
+
+    <section class="category-strip" aria-label="Product categories">
+      <button [class.active]="!selectedCategory" (click)="chooseCategory('')">All</button>
+      <button *ngFor="let category of categories" [class.active]="selectedCategory === category.slug" (click)="chooseCategory(category.slug)">{{ category.name }} <small>{{ category.product_count }}</small></button>
+    </section>
+
+    <section class="catalog-toolbar">
+      <p><strong>{{ productCount }}</strong> products</p>
+      <select [(ngModel)]="ordering" (change)="loadProducts()" aria-label="Sort products">
+        <option value="-created_at">Newest</option><option value="price">Price: low to high</option><option value="-price">Price: high to low</option><option value="name">Name: A–Z</option>
+      </select>
+    </section>
+
+    <div class="loading" *ngIf="loading">Loading marketplace…</div>
+    <section class="product-grid" *ngIf="!loading">
+      <article class="product-card" *ngFor="let product of products">
+        <div class="product-image">
+          <img [src]="product.image_url || 'assets/images/cheradip.svg'" [alt]="product.name" loading="lazy">
+          <span class="sample" *ngIf="product.is_sample">Sample</span><span class="featured" *ngIf="product.featured">Featured</span>
+        </div>
+        <div class="product-body">
+          <small>{{ product.category_name }}</small><h2>{{ product.name }}</h2><p>{{ product.short_description }}</p>
+          <div class="price-row"><strong>৳{{ product.price | number:'1.0-2' }}</strong><del *ngIf="product.compare_at_price">৳{{ product.compare_at_price | number:'1.0-2' }}</del></div>
+          <div class="product-buttons"><button class="ghost" (click)="openProduct(product)">View options</button><button class="primary" [disabled]="product.stock < 1" (click)="addToCart(product)">{{ product.stock > 0 ? 'Add to cart' : 'Out of stock' }}</button></div>
+        </div>
+      </article>
+    </section>
+    <nav class="catalog-pages" *ngIf="!loading && (previousPageAvailable || nextPageAvailable)" aria-label="Product pages">
+      <button class="ghost" [disabled]="!previousPageAvailable" (click)="loadProducts(currentPage - 1)">Previous</button>
+      <span>Page {{ currentPage }}</span>
+      <button class="ghost" [disabled]="!nextPageAvailable" (click)="loadProducts(currentPage + 1)">Next</button>
+    </nav>
+  </ng-container>
+
+  <div class="product-modal" *ngIf="selectedProduct" (click)="closeProduct()" role="presentation">
+    <article class="product-dialog" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title" (click)="$event.stopPropagation()">
+      <button class="dialog-close" type="button" (click)="closeProduct()" aria-label="Close product details">×</button>
+      <div class="dialog-image"><img [src]="selectedProduct.image_url || selectedProduct.images[0]?.url || 'assets/images/cheradip.svg'" [alt]="selectedProduct.name"></div>
+      <div class="dialog-body">
+        <p class="eyebrow">{{ selectedProduct.category_name }}<span *ngIf="selectedProduct.brand_name"> · {{ selectedProduct.brand_name }}</span></p>
+        <h2 id="product-dialog-title">{{ selectedProduct.name }}</h2>
+        <p>{{ selectedProduct.description || selectedProduct.short_description }}</p>
+        <label for="variant-choice">Choose an option</label>
+        <select id="variant-choice" [(ngModel)]="selectedVariantId">
+          <option *ngFor="let variant of selectedProduct.variants" [ngValue]="variant.id" [disabled]="!variant.is_active || variant.stock < 1">{{ variant.title }} · ৳{{ variant.price }} · {{ variant.stock > 0 ? variant.stock + ' available' : 'out of stock' }}</option>
+        </select>
+        <div class="price-row" *ngIf="selectedVariant as variant"><strong>৳{{ variant.price | number:'1.0-2' }}</strong><del *ngIf="variant.compare_at_price">৳{{ variant.compare_at_price | number:'1.0-2' }}</del></div>
+        <button class="primary" [disabled]="!selectedVariant || selectedVariant.stock < 1" (click)="addSelectedVariantToCart()">Add selected option to cart</button>
+      </div>
+    </article>
+  </div>
+
+  <section class="workspace" *ngIf="activeView === 'cart'">
+    <div class="workspace-heading"><div><p class="eyebrow">Checkout</p><h1>Your cart</h1></div><button class="ghost" (click)="setView('shop')">Continue shopping</button></div>
+    <div class="cart-layout" *ngIf="cart?.items?.length; else emptyCart">
+      <div class="cart-items">
+        <article *ngFor="let item of cart?.items">
+          <img [src]="item.image_url || 'assets/images/cheradip.svg'" [alt]="item.product_name">
+          <div><h3>{{ item.product_name }}</h3><small>{{ item.variant_title }} · {{ item.sku }}</small><strong>৳{{ item.unit_price | number:'1.0-2' }}</strong></div>
+          <div class="quantity"><button (click)="updateCartItem(item, item.quantity - 1)">−</button><span>{{ item.quantity }}</span><button (click)="updateCartItem(item, item.quantity + 1)">+</button></div><b>৳{{ item.line_total | number:'1.0-2' }}</b>
+        </article>
+      </div>
+      <form class="checkout-card" (ngSubmit)="placeOrder()">
+        <h2>Delivery details</h2>
+        <input required [(ngModel)]="checkout.customer_name" name="customer_name" placeholder="Full name">
+        <div class="form-row"><input required type="email" [(ngModel)]="checkout.email" name="email" placeholder="Email"><input required [(ngModel)]="checkout.phone" name="phone" placeholder="Phone"></div>
+        <textarea required [(ngModel)]="checkout.address" name="address" placeholder="Street address"></textarea>
+        <div class="form-row"><input required [(ngModel)]="checkout.city" name="city" placeholder="City"><input [(ngModel)]="checkout.district" name="district" placeholder="District"><input [(ngModel)]="checkout.postal_code" name="postal" placeholder="Post code"></div>
+        <select [(ngModel)]="checkout.payment_method" name="payment_method"><option value="cod">Cash on delivery</option><option value="bkash">bKash</option><option value="nagad">Nagad</option><option value="bank">Bank transfer</option></select>
+        <input *ngIf="checkout.payment_method !== 'cod'" [(ngModel)]="checkout.transaction_id" name="transaction_id" placeholder="Transaction ID">
+        <input [(ngModel)]="checkout.coupon_code" name="coupon_code" placeholder="Coupon code (optional)">
+        <textarea [(ngModel)]="checkout.customer_note" name="note" placeholder="Order note (optional)"></textarea>
+        <div class="checkout-total"><span>Subtotal</span><strong>৳{{ cart?.subtotal | number:'1.0-2' }}</strong></div>
+        <small class="shipping-note">Delivery is calculated securely by Cheradip: ৳80, or free for physical-product orders of ৳3,000 and above.</small>
+        <button class="primary" type="submit" [disabled]="loading">{{ loading ? 'Placing order…' : 'Place order' }}</button>
+      </form>
+    </div>
+    <ng-template #emptyCart><div class="empty-state"><span>🛒</span><h2>Your cart is empty</h2><button class="primary" (click)="setView('shop')">Browse products</button></div></ng-template>
+    <div class="order-success" *ngIf="completedOrder"><h2>Order placed: {{ completedOrder.number }}</h2><p>Save your tracking token:</p><code>{{ completedOrder.tracking_token }}</code></div>
+  </section>
+
+  <section class="workspace narrow" *ngIf="activeView === 'track'">
+    <p class="eyebrow">Delivery progress</p><h1>Track your order</h1>
+    <form class="tracking-form" (ngSubmit)="trackOrder()"><input required [(ngModel)]="trackNumber" name="trackNumber" placeholder="Order number"><input required [(ngModel)]="trackToken" name="trackToken" placeholder="Private tracking token"><button class="primary" type="submit">Track</button></form>
+    <article class="tracking-result" *ngIf="trackedOrder">
+      <div><span>Order</span><strong>{{ trackedOrder.number }}</strong></div><div><span>Status</span><strong>{{ trackedOrder.status }}</strong></div><div><span>Payment</span><strong>{{ trackedOrder.payment_status }}</strong></div><div><span>Total</span><strong>৳{{ trackedOrder.grand_total }}</strong></div>
+      <ol><li *ngFor="let event of trackedOrder.history"><b>{{ event.status }}</b><small>{{ event.created_at | date:'medium' }} {{ event.note }}</small></li></ol>
+    </article>
+  </section>
+
+  <section class="workspace admin-workspace" *ngIf="activeView === 'admin'">
+    <div class="workspace-heading"><div><p class="eyebrow">Commerce control centre</p><h1>Store management</h1></div><a class="ghost" href="/admin?db=ecommerce" target="_blank">Advanced database admin</a></div>
+    <div class="stat-grid" *ngIf="adminDashboard">
+      <article><span>Products</span><strong>{{ adminDashboard.products }}</strong></article><article><span>Pending orders</span><strong>{{ adminDashboard.pending_orders }}</strong></article><article><span>Pending payments</span><strong>{{ adminDashboard.pending_payments }}</strong></article><article><span>Low stock</span><strong>{{ adminDashboard.low_stock }}</strong></article><article><span>Paid revenue</span><strong>৳{{ adminDashboard.revenue | number:'1.0-2' }}</strong></article><article><span>Alerts</span><strong>{{ adminDashboard.unread_notifications }}</strong></article>
+    </div>
+    <div class="admin-grid">
+      <article class="admin-card"><h2>Shopify-style CSV products</h2><p>Download the ready template, keep its column names, then upload your UTF-8 CSV.</p><div class="admin-buttons"><a class="ghost" [href]="sampleCsvUrl">Download sample CSV</a><label class="file-button">Choose CSV<input type="file" accept=".csv,text/csv" (change)="selectCsv($event)"></label><button class="primary" [disabled]="!uploadFile" (click)="importCsv()">Import products</button></div><p *ngIf="uploadFile">Selected: {{ uploadFile.name }}</p><pre *ngIf="importResult">{{ importResult | json }}</pre></article>
+      <article class="admin-card"><h2>Catalog management</h2><p>Create, edit, archive, delete and inspect products, variants, categories, inventory, coupons and reviews in the existing Cheradip admin design.</p><a class="primary link-button" href="/admin?db=ecommerce" target="_blank">Open eCommerce database</a></article>
+    </div>
+    <article class="admin-card table-card"><h2>Orders</h2><div class="responsive-table"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      <tr *ngFor="let order of adminOrders"><td>{{ order.number }}</td><td>{{ order.customer_name }}<small>{{ order.phone }}</small></td><td>৳{{ order.grand_total }}</td><td>{{ order.payment_status }}</td><td>{{ order.status }}</td><td><button (click)="updateOrder(order, 'confirmed')">Confirm</button><button (click)="updateOrder(order, 'processing')">Process</button><button (click)="updateOrder(order, 'shipped')">Ship</button><button (click)="updateOrder(order, 'delivered')">Deliver</button><button class="danger" (click)="updateOrder(order, 'cancelled')">Cancel</button></td></tr>
+    </tbody></table></div></article>
+    <article class="admin-card table-card"><h2>Payments awaiting review</h2><div class="responsive-table"><table><thead><tr><th>ID</th><th>Order</th><th>Method</th><th>Transaction</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
+      <tr *ngFor="let payment of adminPayments"><td>{{ payment.id }}</td><td>{{ payment.order }}</td><td>{{ payment.method }}</td><td>{{ payment.transaction_id || '—' }}</td><td>৳{{ payment.amount }}</td><td>{{ payment.status }}</td><td><button *ngIf="payment.status === 'pending'" (click)="confirmPayment(payment)">Confirm payment</button></td></tr>
+    </tbody></table></div></article>
   </section>
 </main>
