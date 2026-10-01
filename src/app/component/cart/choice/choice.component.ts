@@ -5,9 +5,10 @@ import { ChoiceService } from 'src/app/service/choice.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-choice',
-  templateUrl: './choice.component.html',
-  styleUrls: ['./choice.component.css']
+    selector: 'app-choice',
+    templateUrl: './choice.component.html',
+    styleUrls: ['./choice.component.css'],
+    standalone: false
 })
 export class ChoiceComponent implements OnInit, AfterViewInit {
   showCard: boolean = false;

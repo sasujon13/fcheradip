@@ -3,9 +3,10 @@ import { ReportService } from '../../../service/report.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-report',
-  templateUrl: './report.component.html',
-  styleUrls: ['./report.component.css']
+    selector: 'app-report',
+    templateUrl: './report.component.html',
+    styleUrls: ['./report.component.css'],
+    standalone: false
 })
 export class ReportComponent implements OnInit, AfterViewInit {
   loading = false;

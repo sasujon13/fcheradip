@@ -1410,7 +1410,7 @@
                   <ng-template #provisionalPreview>
                     <div
                       class="preview-header"
-                      *ngIf="questionHeader?.trim()"
+                      *ngIf="questionHeader.trim()"
                     >
                       <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: 0 }"></ng-container>
                     </div>
@@ -1457,7 +1457,7 @@
     [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
     aria-hidden="true"
   >
-    <div #measureHeader class="preview-header preview-measure-header" *ngIf="questionHeader?.trim() && measureCreativeHeaderRailVisible()">
+    <div #measureHeader class="preview-header preview-measure-header" *ngIf="questionHeader.trim() && measureCreativeHeaderRailVisible()">
       <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: 0 }"></ng-container>
     </div>
     <div

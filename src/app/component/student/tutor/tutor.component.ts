@@ -3,9 +3,10 @@ import { TutorService } from '../../../service/tutor.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-tutor',
-  templateUrl: './tutor.component.html',
-  styleUrls: ['./tutor.component.css']
+    selector: 'app-tutor',
+    templateUrl: './tutor.component.html',
+    styleUrls: ['./tutor.component.css'],
+    standalone: false
 })
 export class TutorComponent implements OnInit, AfterViewInit {
   selectedLevel: string = 'Higher Secondary';

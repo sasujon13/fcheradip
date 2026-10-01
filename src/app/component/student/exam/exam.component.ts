@@ -5,9 +5,10 @@ import { LoadingService } from 'src/app/service/loading.service';
 import { interval, Subscription } from 'rxjs';
 
 @Component({
-  selector: 'app-exam',
-  templateUrl: './exam.component.html',
-  styleUrls: ['./exam.component.css']
+    selector: 'app-exam',
+    templateUrl: './exam.component.html',
+    styleUrls: ['./exam.component.css'],
+    standalone: false
 })
 export class ExamComponent implements OnInit, AfterViewInit, OnDestroy {
   examId: number = 0;

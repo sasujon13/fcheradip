@@ -8,9 +8,10 @@ import { HttpClient } from '@angular/common/http';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-order',
-  templateUrl: './order.component.html',
-  styleUrls: ['./order.component.css']
+    selector: 'app-order',
+    templateUrl: './order.component.html',
+    styleUrls: ['./order.component.css'],
+    standalone: false
 })
 export class OrderComponent implements OnInit, AfterViewInit {
   authForm: FormGroup;

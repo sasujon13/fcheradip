@@ -3,9 +3,10 @@ import { Component, OnInit, Renderer2 } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-chat',
-  templateUrl: './chat.component.html',
-  styleUrls: ['./chat.component.css']
+    selector: 'app-chat',
+    templateUrl: './chat.component.html',
+    styleUrls: ['./chat.component.css'],
+    standalone: false
 })
 export class ChatComponent implements OnInit {
   ngOnInit(): void {

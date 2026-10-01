@@ -10,9 +10,10 @@ import { HttpClient } from '@angular/common/http';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-mobile',
-  templateUrl: './mobile.component.html',
-  styleUrls: ['./mobile.component.css']
+    selector: 'app-mobile',
+    templateUrl: './mobile.component.html',
+    styleUrls: ['./mobile.component.css'],
+    standalone: false
 })
 export class MobileComponent implements OnInit, AfterViewInit {
   @ViewChild('consoleOutput') consoleOutput: ElementRef | undefined;

@@ -152,9 +152,10 @@ export interface PreviewPage {
 }
 
 @Component({
-  selector: 'app-question-creator',
-  templateUrl: './question-creator.component.html',
-  styleUrls: ['./question-creator.component.css'],
+    selector: 'app-question-creator',
+    templateUrl: './question-creator.component.html',
+    styleUrls: ['./question-creator.component.css'],
+    standalone: false
 })
 export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Default EIIN in the field until the user enters a real number (skipped for institute lookup). */

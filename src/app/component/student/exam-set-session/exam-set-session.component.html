@@ -71,7 +71,7 @@
         <span class="session-title-inline">{{ set?.name_label || 'Exam' }}</span>
         <span class="exam-submit-timer" [style.color]="timerColor">{{ getTimerDisplay() }}</span>
         <span class="exam-submit-count">{{ answeredCount }} / {{ questions.length }} answered</span>
-        <button type="button" class="btn-student-primary btn-submit-exam" (click)="submitExam()">Submit Exam</button>
+        <button type="button" class="btn-student-primary btn-submit-exam" [disabled]="submitting" (click)="submitExam()">{{ submitting ? 'Submitting…' : 'Submit Exam' }}</button>
       </div>
     </div>
     <ul class="topic-questions-list">
@@ -109,7 +109,7 @@
       </li>
     </ul>
     <div class="exam-footer-actions">
-      <button type="button" class="btn-student-primary btn-submit-exam" (click)="submitExam()">Submit Exam</button>
+      <button type="button" class="btn-student-primary btn-submit-exam" [disabled]="submitting" (click)="submitExam()">{{ submitting ? 'Submitting…' : 'Submit Exam' }}</button>
     </div>
   </div>
 

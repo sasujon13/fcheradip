@@ -6,18 +6,17 @@ import { catchError, debounceTime, distinctUntilChanged, take, takeUntil } from 
 import { CountryService, Country } from '../../service/country.service';
 
 @Component({
-  selector: 'app-country-selector',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './country-selector.component.html',
-  styleUrls: ['./country-selector.component.css'],
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => CountrySelectorComponent),
-      multi: true
-    }
-  ]
+    selector: 'app-country-selector',
+    imports: [CommonModule, ReactiveFormsModule],
+    templateUrl: './country-selector.component.html',
+    styleUrls: ['./country-selector.component.css'],
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => CountrySelectorComponent),
+            multi: true
+        }
+    ]
 })
 export class CountrySelectorComponent implements OnInit, OnDestroy, ControlValueAccessor {
 

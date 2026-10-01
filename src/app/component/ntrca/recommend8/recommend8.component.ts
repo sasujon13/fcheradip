@@ -11,9 +11,10 @@ import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 
 @Component({
-  selector: 'app-recommend8',
-  templateUrl: './recommend8.component.html',
-  styleUrls: ['./recommend8.component.css']
+    selector: 'app-recommend8',
+    templateUrl: './recommend8.component.html',
+    styleUrls: ['./recommend8.component.css'],
+    standalone: false
 })
 
 export class Recommend8Component implements OnInit, AfterViewInit {

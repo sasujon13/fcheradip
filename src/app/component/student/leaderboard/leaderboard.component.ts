@@ -3,9 +3,10 @@ import { LeaderboardService } from '../../../service/leaderboard.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-leaderboard',
-  templateUrl: './leaderboard.component.html',
-  styleUrls: ['./leaderboard.component.css']
+    selector: 'app-leaderboard',
+    templateUrl: './leaderboard.component.html',
+    styleUrls: ['./leaderboard.component.css'],
+    standalone: false
 })
 export class LeaderboardComponent implements OnInit, AfterViewInit {
   loading = false;

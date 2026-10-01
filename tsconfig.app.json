@@ -23,6 +23,9 @@
     "src/app/component/question/navigation/chapter-navigator/**",
     "src/app/component/question/navigation/subject-selector/**",
     "src/app/component/question/mcq-options/**",
-    "src/app/component/question/question-editor/**"
+    "src/app/component/question/question-editor/**",
+    "src/app/component/cart/cart.component.ts",
+    "src/app/service/about-us.service.ts",
+    "src/app/service/location.service.ts"
   ]
 }

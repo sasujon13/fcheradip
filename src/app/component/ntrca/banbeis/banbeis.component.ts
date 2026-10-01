@@ -15,9 +15,10 @@ import { map } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 
 @Component({
-  selector: 'app-banbeis',
-  templateUrl: './banbeis.component.html',
-  styleUrls: ['./banbeis.component.css']
+    selector: 'app-banbeis',
+    templateUrl: './banbeis.component.html',
+    styleUrls: ['./banbeis.component.css'],
+    standalone: false
 })
 
 export class BanbeisComponent implements OnInit, AfterViewInit {

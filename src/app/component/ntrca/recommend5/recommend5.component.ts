@@ -11,9 +11,10 @@ import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 
 @Component({
-  selector: 'app-recommend5',
-  templateUrl: './recommend5.component.html',
-  styleUrls: ['./recommend5.component.css']
+    selector: 'app-recommend5',
+    templateUrl: './recommend5.component.html',
+    styleUrls: ['./recommend5.component.css'],
+    standalone: false
 })
 
 export class Recommend5Component implements OnInit, AfterViewInit, OnDestroy {

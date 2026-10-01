@@ -6,9 +6,10 @@ import { ApiService } from '../../service/api.service';
  * Used by: ntrca, vacant5/6/7, merit5/6/7, recommend5/6/7.
  */
 @Component({
-  selector: 'app-ntrca-footer-section',
-  templateUrl: './ntrca-footer-section.component.html',
-  styleUrls: ['./ntrca-footer-section.component.css']
+    selector: 'app-ntrca-footer-section',
+    templateUrl: './ntrca-footer-section.component.html',
+    styleUrls: ['./ntrca-footer-section.component.css'],
+    standalone: false
 })
 export class NtrcaFooterSectionComponent {
   constructor(private apiService: ApiService) {}

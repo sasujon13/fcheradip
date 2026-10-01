@@ -11,9 +11,10 @@ import { LoadingService } from 'src/app/service/loading.service';
 
 
 @Component({
-  selector: 'app-auth',
-  templateUrl: './password.component.html',
-  styleUrls: ['./password.component.css']
+    selector: 'app-auth',
+    templateUrl: './password.component.html',
+    styleUrls: ['./password.component.css'],
+    standalone: false
 })
 
 export class PasswordComponent implements OnInit {

@@ -1,0 +1,39 @@
+<main class="ai-hub" aria-labelledby="ai-hub-title">
+  <section class="ai-hub__hero">
+    <p class="ai-hub__eyebrow">Cheradip AI</p>
+    <h1 id="ai-hub-title">এক জায়গায় Cheradip-এর AI সেবাসমূহ</h1>
+    <p class="ai-hub__intro">
+      পড়াশোনা, ভাষা শেখা এবং সফটওয়্যার তৈরির জন্য আলাদা উদ্দেশ্যে তৈরি AI সেবা থেকে
+      আপনার প্রয়োজনের সেবাটি বেছে নিন।
+    </p>
+  </section>
+
+  <section class="ai-hub__grid" aria-label="Cheradip AI services">
+    <a *ngFor="let service of services" [href]="href(service)" class="ai-service-card">
+      <span class="ai-service-card__icon" aria-hidden="true">{{ service.icon }}</span>
+      <span class="ai-service-card__body">
+        <strong>{{ service.name }}</strong>
+        <span>{{ service.description }}</span>
+        <small>{{ service.url.replace('https://', '') }}</small>
+      </span>
+      <span class="ai-service-card__arrow" aria-hidden="true">→</span>
+    </a>
+  </section>
+
+  <section class="ai-hub__details" aria-label="Service descriptions">
+    <article>
+      <h2>🎓 AI টিউটর</h2>
+      <p>নির্বাচিত লেভেল, বিষয়, অধ্যায় ও টপিক বুঝে শিক্ষার্থীর ভাষায় ব্যাখ্যা, প্রশ্নোত্তর ও শেখার সহায়তা দেয়।</p>
+    </article>
+    <article>
+      <h2>🌐 AI Language Tutor</h2>
+      <p>শব্দার্থ, উচ্চারণ, অনুবাদ, ব্যাকরণ ও অনুশীলনের মাধ্যমে অনলাইন এবং অফলাইন ভাষা শেখায়।</p>
+    </article>
+    <article>
+      <h2>🤖 Cheradip AI Agent</h2>
+      <p>কোড বোঝা, পরিকল্পনা, একাধিক ফাইল সম্পাদনা ও সফটওয়্যার উন্নয়নের কাজে সহায়তা করে।</p>
+    </article>
+  </section>
+
+  <a class="ai-hub__back" [href]="homeHref">সব Cheradip প্ল্যাটফর্ম দেখুন</a>
+</main>

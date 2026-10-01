@@ -15,9 +15,10 @@ import html2canvas from 'html2canvas';
 
 
 @Component({
-  selector: 'app-ntrca',
-  templateUrl: './ntrca.component.html',
-  styleUrls: ['./ntrca.component.css']
+    selector: 'app-ntrca',
+    templateUrl: './ntrca.component.html',
+    styleUrls: ['./ntrca.component.css'],
+    standalone: false
 })
 
 export class NtrcaComponent implements OnInit, AfterViewInit {

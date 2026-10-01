@@ -119,11 +119,11 @@ export class TrxUnlockService {
    * Activate TrxID: credits Trx row and (Bearer) adds to ``customer.settings.balance``.
    * Updates in-memory balance from response ``remaining`` only.
    */
-  activateAppliedTrx(row: { id: number }): Observable<number> {
+  activateAppliedTrx(row: { id: number }, trxid: string): Observable<number> {
     return this.http
       .post<{ success?: boolean; token?: number; remaining?: number }>(
         `${environment.apiUrl}/token/${row.id}/update_status/`,
-        { Status: 1 }
+        { trxid }
       )
       .pipe(
         map((r) => {
@@ -211,7 +211,7 @@ export class TrxUnlockService {
           if (result.Counter == null) {
             return throwError(() => ({ code: 'trx_not_found' as TrxApplyErrorCode }));
           }
-          return this.activateAppliedTrx({ id: result.id as number });
+          return this.activateAppliedTrx({ id: result.id as number }, triedTrimmed);
         }),
         switchMap((rem) =>
           this.fetchCoinBalance().pipe(

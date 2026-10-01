@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { ApiService } from './api.service';

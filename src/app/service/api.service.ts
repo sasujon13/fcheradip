@@ -460,12 +460,9 @@ export class ApiService {
     return this.http.get<{ exists: boolean; found_in?: string }>(url);
   }
 
-  /** Pass found_in from mobile check so password is validated only in that table. */
+  /** Verify the current signed-in account password without exposing it in the URL. */
   checkPasswordExists(username: string, password: string, foundIn?: string, countryCode?: string): Observable<{ exists: boolean }> {
-    let url = `${this.baseUrl}/password/?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-    if (foundIn) url += `&found_in=${encodeURIComponent(foundIn)}`;
-    if (countryCode) url += `&countryCode=${encodeURIComponent(countryCode)}`;
-    return this.http.get<{ exists: boolean }>(url);
+    return this.http.post<{ exists: boolean }>(`${this.baseUrl}/password/`, { password });
   }
 
   saveJsonData(jsonData: any) {
@@ -847,8 +844,22 @@ export class ApiService {
   }
 
   /** Questions for an exam set (up to 100) for taking the exam. */
-  getExamSetQuestions(id: number): Observable<{ questions: any[]; error?: string }> {
-    return this.http.get<{ questions: any[]; error?: string }>(`${this.baseUrl}/exam_sets/${id}/questions/`);
+  getExamSetQuestions(id: number): Observable<{
+    questions: any[];
+    attemptId?: string;
+    startedAt?: string;
+    expiresAt?: string;
+    durationSeconds?: number;
+    error?: string;
+  }> {
+    return this.http.get<{
+      questions: any[];
+      attemptId?: string;
+      startedAt?: string;
+      expiresAt?: string;
+      durationSeconds?: number;
+      error?: string;
+    }>(`${this.baseUrl}/exam_sets/${id}/questions/`);
   }
 
   /** List questions from HSC subject table by topic (and optional chapter) for user to select. */

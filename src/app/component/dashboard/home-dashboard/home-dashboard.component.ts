@@ -7,9 +7,10 @@ import { LoadingService } from 'src/app/service/loading.service';
  * Student area still uses {@link DashboardComponent} at `/student/dashboard`.
  */
 @Component({
-  selector: 'app-home-dashboard',
-  templateUrl: './home-dashboard.component.html',
-  styleUrls: ['./home-dashboard.component.css'],
+    selector: 'app-home-dashboard',
+    templateUrl: './home-dashboard.component.html',
+    styleUrls: ['./home-dashboard.component.css'],
+    standalone: false
 })
 export class HomeDashboardComponent implements OnInit, AfterViewInit {
   stats: any = {

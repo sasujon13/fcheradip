@@ -12,9 +12,10 @@ import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 
 @Component({
-  selector: 'app-merit8',
-  templateUrl: './merit8.component.html',
-  styleUrls: ['./merit8.component.css']
+    selector: 'app-merit8',
+    templateUrl: './merit8.component.html',
+    styleUrls: ['./merit8.component.css'],
+    standalone: false
 })
 
 export class Merit8Component implements OnInit, AfterViewInit {

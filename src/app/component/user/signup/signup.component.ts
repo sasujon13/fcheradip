@@ -71,11 +71,10 @@ function dobDDMMYYYYValidator(maxDateIso: string): ValidatorFn {
 }
 
 @Component({
-  selector: 'app-signup',
-  standalone: true,
-  imports: [CommonModule, RouterModule, ReactiveFormsModule, CountrySelectorComponent, AlertComponent],
-  templateUrl: './signup.component.html',
-  styleUrls: ['./signup.component.css']
+    selector: 'app-signup',
+    imports: [CommonModule, RouterModule, ReactiveFormsModule, CountrySelectorComponent, AlertComponent],
+    templateUrl: './signup.component.html',
+    styleUrls: ['./signup.component.css']
 })
 export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
   authForm: FormGroup;

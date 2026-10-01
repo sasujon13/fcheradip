@@ -1,9 +1,10 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 
 @Component({
-  selector: 'app-questioncard',
-  templateUrl: './questioncard.component.html',
-  styleUrls: ['./questioncard.component.css']
+    selector: 'app-questioncard',
+    templateUrl: './questioncard.component.html',
+    styleUrls: ['./questioncard.component.css'],
+    standalone: false
 })
 export class QuestionCardComponent {
   @Input() question: any;

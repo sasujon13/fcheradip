@@ -15,9 +15,10 @@ import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 
 @Component({
-  selector: 'app-institute',
-  templateUrl: './institute.component.html',
-  styleUrls: ['./institute.component.css']
+    selector: 'app-institute',
+    templateUrl: './institute.component.html',
+    styleUrls: ['./institute.component.css'],
+    standalone: false
 })
 export class InstituteComponent implements OnInit, OnDestroy {
 

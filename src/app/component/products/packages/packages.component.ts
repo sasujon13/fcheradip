@@ -3,9 +3,10 @@ import { Component, OnInit, Renderer2 } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-packages',
-  templateUrl: './packages.component.html',
-  styleUrls: ['./packages.component.css']
+    selector: 'app-packages',
+    templateUrl: './packages.component.html',
+    styleUrls: ['./packages.component.css'],
+    standalone: false
 })
 export class PackagesComponent implements OnInit {
 

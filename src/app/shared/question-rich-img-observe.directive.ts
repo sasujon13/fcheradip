@@ -24,7 +24,8 @@ const LATEX_TRY = 'span.q-rich-media-try-latex:not([data-q-latex-resolved])';
  * including auto-fit — re-run sizing so the cap tracks font (7px→240px … up to 480px).
  */
 @Directive({
-  selector: '[appQuestionRichImgHost]',
+    selector: '[appQuestionRichImgHost]',
+    standalone: false
 })
 export class QuestionRichImgObserveDirective
   implements AfterViewInit, OnChanges, OnDestroy

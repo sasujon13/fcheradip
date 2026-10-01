@@ -3,9 +3,10 @@ import { ExamService } from '../../../service/exam.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-archive',
-  templateUrl: './archive.component.html',
-  styleUrls: ['./archive.component.css']
+    selector: 'app-archive',
+    templateUrl: './archive.component.html',
+    styleUrls: ['./archive.component.css'],
+    standalone: false
 })
 export class ArchiveComponent implements OnInit, AfterViewInit {
   loading = false;

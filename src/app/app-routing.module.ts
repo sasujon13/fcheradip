@@ -60,6 +60,8 @@ import { AiltPageComponent } from './component/ailt/ailt-page.component';
 import { AicodingagentHomeComponent } from './component/aicodingagent/aicodingagent-home.component';
 import { CheradipManualComponent } from './component/cheradip/cheradip-manual.component';
 import { CheradipSupportComponent } from './component/cheradip/cheradip-support.component';
+import { EcommerceComingSoonComponent } from './component/ecommerce/ecommerce-coming-soon.component';
+import { AiServicesLandingComponent } from './component/ai-services/ai-services-landing.component';
 import {
   StudentSectionDashboardGuard,
   TeacherHomeDashboardGuard,
@@ -132,10 +134,19 @@ const routes: Routes = [
   ...ailtStaticPageRoutes(),
   /** Web manual only — App API is https://cheradip.com/ailt/api/ (nginx → FastAPI, not Angular). */
   { path: 'ailt', component: AiltManualComponent, pathMatch: 'full' },
+  /** Cheradip AI product directory; ai.cheradip.com renders this internally. */
+  { path: 'ai', component: AiServicesLandingComponent, pathMatch: 'full' },
+  { path: 'ai/', component: AiServicesLandingComponent, pathMatch: 'full' },
   /** Cheradip VS Code AI Coding Assistant user manual. */
+  { path: 'agent', component: CheradipManualComponent, pathMatch: 'full' },
+  { path: 'agent/', component: CheradipManualComponent, pathMatch: 'full' },
+  /** Previously published alias—must remain active. */
   { path: 'cheradip', component: CheradipManualComponent, pathMatch: 'full' },
   { path: 'cheradip/', component: CheradipManualComponent, pathMatch: 'full' },
-  /** AI Tutor landing page (Cheradip AI tutor / coding companion for VS Code). */
+  /** Reserved storefront route served at ecommerce.cheradip.com until phase two is approved. */
+  { path: 'ecommerce', component: EcommerceComingSoonComponent, pathMatch: 'full' },
+  { path: 'ecommerce/', component: EcommerceComingSoonComponent, pathMatch: 'full' },
+  /** Curriculum-aware AI Tutor; tutor.cheradip.com renders this route internally. */
   { path: 'tutor', component: AiltPageComponent, pathMatch: 'full', data: { page: 'index', folder: 'tutor', title: 'AI Tutor — Cheradip' } },
   { path: 'tutor/', component: AiltPageComponent, pathMatch: 'full', data: { page: 'index', folder: 'tutor', title: 'AI Tutor — Cheradip' } },
   { path: 'support', redirectTo: 'aicodingagent/support', pathMatch: 'full' },

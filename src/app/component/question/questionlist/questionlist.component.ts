@@ -1,9 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 
 @Component({
-  selector: 'app-questionlist',
-  templateUrl: './questionlist.component.html',
-  styleUrls: ['./questionlist.component.css']
+    selector: 'app-questionlist',
+    templateUrl: './questionlist.component.html',
+    styleUrls: ['./questionlist.component.css'],
+    standalone: false
 })
 export class QuestionListComponent implements OnInit {
   @Input() questions: any[] = [];

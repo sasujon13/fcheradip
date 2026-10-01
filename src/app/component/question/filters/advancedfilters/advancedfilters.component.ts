@@ -1,9 +1,10 @@
 import { Component, Output, EventEmitter } from '@angular/core';
 
 @Component({
-  selector: 'app-advancedfilters',
-  templateUrl: './advancedfilters.component.html',
-  styleUrls: ['./advancedfilters.component.css']
+    selector: 'app-advancedfilters',
+    templateUrl: './advancedfilters.component.html',
+    styleUrls: ['./advancedfilters.component.css'],
+    standalone: false
 })
 export class AdvancedFiltersComponent {
   @Output() filterChange = new EventEmitter<any>();

@@ -14,11 +14,13 @@ import { CountryService } from './service/country.service';
 import { WelcomeBonusCeremonyService } from './service/welcome-bonus-ceremony.service';
 import { AuthSessionService } from './service/auth-session.service';
 import { TrxUnlockService } from './service/trx-unlock.service';
+import { productRouteForHostname } from './config/product-sites';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.css'],
+    standalone: false
 })
 export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   title = 'Cheradip';
@@ -41,6 +43,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.routeProductSubdomain();
     this.showSiteHeader = !this.isAiltManualRoute(this.router.url);
     this.primeBrowserAudioOnFirstUserGesture();
     this.authSession.startSessionMonitor();
@@ -59,6 +62,17 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.countryService.country$.pipe(take(1)).subscribe(c => {
       this.countryService.initPreferredLangFromCountry(c?.country_code);
     });
+  }
+
+  /** Serve the correct product page when the shared Angular build is opened by subdomain. */
+  private routeProductSubdomain(): void {
+    const target = productRouteForHostname(window.location.hostname);
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (target && (path === '/' || path === '/index')) {
+      // Render the product route but keep the clean subdomain root visible.
+      // Direct legacy paths remain independently routable on every hostname.
+      void this.router.navigateByUrl(target, { skipLocationChange: true });
+    }
   }
 
   /**

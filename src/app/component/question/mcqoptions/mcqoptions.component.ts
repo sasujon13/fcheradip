@@ -2,16 +2,17 @@ import { Component, Input, forwardRef } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 @Component({
-  selector: 'app-mcqoptions',
-  templateUrl: './mcqoptions.component.html',
-  styleUrls: ['./mcqoptions.component.css'],
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => McqOptionsComponent),
-      multi: true
-    }
-  ]
+    selector: 'app-mcqoptions',
+    templateUrl: './mcqoptions.component.html',
+    styleUrls: ['./mcqoptions.component.css'],
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => McqOptionsComponent),
+            multi: true
+        }
+    ],
+    standalone: false
 })
 export class McqOptionsComponent implements ControlValueAccessor {
   options: any[] = [

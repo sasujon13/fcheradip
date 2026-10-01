@@ -2,9 +2,10 @@ import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChange
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 @Component({
-  selector: 'app-questionform',
-  templateUrl: './questionform.component.html',
-  styleUrls: ['./questionform.component.css']
+    selector: 'app-questionform',
+    templateUrl: './questionform.component.html',
+    styleUrls: ['./questionform.component.css'],
+    standalone: false
 })
 export class QuestionFormComponent implements OnInit, OnChanges {
   @Input() question: any | null = null;

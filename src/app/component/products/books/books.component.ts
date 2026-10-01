@@ -6,9 +6,10 @@ import { ChoiceService } from 'src/app/service/choice.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-books',
-  templateUrl: './books.component.html',
-  styleUrls: ['./books.component.css']
+    selector: 'app-books',
+    templateUrl: './books.component.html',
+    styleUrls: ['./books.component.css'],
+    standalone: false
 })
 export class BooksComponent implements OnInit {
   closeTimer: any;

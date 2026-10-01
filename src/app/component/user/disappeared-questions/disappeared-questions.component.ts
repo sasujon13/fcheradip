@@ -2,9 +2,10 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { DisappearedQuestionsService, DisappearedItem } from '../../../service/disappeared-questions.service';
 
 @Component({
-  selector: 'app-disappeared-questions',
-  templateUrl: './disappeared-questions.component.html',
-  styleUrls: ['./disappeared-questions.component.css']
+    selector: 'app-disappeared-questions',
+    templateUrl: './disappeared-questions.component.html',
+    styleUrls: ['./disappeared-questions.component.css'],
+    standalone: false
 })
 export class DisappearedQuestionsComponent implements OnInit {
   items: DisappearedItem[] = [];

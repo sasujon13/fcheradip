@@ -1,5 +1,5 @@
 import { ChangeDetectorRef, Component, Inject, OnInit, OnDestroy, AfterViewInit, Renderer2 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT } from '@angular/core';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { Location } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -15,9 +15,10 @@ import { slugForUrlDisplay } from 'src/app/url-serializer';
 const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
 
 @Component({
-  selector: 'app-college-theme',
-  templateUrl: './college-theme.component.html',
-  styleUrls: ['./college-theme.component.css']
+    selector: 'app-college-theme',
+    templateUrl: './college-theme.component.html',
+    styleUrls: ['./college-theme.component.css'],
+    standalone: false
 })
 export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   private banbeisUrl = `${environment.apiUrl}/banbeis/`;

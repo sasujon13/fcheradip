@@ -12,9 +12,10 @@ import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
 
 @Component({
-  selector: 'app-merit6',
-  templateUrl: './merit6.component.html',
-  styleUrls: ['./merit6.component.css']
+    selector: 'app-merit6',
+    templateUrl: './merit6.component.html',
+    styleUrls: ['./merit6.component.css'],
+    standalone: false
 })
 export class Merit6Component implements OnInit, AfterViewInit {
   baseUrl: string = `${environment.apiUrl}/merit6/`

@@ -3,9 +3,10 @@ import { Component, OnInit, Renderer2 } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-about',
-  templateUrl: './about.component.html',
-  styleUrls: ['./about.component.css']
+    selector: 'app-about',
+    templateUrl: './about.component.html',
+    styleUrls: ['./about.component.css'],
+    standalone: false
 })
 export class AboutComponent implements OnInit {
   ngOnInit(): void {

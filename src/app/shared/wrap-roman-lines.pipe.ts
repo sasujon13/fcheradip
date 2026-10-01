@@ -186,7 +186,10 @@ export function containsDelimitedQuestionMath(text: string): boolean {
   return /\$\$[\s\S]+?\$\$|\$(?!\$)[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/.test(text);
 }
 
-@Pipe({ name: 'wrapRomanLines' })
+@Pipe({
+    name: 'wrapRomanLines',
+    standalone: false
+})
 export class WrapRomanLinesPipe implements PipeTransform {
   constructor(private sanitizer: DomSanitizer) {}
 

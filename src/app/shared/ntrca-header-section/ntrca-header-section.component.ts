@@ -17,9 +17,10 @@ import { filter } from 'rxjs/operators';
  * Used by: ntrca, vacant5/6/7/8, merit5/6/7/8, recommend5/6/7/8.
  */
 @Component({
-  selector: 'app-ntrca-header-section',
-  templateUrl: './ntrca-header-section.component.html',
-  styleUrls: ['./ntrca-header-section.component.css']
+    selector: 'app-ntrca-header-section',
+    templateUrl: './ntrca-header-section.component.html',
+    styleUrls: ['./ntrca-header-section.component.css'],
+    standalone: false
 })
 export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
   @Input() newToken = '';

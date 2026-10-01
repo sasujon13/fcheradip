@@ -160,7 +160,10 @@ export function buildStemOnlyLatexSvgPathFromMediaPath(pathFromMedia: string): s
   return t || null;
 }
 
-@Pipe({ name: 'formatQuestionMedia' })
+@Pipe({
+    name: 'formatQuestionMedia',
+    standalone: false
+})
 export class FormatQuestionMediaPipe implements PipeTransform {
   transform(text: string | null | undefined): string {
     if (text == null || text === '') {

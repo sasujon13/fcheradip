@@ -1,17 +1,36 @@
-import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, Renderer2 } from '@angular/core';
-import { ApiService } from 'src/app/service/api.service';
-import { CartService } from 'src/app/service/cart.service';
-import { ChoiceService } from 'src/app/service/choice.service';
+import {
+  CHERADIP_PRODUCT_SITES,
+  CheradipProductSite,
+  productHrefForHostname,
+} from 'src/app/config/product-sites';
+import { AuthSessionService } from 'src/app/service/auth-session.service';
+import { getDefaultDashboardPath } from 'src/app/service/dashboard-route.util';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-index',
-  templateUrl: './index.component.html',
-  styleUrls: ['./index.component.css']
+    selector: 'app-index',
+    templateUrl: './index.component.html',
+    styleUrls: ['./index.component.css'],
+    standalone: false
 })
 export class IndexComponent implements OnInit {
+  readonly productSites = CHERADIP_PRODUCT_SITES;
+  studentZoneLink = '/auth';
+
+  productUrl(id: CheradipProductSite['id']): string {
+    const product = this.productSites.find(item => item.id === id);
+    return product ? this.productHref(product) : '/index';
+  }
+
+  productHref(product: CheradipProductSite): string {
+    return productHrefForHostname(product, window.location.hostname);
+  }
+
   ngOnInit(): void {
+    this.studentZoneLink = this.authSession.hasStoredSession()
+      ? getDefaultDashboardPath()
+      : '/auth';
     this.loadingService.setTotal(1);
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
@@ -23,9 +42,9 @@ export class IndexComponent implements OnInit {
   }
 
     constructor(
-    private http: HttpClient,
     private renderer: Renderer2,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private authSession: AuthSessionService
   ) {}
   ngAfterViewInit(): void {
     const signMenu = document.getElementById('sign_menu');

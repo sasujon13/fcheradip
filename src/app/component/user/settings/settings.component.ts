@@ -9,9 +9,10 @@ import { LoadingService } from 'src/app/service/loading.service';
 export type ExportFormat = 'both' | 'pdf' | 'docx';
 
 @Component({
-  selector: 'app-settings',
-  templateUrl: './settings.component.html',
-  styleUrls: ['./settings.component.css']
+    selector: 'app-settings',
+    templateUrl: './settings.component.html',
+    styleUrls: ['./settings.component.css'],
+    standalone: false
 })
 export class SettingsComponent implements OnInit, AfterViewInit {
   exportFormat: ExportFormat = 'pdf';

@@ -54,15 +54,17 @@ const SUBJECT_CACHE_PREFIX = 'cheradip_subject_all_';
 const SUBJECT_LIST_CHUNK_SIZE = 200;
 
 @Component({
-  selector: 'app-exam-set-session',
-  templateUrl: './exam-set-session.component.html',
-  styleUrls: ['./exam-set-session.component.css']
+    selector: 'app-exam-set-session',
+    templateUrl: './exam-set-session.component.html',
+    styleUrls: ['./exam-set-session.component.css'],
+    standalone: false
 })
 export class ExamSetSessionComponent implements OnInit, OnDestroy {
   setId = 0;
   set: any = null;
   questions: any[] = [];
   answers: Record<string, string> = {};
+  private grading: Record<string, any> = {};
   explanationOpen: Record<string, boolean> = {};
   allExplanationsOpen = false;
   editingQid: string | null = null;
@@ -74,8 +76,10 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
   private examDurationSec = DEFAULT_EXAM_DURATION_SEC;
   timeRemaining = DEFAULT_EXAM_DURATION_SEC;
   private deadlineTs = Date.now() + DEFAULT_EXAM_DURATION_SEC * 1000;
+  private serverAttemptId = '';
   timerSub?: Subscription;
   isSubmitted = false;
+  submitting = false;
   result: { score: number; correct: number; total: number } | null = null;
   error = '';
   loading = true;
@@ -111,6 +115,7 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       if (this.questions.length && !this.isSubmitted) this.autoEndOnLeave();
       // Reset state when the route id changes (Next/Random exam navigation reuses the component)
       this.answers = {};
+      this.grading = {};
       this.result = null;
       this.isSubmitted = false;
       this.asideOpen = false;
@@ -376,25 +381,16 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
         this.examDurationSec = Math.max(60, (Number(data?.duration_minutes) || 20) * 60);
         this.timeRemaining = this.examDurationSec;
         this.deadlineTs = Date.now() + this.examDurationSec * 1000;
-        const qids = this.parseQidsFromSet(data);
-        const levelTr = (data?.level_tr || '').trim();
-        const classLevel = (data?.class_level || '').trim();
-        const subjectTr = (data?.subject_tr || '').trim();
-        const fromCache = (levelTr && subjectTr) ? this.loadSubjectQuestionsFromCache(levelTr, classLevel, subjectTr, qids) : null;
-        if (fromCache && fromCache.length > 0) {
-          this.questions = fromCache.slice(0, MAX_QUESTIONS);
-          this.restoreSession();
-          if (this.isSubmitted) { this.loading = false; this.disableAntiCheat(); this.scheduleFit(); return; }
-          if (this.timeRemaining <= 0) { this.submitExam(); this.loading = false; this.scheduleFit(); this.scheduleFullscreen(); return; }
-          this.startTimer();
-          this.loading = false;
-          this.scheduleFit();
-          this.scheduleFullscreen();
-          return;
-        }
         this.api.getExamSetQuestions(this.setId).subscribe({
           next: (q: any) => {
             this.questions = (q.questions || []).slice(0, MAX_QUESTIONS);
+            this.serverAttemptId = String(q.attemptId || '');
+            this.examDurationSec = Math.max(60, Number(q.durationSeconds) || this.examDurationSec);
+            const serverDeadline = Date.parse(String(q.expiresAt || ''));
+            this.deadlineTs = Number.isFinite(serverDeadline)
+              ? serverDeadline
+              : Date.now() + this.examDurationSec * 1000;
+            this.timeRemaining = Math.max(0, Math.ceil((this.deadlineTs - Date.now()) / 1000));
             this.restoreSession();
             if (this.isSubmitted) { this.loading = false; this.disableAntiCheat(); this.scheduleFit(); return; }
             if (this.timeRemaining <= 0) { this.submitExam(); this.loading = false; this.scheduleFit(); this.scheduleFullscreen(); return; }
@@ -490,7 +486,6 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     this.timerSub?.unsubscribe();
     // Anchor the countdown to the wall clock so leaving/hiding the tab still
     // consumes real time (browsers throttle background timers, not Date.now()).
-    this.deadlineTs = Date.now() + this.timeRemaining * 1000;
     this.timerSub = interval(500).subscribe(() => {
       const left = Math.max(0, Math.round((this.deadlineTs - Date.now()) / 1000));
       if (left !== this.timeRemaining) {
@@ -594,23 +589,50 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
   }
 
   submitExam(): void {
+    if (this.submitting || this.isSubmitted) return;
     this.timerSub?.unsubscribe();
-    let correct = 0;
-    const total = this.questions.length;
-    for (const q of this.questions) {
-      const userAnswer = this.answers[q.qid];
-      const expected = this.getCorrectAnswer(q);
-      if (expected && userAnswer === expected) correct++;
+    this.submitting = true;
+    this.error = '';
+    if (!this.serverAttemptId) {
+      this.submitting = false;
+      this.error = 'The server did not issue a valid exam attempt. Reload and try again.';
+      return;
     }
-    const score = total ? Math.round((correct / total) * 100) : 0;
-    this.result = { score, correct, total };
-    this.isSubmitted = true;
-    this.storeExamResult(score, correct, total);
-    this.persistSession();
-    // Leave fullscreen once the exam is submitted (results view is shown normally).
-    this.exitFullscreenIfActive();
-    // After submission every restriction is lifted — the page works as usual.
-    this.disableAntiCheat();
+    this.studentService.saveExamResult({
+      attemptId: this.serverAttemptId,
+      setId: this.setId,
+      answers: { ...this.answers }
+    }).subscribe({
+      next: (response: any) => {
+        const verified = response?.result;
+        if (!verified) {
+          this.submitting = false;
+          this.error = 'The server could not verify this exam result.';
+          return;
+        }
+        const grading = response?.grading || {};
+        this.grading = grading;
+        this.questions = this.questions.map((question) => ({
+          ...question,
+          ...(grading[question.qid] || {})
+        }));
+        this.result = {
+          score: Number(verified.score) || 0,
+          correct: Number(verified.correct) || 0,
+          total: Number(verified.total) || this.questions.length
+        };
+        this.isSubmitted = true;
+        this.submitting = false;
+        this.storeExamResult(this.result.score, this.result.correct, this.result.total);
+        this.persistSession();
+        this.exitFullscreenIfActive();
+        this.disableAntiCheat();
+      },
+      error: (err: any) => {
+        this.submitting = false;
+        this.error = err?.error?.error || 'Could not securely submit the exam. Please try again.';
+      }
+    });
   }
 
   private exitFullscreenIfActive(): void {
@@ -651,9 +673,6 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     } catch {
       // ignore
     }
-    this.studentService.saveExamResult(result).subscribe({
-      error: () => { /* local history remains available if the server is temporarily unavailable */ }
-    });
   }
 
   /* ------------------------------------------------------- exam session */
@@ -671,6 +690,8 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
         savedAt: Date.now(),
         isSubmitted: this.isSubmitted,
         result: this.result,
+        grading: this.grading,
+        attemptId: this.serverAttemptId,
       }));
     } catch {
       // ignore
@@ -686,18 +707,24 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
       const raw = sessionStorage.getItem(this.sessionKey());
       if (!raw) return;
       const s = JSON.parse(raw);
+      if (!this.serverAttemptId || s.attemptId !== this.serverAttemptId) {
+        this.clearSession();
+        return;
+      }
       if (s.isSubmitted && s.result) {
         this.answers = (s.answers && typeof s.answers === 'object') ? s.answers : {};
+        this.grading = (s.grading && typeof s.grading === 'object') ? s.grading : {};
+        this.questions = this.questions.map((question) => ({
+          ...question,
+          ...(this.grading[question.qid] || {})
+        }));
         this.result = s.result;
         this.isSubmitted = true;
         this.timerSub?.unsubscribe();
         return;
       }
-      const savedAt = Number(s.savedAt) || Date.now();
-      const elapsedSec = Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
-      const left = Math.max(0, (Number(s.timeLeftSeconds) || this.examDurationSec) - elapsedSec);
       this.answers = (s.answers && typeof s.answers === 'object') ? s.answers : {};
-      this.timeRemaining = left;
+      this.timeRemaining = Math.max(0, Math.ceil((this.deadlineTs - Date.now()) / 1000));
     } catch {
       // ignore
     }
@@ -1011,12 +1038,13 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     this.result = null;
     this.isSubmitted = false;
     this.timeRemaining = this.examDurationSec;
+    this.serverAttemptId = '';
     // A new attempt re-arms the secure-exam guards (they were lifted on submit).
     this.disableAntiCheat();
     this.enableAntiCheat();
     // The retake click is a user gesture, so fullscreen can be entered immediately.
     this.autoEnterFullscreen();
-    this.startTimer();
+    this.loadSetAndQuestions();
   }
 
   get resultsHistory(): any[] {

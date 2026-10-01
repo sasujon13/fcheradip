@@ -14,9 +14,10 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 @Component({
-  selector: 'app-vacant8',
-  templateUrl: './vacant8.component.html',
-  styleUrls: ['./vacant8.component.css']
+    selector: 'app-vacant8',
+    templateUrl: './vacant8.component.html',
+    styleUrls: ['./vacant8.component.css'],
+    standalone: false
 })
 export class Vacant8Component implements OnInit, AfterViewInit {
   baseUrl: string = `${environment.apiUrl}/vacancy8/`

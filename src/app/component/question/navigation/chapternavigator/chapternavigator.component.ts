@@ -1,9 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 
 @Component({
-  selector: 'app-chapternavigator',
-  templateUrl: './chapternavigator.component.html',
-  styleUrls: ['./chapternavigator.component.css']
+    selector: 'app-chapternavigator',
+    templateUrl: './chapternavigator.component.html',
+    styleUrls: ['./chapternavigator.component.css'],
+    standalone: false
 })
 export class ChapterNavigatorComponent implements OnInit {
   @Input() chapters: any[] = [];

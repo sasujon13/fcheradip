@@ -8,7 +8,8 @@ import {
 } from '@angular/core';
 
 @Directive({
-  selector: '[hFilter]'
+    selector: '[hFilter]',
+    standalone: false
 })
 export class hDirective implements OnChanges {
   @Input('hFilter') searchText: string = '';

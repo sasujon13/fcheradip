@@ -12,7 +12,10 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
  * Only matches text outside HTML tags (preserves existing markup).
  * When searchTerm is empty, returns the input unmodified.
  */
-@Pipe({ name: 'highlightMatch' })
+@Pipe({
+    name: 'highlightMatch',
+    standalone: false
+})
 export class HighlightMatchPipe implements PipeTransform {
 
   constructor(private sanitizer: DomSanitizer) {}

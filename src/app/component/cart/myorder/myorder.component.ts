@@ -6,9 +6,10 @@ import html2canvas from 'html2canvas';
 
 
 @Component({
-  selector: 'app-order',
-  templateUrl: './myorder.component.html',
-  styleUrls: ['./myorder.component.css']
+    selector: 'app-order',
+    templateUrl: './myorder.component.html',
+    styleUrls: ['./myorder.component.css'],
+    standalone: false
 })
 export class MyorderComponent implements OnInit, AfterViewInit {
   orders: any[] = [];

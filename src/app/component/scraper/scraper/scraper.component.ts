@@ -3,9 +3,10 @@ import { ApiService, ScraperLibrary } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-scraper',
-  templateUrl: './scraper.component.html',
-  styleUrls: ['./scraper.component.css'],
+    selector: 'app-scraper',
+    templateUrl: './scraper.component.html',
+    styleUrls: ['./scraper.component.css'],
+    standalone: false
 })
 export class ScraperComponent implements OnInit, AfterViewInit, AfterViewChecked {
   @ViewChild('logBox') logBoxRef?: ElementRef<HTMLTextAreaElement>;
@@ -84,13 +85,13 @@ export class ScraperComponent implements OnInit, AfterViewInit, AfterViewChecked
             (lib[camel] ?? lib[snake] ?? 200) as number;
           this.loginUrl = (get('loginUrl', 'login_url') || '').trim();
           this.username = (get('username', 'username') || '').trim();
-          this.password = (get('password', 'password') || '').trim();
+          this.password = '';
           const g = (lib['groups'] as { name?: string; urls?: string[] }[] | undefined);
           this.groups = (g?.length ? g : [{ name: 'Default', urls: [] }]) as { name: string; urls: string[] }[];
           this.selectedGroupIndex = 0;
           this.apiBaseUrl = (get('apiBaseUrl', 'api_base_url') || '').trim();
           this.apiUrlTemplate = (get('apiUrlTemplate', 'api_url_template') || '').trim();
-          this.bearerToken = (get('bearerToken', 'bearer_token') || '').trim();
+          this.bearerToken = '';
           const qpp = getNum('questionPerPage', 'question_per_page');
           this.questionPerPage = typeof qpp === 'number' && qpp > 0 ? qpp : 200;
         } else {
@@ -115,23 +116,23 @@ export class ScraperComponent implements OnInit, AfterViewInit, AfterViewChecked
   }
 
   private static readonly SCRAPER_USERNAME_KEY = 'scraper_username';
-  private static readonly SCRAPER_PASSWORD_KEY = 'scraper_password';
-
   private loadCredentialsFromStorage(): void {
     try {
       const u = localStorage.getItem(ScraperComponent.SCRAPER_USERNAME_KEY);
       if (u !== null) this.username = u;
-      const p = localStorage.getItem(ScraperComponent.SCRAPER_PASSWORD_KEY);
-      if (p !== null) this.password = p;
       if (u === null && this.username) localStorage.setItem(ScraperComponent.SCRAPER_USERNAME_KEY, this.username);
-      if (p === null && this.password) localStorage.setItem(ScraperComponent.SCRAPER_PASSWORD_KEY, this.password);
+      // Remove credentials written by older versions. Passwords and bearer
+      // tokens live only in this component's memory for the active page.
+      localStorage.removeItem('scraper_password');
+      localStorage.removeItem('scraper_bearer_token');
     } catch (_) {}
   }
 
   private saveCredentialsToStorage(): void {
     try {
       localStorage.setItem(ScraperComponent.SCRAPER_USERNAME_KEY, this.username || '');
-      localStorage.setItem(ScraperComponent.SCRAPER_PASSWORD_KEY, this.password || '');
+      localStorage.removeItem('scraper_password');
+      localStorage.removeItem('scraper_bearer_token');
     } catch (_) {}
   }
 
@@ -144,11 +145,9 @@ export class ScraperComponent implements OnInit, AfterViewInit, AfterViewChecked
     const lib: ScraperLibrary = {
       loginUrl: this.loginUrl,
       username: this.username,
-      password: this.password,
       groups: this.groups.map((g) => ({ name: g.name, urls: g.urls?.slice() ?? [] })),
       apiBaseUrl: this.apiBaseUrl,
       apiUrlTemplate: this.apiUrlTemplate,
-      bearerToken: this.bearerToken,
       questionPerPage: this.questionPerPage,
     };
     this.api.scraperHelperSave({ lastSite: this.sitePreset, libraries: { [this.sitePreset]: lib } }).subscribe({

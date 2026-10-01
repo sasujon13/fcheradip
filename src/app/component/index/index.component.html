@@ -41,17 +41,21 @@
         <span class="home-tile__label">চয়েস</span>
         <span class="home-tile__hint">পছন্দের তালিকা</span>
       </a>
-      <a routerLink="/tutor" class="home-tile">
-        <span class="home-tile__icon" aria-hidden="true">🤖</span>
-        <span class="home-tile__label">AI টিউটর</span>
-        <span class="home-tile__hint">VS Code AI সহকারী · চ্যাট · এজেন্ট মোড</span>
-      </a>
       <a href="#home-manuals" class="home-tile">
         <span class="home-tile__icon" aria-hidden="true">📘</span>
         <span class="home-tile__label">ইউজার ম্যানুয়াল</span>
         <span class="home-tile__hint">AI টিউটর ও অ্যাপ গাইড</span>
       </a>
-      <a routerLink="/auth" class="home-tile home-tile--wide">
+      <a *ngFor="let product of productSites" [href]="productHref(product)" class="home-tile home-tile--product">
+        <span class="home-tile__icon" aria-hidden="true">{{ product.icon }}</span>
+        <span class="home-tile__label">{{ product.name }}</span>
+        <span class="home-tile__hint">{{ product.description }}</span>
+        <span class="home-tile__domain">{{ product.url.replace('https://', '') }}</span>
+        <span *ngIf="product.status" class="home-tile__status">{{ product.status }}</span>
+      </a>
+    </div>
+    <div class="home-card-grid home-card-grid--student">
+      <a [routerLink]="studentZoneLink" class="home-tile home-tile--wide">
         <span class="home-tile__icon" aria-hidden="true">🎮</span>
         <span class="home-tile__label">শিক্ষার্থী জোন</span>
         <span class="home-tile__hint">লগইনের পর ড্যাশবোর্ড · লাইভ পরীক্ষা · রিপোর্ট · লিডারবোর্ড · AI টিউটর</span>
@@ -163,38 +167,6 @@
     </div>
   </section>
 
-  <!-- User manuals -->
-  <section id="home-manuals" class="home-section home-manuals" aria-labelledby="home-manuals-title">
-    <div class="home-section__head">
-      <h2 id="home-manuals-title" class="home-section__title">
-        <span class="home-section__emoji">📘</span> ইউজার ম্যানুয়াল
-      </h2>
-      <p class="home-section__lead">
-        প্রতিটি পণ্যের সম্পূর্ণ ব্যবহার নির্দেশিকা — ধাপে ধাপে ইনস্টল, সেটআপ, বিলিং ও সমস্যা সমাধান।
-      </p>
-    </div>
-    <div class="home-manual-grid">
-      <a routerLink="/tutor" class="home-manual-card">
-        <span class="home-manual-card__icon" aria-hidden="true">🤖</span>
-        <span class="home-manual-card__label">AI টিউটর</span>
-        <span class="home-manual-card__hint">VS Code-এর জন্য Cheradip AI টিউটর — চ্যাট, এজেন্ট মোড, মাল্টি-ফাইল এডিট, প্রোভাইডার সেটআপ ও প্ল্যান।</span>
-        <span class="home-manual-card__cta">পেজ দেখুন →</span>
-      </a>
-      <a routerLink="/cheradip" class="home-manual-card">
-        <span class="home-manual-card__icon" aria-hidden="true">📘</span>
-        <span class="home-manual-card__label">Cheradip AI Coding Assistant — ম্যানুয়াল</span>
-        <span class="home-manual-card__hint">ইনস্টল থেকে বিলিং পর্যন্ত পূর্ণ ম্যানুয়াল — চ্যাট, এজেন্ট, কম্পোজার, @ কনটেক্সট, বিলিং ও ট্রাবলশুটিং।</span>
-        <span class="home-manual-card__cta">ম্যানুয়াল খুলুন →</span>
-      </a>
-      <a routerLink="/ailt" class="home-manual-card">
-        <span class="home-manual-card__icon" aria-hidden="true">📗</span>
-        <span class="home-manual-card__label">AI Language Tutor — গাইড</span>
-        <span class="home-manual-card__hint">Android অ্যাপ ও ওয়েব পেজের গাইড — সাইন-ইন, লেসন, প্র্যাকটিস স্কোর, সাবস্ক্রিপশন ও অ্যাকাউন্ট ডিলিট।</span>
-        <span class="home-manual-card__cta">গাইড খুলুন →</span>
-      </a>
-    </div>
-  </section>
-
   <!-- Bottom CTA -->
   <section class="home-cta-band" aria-label="যোগাযোগ ও সামাজিক">
     <div class="home-cta-band__inner">
@@ -203,7 +175,7 @@
         <p class="home-cta-band__tagline">🎯 ফোকাসড স্টাডি · 🧠 প্র্যাকটিকাল · ✅ পরীক্ষাভিত্তিক প্রশ্ন · 💯 সঠিক দিকনির্দেশনা</p>
       </div>
       <div class="home-cta-band__actions">
-        <a routerLink="/auth" class="home-btn home-btn--gold">
+        <a [routerLink]="studentZoneLink" class="home-btn home-btn--gold">
           <span class="home-btn__ico">📌</span> এখনই যুক্ত হন
         </a>
       </div>

@@ -2,16 +2,17 @@ import { Component, Input, forwardRef } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 @Component({
-  selector: 'app-questioneditor',
-  templateUrl: './questioneditor.component.html',
-  styleUrls: ['./questioneditor.component.css'],
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => QuestionEditorComponent),
-      multi: true
-    }
-  ]
+    selector: 'app-questioneditor',
+    templateUrl: './questioneditor.component.html',
+    styleUrls: ['./questioneditor.component.css'],
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => QuestionEditorComponent),
+            multi: true
+        }
+    ],
+    standalone: false
 })
 export class QuestionEditorComponent implements ControlValueAccessor {
   @Input() placeholder: string = 'Enter question text...';

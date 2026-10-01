@@ -42,9 +42,10 @@ interface QuestionSubject {
 }
 
 @Component({
-  selector: 'app-regularexam',
-  templateUrl: './regularexam.component.html',
-  styleUrls: ['./regularexam.component.css']
+    selector: 'app-regularexam',
+    templateUrl: './regularexam.component.html',
+    styleUrls: ['./regularexam.component.css'],
+    standalone: false
 })
 export class RegularexamComponent implements OnInit, OnDestroy, AfterViewInit {
   examMode: 'regular' | 'live' | 'practice' = 'regular';

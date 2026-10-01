@@ -3,9 +3,10 @@ import { ExamService } from '../../../service/exam.service';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-liveexam',
-  templateUrl: './liveexam.component.html',
-  styleUrls: ['./liveexam.component.css']
+    selector: 'app-liveexam',
+    templateUrl: './liveexam.component.html',
+    styleUrls: ['./liveexam.component.css'],
+    standalone: false
 })
 export class LiveexamComponent implements OnInit, AfterViewInit {
   loading = false;

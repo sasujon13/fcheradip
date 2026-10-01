@@ -2,8 +2,9 @@
 import { Component } from '@angular/core';
 
 @Component({
-  selector: 'app-cheradip-manual',
-  templateUrl: './cheradip-manual.component.html',
-  styleUrls: ['./cheradip-manual.component.css'],
+    selector: 'app-cheradip-manual',
+    templateUrl: './cheradip-manual.component.html',
+    styleUrls: ['./cheradip-manual.component.css'],
+    standalone: false
 })
 export class CheradipManualComponent {}

@@ -3,9 +3,10 @@ import { Component, OnInit, Renderer2, ElementRef, HostListener } from '@angular
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-faqs',
-  templateUrl: './faqs.component.html',
-  styleUrls: ['./faqs.component.css']
+    selector: 'app-faqs',
+    templateUrl: './faqs.component.html',
+    styleUrls: ['./faqs.component.css'],
+    standalone: false
 })
 export class FaqsComponent implements OnInit {
   constructor(

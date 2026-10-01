@@ -3,9 +3,10 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { LoadingService } from 'src/app/service/loading.service';
 
 @Component({
-  selector: 'app-student',
-  templateUrl: './student.component.html',
-  styleUrls: ['./student.component.css']
+    selector: 'app-student',
+    templateUrl: './student.component.html',
+    styleUrls: ['./student.component.css'],
+    standalone: false
 })
 export class StudentComponent implements OnInit, AfterViewInit {
 

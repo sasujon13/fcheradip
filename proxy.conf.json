@@ -2,16 +2,25 @@
   "/api": {
     "target": "http://127.0.0.1:8000",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "headers": {
+      "X-Forwarded-Proto": "https"
+    }
   },
   "/manage": {
     "target": "http://127.0.0.1:8000",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "headers": {
+      "X-Forwarded-Proto": "https"
+    }
   },
   "/media": {
     "target": "http://127.0.0.1:8000",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "headers": {
+      "X-Forwarded-Proto": "https"
+    }
   }
 }

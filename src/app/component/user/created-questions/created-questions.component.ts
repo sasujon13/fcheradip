@@ -21,9 +21,10 @@ import {
 } from '../../../shared/question-answer-sheet-export';
 
 @Component({
-  selector: 'app-created-questions',
-  templateUrl: './created-questions.component.html',
-  styleUrls: ['./created-questions.component.css']
+    selector: 'app-created-questions',
+    templateUrl: './created-questions.component.html',
+    styleUrls: ['./created-questions.component.css'],
+    standalone: false
 })
 export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   private static readonly MCQ_SET_LETTERS = ['ক', 'খ', 'গ', 'ঘ'] as const;

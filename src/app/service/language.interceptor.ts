@@ -1,12 +1,8 @@
 import { Injector, Injectable } from '@angular/core';
-import {
-  HttpRequest,
-  HttpHandler,
-  HttpEvent,
-  HttpInterceptor,
-} from '@angular/common/http';
+import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { CountryService } from './country.service';
+import { environment } from '../../environments/environment';
 
 /**
  * Adds X-Language header to all API requests so the backend can translate
@@ -22,6 +18,15 @@ export class LanguageInterceptor implements HttpInterceptor {
     request: HttpRequest<unknown>,
     next: HttpHandler
   ): Observable<HttpEvent<unknown>> {
+    // A previous local HTTPS redirect may be cached permanently by the browser.
+    // Give development API reads a new cache identity after the dev proxy starts
+    // forwarding the original protocol correctly. Production URLs are untouched.
+    if (!environment.production && request.method === 'GET' && this.isApiRequest(request.url)) {
+      request = request.clone({
+        setParams: { '_cheradip_dev_proxy': 'https-forwarded-v1' },
+      });
+    }
+
     const lang = this.injector.get(CountryService).getPreferredLang();
     if (lang) {
       request = request.clone({
@@ -29,5 +34,24 @@ export class LanguageInterceptor implements HttpInterceptor {
       });
     }
     return next.handle(request);
+  }
+
+  private isApiRequest(url: string): boolean {
+    const apiUrl = (environment.apiUrl || '').replace(/\/$/, '');
+    if (!apiUrl) return false;
+
+    if (url.startsWith('http')) {
+      try {
+        const requestUrl = new URL(url, window.location.origin);
+        const configuredUrl = new URL(apiUrl, window.location.origin);
+        return requestUrl.origin === configuredUrl.origin &&
+          (requestUrl.pathname === configuredUrl.pathname ||
+            requestUrl.pathname.startsWith(`${configuredUrl.pathname}/`));
+      } catch {
+        return false;
+      }
+    }
+
+    return url === apiUrl || url.startsWith(`${apiUrl}/`);
   }
 }

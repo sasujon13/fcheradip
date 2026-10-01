@@ -178,7 +178,7 @@
               </tr>
             </table>
 
-            <div *ngIf="(parseJSON(vacancy.parameter?.results?.[0]?.Record2)?.length ?? 0) > 2">
+            <div *ngIf="parseJSON(vacancy.parameter?.results?.[0]?.Record2).length > 2">
               <button (click)="toggleExpand(vacancy.EIIN)">
                 {{ expandedRows[vacancy.EIIN] ? 'View Less' : 'View All' }}
               </button>

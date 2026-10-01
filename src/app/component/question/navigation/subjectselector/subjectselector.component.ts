@@ -1,9 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 
 @Component({
-  selector: 'app-subjectselector',
-  templateUrl: './subjectselector.component.html',
-  styleUrls: ['./subjectselector.component.css']
+    selector: 'app-subjectselector',
+    templateUrl: './subjectselector.component.html',
+    styleUrls: ['./subjectselector.component.css'],
+    standalone: false
 })
 export class SubjectSelectorComponent implements OnInit {
   @Input() subjects: any[] = [];
