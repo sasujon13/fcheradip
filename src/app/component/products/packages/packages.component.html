@@ -26,8 +26,8 @@
       <p class="price">Make Money by Refering your Friends!</p>
       <p class="footer">
         <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-copy"></i>Get Referrel Link</a>
+        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
+        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
       </p>
     </div>
   </li>
@@ -37,6 +37,8 @@
       <table class="package" style="margin-top: 5px;"><br>
         <tr class="tblhead"><th class="tblth">Base</th><th class="tblth">Badge</th><th class="tblth">CQ<br>(TK)</th><th class="tblth">MCQ<br>(TK)</th><th class="tblth">Disc.<br>(%)</th><th class="tblth">RV<br>(%)</th></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Free','None')"><td class="tbltd">Free</td><td class="tbltd">None</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">NA</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr [class.current-membership]="isMembershipRow('question','New','Star')"><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr [class.current-membership]="isMembershipRow('question','Premium','Silver')"><td class="tbltd">Premium</td><td class="tbltd">Silver</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">25</td></tr>
@@ -54,8 +56,8 @@
       <p class="price" style="padding: 10px;">Get New Badges & Make Money by Refering<br>Your Friends, Collegues and Students!</p>
       <p class="footer">
         <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-plus"></i>Add Money</a>
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-copy"></i>Get Referrel Link</a>
+        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
+        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
       </p>
     </div>
   </li>
@@ -64,6 +66,8 @@
       <h3 class="title">User Badges for Students</h3><br>
       <table class="package" style="margin-top: 5px;"><br>
         <tr class="tblhead"><th class="tblth">Base</th><th class="tblth">Badge</th><th class="tblth">PR<br>(%)</th><th class="tblth">Disc.<br>(%)</th><th class="tblth">RV<br>(%)</th></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','Free','None')"><td class="tbltd">Free</td><td class="tbltd">None</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">NA</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
         <tr [class.current-membership]="isMembershipRow('exam','New','Star')"><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
@@ -82,8 +86,8 @@
       <p class="price" style="padding: 10px;">Get New Badges & Make Money<br>By Refering Your Friends!</p>
       <p class="footer">
         <a [routerLink]="['/student/dashboard']" class="item_footer"><i class="fa fa-book"></i>Give Exam</a>
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-copy"></i>Get Referrel Link</a>
+        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
+        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
       </p>
     </div>
   </li>
@@ -100,8 +104,8 @@
     <tr class="tblhead2"><td class="tbltd2">Com.</td><td class="tbltd2">----------</td><td class="tbltd2">Combined</td></tr>
     <tr class="tblhead2"><td class="tbltd2">Q</td><td class="tbltd2">----------</td><td class="tbltd2">Questions Created</td></tr>
     <tr class="tblhead2"><td class="tbltd2">E</td><td class="tbltd2">----------</td><td class="tbltd2">Exams Attended</td></tr>
-    <tr class="tblhead2"><td class="tbltd2">Disc.</td><td class="tbltd2">----------</td><td class="tbltd2">Discount</td></tr>
-    <tr class="tblhead2"><td class="tbltd2">RV</td><td class="tbltd2">----------</td><td class="tbltd2">Reference Value</td></tr>
+    <tr class="tblhead2"><td class="tbltd2">Disc.</td><td class="tbltd2">----------</td><td class="tbltd2">Discount on Next Renewal</td></tr>
+    <tr class="tblhead2"><td class="tbltd2">RV</td><td class="tbltd2">----------</td><td class="tbltd2">Referral Commission Value</td></tr>
     <tr class="tblhead2"><td class="tbltd2">PR</td><td class="tbltd2">----------</td><td class="tbltd2">Passing Rate</td></tr>
   </table>
 </div>

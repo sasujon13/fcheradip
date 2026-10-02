@@ -78,6 +78,10 @@ export class ApiService {
     }));
   }
 
+  getReferralSummary(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/referrals/summary/`);
+  }
+
   uploadProfilePicture(file: Blob): Observable<any> {
     const form = new FormData();
     form.append('image', file, 'profile.webp');

@@ -307,6 +307,14 @@
       </div>
     </div>
 
+    <div class="form-group">
+      <span class="label-colon"><label for="reference">Reference Mobile</label><span class="colon">:</span></span>
+      <div class="form-field">
+        <input type="tel" formControlName="reference" id="reference" class="form-control"
+          placeholder="Keep Empty if no Reference!" maxlength="15" />
+      </div>
+    </div>
+
     <!-- Retype Password (shown only when user edited password and it differs from the suggested default) -->
     <div class="form-group" *ngIf="authForm.get('password')?.dirty && (authForm.get('password')?.value?.length || 0) >= 1 && authForm.get('password')?.value !== defaultPassword">
       <span class="label-colon"><label for="retypePassword">Retype Password</label><span class="colon">:</span></span>

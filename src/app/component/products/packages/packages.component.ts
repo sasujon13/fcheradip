@@ -100,9 +100,9 @@ export class PackagesComponent implements OnInit {
         this.actionCode = '';
         if (err?.error?.code === 'insufficient_balance') {
           const needed = this.formatMoney(err.error.required || plan.payableAmount);
-          const available = this.formatMoney(err.error.remaining || 0);
+          const available = Number(err.error.remaining || 0).toLocaleString('en-BD');
           const warning = this.snackBar.open(
-            `Insufficient balance. Need ৳${needed}; wallet has ৳${available}. Please recharge.`,
+            `Insufficient balance. Need ৳${needed} (${err.error.requiredCoins || 0} coins); wallet has ${available} coins. Please recharge.`,
             'Recharge', { duration: 12000, panelClass: ['package-center-snackbar', 'error-snackbar'] }
           );
           warning.onAction().subscribe(() => this.router.navigate(['/order']));

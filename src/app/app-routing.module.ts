@@ -14,6 +14,7 @@ import { ChoiceComponent } from './component/cart/choice/choice.component';
 import { LoginComponent } from './component/user/login/login.component';
 import { AuthGuard } from './service/authgard.service';
 import { SignupComponent } from './component/user/signup/signup.component';
+import { ReferEarnComponent } from './component/user/refer-earn/refer-earn.component';
 import { AdminComponent } from './component/user/admin/admin.component';
 import { ProfileComponent } from './component/user/profile/profile.component';
 import { MyorderComponent } from './component/cart/myorder/myorder.component';
@@ -191,6 +192,7 @@ const routes: Routes = [
   {path: 'admin', component: AdminComponent},
   {path: 'myorder', component: MyorderComponent, canActivate: [AuthGuard]},
   {path: 'profile', component: ProfileComponent, canActivate: [AuthGuard]},
+  {path: 'refer', component: ReferEarnComponent, canActivate: [AuthGuard]},
   {path: 'settings', component: SettingsComponent, canActivate: [AuthGuard]},
   {path: 'disappeared-questions', component: DisappearedQuestionsComponent, canActivate: [AuthGuard]},
   {path: 'created-questions', component: CreatedQuestionsComponent, canActivate: [AuthGuard]},

@@ -1,0 +1,23 @@
+<main class="refer-page">
+  <section class="refer-card" *ngIf="!loading && summary">
+    <h1>Refer &amp; Earn</h1>
+    <p>Share this link. Your mobile number is used as the reference when your friend creates an account.</p>
+    <label for="referenceLink">Reference Link</label>
+    <div class="link-row">
+      <input id="referenceLink" type="text" readonly [value]="referralLink" />
+      <button type="button" (click)="copyLink()"><i class="fa fa-copy"></i> Copy</button>
+    </div>
+    <div class="summary-grid">
+      <div><strong>{{ summary.referenceValuePercent }}%</strong><span>Current RV</span></div>
+      <div><strong>{{ summary.referredUsers }}</strong><span>Referred Users</span></div>
+      <div><strong>{{ summary.totalCommissionCoins }}</strong><span>Earned Coins</span></div>
+    </div>
+    <h2>Commission History</h2>
+    <div class="table-wrap" *ngIf="summary.earnings?.length; else noEarnings">
+      <table><thead><tr><th>User</th><th>Package</th><th>RV</th><th>Coins</th></tr></thead>
+        <tbody><tr *ngFor="let row of summary.earnings"><td>{{ row.customer }}</td><td>{{ row.plan }}</td><td>{{ row.referenceValuePercent }}%</td><td>{{ row.commissionCoins }}</td></tr></tbody>
+      </table>
+    </div>
+    <ng-template #noEarnings><p class="empty">No referral commission has been earned yet.</p></ng-template>
+  </section>
+</main>

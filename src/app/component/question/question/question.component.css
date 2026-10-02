@@ -576,7 +576,7 @@
 
 .creator-buttons-row .btn-unlock-page--coins {
   background-color: transparent;
-  color: #fff;
+  color: #d4a017;
 }
 
 /* Answer & explanation (coin unlock) */
@@ -1095,8 +1095,15 @@ span.mx-3 {
   font-size: 16px;
   line-height: 1;
   background-color: transparent;
-  color: #fff;
+  color: #d4a017;
   margin-top: -2px;
+}
+
+/* Some browsers render the lock as a font glyph after toggling. Keep that
+   fallback golden too, instead of inheriting white from surrounding actions. */
+.topic-question-action-btn.topic-question-action-lock--coins .fa,
+.creator-buttons-row .btn-unlock-page--coins .fa {
+  color: #d4a017;
 }
 
 /* Inline edit: same look as question text/options; only as tall as content; Update/Cancel bottom-right */

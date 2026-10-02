@@ -1935,7 +1935,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** True when this lock can be toggled without another coin purchase. */
   questionUnlockUsesFreeStyle(qid: number | string | null | undefined): boolean {
-    return this.studentStudyMode || this.isQuestionPurchased(qid) || this.isQuestionPackageUnlocked(qid);
+    return this.isQuestionPurchased(qid) || this.isQuestionPackageUnlocked(qid);
   }
 
   isQuestionRevealed(qid: number | string | null | undefined): boolean {
@@ -2147,7 +2147,6 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** Teal FA icons (purchased / free reveal); emoji + teal button when coins required. */
   pageUnlockUsesPurchasedStyle(): boolean {
-    if (this.studentStudyMode) return true;
     if (this.allDisplayedQuestionsRevealed()) return true;
     return this.pageUnlockActionIsFree();
   }

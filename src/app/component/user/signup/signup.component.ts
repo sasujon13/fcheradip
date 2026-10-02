@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, OnInit, AfterViewInit, OnDestroy, Renderer2, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, Validators, ValidatorFn } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { CountrySelectorComponent } from '../../../shared/country-selector/country-selector.component';
 import { AlertComponent } from '../../faqs/alert/alert.component';
@@ -200,6 +200,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private fb: FormBuilder,
     private router: Router,
+    private route: ActivatedRoute,
     private apiService: ApiService,
     private snackBar: MatSnackBar,
     private renderer: Renderer2,
@@ -235,6 +236,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
       countryCode: ['US', [Validators.required]],
       username: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(15)]],
       password: ['', [Validators.required, Validators.minLength(8), passwordStrengthValidator()]],
+      reference: ['', [Validators.maxLength(15)]],
       retypePassword: ['', [Validators.required]],
     }, { validators: passwordMatchValidator });
     this.addSubjectForm = this.fb.group({
@@ -252,6 +254,8 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
     }
+    const reference = String(this.route.snapshot.queryParamMap.get('reference') || '').trim();
+    if (reference) this.authForm.patchValue({ reference }, { emitEvent: false });
 
     // Load countries for dropdown (GET /api/country/)
     this.countryService.getCountriesForOptions().subscribe({
@@ -265,6 +269,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
       try {
         const data = JSON.parse(draft);
         const { country_code, password, retypePassword, ...formValues } = data;
+        if (reference) formValues.reference = reference;
         // If draft stored date as ISO (YYYY-MM-DD), show as DD/MM/YYYY
         if (formValues.dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(formValues.dateOfBirth)) {
           const [y, m, d] = formValues.dateOfBirth.split('-');
@@ -1306,6 +1311,7 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
         fullName: this.authForm.value.fullName,
         username: usernameNormalized,
         password: passwordToUse,
+        reference: String(this.authForm.value.reference || '').trim(),
         date_of_birth: this.authForm.value.dateOfBirth,
         year_of_birth: birthYear,
         class_name: acctype === 'Student' ? (this.authForm.value.className || null) : null,
