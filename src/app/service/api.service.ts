@@ -62,6 +62,15 @@ export class ApiService {
         return res;
       }))
   }
+  getPackages(accountType?: string): Observable<any> {
+    const params: Record<string, string> = {};
+    if (accountType) params['account_type'] = accountType;
+    return this.http.get<any>(`${this.baseUrl}/packages/`, { params });
+  }
+
+  subscribePackage(planCode: string, paymentReference = ''): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/packages/subscribe/`, { planCode, paymentReference });
+  }
   getDivisions(): Observable<string[]> {
     const url = `${this.baseUrl}/divisions/`;
     return this.http.get<string[]>(url);

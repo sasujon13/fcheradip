@@ -304,3 +304,30 @@ div.comment{
     }
   }
 
+.package-link {
+  display: block;
+  margin: -3px;
+  padding: 6px 3px;
+  border-radius: 4px;
+  color: darkgreen;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.package-link:hover,
+.package-link:focus-visible {
+  color: #fff;
+  background-color: var(--color_primary_teal);
+  box-shadow: 0 3px 9px rgba(0, 128, 128, .35);
+  transform: translateY(-1px);
+  outline: none;
+}
+.package-link:hover del,
+.package-link:focus-visible del {
+  color: #fff;
+}
+.package-link.activating {
+  opacity: .55;
+  pointer-events: none;
+}
+
