@@ -139,6 +139,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
   inactivityTimeout: any;
   inactivityTimeout2: any;
   loginStatus: boolean = false;
+  packageStatus: any = null;
+  profileImageUrl: string | null = null;
+  profileBadge = 'Star';
+  profileCropOpen = false;
+  profileCropPreview = '';
+  profileCropX = 50;
+  profileCropY = 50;
+  private profileCropImage: HTMLImageElement | null = null;
+  get studentStudyMode(): boolean {
+    return !!this.packageStatus?.active && this.packageStatus?.progress?.accountType === 'Student';
+  }
   academicTimeout: any;
   academicTimeout2: any;
 
@@ -192,6 +203,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.syncNewTokenFromPendingStash();
         this.refreshLoginStatusFromStorage();
         this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+        this.loadPackageStatus();
         setTimeout(() => {
           this.checkVisibility();
         }, 100000);
@@ -222,6 +234,76 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     this.syncNewTokenFromPendingStash();
     this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+    this.loadPackageStatus();
+  }
+
+  private loadPackageStatus(): void {
+    if (!this.loginStatus) {
+      this.packageStatus = null; this.profileImageUrl = null; this.profileBadge = 'Star';
+      return;
+    }
+    this.apiService.getPackageStatus().subscribe({
+      next: (status) => {
+        this.packageStatus = status;
+        this.profileImageUrl = status?.profileImageUrl || null;
+        this.profileBadge = status?.badge || 'Star';
+        const warning = status?.activeSubscription?.warning?.message;
+        if (warning) this.snackBar.open(warning, 'Recharge', { duration: 12000, horizontalPosition: 'center', verticalPosition: 'top', panelClass: ['package-center-snackbar', 'error-snackbar'] })
+          .onAction().subscribe(() => this.router.navigate(['/order']));
+        this.cdr.markForCheck();
+      }, error: (err) => {
+        if (err?.status === 401) this.logout();
+      }
+    });
+  }
+
+  chooseProfilePicture(event: Event, input: HTMLInputElement): void {
+    event.preventDefault(); event.stopPropagation(); input.click();
+  }
+
+  onProfilePictureSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      this.snackBar.open('Use a JPG, PNG, or WebP image up to 5 MB.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] });
+      return;
+    }
+    const image = new Image();
+    image.onload = () => {
+      this.profileCropImage = image;
+      this.profileCropPreview = image.src;
+      this.profileCropX = 50; this.profileCropY = 50; this.profileCropOpen = true;
+    };
+    image.src = URL.createObjectURL(file);
+  }
+
+  confirmProfileCrop(): void {
+    const image = this.profileCropImage;
+    if (!image) return;
+    const side = Math.min(image.naturalWidth, image.naturalHeight);
+    const sx = (image.naturalWidth - side) * this.profileCropX / 100;
+    const sy = (image.naturalHeight - side) * this.profileCropY / 100;
+      const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+      canvas.getContext('2d')!.drawImage(image, sx, sy, side, side, 0, 0, 512, 512);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        this.apiService.uploadProfilePicture(blob).subscribe({
+          next: (data) => { this.profileImageUrl = data?.profileImageUrl || null; this.closeProfileCrop(); this.snackBar.open('Profile picture updated.', 'Close', { duration: 5000, panelClass: ['package-center-snackbar', 'success-snackbar'] }); },
+          error: (err) => this.snackBar.open(err?.error?.error || 'Profile picture could not be updated.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] })
+        });
+      }, 'image/webp', .9);
+  }
+
+  closeProfileCrop(): void {
+    if (this.profileCropPreview) URL.revokeObjectURL(this.profileCropPreview);
+    this.profileCropOpen = false; this.profileCropPreview = ''; this.profileCropImage = null;
+  }
+
+  removeProfilePicture(event: Event): void {
+    event.preventDefault(); event.stopPropagation();
+    this.apiService.removeProfilePicture().subscribe(() => { this.profileImageUrl = null; });
   }
 
   /** Keeps token-input margin and other bindings aligned with `localStorage.isLoggedIn` after login redirect. */
@@ -760,7 +842,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('loginStatus');
     localStorage.removeItem('authToken');
-    window.location.reload();
+    localStorage.removeItem('packageStatus');
+    localStorage.removeItem('username');
+    localStorage.removeItem('fullName');
+    localStorage.removeItem('acctype');
+    localStorage.removeItem('formData');
+    localStorage.removeItem('authFormData');
+    window.location.assign('/login');
   }
 
   resetInactivityTimeout() {

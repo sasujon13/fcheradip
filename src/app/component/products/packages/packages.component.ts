@@ -26,6 +26,24 @@ export class PackagesComponent implements OnInit {
   planRows: Array<{ name: string; durationMonths: number; plans: Record<string, PackagePlan> }> = [];
   loading = true;
   actionCode = '';
+  activeSubscription: any = null;
+  progress: any = null;
+
+  isCurrentRow(row: { name: string; durationMonths: number }): boolean {
+    return !!this.activeSubscription && this.activeSubscription.planName === row.name;
+  }
+  isTrackActive(row: any, track: string): boolean {
+    if (!this.isCurrentRow(row)) return false;
+    return this.activeSubscription.track === 'combined' || this.activeSubscription.track === track;
+  }
+  isTrackDisabled(row: any, track: string): boolean {
+    return this.isCurrentRow(row) && row?.plans?.[track]?.code !== this.activeSubscription?.planCode;
+  }
+  isMembershipRow(kind: 'question' | 'exam', base: string, badge: string): boolean {
+    const account = this.progress?.accountType;
+    return (kind === 'exam' ? account === 'Student' : account === 'Teacher' || account === 'JobSeeker')
+      && this.progress?.base === base && this.progress?.badge === badge;
+  }
 
   constructor(private api: ApiService, private router: Router, private renderer: Renderer2,
               private loadingService: LoadingService, private snackBar: MatSnackBar,
@@ -45,9 +63,14 @@ export class PackagesComponent implements OnInit {
 
   selectPlan(event: Event, plan: PackagePlan): void {
     event.preventDefault();
+    if (this.activeSubscription?.planCode === plan.code) {
+      const ends = this.activeSubscription?.endsAt ? new Date(this.activeSubscription.endsAt).toLocaleDateString() : 'the renewal date';
+      this.snackBar.open(`Already activated. Renewal will be charged after the current activation period ends on ${ends}.`, 'Close', { duration: 9000, panelClass: ['package-center-snackbar'] });
+      return;
+    }
     if (!this.api.isLoggedIn()) {
       const ref = this.snackBar.open('Please log in to activate this package.', 'Login', {
-        duration: 8000, panelClass: ['error-snackbar']
+        duration: 8000, panelClass: ['package-center-snackbar', 'error-snackbar']
       });
       ref.onAction().subscribe(() => this.router.navigate(['/login'], { queryParams: { returnUrl: '/packages' } }));
       return;
@@ -55,7 +78,7 @@ export class PackagesComponent implements OnInit {
     const track = plan.track.charAt(0).toUpperCase() + plan.track.slice(1);
     const ref = this.snackBar.open(
       `Activate ${plan.name} ${track} for ৳${this.formatMoney(plan.payableAmount)}?`,
-      'Activate', { duration: 10000 }
+      'Activate', { duration: 10000, panelClass: ['package-center-snackbar'] }
     );
     ref.onAction().subscribe(() => this.activate(plan));
   }
@@ -68,7 +91,7 @@ export class PackagesComponent implements OnInit {
           this.trxUnlock.setCachedRemaining(response.remainingBalance);
         }
         this.snackBar.open(response.message || 'Package activated successfully.', 'Close', {
-          duration: 6000, panelClass: ['success-snackbar']
+          duration: 6000, panelClass: ['package-center-snackbar', 'success-snackbar']
         });
         this.actionCode = '';
         this.loadPackages(false);
@@ -80,20 +103,20 @@ export class PackagesComponent implements OnInit {
           const available = this.formatMoney(err.error.remaining || 0);
           const warning = this.snackBar.open(
             `Insufficient balance. Need ৳${needed}; wallet has ৳${available}. Please recharge.`,
-            'Recharge', { duration: 12000, panelClass: ['error-snackbar'] }
+            'Recharge', { duration: 12000, panelClass: ['package-center-snackbar', 'error-snackbar'] }
           );
           warning.onAction().subscribe(() => this.router.navigate(['/order']));
           return;
         }
         if (err?.status === 401 || err?.status === 403) {
           const login = this.snackBar.open('Please log in to activate this package.', 'Login', {
-            duration: 8000, panelClass: ['error-snackbar']
+            duration: 8000, panelClass: ['package-center-snackbar', 'error-snackbar']
           });
           login.onAction().subscribe(() => this.router.navigate(['/login'], { queryParams: { returnUrl: '/packages' } }));
           return;
         }
         this.snackBar.open(err?.error?.error || 'Could not activate this package. Please try again.', 'Close', {
-          duration: 7000, panelClass: ['error-snackbar']
+          duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar']
         });
       }
     });
@@ -108,6 +131,8 @@ export class PackagesComponent implements OnInit {
     this.api.getPackages(this.accountType).subscribe({
       next: (response) => {
         if (response.progress?.accountType) this.accountType = response.progress.accountType;
+        this.progress = response.progress || null;
+        this.activeSubscription = response.activeSubscription || null;
         const grouped = new Map<string, { name: string; durationMonths: number; plans: Record<string, PackagePlan> }>();
         for (const plan of (response.plans || []) as PackagePlan[]) {
           const key = `${plan.name}|${plan.durationMonths}`;

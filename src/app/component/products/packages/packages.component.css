@@ -330,4 +330,6 @@ div.comment{
   opacity: .55;
   pointer-events: none;
 }
+.package-link--active{color:#9a7200!important;font-weight:700}.package-link--disabled{pointer-events:none;cursor:default;opacity:.78}.current-package-row .tbltd{background:#fff!important}.current-package-row>td:first-child,.current-package-row>td:nth-child(2){color:#9a7200;font-weight:700}
+.current-membership .tbltd{background:#fff!important;color:#9a7200!important;font-weight:700}
 

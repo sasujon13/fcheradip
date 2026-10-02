@@ -93,6 +93,7 @@ export interface QuestionSubject {
     standalone: false
 })
 export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
+  studentStudyMode = false;
   /** Current subject slug for route (subject_tr). */
   currentSubject: string = '';
   currentChapter: string = '';
@@ -210,9 +211,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   likedOnly = false;
   /** Paid unlocks persisted on server (re-unlock never charges again). */
   purchasedUnlockedQids = new Set<string>();
+  /** Package-only reveals are never purchases and are removed when access expires. */
+  packageTemporaryQids = new Set<string>();
   /** Qids currently showing answer/explanation (toggle lock without losing purchase). */
   revealedUnlockedQids = new Set<string>();
   unlockBusy = false;
+  private packageStatusTimer: ReturnType<typeof setInterval> | null = null;
   currentPage: number = 1;
   totalPages: number = 1;
   breadcrumbItems: any[] = [];
@@ -987,6 +991,14 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.likedOnly = !!this.route.snapshot.data['likedOnly'];
     this.setupQuestionSearch();
     this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+    if (this.apiService.isLoggedIn()) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('packageStatus') || '{}');
+        this.studentStudyMode = !!cached?.active && cached?.progress?.accountType === 'Student';
+      } catch {}
+      this.refreshStudentPackageAccess();
+      this.packageStatusTimer = setInterval(() => this.refreshStudentPackageAccess(), 60000);
+    }
     this.loadUnlockedQidsFromServer();
     this.loadQuestionLevels();
     this.loadCheradipSources();
@@ -1020,6 +1032,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    if (this.packageStatusTimer) clearInterval(this.packageStatusTimer);
     if (this.dropdownLeaveTimer) clearTimeout(this.dropdownLeaveTimer);
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
@@ -1032,6 +1045,23 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.searchSub?.unsubscribe();
     this.searchSub = null;
     this.teardownFixedFilterBarResizeObserver();
+  }
+
+  private refreshStudentPackageAccess(): void {
+    this.apiService.getPackageStatus().subscribe({
+      next: (value) => {
+        const active = !!value?.active && value?.progress?.accountType === 'Student';
+        if (!active && this.packageTemporaryQids.size) {
+          const next = new Set(this.revealedUnlockedQids);
+          this.packageTemporaryQids.forEach((qid) => next.delete(qid));
+          this.packageTemporaryQids.clear();
+          this.revealedUnlockedQids = next;
+        }
+        this.studentStudyMode = active;
+        this.cdr.markForCheck();
+      },
+      error: () => {},
+    });
   }
 
   private getQuestionLayoutRoot(): HTMLElement | null {
@@ -1898,6 +1928,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.purchasedUnlockedQids.has(String(qid));
   }
 
+  isQuestionPackageUnlocked(qid: number | string | null | undefined): boolean {
+    if (qid == null || qid === '') return false;
+    return this.packageTemporaryQids.has(String(qid));
+  }
+
+  /** True when this lock can be toggled without another coin purchase. */
+  questionUnlockUsesFreeStyle(qid: number | string | null | undefined): boolean {
+    return this.studentStudyMode || this.isQuestionPurchased(qid) || this.isQuestionPackageUnlocked(qid);
+  }
+
   isQuestionRevealed(qid: number | string | null | undefined): boolean {
     if (qid == null || qid === '') return false;
     return this.revealedUnlockedQids.has(String(qid));
@@ -1941,6 +1981,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.revealQuestionFree(k, ev);
       return;
     }
+    if (this.isQuestionPackageUnlocked(k) && this.studentStudyMode) {
+      this.revealedUnlockedQids.add(k);
+      this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
+      this.cdr.markForCheck();
+      return;
+    }
     this.runQuestionUnlock([{ qid: k, is_cq: this.isQuestionCreative(q) }]);
   }
 
@@ -1949,6 +1995,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const k = String(q.qid);
     if (this.isQuestionRevealed(k)) return 'Lock (hide answer and explanation)';
     if (this.isQuestionPurchased(k)) return 'Show answer (already unlocked — no charge)';
+    if (this.studentStudyMode) return 'Unlock (included in active package — no coins)';
     return `Unlock (${this.unlockCostForQuestion(q)} coins)`;
   }
 
@@ -2094,11 +2141,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.pageUnlockActionIsFree()) {
       return 'Show all on this page (already unlocked — no charge)';
     }
+    if (this.studentStudyMode) return 'Unlock all on this page (included in active package — no coins)';
     return 'Unlock all on this page';
   }
 
   /** Teal FA icons (purchased / free reveal); emoji + teal button when coins required. */
   pageUnlockUsesPurchasedStyle(): boolean {
+    if (this.studentStudyMode) return true;
     if (this.allDisplayedQuestionsRevealed()) return true;
     return this.pageUnlockActionIsFree();
   }
@@ -2122,7 +2171,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     for (const item of shown) {
       const qid = String(item.q.qid);
       if (this.isQuestionRevealed(qid)) continue;
-      if (this.isQuestionPurchased(qid)) {
+      if (this.isQuestionPurchased(qid) || (this.studentStudyMode && this.isQuestionPackageUnlocked(qid))) {
         nextRevealed.add(qid);
       } else {
         toPurchase.push({ qid, is_cq: this.isQuestionCreative(item.q) });
@@ -2179,7 +2228,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
     const debit = this.totalUnlockDebit(chargeable);
     const balance = this.trxUnlock.getCachedRemaining();
-    if (debit > balance) {
+    if (!this.studentStudyMode && debit > balance) {
       this.openInsufficientCoinsUnlockAlert(debit, balance);
       return;
     }
@@ -2188,7 +2237,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       next: (r) => {
         this.unlockBusy = false;
         if (r.success) {
-          if (r.unlockedQids?.length) {
+          if (r.packageAccess) {
+            (r.unlockedQids || chargeable.map((it) => it.qid)).forEach((qid) => {
+              this.packageTemporaryQids.add(String(qid));
+              this.revealedUnlockedQids.add(String(qid));
+            });
+          } else if (r.unlockedQids?.length) {
             this.applyUnlockedQidsFromServer(r.unlockedQids);
           } else {
             chargeable.forEach((it) => {
@@ -2199,7 +2253,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           items.forEach((it) => this.revealedUnlockedQids.add(it.qid));
           this.purchasedUnlockedQids = new Set(this.purchasedUnlockedQids);
           this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
-          this.persistPurchasedUnlockedQids();
+          if (!r.packageAccess) this.persistPurchasedUnlockedQids();
           if (r.updateBalance) {
             this.trxUnlock.setCachedRemaining(r.remaining);
           }

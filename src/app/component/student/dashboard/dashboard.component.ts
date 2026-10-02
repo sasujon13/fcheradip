@@ -3,6 +3,7 @@ import { StudentService } from '../../../service/student.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { of } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
+import { ApiService } from '../../../service/api.service';
 
 @Component({
     selector: 'app-dashboard',
@@ -20,10 +21,17 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     totalPoints: 0,
     currentLevel: 1
   };
+  packageStatus: any = null;
+  get baseProgressPercent(): number {
+    const completed = Number(this.packageStatus?.completedTasks || 0);
+    const remaining = Number(this.packageStatus?.remainingTasks || 0);
+    return remaining <= 0 ? 100 : Math.min(100, Math.round(completed * 100 / (completed + remaining)));
+  }
 
   constructor(
     private studentService: StudentService,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private api: ApiService
   ) {}
 
   ngOnInit(): void {
@@ -44,6 +52,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       next: (data: any) => { this.stats = { ...this.stats, ...(data || {}) }; },
       error: () => { this.errorMessage = 'Your progress could not be loaded. Please refresh and try again.'; }
     });
+    this.api.getPackageStatus().subscribe({ next: (data) => this.packageStatus = data, error: () => {} });
   }
 }
 

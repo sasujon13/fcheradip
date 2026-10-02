@@ -278,7 +278,7 @@
 
       <!-- Sticky circular FABs at bottom-right: Create Question, Live Chat -->
       <div class="fab-wrapper">
-        <div class="fab-tooltip-wrap">
+        <div class="fab-tooltip-wrap" *ngIf="!studentStudyMode">
           <span class="fab-tooltip">First Select Level, Class/Group, Subject and Topic from Top and then click here to
             create/add a New Question to Cheradip</span>
           <button type="button" class="fab-btn fab-circle fab-create"
@@ -301,7 +301,7 @@
         (alertClosed)="showDisappearAlert = false"></app-alert>
 
       <!-- Smart Question Creator: EIIN / exam / set → /question/create + auto-save -->
-      <div class="smart-creator-modal-backdrop" *ngIf="smartCreatorModalOpen" role="dialog" aria-modal="true"
+      <div class="smart-creator-modal-backdrop" *ngIf="smartCreatorModalOpen && !studentStudyMode" role="dialog" aria-modal="true"
         aria-labelledby="smart-creator-modal-title" (click)="closeSmartQuestionCreatorModal()">
         <div class="smart-creator-modal" (click)="$event.stopPropagation()">
           <h2 id="smart-creator-modal-title" class="smart-creator-modal-title">Smart Question Creator</h2>
@@ -366,9 +366,9 @@
             </ng-container>
             <ng-template #pageUnlockNeedsCoins>{{ allDisplayedQuestionsRevealed() ? '🔓' : '🔒' }}</ng-template>
           </button>
-          <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
+          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
             Question Creator</button>
-          <button type="button" class="btn-creator btn-create-question"
+          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-create-question"
             (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
             {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
           </button>
@@ -404,9 +404,9 @@
             </ng-container>
             <ng-template #pageUnlockNeedsCoins>{{ allDisplayedQuestionsRevealed() ? '🔓' : '🔒' }}</ng-template>
           </button>
-          <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
+          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
             Question Creator</button>
-          <button type="button" class="btn-creator btn-create-question"
+          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-create-question"
             (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
             {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
           </button>
@@ -535,10 +535,10 @@
             <div class="topic-question-item-actions" *ngIf="!isEditingItem(item.q.qid)"
               (click)="$event.stopPropagation()">
               <button type="button" class="topic-question-action-btn topic-question-action-lock"
-                [class.topic-question-action-lock--coins]="!isQuestionPurchased(item.q.qid)"
+                [class.topic-question-action-lock--coins]="!questionUnlockUsesFreeStyle(item.q.qid)"
                 (click)="toggleQuestionUnlock(item.q, $event)"
                 [title]="getLockButtonTitle(item.q)">
-                <ng-container *ngIf="isQuestionPurchased(item.q.qid); else questionLockNeedsCoins">
+                <ng-container *ngIf="questionUnlockUsesFreeStyle(item.q.qid); else questionLockNeedsCoins">
                   <i class="fa" [ngClass]="isQuestionRevealed(item.q.qid) ? 'fa-unlock' : 'fa-lock'"
                     aria-hidden="true"></i>
                 </ng-container>

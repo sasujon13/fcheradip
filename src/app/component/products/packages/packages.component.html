@@ -10,12 +10,12 @@
         <tr class="tblhead"><th class="tblth">Aca.</th><th class="tblth">Adm.</th><th class="tblth">Com.</th></tr>
         <ng-container *ngFor="let row of planRows">
           <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-          <tr>
+          <tr [class.current-package-row]="isCurrentRow(row)">
             <td class="tbltd">{{ row.name }}</td>
             <td class="tbltd">{{ row.durationMonths }} M</td>
             <td class="tbltd" *ngFor="let track of ['academic', 'admission', 'combined']">
               <ng-container *ngIf="row.plans[track] as plan">
-                <a class="package-link" href="" (click)="selectPlan($event, plan)" [class.activating]="actionCode === plan.code" [attr.aria-label]="'Activate ' + plan.name + ' ' + track + ' package'">
+                <a class="package-link" href="" (click)="selectPlan($event, plan)" [class.activating]="actionCode === plan.code" [class.package-link--active]="isTrackActive(row, track)" [class.package-link--disabled]="isTrackDisabled(row, track)" [attr.aria-disabled]="isTrackDisabled(row, track)" [attr.aria-label]="'Activate ' + plan.name + ' ' + track + ' package'">
                   {{ formatMoney(plan.payableAmount) }}<sub *ngIf="plan.listPrice !== plan.payableAmount"><del>{{ formatMoney(plan.listPrice) }}</del></sub>
                 </a>
               </ng-container>
@@ -37,19 +37,19 @@
       <table class="package" style="margin-top: 5px;"><br>
         <tr class="tblhead"><th class="tblth">Base</th><th class="tblth">Badge</th><th class="tblth">CQ<br>(TK)</th><th class="tblth">MCQ<br>(TK)</th><th class="tblth">Disc.<br>(%)</th><th class="tblth">RV<br>(%)</th></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','New','Star')"><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">Premium</td><td class="tbltd">Silver</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">25</td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Premium','Silver')"><td class="tbltd">Premium</td><td class="tbltd">Silver</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">25</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">Q &gt; 99</td><td class="tbltd">Gold</td><td class="tbltd">1.40</td><td class="tbltd">0.23</td><td class="tbltd">10</td><td class="tbltd">30</td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 99','Gold')"><td class="tbltd">Q &gt; 99</td><td class="tbltd">Gold</td><td class="tbltd">1.40</td><td class="tbltd">0.23</td><td class="tbltd">10</td><td class="tbltd">30</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">Q &gt; 199</td><td class="tbltd">Gold+</td><td class="tbltd">1.30</td><td class="tbltd">0.21</td><td class="tbltd">20</td><td class="tbltd">35</td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 199','Gold+')"><td class="tbltd">Q &gt; 199</td><td class="tbltd">Gold+</td><td class="tbltd">1.30</td><td class="tbltd">0.21</td><td class="tbltd">20</td><td class="tbltd">35</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">Q &gt; 299</td><td class="tbltd">Platinum</td><td class="tbltd">1.20</td><td class="tbltd">0.19</td><td class="tbltd">30</td><td class="tbltd">40</td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 299','Platinum')"><td class="tbltd">Q &gt; 299</td><td class="tbltd">Platinum</td><td class="tbltd">1.20</td><td class="tbltd">0.19</td><td class="tbltd">30</td><td class="tbltd">40</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">Q &gt; 399</td><td class="tbltd">Platinum+</td><td class="tbltd">1.10</td><td class="tbltd">0.17</td><td class="tbltd">40</td><td class="tbltd">45</td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 399','Platinum+')"><td class="tbltd">Q &gt; 399</td><td class="tbltd">Platinum+</td><td class="tbltd">1.10</td><td class="tbltd">0.17</td><td class="tbltd">40</td><td class="tbltd">45</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">Q &gt; 499</td><td class="tbltd">Titanium</td><td class="tbltd">1.00</td><td class="tbltd">0.15</td><td class="tbltd">50</td><td class="tbltd">50</td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 499','Titanium')"><td class="tbltd">Q &gt; 499</td><td class="tbltd">Titanium</td><td class="tbltd">1.00</td><td class="tbltd">0.15</td><td class="tbltd">50</td><td class="tbltd">50</td></tr>
       </table>
       <p class="price" style="padding: 10px;">Get New Badges & Make Money by Refering<br>Your Friends, Collegues and Students!</p>
       <p class="footer">
@@ -65,19 +65,19 @@
       <table class="package" style="margin-top: 5px;"><br>
         <tr class="tblhead"><th class="tblth">Base</th><th class="tblth">Badge</th><th class="tblth">PR<br>(%)</th><th class="tblth">Disc.<br>(%)</th><th class="tblth">RV<br>(%)</th></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','New','Star')"><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">Premium</td><td class="tbltd">Silver</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">25</td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','Premium','Silver')"><td class="tbltd">Premium</td><td class="tbltd">Silver</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">25</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">E &gt; 99</td><td class="tbltd">Gold</td><td class="tbltd">50</td><td class="tbltd">10</td><td class="tbltd">25</td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','E > 99','Gold')"><td class="tbltd">E &gt; 99</td><td class="tbltd">Gold</td><td class="tbltd">50</td><td class="tbltd">10</td><td class="tbltd">25</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">E &gt; 199</td><td class="tbltd">Gold+</td><td class="tbltd">65</td><td class="tbltd">20</td><td class="tbltd">25</td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','E > 199','Gold+')"><td class="tbltd">E &gt; 199</td><td class="tbltd">Gold+</td><td class="tbltd">65</td><td class="tbltd">20</td><td class="tbltd">25</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">E &gt; 299</td><td class="tbltd">Platinum</td><td class="tbltd">80</td><td class="tbltd">30</td><td class="tbltd">30</td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','E > 299','Platinum')"><td class="tbltd">E &gt; 299</td><td class="tbltd">Platinum</td><td class="tbltd">80</td><td class="tbltd">30</td><td class="tbltd">30</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">E &gt; 399</td><td class="tbltd">Platinum+</td><td class="tbltd">90</td><td class="tbltd">40</td><td class="tbltd">30</td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','E > 399','Platinum+')"><td class="tbltd">E &gt; 399</td><td class="tbltd">Platinum+</td><td class="tbltd">90</td><td class="tbltd">40</td><td class="tbltd">30</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td class="tbltd">E &gt; 499</td><td class="tbltd">Titanium</td><td class="tbltd">95</td><td class="tbltd">50</td><td class="tbltd">30</td></tr>
+        <tr [class.current-membership]="isMembershipRow('exam','E > 499','Titanium')"><td class="tbltd">E &gt; 499</td><td class="tbltd">Titanium</td><td class="tbltd">95</td><td class="tbltd">50</td><td class="tbltd">30</td></tr>
       </table>
       <p class="price" style="padding: 10px;">Get New Badges & Make Money<br>By Refering Your Friends!</p>
       <p class="footer">

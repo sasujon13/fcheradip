@@ -12,7 +12,7 @@
         <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i></a></li>
         <!-- <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li> -->
         <li class="menu_item"><a [routerLink]="['/institutes']" routerLinkActive="institute"><i class="fa fa-search"></i></a></li>
-        <li class="menu_item"><a [routerLink]="['/question']" routerLinkActive="question"><i class="fa pencil fa-pencil-square-o"></i> Create Question</a></li>
+        <li class="menu_item"><a [routerLink]="['/question']" routerLinkActive="question"><i class="fa pencil fa-pencil-square-o"></i> {{ studentStudyMode ? 'Study' : 'Create Question' }}</a></li>
         <li class="menu_item"><a [routerLink]="dashboardNavLinkSegments" routerLinkActive="student" [routerLinkActiveOptions]="dashboardNavLinkActiveOptions"><i class="fa fa-user-graduate"></i>Dashboard</a></li>
         <li class="menu_item"><a [routerLink]="['/ntrca']" routerLinkActive="ntrca"><i class="fa fa-graduation-cap"></i> NTRCA</a></li>
         <!-- <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i></a></li>
@@ -89,12 +89,14 @@
       </ul>
       <ul class="profileMenu" id="profileMenu" #profileMenu (mouseenter)="onHeaderDropdownEnter('profile')" (mouseleave)="onHeaderDropdownLeave('profile')">
         <li class="menu_item menu_item2" #menu_item2 id="menu_item2" (click)="toggleDropdown()">
-          <a><i class="fa fa-user"></i></a>
+          <a><app-badge-profile [badge]="profileBadge" [imageUrl]="profileImageUrl" [size]="34"></app-badge-profile></a>
           <ul class="dropdown" [class.open]="isDropdownOpen">
             <li><a [routerLink]="dashboardRouterSegments" routerLinkActive="dashboard"><i class="fa fa-th-large"></i>&nbsp;&nbsp; Dashboard</a></li>
             <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew / Upgrade</a></li>
             <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
             <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update Profile</a></li>
+            <li><a href="" (click)="chooseProfilePicture($event, profilePictureInput)"><i class="fa fa-camera"></i>&nbsp; Update Profile Picture</a></li>
+            <li *ngIf="profileImageUrl"><a href="" (click)="removeProfilePicture($event)"><i class="fa fa-trash"></i>&nbsp; Remove Profile Picture</a></li>
             <li><a [routerLink]="['/settings']" routerLinkActive="settings"><i class="fa fa-cog"></i>&nbsp; Settings</a></li>
             <li><a [routerLink]="['/disappeared-questions']" routerLinkActive="disappeared-questions"><i class="fa fa-eye-slash"></i>&nbsp; Disappeared Questions</a></li>
             <li><a [routerLink]="['/created-questions']" routerLinkActive="created-questions"><i class="fa fa-file-text-o"></i>&nbsp; Created Questions</a></li>
@@ -105,7 +107,17 @@
           </ul>
         </li>
       </ul>
+      <input #profilePictureInput type="file" hidden accept="image/jpeg,image/png,image/webp" (change)="onProfilePictureSelected($event)" />
       </div>
+</div>
+<div class="profile-crop-backdrop" *ngIf="profileCropOpen" (click)="closeProfileCrop()" role="dialog" aria-modal="true" aria-label="Position profile picture">
+  <div class="profile-crop-dialog" (click)="$event.stopPropagation()">
+    <h2>Position Profile Picture</h2>
+    <div class="profile-crop-preview"><img [src]="profileCropPreview" alt="Profile crop preview" [style.object-position]="profileCropX + '% ' + profileCropY + '%'" /></div>
+    <label>Horizontal position <input type="range" min="0" max="100" [(ngModel)]="profileCropX" /></label>
+    <label>Vertical position <input type="range" min="0" max="100" [(ngModel)]="profileCropY" /></label>
+    <div class="profile-crop-actions"><button type="button" (click)="closeProfileCrop()">Cancel</button><button type="button" class="profile-crop-save" (click)="confirmProfileCrop()">Save</button></div>
+  </div>
 </div>
 
 <!-- Token box: show on all pages except those that already have app-ntrca-header-section -->

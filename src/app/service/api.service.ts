@@ -71,6 +71,22 @@ export class ApiService {
   subscribePackage(planCode: string, paymentReference = ''): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/packages/subscribe/`, { planCode, paymentReference });
   }
+
+  getPackageStatus(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/packages/status/`).pipe(tap((value) => {
+      try { localStorage.setItem('packageStatus', JSON.stringify(value || {})); } catch {}
+    }));
+  }
+
+  uploadProfilePicture(file: Blob): Observable<any> {
+    const form = new FormData();
+    form.append('image', file, 'profile.webp');
+    return this.http.post<any>(`${this.baseUrl}/profile_picture/`, form);
+  }
+
+  removeProfilePicture(): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/profile_picture/`);
+  }
   getDivisions(): Observable<string[]> {
     const url = `${this.baseUrl}/divisions/`;
     return this.http.get<string[]>(url);

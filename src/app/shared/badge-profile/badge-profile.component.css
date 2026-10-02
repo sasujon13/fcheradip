@@ -1,0 +1,9 @@
+.badge-profile{--ring:#d4a017;--ring2:#f7d774;display:inline-grid;place-items:center;position:relative;border-radius:50%;vertical-align:middle;isolation:isolate}
+.badge-profile__ring{position:absolute;inset:0;border-radius:50%;padding:3px;background:var(--ring);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;z-index:-1}
+.badge-profile img,.badge-profile i{width:calc(100% - 8px);height:calc(100% - 8px);border-radius:50%;object-fit:cover;object-position:center;background:#fff;display:grid;place-items:center;color:#326c66;font-size:16px}
+.badge-silver{--ring:#b8c1cc;--ring2:#eef2f6}.badge-silver .badge-profile__ring{box-shadow:0 0 0 2px #eef2f6 inset}
+.badge-gold{--ring:#d9a400}.badge-gold .badge-profile__ring{background:conic-gradient(#ffd76a 0 16%,#b77d00 16% 30%,#ffe8a3 30% 47%,#bf8500 47% 65%,#ffd76a 65% 82%,#9b6900 82%)}
+.badge-gold-plus{--ring:#ffd24a}.badge-gold-plus .badge-profile__ring{background:conic-gradient(#fff0a4,#bd7900,#ffe676,#bd7900,#fff0a4);filter:drop-shadow(0 0 3px #eab308)}
+.badge-platinum{--ring:#9caebf}.badge-platinum .badge-profile__ring{background:linear-gradient(135deg,#f8fbff,#7f96aa,#dbe8f2,#72889c)}
+.badge-platinum-plus .badge-profile__ring{background:conic-gradient(#f8fbff,#6f879e,#d8e8f6,#71869a,#fff);box-shadow:0 0 0 2px #b9cad8 inset;filter:drop-shadow(0 0 3px #8bb7d6)}
+.badge-titanium .badge-profile__ring{background:conic-gradient(#34d399,#22d3ee,#818cf8,#f472b6,#f59e0b,#34d399);filter:drop-shadow(0 0 5px #22d3ee)}

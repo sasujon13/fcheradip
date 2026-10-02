@@ -40,6 +40,8 @@ export interface QuestionUnlockResult {
   detail?: string;
   /** Full list from server after unlock (cross-device). */
   unlockedQids?: string[];
+  /** Temporary package access; qids must not be persisted as coin purchases. */
+  packageAccess?: boolean;
 }
 
 function parseApiRemaining(body: unknown): number | null {
@@ -79,6 +81,7 @@ export class QuestionUnlockService {
         debited?: number;
         detail?: string;
         unlocked_qids?: unknown;
+        package_access?: boolean;
       }>(`${environment.apiUrl}/token/unlock_questions/`, { items })
       .pipe(
         map((r) => {
@@ -89,11 +92,12 @@ export class QuestionUnlockService {
             : undefined;
           return {
             success,
-            updateBalance: success,
+            updateBalance: success && !r?.package_access,
             remaining: success && rem != null ? rem : cached,
             debited: typeof r?.debited === 'number' ? r.debited : undefined,
             detail: r?.detail,
             unlockedQids,
+            packageAccess: Boolean(r?.package_access),
           };
         }),
         catchError((err: { status?: number; error?: unknown }) => {

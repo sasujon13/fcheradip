@@ -1,7 +1,14 @@
 <div class="dashboard-container">
   <header class="dashboard-header">
-    <h1 class="dashboard-title">Student's Dashboard</h1>
-    <p class="dashboard-subtitle">Track your progress and access exams, reports, and more.</p>
+    <h1 class="dashboard-title">Activated Package: {{ packageStatus?.activeSubscription?.planName || 'Free' }}<ng-container *ngIf="packageStatus?.activeSubscription?.track"> — {{ packageStatus.activeSubscription.track | titlecase }}</ng-container></h1>
+    <div class="membership-summary" *ngIf="packageStatus">
+      <app-badge-profile [badge]="packageStatus.badge" [imageUrl]="packageStatus.profileImageUrl" [size]="54"></app-badge-profile>
+      <div class="membership-copy"><strong>Badge: {{ packageStatus.badge }}</strong><span>Current Base: {{ packageStatus.base }}</span></div>
+      <div class="base-progress" [attr.aria-label]="'Base progress ' + baseProgressPercent + '%'">
+        <div class="base-progress__bar"><span [style.width.%]="baseProgressPercent"></span></div>
+        <small>{{ packageStatus.completedTasks }} completed · {{ packageStatus.remainingTasks }} remaining<ng-container *ngIf="packageStatus.nextBase"> to {{ packageStatus.nextBase }}</ng-container><ng-container *ngIf="packageStatus.passingRate != null"> · Passing rate {{ packageStatus.passingRate }}%</ng-container></small>
+      </div>
+    </div>
   </header>
 
   <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>

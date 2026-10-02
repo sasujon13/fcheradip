@@ -63,6 +63,7 @@ import { CheradipSupportComponent } from './component/cheradip/cheradip-support.
 import { EcommerceComingSoonComponent } from './component/ecommerce/ecommerce-coming-soon.component';
 import { AiServicesLandingComponent } from './component/ai-services/ai-services-landing.component';
 import {
+  StudentQuestionCreatorGuard,
   StudentSectionDashboardGuard,
   TeacherHomeDashboardGuard,
 } from './service/dashboard-routing.guard';
@@ -197,7 +198,7 @@ const routes: Routes = [
   {path: 'password', component: PasswordComponent, canActivate: [AuthGuard]},
   {path: 'mobile', component: MobileComponent, canActivate: [AuthGuard]},
   {path: 'question', component: QuestionComponent},
-  {path: 'question/create', component: QuestionCreatorComponent},
+  {path: 'question/create', component: QuestionCreatorComponent, canActivate: [StudentQuestionCreatorGuard]},
   {path: 'question/:subject', component: QuestionComponent},
   {path: 'question/:subject/chapter/:chapterName', component: QuestionComponent},
   {path: 'question/:subject/chapter/:chapterName/question/:id', component: QuestionComponent},

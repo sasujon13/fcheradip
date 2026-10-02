@@ -97,6 +97,7 @@ import { QuestionCardComponent } from './component/question/questioncard/questio
 import { QuestionFormComponent } from './component/question/questionform/questionform.component';
 import { QuestionEditorComponent } from './component/question/questioneditor/questioneditor.component';
 import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.component';
+import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.component';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -159,6 +160,7 @@ import { McqOptionsComponent } from './component/question/mcqoptions/mcqoptions.
         QuestionFormComponent,
         QuestionEditorComponent,
         McqOptionsComponent,
+        BadgeProfileComponent,
         StudentComponent,
         DashboardComponent,
         HomeDashboardComponent,
