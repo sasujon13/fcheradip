@@ -1,208 +1,236 @@
-
 <header>
   <div class="navbar">
-    <div class="menu-toggle" #menuToggle (click)="toggleMenu()" (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
-      <i class="fa fa-bars"></i> <a [routerLink]="['/index']" routerLinkActive="index"><img src="./assets/images/cheradip.svg" class="logo"></a>
+    <div class="menu-toggle" #menuToggle (click)="toggleMenu()" (mouseenter)="onMobileMenuEnter()"
+      (mouseleave)="onMobileMenuLeave()">
+      <i class="fa fa-bars"></i> <a [routerLink]="['/index']" routerLinkActive="index"><img
+          src="./assets/images/cheradip.svg" class="logo"></a>
     </div>
     <!-- <div class="search-bar" id="searchBar">
       <input type="text" class="form-control" name="searchTerm" id="searchTerm" [(ngModel)]="searchTerm" (keyup)="search($event)" placeholder="Search here ... ..">
       <i class="fa fa-search"></i>
     </div> -->
-    <ul class="menu" [class.active]="menuActive" (click)="closeMenu()" (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
-        <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i></a></li>
-        <!-- <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li> -->
-        <li class="menu_item"><a [routerLink]="['/institutes']" routerLinkActive="institute"><i class="fa fa-search"></i></a></li>
-        <li class="menu_item"><a [routerLink]="['/question']" routerLinkActive="question"><i class="fa pencil fa-pencil-square-o"></i> {{ studentStudyMode ? 'Study' : 'Create Question' }}</a></li>
-        <li class="menu_item"><a [routerLink]="dashboardNavLinkSegments" routerLinkActive="student" [routerLinkActiveOptions]="dashboardNavLinkActiveOptions"><i class="fa fa-user-graduate"></i>Dashboard</a></li>
-        <li class="menu_item"><a [routerLink]="['/ntrca']" routerLinkActive="ntrca"><i class="fa fa-graduation-cap"></i> NTRCA</a></li>
-        <!-- <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i></a></li>
+    <ul class="menu" [class.active]="menuActive" (click)="closeMenu()" (mouseenter)="onMobileMenuEnter()"
+      (mouseleave)="onMobileMenuLeave()">
+      <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i></a></li>
+      <!-- <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li> -->
+      <li class="menu_item"><a [routerLink]="['/institutes']" routerLinkActive="institute"><i
+            class="fa fa-search"></i></a></li>
+      <li class="menu_item"><a [routerLink]="['/question']" routerLinkActive="question"><i
+            class="fa pencil fa-pencil-square-o"></i> {{ studentStudyMode ? 'Study' : 'Create Question' }}</a></li>
+      <li class="menu_item"><a [routerLink]="dashboardNavLinkSegments" routerLinkActive="student"
+          [routerLinkActiveOptions]="dashboardNavLinkActiveOptions"><i class="fa fa-user-graduate"></i>Dashboard</a>
+      </li>
+      <li class="menu_item"><a [routerLink]="['/ntrca']" routerLinkActive="ntrca"><i class="fa fa-graduation-cap"></i>
+          NTRCA</a></li>
+      <!-- <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i></a></li>
         <li class="menu_item"><a [routerLink]="['/scrape']" routerLinkActive="scrape"><i class="fa fa-download"></i> Scraper</a></li>
         <li class="menu_item"><a [routerLink]="['/about_us']" routerLinkActive="about_us"><i class="fa fa-info-circle"></i></a></li> -->
-        
-        <!-- <li class="menu_item"><a [routerLink]="['/live_chat']" routerLinkActive="live_chat"><i class="fa pencil fa-pencil-square-o"></i></a></li>
+
+      <!-- <li class="menu_item"><a [routerLink]="['/live_chat']" routerLinkActive="live_chat"><i class="fa pencil fa-pencil-square-o"></i></a></li>
         <li class="menu_item"><a [routerLink]="['/create_question']" routerLinkActive="create_question"><i class="fa pencil fa-pencil-square-o"></i></a></li> -->
-        <li class="menu_item"><a [routerLink]="['/choice']" routerLinkActive="choice"><i class="fa fa-heart fa-heart2"></i><div class="badge">{{totalChoiceItem}}</div></a></li>
-        <li class="menu_item"><a [routerLink]="['/cart']" routerLinkActive="cart"><div class="badge badge2">{{totalCartItem}}</div><i class="fa fa-shopping-cart"></i></a></li>
-        
-        <li class="menu_item"><a [routerLink]="['/packages']" routerLinkActive="packages"><i class="fa pencil fa-pencil-square-o"></i>Packages</a></li>
-      </ul>
-      
-      <div class="header-right-group">
-        <!-- Country selector: dropdown icon left of flag, top right -->
-        <div class="header-country-wrap" #countryWrap (mouseenter)="onHeaderDropdownEnter('country')" (mouseleave)="onHeaderDropdownLeave('country')">
-          <div #countryTriggerRef class="header-country-trigger" (click)="toggleCountryDropdown()">
-            <span class="header-country-icon" [class.open]="showCountryDropdown">▼</span>
-            <span class="header-country-flag-wrapper">
-              <!-- Circular progress ring (translation progress), shown only when updating -->
-              <svg *ngIf="languageUpdating" class="header-country-progress-ring" viewBox="0 0 32 32">
-                <circle class="header-country-progress-track" cx="16" cy="16" r="14" fill="none" stroke-width="2" />
-                <circle class="header-country-progress-fill" cx="16" cy="16" r="14" fill="none" stroke-width="2"
-                  stroke-dasharray="87.96" [attr.stroke-dashoffset]="87.96 - (translationProgress / 100) * 87.96" />
-              </svg>
-              <img *ngIf="currentCountry?.flag_url" [src]="currentCountry!.flag_url" [alt]="currentCountry!.country_name" class="header-country-flag" />
-              <span *ngIf="currentCountry && !currentCountry.flag_url" class="header-country-emoji">{{ currentCountry!.flag_emoji }}</span>
-              <img *ngIf="!currentCountry" src="assets/images/globe.svg" alt="" class="header-country-flag header-country-placeholder" />
-            </span>
-          </div>
-          <div class="header-country-dropdown header-country-dropdown-drawer" [class.open]="showCountryDropdown" [style.max-height.px]="showCountryDropdown ? countryDropdownMaxHeight : 0">
-            <div class="header-country-loading" *ngIf="countryListLoading">Loading...</div>
-            <ng-container *ngIf="!countryListLoading">
-              <div class="header-country-search-wrap">
-                <input type="text" class="header-country-search-input"
-                       [value]="headerCountrySearch"
-                       (input)="headerCountrySearch = $any($event.target).value"
-                       (click)="$event.stopPropagation()"
-                       placeholder="Search countries..."
-                       autocomplete="off"
-                       aria-label="Search countries" />
+      <li class="menu_item"><a [routerLink]="['/choice']" routerLinkActive="choice"><i
+            class="fa fa-heart fa-heart2"></i>
+          <div class="badge">{{totalChoiceItem}}</div>
+        </a></li>
+      <li class="menu_item"><a [routerLink]="['/cart']" routerLinkActive="cart">
+          <div class="badge badge2">{{totalCartItem}}</div><i class="fa fa-shopping-cart"></i>
+        </a></li>
+
+      <li class="menu_item"><a [routerLink]="['/packages']" routerLinkActive="packages"><i
+            class="fa pencil fa-pencil-square-o"></i>Packages</a></li>
+    </ul>
+
+    <div class="header-right-group">
+      <!-- Country selector: dropdown icon left of flag, top right -->
+      <div class="header-country-wrap" #countryWrap (mouseenter)="onHeaderDropdownEnter('country')"
+        (mouseleave)="onHeaderDropdownLeave('country')">
+        <div #countryTriggerRef class="header-country-trigger" (click)="toggleCountryDropdown()">
+          <span class="header-country-icon" [class.open]="showCountryDropdown">▼</span>
+          <span class="header-country-flag-wrapper">
+            <!-- Circular progress ring (translation progress), shown only when updating -->
+            <svg *ngIf="languageUpdating" class="header-country-progress-ring" viewBox="0 0 32 32">
+              <circle class="header-country-progress-track" cx="16" cy="16" r="14" fill="none" stroke-width="2" />
+              <circle class="header-country-progress-fill" cx="16" cy="16" r="14" fill="none" stroke-width="2"
+                stroke-dasharray="87.96" [attr.stroke-dashoffset]="87.96 - (translationProgress / 100) * 87.96" />
+            </svg>
+            <img *ngIf="currentCountry?.flag_url" [src]="currentCountry!.flag_url" [alt]="currentCountry!.country_name"
+              class="header-country-flag" />
+            <span *ngIf="currentCountry && !currentCountry.flag_url" class="header-country-emoji">{{
+              currentCountry!.flag_emoji }}</span>
+            <img *ngIf="!currentCountry" src="assets/images/globe.svg" alt=""
+              class="header-country-flag header-country-placeholder" />
+          </span>
+        </div>
+        <div class="header-country-dropdown header-country-dropdown-drawer" [class.open]="showCountryDropdown"
+          [style.max-height.px]="showCountryDropdown ? countryDropdownMaxHeight : 0">
+          <div class="header-country-loading" *ngIf="countryListLoading">Loading...</div>
+          <ng-container *ngIf="!countryListLoading">
+            <div class="header-country-search-wrap">
+              <input type="text" class="header-country-search-input" [value]="headerCountrySearch"
+                (input)="headerCountrySearch = $any($event.target).value" (click)="$event.stopPropagation()"
+                placeholder="Search countries..." autocomplete="off" aria-label="Search countries" />
+            </div>
+            <div class="header-country-section header-country-section-popular"
+              *ngIf="!headerCountrySearch && featuredCountries.length > 0">
+              <div class="header-country-section-title">Popular</div>
+              <div *ngFor="let c of featuredCountries" class="header-country-item" (click)="selectHeaderCountry(c)"
+                [class.selected]="currentCountry?.country_code === c.country_code">
+                <img *ngIf="c.flag_url" [src]="c.flag_url" [alt]="c.country_name" class="header-country-item-flag" />
+                <span *ngIf="!c.flag_url" class="header-country-item-emoji">{{ c.flag_emoji }}</span>
+                <span class="header-country-item-name">{{ c.country_name }}</span>
               </div>
-              <div class="header-country-section header-country-section-popular" *ngIf="!headerCountrySearch && featuredCountries.length > 0">
-                <div class="header-country-section-title">Popular</div>
-                <div *ngFor="let c of featuredCountries" class="header-country-item"
-                     (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">
+              <div class="header-country-divider"></div>
+            </div>
+            <div class="header-country-section">
+              <div class="header-country-section-title">{{ headerCountrySearch ? 'Search Results (' +
+                filteredCountriesForHeader.length + ')' : 'All Countries' }}</div>
+              <div class="header-country-list">
+                <div *ngFor="let c of filteredCountriesForHeader" class="header-country-item"
+                  (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">
                   <img *ngIf="c.flag_url" [src]="c.flag_url" [alt]="c.country_name" class="header-country-item-flag" />
                   <span *ngIf="!c.flag_url" class="header-country-item-emoji">{{ c.flag_emoji }}</span>
                   <span class="header-country-item-name">{{ c.country_name }}</span>
                 </div>
-                <div class="header-country-divider"></div>
-              </div>
-              <div class="header-country-section">
-                <div class="header-country-section-title">{{ headerCountrySearch ? 'Search Results (' + filteredCountriesForHeader.length + ')' : 'All Countries' }}</div>
-                <div class="header-country-list">
-                  <div *ngFor="let c of filteredCountriesForHeader" class="header-country-item"
-                       (click)="selectHeaderCountry(c)" [class.selected]="currentCountry?.country_code === c.country_code">
-                    <img *ngIf="c.flag_url" [src]="c.flag_url" [alt]="c.country_name" class="header-country-item-flag" />
-                    <span *ngIf="!c.flag_url" class="header-country-item-emoji">{{ c.flag_emoji }}</span>
-                    <span class="header-country-item-name">{{ c.country_name }}</span>
-                  </div>
-                  <div class="header-country-no-results" *ngIf="filteredCountriesForHeader.length === 0 && headerCountrySearch">
-                    No countries found for "{{ headerCountrySearch }}"
-                  </div>
+                <div class="header-country-no-results"
+                  *ngIf="filteredCountriesForHeader.length === 0 && headerCountrySearch">
+                  No countries found for "{{ headerCountrySearch }}"
                 </div>
               </div>
-            </ng-container>
-          </div>
+            </div>
+          </ng-container>
         </div>
-        <ul class="menu sign_menu" id="sign_menu" #sign_menu>
-        <li class="menu_item menu_item0" id="menu_item0"><a href="javascript:void(0)" (click)="navigateToLogin()" class="nav-link" [class.active]="router.isActive('/login', true)"><i class="fa fa-sign-in"></i> Login</a></li>
-        <li class="menu_item menu_item1" id="menu_item1"><a href="javascript:void(0)" (click)="navigateToSignup()" class="nav-link" [class.active]="router.isActive('/auth', true)"><i class="fa fa-user-plus"></i> SignUp</a></li>
+      </div>
+      <ul class="menu sign_menu" id="sign_menu" #sign_menu>
+        <li class="menu_item menu_item0" id="menu_item0"><a href="javascript:void(0)" (click)="navigateToLogin()"
+            class="nav-link" [class.active]="router.isActive('/login', true)"><i class="fa fa-sign-in"></i> Login</a>
+        </li>
+        <li class="menu_item menu_item1" id="menu_item1"><a href="javascript:void(0)" (click)="navigateToSignup()"
+            class="nav-link" [class.active]="router.isActive('/auth', true)"><i class="fa fa-user-plus"></i> SignUp</a>
+        </li>
       </ul>
-      <ul class="profileMenu" id="profileMenu" #profileMenu (mouseenter)="onHeaderDropdownEnter('profile')" (mouseleave)="onHeaderDropdownLeave('profile')">
+      <ul class="profileMenu" id="profileMenu" #profileMenu (mouseenter)="onHeaderDropdownEnter('profile')"
+        (mouseleave)="onHeaderDropdownLeave('profile')">
         <li class="menu_item menu_item2" #menu_item2 id="menu_item2" (click)="toggleDropdown()">
-          <a><app-badge-profile [badge]="profileBadge" [imageUrl]="profileImageUrl" [size]="34"></app-badge-profile></a>
+          <a class="profile-icon-trigger" (contextmenu)="openProfilePictureMenu($event)"
+            title="Right-click for profile picture options"><app-badge-profile
+              [badge]="profileBadge" [imageUrl]="profileImageUrl" [size]="34"></app-badge-profile></a>
+          <ul class="profile-picture-context-menu" *ngIf="profilePictureMenuOpen" (click)="$event.stopPropagation()">
+            <li><button type="button" (click)="chooseProfilePicture($event, profilePictureInput)" [disabled]="profilePictureBusy"><i class="fa fa-camera"></i>&nbsp; Update</button></li>
+            <li *ngIf="profileImageUrl"><button type="button" (click)="clearProfilePicture($event)" [disabled]="profilePictureBusy"><i class="fa fa-trash"></i>&nbsp; Clear</button></li>
+          </ul>
           <ul class="dropdown" [class.open]="isDropdownOpen">
-            <li><a [routerLink]="dashboardRouterSegments" routerLinkActive="dashboard"><i class="fa fa-th-large"></i>&nbsp;&nbsp; Dashboard</a></li>
-            <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew / Upgrade</a></li>
-            <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
-            <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update Profile</a></li>
-            <li><a [routerLink]="['/refer']" routerLinkActive="refer"><i class="fa fa-share-alt"></i>&nbsp; Refer &amp; Earn</a></li>
-            <li><a href="" (click)="chooseProfilePicture($event, profilePictureInput)"><i class="fa fa-camera"></i>&nbsp; Update Profile Picture</a></li>
-            <li *ngIf="profileImageUrl"><a href="" (click)="removeProfilePicture($event)"><i class="fa fa-trash"></i>&nbsp; Remove Profile Picture</a></li>
-            <li><a [routerLink]="['/settings']" routerLinkActive="settings"><i class="fa fa-cog"></i>&nbsp; Settings</a></li>
-            <li><a [routerLink]="['/disappeared-questions']" routerLinkActive="disappeared-questions"><i class="fa fa-eye-slash"></i>&nbsp; Disappeared Questions</a></li>
-            <li><a [routerLink]="['/created-questions']" routerLinkActive="created-questions"><i class="fa fa-file-text-o"></i>&nbsp; Created Questions</a></li>
-            <li><a [routerLink]="['/liked-questions']" routerLinkActive="liked-questions"><i class="fa fa-heart"></i>&nbsp; Liked Questions</a></li>
-            <li><a [routerLink]="['/mobile']" routerLinkActive="mobile"><i class="fa  fa-lock"></i>&nbsp; Update Mobile Number</a></li>
-            <li><a [routerLink]="['/password']" routerLinkActive="password"><i class="fa  fa-key"></i>&nbsp; Update Password</a></li>
+            <li><a [routerLink]="dashboardRouterSegments" routerLinkActive="dashboard"><i
+                  class="fa fa-th-large"></i>&nbsp;&nbsp; Dashboard</a></li>
+            <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew /
+                Upgrade</a></li>
+            <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i
+                  class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
+            <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update
+                Profile</a></li>
+            <li><a [routerLink]="['/refer']" routerLinkActive="refer"><i class="fa fa-share-alt"></i>&nbsp; Refer &amp;
+                Earn</a></li>
+            <li><a [routerLink]="['/settings']" routerLinkActive="settings"><i class="fa fa-cog"></i>&nbsp; Settings</a>
+            </li>
+            <li><a [routerLink]="['/disappeared-questions']" routerLinkActive="disappeared-questions"><i
+                  class="fa fa-eye-slash"></i>&nbsp; Disappeared Questions</a></li>
+            <li><a [routerLink]="['/created-questions']" routerLinkActive="created-questions"><i
+                  class="fa fa-file-text-o"></i>&nbsp; Created Questions</a></li>
+            <li><a [routerLink]="['/liked-questions']" routerLinkActive="liked-questions"><i
+                  class="fa fa-heart"></i>&nbsp; Liked Questions</a></li>
+            <li><a [routerLink]="['/mobile']" routerLinkActive="mobile"><i class="fa  fa-lock"></i>&nbsp; Update Mobile
+                Number</a></li>
+            <li><a [routerLink]="['/password']" routerLinkActive="password"><i class="fa  fa-key"></i>&nbsp; Update
+                Password</a></li>
             <li><a (click)="logout()"><i class="fa fa-sign-out-alt"></i>&nbsp;&nbsp; Logout</a></li>
           </ul>
         </li>
       </ul>
-      <input #profilePictureInput type="file" hidden accept="image/jpeg,image/png,image/webp" (change)="onProfilePictureSelected($event)" />
-      </div>
-</div>
-<div class="profile-crop-backdrop" *ngIf="profileCropOpen" (click)="closeProfileCrop()" role="dialog" aria-modal="true" aria-label="Position profile picture">
-  <div class="profile-crop-dialog" (click)="$event.stopPropagation()">
-    <h2>Position Profile Picture</h2>
-    <div class="profile-crop-preview"><img [src]="profileCropPreview" alt="Profile crop preview" [style.object-position]="profileCropX + '% ' + profileCropY + '%'" /></div>
-    <label>Horizontal position <input type="range" min="0" max="100" [(ngModel)]="profileCropX" /></label>
-    <label>Vertical position <input type="range" min="0" max="100" [(ngModel)]="profileCropY" /></label>
-    <div class="profile-crop-actions"><button type="button" (click)="closeProfileCrop()">Cancel</button><button type="button" class="profile-crop-save" (click)="confirmProfileCrop()">Save</button></div>
+      <input #profilePictureInput type="file" hidden accept="image/jpeg,image/png,image/webp"
+        (change)="onProfilePictureSelected($event)" />
+    </div>
   </div>
-</div>
-
-<!-- Token box: show on all pages except those that already have app-ntrca-header-section -->
-<div class="tokenbox header-tokenbox" *ngIf="!isNtrcaSectionRoute">
-  <div class="token-input-box">
-    <br>
-    <div
-      class="hover-message-container"
-      (pointerenter)="onTrxHelpPointerEnter()"
-      (pointerleave)="onTrxHelpPointerLeave()"
-    >
-      <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
-        [style.margin-left]="loginStatus ? '-174px' : '0'" />
-      <button (click)="applyToken()">Apply</button>
-      <p class="rmsg" *ngIf="loginStatus" 
-      [style.margin-left]="loginStatus ? '200px' : '0'"><span aria-hidden="true">{{ null | coinEmoji }}</span> <b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins</p>
-      <div class="hover-message-box"
-        [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
-        [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'"
-        style="text-align: left;">
-        1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
-        2. Send Money to <strong>01722710298</strong> (Minimum Tk 20)<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;using <strong>bKash / Nagad</strong> to use our Paid Services.<br>
-        3. Place your <strong>TrxID</strong> and click on <strong>Apply</strong> to activate it.<br>
-        4. If you find any errors then forward the Send Money<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;confirmation <strong>SMS</strong> through <strong>WhatsApp / SMS</strong>.
+  <!-- Token box: show on all pages except those that already have app-ntrca-header-section -->
+  <div class="tokenbox header-tokenbox" *ngIf="!isNtrcaSectionRoute">
+    <div class="token-input-box">
+      <br>
+      <div class="hover-message-container" (pointerenter)="onTrxHelpPointerEnter()"
+        (pointerleave)="onTrxHelpPointerLeave()">
+        <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
+          [style.margin-left]="loginStatus ? '-174px' : '0'" />
+        <button (click)="applyToken()">Apply</button>
+        <p class="rmsg" [ngStyle]="{
+     'margin-left': loginStatus ? '200px' : '0',
+     'background-color': loginStatus ? 'white' : 'transparent',
+     'border-radius': loginStatus ? '7px' : '0'
+   }">
+          <span aria-hidden="true">{{ null | coinEmoji }}</span>
+          <b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins
+        </p>
+        <div class="hover-message-box" [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
+          [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'" style="text-align: left;">
+          1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
+          2. Send Money to <strong>01722710298</strong> (Minimum Tk 20)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;using <strong>bKash / Nagad</strong> to use our Paid Services.<br>
+          3. Place your <strong>TrxID</strong> and click on <strong>Apply</strong> to activate it.<br>
+          4. If you find any errors then forward the Send Money<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;confirmation <strong>SMS</strong> through <strong>WhatsApp / SMS</strong>.
+        </div>
       </div>
     </div>
   </div>
-</div>
-  
-<div class="marquee" #marquee>
-  <h5 class="msg"><a class="msg_link" style="text-decoration: none; color: teal;">Loading Latest Notifications.. ...</a></h5>
-</div>
 
-<div id="copyright" class="copyright">
-  <ng-container *ngIf="shouldDisplayCopyrightDiv">
-    <div class="scaleBeforeCopyright"></div>
-    <div class="beforeCopyright"></div>
-    &copy;All rights reserved by cheradip.com
-    <div class="afterCopyright"></div>
-  </ng-container>
-</div>
-<div class="notification" id="notification"></div>
-<div class="profile_back"></div>
+  <div class="marquee" *ngIf="notifications.length">
+    <h5 class="msg" [style.--marquee-duration]="marqueeDuration + 's'">
+      <ng-container *ngFor="let notification of notifications">
+        <i class="fas fa-info-circle notification-icon" aria-hidden="true"></i>
+        <a *ngIf="notification.link; else notificationText" [href]="notification.link" target="_blank" rel="noopener"
+          class="msg_link">{{ notification.text }}</a>
+        <ng-template #notificationText><span class="msg_link">{{ notification.text }}</span></ng-template>
+        <span class="notification-gap" aria-hidden="true"></span>
+      </ng-container>
+    </h5>
+  </div>
 
-<!-- Global loading overlay: centered teal circular progress, shown while page APIs are loading -->
-<div class="loading-overlay" *ngIf="loadingShow">
-  <div class="loading-overlay-content">
-    <div class="app-loader-spinner-column">
-      <div class="app-loader-glow" aria-hidden="true"></div>
-      <div class="loading-progress-wrap">
-        <svg class="loading-progress-circle" viewBox="0 0 100 100">
-          <circle class="loading-progress-bg" cx="50" cy="50" r="45" fill="none" stroke-width="7" />
-          <circle class="loading-progress-fill" cx="50" cy="50" r="45" fill="none" stroke-width="7"
-            stroke-dasharray="282.7" [attr.stroke-dashoffset]="282.7 - (loadingProgressPercent / 100) * 282.7" />
-        </svg>
-        <span class="loading-progress-text">{{ loadingProgressPercent }}%</span>
+  <div id="copyright" class="copyright">
+    <ng-container *ngIf="shouldDisplayCopyrightDiv">
+      <div class="scaleBeforeCopyright"></div>
+      <div class="beforeCopyright"></div>
+      &copy;All rights reserved by cheradip.com
+      <div class="afterCopyright"></div>
+    </ng-container>
+  </div>
+  <div class="notification" id="notification"></div>
+  <div class="profile_back"></div>
+
+  <!-- Global loading overlay: centered teal circular progress, shown while page APIs are loading -->
+  <div class="loading-overlay" *ngIf="loadingShow">
+    <div class="loading-overlay-content">
+      <div class="app-loader-spinner-column">
+        <div class="app-loader-glow" aria-hidden="true"></div>
+        <div class="loading-progress-wrap">
+          <svg class="loading-progress-circle" viewBox="0 0 100 100">
+            <circle class="loading-progress-bg" cx="50" cy="50" r="45" fill="none" stroke-width="7" />
+            <circle class="loading-progress-fill" cx="50" cy="50" r="45" fill="none" stroke-width="7"
+              stroke-dasharray="282.7" [attr.stroke-dashoffset]="282.7 - (loadingProgressPercent / 100) * 282.7" />
+          </svg>
+          <span class="loading-progress-text">{{ loadingProgressPercent }}%</span>
+        </div>
       </div>
-    </div>
-    <div
-      class="app-loader-message-block"
-      [class.app-loader-message-done]="loadingProgressPercent >= 100"
-    >
-      <div
-        class="app-loader-linear-track"
-        role="progressbar"
-        [style.--p.%]="loadingProgressPercent"
-        [attr.aria-valuenow]="loadingProgressPercent"
-        aria-valuemin="0"
-        aria-valuemax="100"
-      >
-        <div class="app-loader-linear-fill" [style.width.%]="loadingProgressPercent"></div>
-        <div class="app-loader-message-dual">
-          <div class="app-loader-clip-layer app-loader-clip-layer--track">
-            <p class="loading-overlay-message app-loader-msg">{{ loadingOverlayMessage }}</p>
-          </div>
-          <div class="app-loader-clip-layer app-loader-clip-layer--fill" aria-hidden="true">
-            <p class="loading-overlay-message app-loader-msg">{{ loadingOverlayMessage }}</p>
+      <div class="app-loader-message-block" [class.app-loader-message-done]="loadingProgressPercent >= 100">
+        <div class="app-loader-linear-track" role="progressbar" [style.--p.%]="loadingProgressPercent"
+          [attr.aria-valuenow]="loadingProgressPercent" aria-valuemin="0" aria-valuemax="100">
+          <div class="app-loader-linear-fill" [style.width.%]="loadingProgressPercent"></div>
+          <div class="app-loader-message-dual">
+            <div class="app-loader-clip-layer app-loader-clip-layer--track">
+              <p class="loading-overlay-message app-loader-msg">{{ loadingOverlayMessage }}</p>
+            </div>
+            <div class="app-loader-clip-layer app-loader-clip-layer--fill" aria-hidden="true">
+              <p class="loading-overlay-message app-loader-msg">{{ loadingOverlayMessage }}</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 </header>
 <app-alert [message]="tokenAlertMessage" [showAlert]="showTokenAlert"></app-alert>

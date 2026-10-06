@@ -27,6 +27,7 @@
 }
 .membership-summary{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;color:var(--student-text-light)}
 .membership-copy{display:flex;flex-direction:column;min-width:145px}.membership-copy strong{color:#b8860b}.base-progress{flex:1;min-width:240px}.base-progress__bar{height:12px;border-radius:999px;background:#dce8e6;overflow:hidden;margin-bottom:.35rem}.base-progress__bar span{display:block;height:100%;background:linear-gradient(90deg,var(--student-primary),#d4af37);border-radius:inherit;transition:width .3s ease}
+.dashboard-profile-picture{position:relative;display:inline-flex;cursor:pointer}.dashboard-profile-picture__menu{position:absolute;top:60px;left:0;z-index:10050;width:150px;margin:0;padding:6px;list-style:none;border:1px solid #ccc;border-radius:5px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.2)}.dashboard-profile-picture__menu li{margin:0;padding:0}.dashboard-profile-picture__menu button{display:block;width:100%;padding:8px 10px;border:0;background:#fff;color:var(--student-primary);text-align:left;cursor:pointer;font:inherit}.dashboard-profile-picture__menu button:hover{background:var(--student-primary-light)}.dashboard-profile-picture__menu button:disabled{cursor:wait;opacity:.6}
 
 .stats-grid {
   display: grid;

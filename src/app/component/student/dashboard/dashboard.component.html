@@ -2,7 +2,19 @@
   <header class="dashboard-header">
     <h1 class="dashboard-title">Activated Package: {{ packageStatus?.activeSubscription?.planName || 'Free' }}<ng-container *ngIf="packageStatus?.activeSubscription?.track"> — {{ packageStatus.activeSubscription.track | titlecase }}</ng-container></h1>
     <div class="membership-summary" *ngIf="packageStatus">
-      <app-badge-profile [badge]="packageStatus.badge" [imageUrl]="packageStatus.profileImageUrl" [size]="54"></app-badge-profile>
+      <div class="dashboard-profile-picture" (click)="openProfilePictureMenu($event)"
+        (contextmenu)="openProfilePictureMenu($event)" title="Profile picture options">
+        <app-badge-profile [badge]="packageStatus.badge" [imageUrl]="packageStatus.profileImageUrl"
+          [size]="54"></app-badge-profile>
+        <ul class="dashboard-profile-picture__menu" *ngIf="profilePictureMenuOpen" (click)="$event.stopPropagation()">
+          <li><button type="button" (click)="chooseProfilePicture($event, dashboardProfilePictureInput)"
+              [disabled]="profilePictureBusy"><i class="fa fa-camera"></i>&nbsp; Update</button></li>
+          <li *ngIf="packageStatus.profileImageUrl"><button type="button" (click)="clearProfilePicture($event)"
+              [disabled]="profilePictureBusy"><i class="fa fa-trash"></i>&nbsp; Clear</button></li>
+        </ul>
+      </div>
+      <input #dashboardProfilePictureInput type="file" hidden accept="image/jpeg,image/png,image/webp"
+        (change)="onProfilePictureSelected($event)" />
       <div class="membership-copy"><strong>Badge: {{ packageStatus.badge }}</strong><span>Current Base: {{ packageStatus.base }}</span></div>
       <div class="base-progress" [attr.aria-label]="'Base progress ' + baseProgressPercent + '%'">
         <div class="base-progress__bar"><span [style.width.%]="baseProgressPercent"></span></div>

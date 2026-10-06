@@ -26,6 +26,7 @@ import {
 export class HeaderComponent implements OnInit, OnDestroy {
   isDropdownOpen = false;
   toggleDropdown() {
+    this.profilePictureMenuOpen = false;
     this.isDropdownOpen = !this.isDropdownOpen;
     this.resetInactivityTimeout();
   }
@@ -77,9 +78,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   /** Trx help tooltip: 1s after pointerleave, then 300ms fade (matches header.shared.css). */
   trxHelpPhase: 'off' | 'on' | 'closing' = 'off';
   private trxHelpTimers: number[] = [];
-  @ViewChild('marquee', { static: true }) marqueeElement!: ElementRef;
   public notifications: any[] = [];
-  private currentIndex = 0;
+  marqueeDuration = 24;
   academicDropdownOpen = false;
   academicDropdownOpen2 = false;
   academicDropdownOpen3 = false;
@@ -142,11 +142,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   packageStatus: any = null;
   profileImageUrl: string | null = null;
   profileBadge = 'Star';
-  profileCropOpen = false;
-  profileCropPreview = '';
-  profileCropX = 50;
-  profileCropY = 50;
-  private profileCropImage: HTMLImageElement | null = null;
+  profilePictureMenuOpen = false;
+  profilePictureBusy = false;
   get studentStudyMode(): boolean {
     return !!this.packageStatus?.active && this.packageStatus?.progress?.accountType === 'Student';
   }
@@ -200,6 +197,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
+        this.loadNotifications();
         this.syncNewTokenFromPendingStash();
         this.refreshLoginStatusFromStorage();
         this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
@@ -258,7 +256,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   chooseProfilePicture(event: Event, input: HTMLInputElement): void {
-    event.preventDefault(); event.stopPropagation(); input.click();
+    event.preventDefault(); event.stopPropagation();
+    this.profilePictureMenuOpen = false;
+    input.click();
+  }
+
+  openProfilePictureMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDropdownOpen = false;
+    this.profilePictureMenuOpen = true;
   }
 
   onProfilePictureSelected(event: Event): void {
@@ -272,38 +279,67 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
     const image = new Image();
     image.onload = () => {
-      this.profileCropImage = image;
-      this.profileCropPreview = image.src;
-      this.profileCropX = 50; this.profileCropY = 50; this.profileCropOpen = true;
+      const side = Math.min(image.naturalWidth, image.naturalHeight);
+      const sx = (image.naturalWidth - side) / 2;
+      const sy = (image.naturalHeight - side) / 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        URL.revokeObjectURL(image.src);
+        this.snackBar.open('Profile picture could not be prepared.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] });
+        return;
+      }
+      context.clearRect(0, 0, 512, 512);
+      context.save();
+      context.beginPath();
+      context.arc(256, 256, 256, 0, Math.PI * 2);
+      context.clip();
+      context.drawImage(image, sx, sy, side, side, 0, 0, 512, 512);
+      context.restore();
+      URL.revokeObjectURL(image.src);
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          this.snackBar.open('Profile picture could not be prepared.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] });
+          return;
+        }
+        this.profilePictureBusy = true;
+        this.apiService.uploadProfilePicture(blob).subscribe({
+          next: (data) => {
+            this.profilePictureBusy = false;
+            this.profileImageUrl = data?.profileImageUrl || null;
+            this.snackBar.open('Profile picture updated.', 'Close', { duration: 5000, panelClass: ['package-center-snackbar', 'success-snackbar'] });
+          },
+          error: (err) => {
+            this.profilePictureBusy = false;
+            this.snackBar.open(err?.error?.error || 'Profile picture could not be updated.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] });
+          },
+        });
+      }, 'image/webp', .9);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(image.src);
+      this.snackBar.open('The selected image could not be opened.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] });
     };
     image.src = URL.createObjectURL(file);
   }
 
-  confirmProfileCrop(): void {
-    const image = this.profileCropImage;
-    if (!image) return;
-    const side = Math.min(image.naturalWidth, image.naturalHeight);
-    const sx = (image.naturalWidth - side) * this.profileCropX / 100;
-    const sy = (image.naturalHeight - side) * this.profileCropY / 100;
-      const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
-      canvas.getContext('2d')!.drawImage(image, sx, sy, side, side, 0, 0, 512, 512);
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        this.apiService.uploadProfilePicture(blob).subscribe({
-          next: (data) => { this.profileImageUrl = data?.profileImageUrl || null; this.closeProfileCrop(); this.snackBar.open('Profile picture updated.', 'Close', { duration: 5000, panelClass: ['package-center-snackbar', 'success-snackbar'] }); },
-          error: (err) => this.snackBar.open(err?.error?.error || 'Profile picture could not be updated.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] })
-        });
-      }, 'image/webp', .9);
-  }
-
-  closeProfileCrop(): void {
-    if (this.profileCropPreview) URL.revokeObjectURL(this.profileCropPreview);
-    this.profileCropOpen = false; this.profileCropPreview = ''; this.profileCropImage = null;
-  }
-
-  removeProfilePicture(event: Event): void {
+  clearProfilePicture(event: Event): void {
     event.preventDefault(); event.stopPropagation();
-    this.apiService.removeProfilePicture().subscribe(() => { this.profileImageUrl = null; });
+    this.profilePictureMenuOpen = false;
+    this.profilePictureBusy = true;
+    this.apiService.removeProfilePicture().subscribe({
+      next: () => {
+        this.profilePictureBusy = false;
+        this.profileImageUrl = null;
+        this.snackBar.open('Profile picture cleared.', 'Close', { duration: 5000, panelClass: ['package-center-snackbar', 'success-snackbar'] });
+      },
+      error: () => {
+        this.profilePictureBusy = false;
+        this.snackBar.open('Profile picture could not be cleared.', 'Close', { duration: 7000, panelClass: ['package-center-snackbar', 'error-snackbar'] });
+      },
+    });
   }
 
   /** Keeps token-input margin and other bindings aligned with `localStorage.isLoggedIn` after login redirect. */
@@ -538,6 +574,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @HostListener('document:click', ['$event'])
   onDocumentClickForDropdowns(event: Event): void {
     const target = event.target as HTMLElement;
+    if (!target.closest('.profile-picture-context-menu')) this.profilePictureMenuOpen = false;
     if (this.countryWrapRef?.nativeElement?.contains(target)) return;
     this.showCountryDropdown = false;
     this.headerCountrySearch = '';
@@ -692,112 +729,21 @@ export class HeaderComponent implements OnInit, OnDestroy {
   loadNotifications() {
     this.apiService.getNotifications().subscribe(
       (data: any) => {
-        this.notifications = data.reverse();
-        this.startMarquee();
+        const rows = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
+        this.notifications = rows
+          .filter((row: any) => String(row?.text || '').trim())
+          .slice(0, 12)
+          .reverse();
+        const textLength = this.notifications.reduce(
+          (total: number, row: any) => total + String(row.text || '').length,
+          0,
+        );
+        this.marqueeDuration = Math.max(18, Math.min(120, 14 + textLength * 0.12));
       },
       (error: any) => {
         console.error('Error Fetching Notifications!');
       }
     );
-  }
-
-  startMarquee() {
-    if (this.notifications.length > 0) {
-      this.updateMarqueeMessage();
-    }
-  }
-
-  updateMarqueeMessage() {
-    const messageElement: HTMLElement = this.marqueeElement.nativeElement.querySelector('.msg');
-    const lastTen = this.notifications.slice(-12);
-
-    let notificationsHTML = '';
-    for (let i = 0; i < lastTen.length; i++) {
-      const currentIndex = (this.currentIndex + i) % this.notifications.length;
-      const currentNotification = this.notifications[currentIndex];
-        notificationsHTML += `<i class="fas fa-info-circle" style="
-        background-color: seagreen;
-        color: white;
-        border: 2px dotted white;
-        border-radius: 50%;
-        padding: 1px;
-        font-size: 16px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center; "></i>&nbsp;&nbsp;<a href="${currentNotification.link}" target="_blank" class="msg_link">${currentNotification.text}</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`;
-      }
-
-    messageElement.innerHTML = notificationsHTML;
-    this.addDynamicStyles();
-
-    const messageWidth = messageElement.scrollWidth;
-    const viewportWidth = window.innerWidth;
-
-    let increasingTime: number;
-    if (viewportWidth < 576) {
-      increasingTime = 7;
-    } else if (viewportWidth < 768) {
-      increasingTime = 10;
-    } else if (viewportWidth < 992) {
-      increasingTime = 12;
-    } else if (viewportWidth < 1200) {
-      increasingTime = 15;
-    } else {
-      increasingTime = 20;
-    }
-
-    let animationDuration: number;
-    if (messageWidth <= viewportWidth) {
-      animationDuration = increasingTime;
-    } else {
-      const numberOfWidths = Math.ceil(messageWidth / viewportWidth);
-      animationDuration = increasingTime + numberOfWidths * increasingTime;
-    }
-
-    const keyframes = `
-      @keyframes scrollLeft {
-        0% {
-          transform: translateX(100000vw);
-        }
-        100000% {
-          transform: translateX(-${messageWidth}px);
-        }
-      }
-    `;
-
-    const style = document.createElement('style');
-    style.type = 'text/css';
-    style.innerHTML = `
-      .marquee .msg {
-        animation: scrollLeft ${animationDuration}s linear infinite;
-      }
-      ${keyframes}
-    `;
-    document.head.appendChild(style);
-
-    this.currentIndex = (this.currentIndex + 1) % this.notifications.length;
-  }
-
-  addDynamicStyles() {
-    const style = document.createElement('style');
-    style.type = 'text/css';
-    style.innerHTML = `
-      .msg_link {
-        text-decoration: none;
-        color: teal;
-      }
-      .msg_link:hover {
-        color: yellowgreen;
-      }
-      .marquee .msg {
-        animation-play-state: running;
-      }
-      .marquee .msg:hover {
-        animation-play-state: paused !important;
-        cursor: pointer;
-      }
-    `;
-    document.head.appendChild(style);
   }
 
   search(event: any) {

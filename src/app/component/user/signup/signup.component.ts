@@ -1376,7 +1376,9 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         error: (error: any) => {
           console.error('Signup error:', error);
-          this.showAuthAlertMessage('Signup failed. Please try again.', false);
+          const referenceError = error?.error?.reference;
+          const message = Array.isArray(referenceError) ? referenceError[0] : referenceError;
+          this.showAuthAlertMessage(message || error?.error?.detail || 'Signup failed. Please try again.', false);
         },
       });
     } else {

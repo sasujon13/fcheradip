@@ -68,6 +68,45 @@ div.profile_back{
 }
 .marquee .msg {
   font-size: 1.25em;
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  min-width: max-content;
+  margin: 0;
+  padding-left: 100%;
+  animation: header-notification-scroll var(--marquee-duration, 24s) linear infinite;
+  will-change: transform;
+}
+.marquee .msg:hover {
+  animation-play-state: paused;
+  cursor: pointer;
+}
+.marquee .msg_link {
+  color: teal;
+  text-decoration: none;
+}
+.marquee .msg_link:hover {
+  color: yellowgreen;
+}
+.marquee .notification-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  padding: 1px;
+  border: 2px dotted white;
+  border-radius: 50%;
+  background-color: seagreen;
+  color: white;
+  font-size: 16px;
+}
+.marquee .notification-gap {
+  display: inline-block;
+  width: 64px;
+}
+@keyframes header-notification-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
 }
 
 /* Token box in header (shown on non-NTRCA-section pages) */
@@ -429,8 +468,8 @@ ul.profileMenu {
   margin-top: 118px;
   position: absolute;
   background-color: var(--color_primary_teal);
-  width: 40px;
-  height: 40px;
+  width: 41px;
+  height: 41px;
   border: 3px solid yellowgreen;
   border-radius: 50px;
   right: 4px;
@@ -447,7 +486,7 @@ ul.profileMenu {
 }
 ul.dropdown {
   position: absolute;
-  margin: 40px 0 0 -200px;
+  margin: 10px 0 0 -200px;
   list-style-type: none;
   padding: 10px;
   width: 220px;
