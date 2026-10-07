@@ -30,6 +30,23 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const remaining = Number(this.packageStatus?.remainingTasks || 0);
     return remaining <= 0 ? 100 : Math.min(100, Math.round(completed * 100 / (completed + remaining)));
   }
+  get activatedPackageLabel(): string {
+    const subscriptions = Array.isArray(this.packageStatus?.activeSubscriptions)
+      ? this.packageStatus.activeSubscriptions
+      : [];
+    if (subscriptions.length) {
+      return subscriptions.map((subscription: any) => {
+        const track = subscription?.track
+          ? subscription.track.charAt(0).toUpperCase() + subscription.track.slice(1)
+          : '';
+        return `${subscription?.planName || 'Package'}${track ? ` — ${track}` : ''}`;
+      }).join(' + ');
+    }
+    const current = this.packageStatus?.activeSubscription;
+    if (!current) return 'Free';
+    const track = current.track ? current.track.charAt(0).toUpperCase() + current.track.slice(1) : '';
+    return `${current.planName || 'Package'}${track ? ` — ${track}` : ''}`;
+  }
 
   constructor(
     private studentService: StudentService,

@@ -1,66 +1,52 @@
 <div class="mainmsg" style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
   <h1 class="msg">Now we are working at class <b>11-12</b>, <b>HSC</b> and <b>University Admission</b> only!</h1>
 </div>
+
+<!-- Responsive student and teacher package matrices -->
+<ng-template #packageMatrix let-teacherPackage="teacherPackage" let-rows="rows">
+  <table class="package"><br>
+    <tr class="tblhead">
+      <th class="tblth" rowspan="2">Name</th>
+      <th class="tblth" rowspan="2">Dur.</th>
+      <th class="tblth" colspan="3">{{ teacherPackage ? 'Questions Set/Package Price at TK' : 'Package Price at TK' }}</th>
+    </tr>
+    <tr class="tblhead"><th class="tblth">Aca.</th><th class="tblth">Adm.</th><th class="tblth">Com.</th></tr>
+    <ng-container *ngFor="let row of rows">
+      <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr [class.current-package-row]="isCurrentRow(row)">
+        <td class="tbltd">{{ row.name }}</td>
+        <td class="tbltd">{{ row.durationMonths }} M</td>
+        <td class="tbltd" *ngFor="let track of ['academic', 'admission', 'combined']">
+          <ng-container *ngIf="row.plans[track] as plan">
+            <a class="package-link" href="" (click)="selectPlan($event, plan)"
+              [class.activating]="actionCode === plan.code"
+              [class.package-link--active]="isTrackActive(row, track)"
+              [class.package-link--disabled]="isTrackDisabled(row, track)"
+              [attr.aria-disabled]="isTrackDisabled(row, track)"
+              [attr.aria-label]="'Activate ' + plan.name + ' ' + track + ' package'">
+              <span *ngIf="teacherPackage && track !== 'combined'">{{ plan.questionLimit }}/</span>{{ formatMoney(plan.payableAmount) }}<sub *ngIf="plan.listPrice !== plan.payableAmount"><del>{{ formatMoney(plan.listPrice) }}</del></sub>
+            </a>
+          </ng-container>
+        </td>
+      </tr>
+    </ng-container>
+  </table>
+</ng-template>
+
 <ul class="item-list">
   <li>
     <div class="image-container">
       <h3 class="title">Packages for Students</h3><br>
-      <table class="package"><br>
-        <tr class="tblhead"><th class="tblth" rowspan="2">Name</th><th class="tblth" rowspan="2">Dur.</th><th class="tblth" colspan="3">Package Price at TK</th></tr>
-        <tr class="tblhead"><th class="tblth">Aca.</th><th class="tblth">Adm.</th><th class="tblth">Com.</th></tr>
-        <ng-container *ngFor="let row of planRows">
-          <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-          <tr [class.current-package-row]="isCurrentRow(row)">
-            <td class="tbltd">{{ row.name }}</td>
-            <td class="tbltd">{{ row.durationMonths }} M</td>
-            <td class="tbltd" *ngFor="let track of ['academic', 'admission', 'combined']">
-              <ng-container *ngIf="row.plans[track] as plan">
-                <a class="package-link" href="" (click)="selectPlan($event, plan)" [class.activating]="actionCode === plan.code" [class.package-link--active]="isTrackActive(row, track)" [class.package-link--disabled]="isTrackDisabled(row, track)" [attr.aria-disabled]="isTrackDisabled(row, track)" [attr.aria-label]="'Activate ' + plan.name + ' ' + track + ' package'">
-                  {{ formatMoney(plan.payableAmount) }}<sub *ngIf="plan.listPrice !== plan.payableAmount"><del>{{ formatMoney(plan.listPrice) }}</del></sub>
-                </a>
-              </ng-container>
-            </td>
-          </tr>
-        </ng-container>
-      </table>
+      <ng-container *ngTemplateOutlet="packageMatrix; context: { teacherPackage: false, rows: studentPlanRows }"></ng-container>
       <p class="price">Make Money by Refering your Friends!</p>
       <p class="footer">
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
-        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
-        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
+        <a href="" (click)="toggleAddMoney($event)" class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
+        <a href="" (click)="toggleSharePanel($event)" class="item_footer"><i class="fa fa-share"></i>Refer</a>
+        <a href="" (click)="$event.preventDefault(); copyReferralLink()" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
       </p>
     </div>
   </li>
-  <li>
-    <div class="image-container">
-      <h3 class="title">User Badges for Teachers</h3><br>
-      <table class="package" style="margin-top: 5px;"><br>
-        <tr class="tblhead"><th class="tblth">Base</th><th class="tblth">Badge</th><th class="tblth">CQ<br>(TK)</th><th class="tblth">MCQ<br>(TK)</th><th class="tblth">Disc.<br>(%)</th><th class="tblth">RV<br>(%)</th></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','Free','None')"><td class="tbltd">Free</td><td class="tbltd">None</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">NA</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','New','Star')"><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','Premium','Silver')"><td class="tbltd">Premium</td><td class="tbltd">Silver</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">25</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','Q > 99','Gold')"><td class="tbltd">Q &gt; 99</td><td class="tbltd">Gold</td><td class="tbltd">1.40</td><td class="tbltd">0.23</td><td class="tbltd">10</td><td class="tbltd">30</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','Q > 199','Gold+')"><td class="tbltd">Q &gt; 199</td><td class="tbltd">Gold+</td><td class="tbltd">1.30</td><td class="tbltd">0.21</td><td class="tbltd">20</td><td class="tbltd">35</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','Q > 299','Platinum')"><td class="tbltd">Q &gt; 299</td><td class="tbltd">Platinum</td><td class="tbltd">1.20</td><td class="tbltd">0.19</td><td class="tbltd">30</td><td class="tbltd">40</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','Q > 399','Platinum+')"><td class="tbltd">Q &gt; 399</td><td class="tbltd">Platinum+</td><td class="tbltd">1.10</td><td class="tbltd">0.17</td><td class="tbltd">40</td><td class="tbltd">45</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr [class.current-membership]="isMembershipRow('question','Q > 499','Titanium')"><td class="tbltd">Q &gt; 499</td><td class="tbltd">Titanium</td><td class="tbltd">1.00</td><td class="tbltd">0.15</td><td class="tbltd">50</td><td class="tbltd">50</td></tr>
-      </table>
-      <p class="price" style="padding: 10px;">Get New Badges & Make Money by Refering<br>Your Friends, Collegues and Students!</p>
-      <p class="footer">
-        <a [routerLink]="['/order']" class="item_footer"><i class="fa fa-plus"></i>Add Money</a>
-        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
-        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
-      </p>
-    </div>
-  </li>
+
   <li>
     <div class="image-container">
       <h3 class="title">User Badges for Students</h3><br>
@@ -80,18 +66,63 @@
         <tr [class.current-membership]="isMembershipRow('exam','E > 299','Platinum')"><td class="tbltd">E &gt; 299</td><td class="tbltd">Platinum</td><td class="tbltd">80</td><td class="tbltd">30</td><td class="tbltd">30</td></tr>
         <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
         <tr [class.current-membership]="isMembershipRow('exam','E > 399','Platinum+')"><td class="tbltd">E &gt; 399</td><td class="tbltd">Platinum+</td><td class="tbltd">90</td><td class="tbltd">40</td><td class="tbltd">30</td></tr>
-        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td></tr>
         <tr [class.current-membership]="isMembershipRow('exam','E > 499','Titanium')"><td class="tbltd">E &gt; 499</td><td class="tbltd">Titanium</td><td class="tbltd">95</td><td class="tbltd">50</td><td class="tbltd">30</td></tr>
       </table>
-      <p class="price" style="padding: 10px;">Get New Badges & Make Money<br>By Refering Your Friends!</p>
+      <p class="price" style="padding: 10px;">Get New Badges &amp; Make Money<br>By Refering Your Friends!</p>
       <p class="footer">
         <a [routerLink]="['/student/dashboard']" class="item_footer"><i class="fa fa-book"></i>Give Exam</a>
-        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-share"></i>Refer</a>
-        <a [routerLink]="['/refer']" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
+        <a href="" (click)="toggleSharePanel($event)" class="item_footer"><i class="fa fa-share"></i>Refer</a>
+        <a href="" (click)="$event.preventDefault(); copyReferralLink()" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
+      </p>
+    </div>
+  </li>
+
+  <li *ngIf="canUseTeacherPackages">
+    <div class="image-container">
+      <h3 class="title">Packages for Teachers</h3><br>
+      <ng-container *ngTemplateOutlet="packageMatrix; context: { teacherPackage: true, rows: teacherPlanRows }"></ng-container>
+      <p class="price">Repay a Package after using its Question Set!</p>
+      <p class="footer">
+        <a href="" (click)="toggleAddMoney($event)" class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
+        <a href="" (click)="toggleSharePanel($event)" class="item_footer"><i class="fa fa-share"></i>Refer</a>
+        <a href="" (click)="$event.preventDefault(); copyReferralLink()" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
+      </p>
+    </div>
+  </li>
+
+  <li *ngIf="canUseTeacherPackages">
+    <div class="image-container">
+      <h3 class="title">User Badges for Teachers</h3><br>
+      <table class="package" style="margin-top: 5px;"><br>
+        <tr class="tblhead"><th class="tblth">Base</th><th class="tblth">Badge</th><th class="tblth">CQ<br>(TK)</th><th class="tblth">MCQ<br>(TK)</th><th class="tblth">Disc.<br>(%)</th><th class="tblth">RV<br>(%)</th></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Free','None')"><td class="tbltd">Free</td><td class="tbltd">None</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">NA</td><td class="tbltd">NA</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','New','Star')"><td class="tbltd">New</td><td class="tbltd">Star</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">20</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Premium','Silver')"><td class="tbltd">Premium</td><td class="tbltd">Silver</td><td class="tbltd">1.50</td><td class="tbltd">0.25</td><td class="tbltd">NA</td><td class="tbltd">25</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 99','Gold')"><td class="tbltd">Q &gt; 99</td><td class="tbltd">Gold</td><td class="tbltd">1.40</td><td class="tbltd">0.23</td><td class="tbltd">10</td><td class="tbltd">30</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 199','Gold+')"><td class="tbltd">Q &gt; 199</td><td class="tbltd">Gold+</td><td class="tbltd">1.30</td><td class="tbltd">0.21</td><td class="tbltd">20</td><td class="tbltd">35</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 299','Platinum')"><td class="tbltd">Q &gt; 299</td><td class="tbltd">Platinum</td><td class="tbltd">1.20</td><td class="tbltd">0.19</td><td class="tbltd">30</td><td class="tbltd">40</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 399','Platinum+')"><td class="tbltd">Q &gt; 399</td><td class="tbltd">Platinum+</td><td class="tbltd">1.10</td><td class="tbltd">0.17</td><td class="tbltd">40</td><td class="tbltd">45</td></tr>
+        <tr class="gap"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr [class.current-membership]="isMembershipRow('question','Q > 499','Titanium')"><td class="tbltd">Q &gt; 499</td><td class="tbltd">Titanium</td><td class="tbltd">1.00</td><td class="tbltd">0.15</td><td class="tbltd">50</td><td class="tbltd">50</td></tr>
+      </table>
+      <p class="price" style="padding: 10px;">Get New Badges &amp; Make Money by Refering<br>Your Friends, Collegues and Students!</p>
+      <p class="footer">
+        <a [routerLink]="['/question']" class="item_footer"><i class="fa fa-plus"></i>Create Question</a>
+        <a href="" (click)="toggleSharePanel($event)" class="item_footer"><i class="fa fa-share"></i>Refer</a>
+        <a href="" (click)="$event.preventDefault(); copyReferralLink()" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
       </p>
     </div>
   </li>
 </ul>
+
 <div class="comment">
   <p style="color: darkred;">&gt;&gt;&gt; To hold Badges, Teachers have to create at least 50 Questions and<br>Students have to attend at least 50 Exams at last 3 Months!</p>
   <p style="color: darkgreen;">&gt;&gt;&gt; Using your <b>Cheradip Wallet</b> you can<br>&nbsp;&nbsp;&nbsp; get Payment at Nagad/BKash/DBBL/Sonali Bank and<br>&nbsp;&nbsp;&nbsp; Gift Packages to Others!</p>
@@ -110,3 +141,34 @@
   </table>
 </div>
 <div class="gap" style="height: 100px;"></div>
+
+<div class="package-dialog-backdrop" *ngIf="pendingPlan" (click)="cancelActivation()">
+  <section class="package-dialog" role="dialog" aria-modal="true" aria-labelledby="package-dialog-title" (click)="$event.stopPropagation()">
+    <h3 id="package-dialog-title">Activate Package</h3>
+    <p>Activate <strong>{{ pendingPlan.name }} {{ pendingPlan.track | titlecase }}</strong>
+      for <strong>৳{{ formatMoney(pendingPlan.payableAmount) }}</strong>?</p>
+    <div class="package-dialog__actions">
+      <button type="button" class="package-dialog__cancel" (click)="cancelActivation()">Cancel</button>
+      <button type="button" class="package-dialog__activate" (click)="confirmActivation()">Activate</button>
+    </div>
+  </section>
+</div>
+
+<div class="package-dialog-backdrop" *ngIf="sharePanelOpen" (click)="closeSharePanel()">
+  <section class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title" (click)="$event.stopPropagation()">
+    <button type="button" class="share-dialog__close" aria-label="Close sharing options" (click)="closeSharePanel()">×</button>
+    <h3 id="share-dialog-title">Refer &amp; Earn</h3>
+    <p>Invite friends with your verified Cheradip reference.</p>
+    <div class="reference-chip"><span>Reference</span><strong>{{ referralReference || 'Loading…' }}</strong></div>
+    <div class="share-grid" *ngIf="referralLink">
+      <a [href]="shareUrl('facebook')" target="_blank" rel="noopener"><i class="fa fa-facebook"></i><span>Facebook<br><small>Wall · Group · Page</small></span></a>
+      <a [href]="shareUrl('messenger')"><i class="fa fa-comment"></i><span>Messenger<br><small>Chats · Groups</small></span></a>
+      <a [href]="shareUrl('whatsapp')" target="_blank" rel="noopener"><i class="fa fa-whatsapp"></i><span>WhatsApp<br><small>Chats · Groups · Communities</small></span></a>
+      <a [href]="shareUrl('telegram')" target="_blank" rel="noopener"><i class="fa fa-telegram"></i><span>Telegram<br><small>Chats · Groups</small></span></a>
+      <a [href]="shareUrl('linkedin')" target="_blank" rel="noopener"><i class="fa fa-linkedin"></i><span>LinkedIn<br><small>Post · Message</small></span></a>
+      <a [href]="shareUrl('x')" target="_blank" rel="noopener"><i class="fa fa-twitter"></i><span>X<br><small>Post</small></span></a>
+      <a [href]="shareUrl('email')"><i class="fa fa-envelope"></i><span>Email<br><small>Send invitation</small></span></a>
+      <button type="button" (click)="copyReferralLink()"><i class="fa fa-copy"></i><span>Copy Link<br><small>Share anywhere</small></span></button>
+    </div>
+  </section>
+</div>

@@ -2,12 +2,15 @@ import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
-import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { catchError, finalize, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 import { SESSION_LOGIN_USE_STORED_RETURN } from './login-redirect.session';
 
 /** Remove once per session if present (old unlock stored Trx row id here). */
 const LEGACY_ACTIVE_TRX_LS = 'cheradipActiveTrxRowId';
+
+/** Last server-confirmed balance, tied to the exact login token that fetched it. */
+export const COIN_BALANCE_CACHE_KEY = 'cheradipCoinBalance';
 
 /** Session-only: TrxID typed before login / 401 so it can refill the input after return. */
 export const SESSION_PENDING_TRXID_KEY = 'cheradipPendingTrxidInput';
@@ -29,12 +32,15 @@ export type TrxApplyErrorCode =
 export class TrxUnlockService {
   /** Last known ``customer.settings.balance`` from API (display + after unlock). */
   private coinBalance = 0;
+  private balanceRequest$?: Observable<number>;
 
   constructor(
     private http: HttpClient,
     private router: Router,
     private zone: NgZone
-  ) {}
+  ) {
+    this.restoreCoinBalance();
+  }
 
   private hasAppSession(): boolean {
     const t = (localStorage.getItem('authToken') || '').trim();
@@ -81,38 +87,83 @@ export class TrxUnlockService {
     this.setCoinBalance(n);
   }
 
+  clearCachedBalance(): void {
+    this.balanceRequest$ = undefined;
+    this.coinBalance = 0;
+    try {
+      localStorage.removeItem(COIN_BALANCE_CACHE_KEY);
+    } catch {
+      /* ignore unavailable storage */
+    }
+  }
+
   private setCoinBalance(n: number): void {
     const v = Number(n);
     this.coinBalance = Number.isFinite(v) && v >= 0 ? v : 0;
+    if (!this.hasAppSession()) return;
+    const token = (localStorage.getItem('authToken') || '').trim();
+    try {
+      localStorage.setItem(
+        COIN_BALANCE_CACHE_KEY,
+        JSON.stringify({ token, balance: this.coinBalance })
+      );
+    } catch {
+      /* the live value still remains available */
+    }
+  }
+
+  private restoreCoinBalance(): void {
+    if (!this.hasAppSession()) {
+      this.clearCachedBalance();
+      return;
+    }
+    const token = (localStorage.getItem('authToken') || '').trim();
+    try {
+      const cached = JSON.parse(localStorage.getItem(COIN_BALANCE_CACHE_KEY) || 'null');
+      const balance = Number(cached?.balance);
+      if (cached?.token === token && Number.isFinite(balance) && balance >= 0) {
+        this.coinBalance = balance;
+        return;
+      }
+    } catch {
+      /* discard malformed/stale cache below */
+    }
+    this.clearCachedBalance();
   }
 
   /** GET /customer_settings/ → ``settings.balance`` (Bearer). Single source of truth for coins. */
   fetchCoinBalance(): Observable<number> {
     if (!this.hasAppSession()) {
-      this.setCoinBalance(0);
+      this.clearCachedBalance();
       return of(0);
     }
+    if (this.balanceRequest$) return this.balanceRequest$;
     try {
       localStorage.removeItem(LEGACY_ACTIVE_TRX_LS);
     } catch {
       /* ignore */
     }
     const previous = this.coinBalance;
-    return this.http.get<{ settings?: { balance?: number } }>(`${environment.apiUrl}/customer_settings/`).pipe(
+    const request$ = this.http.get<{ settings?: { balance?: number } }>(`${environment.apiUrl}/customer_settings/`).pipe(
       map((res) => {
         const b = Number(res?.settings?.balance ?? 0);
         const n = Number.isFinite(b) && b >= 0 ? b : 0;
         this.setCoinBalance(n);
         return n;
       }),
-      catchError(() => {
-        // Keep last known balance on transient API errors — do not flash 0 while still logged in.
-        if (this.hasAppSession() && previous > 0) {
-          return of(previous);
+      catchError((err: { status?: number }) => {
+        if (err?.status === 401) {
+          this.clearCachedBalance();
+          return of(0);
         }
-        return of(this.coinBalance);
-      })
+        // Keep the last server-confirmed value on transient API/network failures.
+        return of(this.hasAppSession() ? previous : 0);
+      }),
+      finalize(() => { this.balanceRequest$ = undefined; }),
+      shareReplay(1)
     );
+    this.balanceRequest$ = request$;
+    return request$;
   }
 
   /**

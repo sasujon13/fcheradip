@@ -1,6 +1,6 @@
 <div class="dashboard-container">
   <header class="dashboard-header">
-    <h1 class="dashboard-title">Activated Package: {{ packageStatus?.activeSubscription?.planName || 'Free' }}<ng-container *ngIf="packageStatus?.activeSubscription?.track"> — {{ packageStatus.activeSubscription.track | titlecase }}</ng-container></h1>
+    <h1 class="dashboard-title">Activated Package: {{ activatedPackageLabel }}</h1>
     <div class="membership-summary" *ngIf="packageStatus">
       <div class="dashboard-profile-picture" (click)="openProfilePictureMenu($event)"
         (contextmenu)="openProfilePictureMenu($event)" title="Profile picture options">

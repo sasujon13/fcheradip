@@ -1062,6 +1062,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** True when this init restored an existing draft (session/history/local). */
   private creatorRestoredDraftOnce = false;
+  /** A Teacher package may cover this save; the backend makes the final track/quota decision. */
+  private teacherPackageMayCoverSave = false;
 
   /** Shown over the header line row after ± font-size click (fixed viewport position). */
   headerLineFontToastVisible = false;
@@ -1084,6 +1086,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.loadingService.setTotal(1);
     if (this.apiService.isLoggedIn()) {
       this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+      this.apiService.getPackageStatus().pipe(take(1)).subscribe({
+        next: value => {
+          this.teacherPackageMayCoverSave = (value?.activeSubscriptions || []).some(
+            (row: any) => row?.audience === 'teacher' && !row?.quotaExhausted
+          );
+        },
+        error: () => { this.teacherPackageMayCoverSave = false; },
+      });
     }
     let restored = false;
 
@@ -11985,6 +11995,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private assertSufficientCoinsForSave(): boolean {
+    if (this.teacherPackageMayCoverSave) {
+      return true;
+    }
     const debit = this.questionSaveCoinCost;
     if (debit <= 0) {
       return true;

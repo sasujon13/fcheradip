@@ -340,7 +340,7 @@ export class ApiService {
 
   /** Whether the user is considered logged in (has auth token). */
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    return localStorage.getItem('isLoggedIn') === 'true' && !!this.getToken();
   }
 
   /** GET customer settings (requires auth). Returns { settings }. */

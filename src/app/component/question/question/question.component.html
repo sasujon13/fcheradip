@@ -278,7 +278,7 @@
 
       <!-- Sticky circular FABs at bottom-right: Create Question, Live Chat -->
       <div class="fab-wrapper">
-        <div class="fab-tooltip-wrap" *ngIf="!studentStudyMode">
+        <div class="fab-tooltip-wrap">
           <span class="fab-tooltip">First Select Level, Class/Group, Subject and Topic from Top and then click here to
             create/add a New Question to Cheradip</span>
           <button type="button" class="fab-btn fab-circle fab-create"
@@ -301,7 +301,7 @@
         (alertClosed)="showDisappearAlert = false"></app-alert>
 
       <!-- Smart Question Creator: EIIN / exam / set → /question/create + auto-save -->
-      <div class="smart-creator-modal-backdrop" *ngIf="smartCreatorModalOpen && !studentStudyMode" role="dialog" aria-modal="true"
+      <div class="smart-creator-modal-backdrop" *ngIf="smartCreatorModalOpen" role="dialog" aria-modal="true"
         aria-labelledby="smart-creator-modal-title" (click)="closeSmartQuestionCreatorModal()">
         <div class="smart-creator-modal" (click)="$event.stopPropagation()">
           <h2 id="smart-creator-modal-title" class="smart-creator-modal-title">Smart Question Creator</h2>
@@ -366,9 +366,9 @@
             </ng-container>
             <ng-template #pageUnlockNeedsCoins>{{ allDisplayedQuestionsRevealed() ? '🔓' : '🔒' }}</ng-template>
           </button>
-          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
+          <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
             Question Creator</button>
-          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-create-question"
+          <button type="button" class="btn-creator btn-create-question"
             (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
             {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
           </button>
@@ -404,9 +404,9 @@
             </ng-container>
             <ng-template #pageUnlockNeedsCoins>{{ allDisplayedQuestionsRevealed() ? '🔓' : '🔒' }}</ng-template>
           </button>
-          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
+          <button type="button" class="btn-creator btn-smart-creator" (click)="openSmartQuestionCreatorModal()">Smart
             Question Creator</button>
-          <button *ngIf="!studentStudyMode" type="button" class="btn-creator btn-create-question"
+          <button type="button" class="btn-creator btn-create-question"
             (click)="selectedCount > 0 ? goToCreateQuestion() : goToQuestionCreator()">
             {{ selectedCount > 0 ? 'Create Question (' + selectedCount + ')' : 'Create Question' }}
           </button>

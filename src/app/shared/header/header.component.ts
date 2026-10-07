@@ -10,6 +10,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { TrxUnlockService } from '../../service/trx-unlock.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../service/login-redirect.session';
+import { AuthSessionService } from '../../service/auth-session.service';
 import {
   getDashboardRouterLinkSegments,
   isTeacherAccount,
@@ -145,7 +146,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   profilePictureMenuOpen = false;
   profilePictureBusy = false;
   get studentStudyMode(): boolean {
-    return !!this.packageStatus?.active && this.packageStatus?.progress?.accountType === 'Student';
+    const accountType = String(localStorage.getItem('acctype') || '').replace(/\s+/g, '').toLowerCase();
+    return accountType === 'student' || accountType === 'jobseeker';
   }
   academicTimeout: any;
   academicTimeout2: any;
@@ -183,7 +185,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
-    private trxUnlock: TrxUnlockService) { }
+    private trxUnlock: TrxUnlockService,
+    private authSession: AuthSessionService) { }
 
   ngOnInit(): void {
     // Route components call setTotal() during their own ngOnInit. Deliver the
@@ -245,7 +248,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.packageStatus = status;
         this.profileImageUrl = status?.profileImageUrl || null;
         this.profileBadge = status?.badge || 'Star';
-        const warning = status?.activeSubscription?.warning?.message;
+        const warning = status?.warnings?.[0]?.message || status?.activeSubscription?.warning?.message;
         if (warning) this.snackBar.open(warning, 'Recharge', { duration: 12000, horizontalPosition: 'center', verticalPosition: 'top', panelClass: ['package-center-snackbar', 'error-snackbar'] })
           .onAction().subscribe(() => this.router.navigate(['/order']));
         this.cdr.markForCheck();
@@ -382,6 +385,20 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Remove stale profile/login chrome immediately when the server rejects the session. */
+  @HostListener('window:cheradip-session-changed')
+  onSessionChanged(): void {
+    if (!this.authSession.hasStoredSession()) {
+      this.packageStatus = null;
+      this.profileImageUrl = null;
+      this.profileBadge = 'Star';
+      this.isDropdownOpen = false;
+      this.profilePictureMenuOpen = false;
+      this.trxUnlock.clearCachedBalance();
+    }
+    this.applyHeaderLoginChromeFromStorage();
+  }
+
   /** Refill header TrxID box from session stash after login (hidden on NTRCA section routes). */
   private syncNewTokenFromPendingStash(): void {
     if (this.isNtrcaSectionRoute) return;
@@ -422,6 +439,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
   onTrxHelpPointerEnter(): void {
     this.clearTrxHelpTimers();
     this.trxHelpPhase = 'on';
+  }
+
+  @HostListener('window:cheradip-toggle-trx-help')
+  toggleTrxHelpFromPage(): void {
+    this.clearTrxHelpTimers();
+    this.trxHelpPhase = this.trxHelpPhase === 'on' ? 'off' : 'on';
   }
 
   onTrxHelpPointerLeave(): void {
@@ -783,17 +806,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   /** Log out: clear auth storage, then full reload so header/token UI resets reliably. */
   logout(): void {
-    this.loginStatus = false;
-    this.cdr.markForCheck();
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('loginStatus');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('packageStatus');
-    localStorage.removeItem('username');
-    localStorage.removeItem('fullName');
-    localStorage.removeItem('acctype');
-    localStorage.removeItem('formData');
-    localStorage.removeItem('authFormData');
+    this.authSession.stopSessionMonitor();
+    this.authSession.clearStoredSession();
+    this.trxUnlock.clearCachedBalance();
+    this.applyHeaderLoginChromeFromStorage();
     window.location.assign('/login');
   }
 

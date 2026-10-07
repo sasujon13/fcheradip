@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { EMPTY, Subscription, fromEvent, interval, merge } from 'rxjs';
 import { catchError, filter } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { COIN_BALANCE_CACHE_KEY } from './trx-unlock.service';
 
 /** Shown on /login after another device replaces this session. */
 export const SESSION_LOGOUT_REASON_KEY = 'cheradipSessionLogoutReason';
@@ -26,14 +27,26 @@ export class AuthSessionService implements OnDestroy {
   }
 
   clearStoredSession(): void {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('loginStatus');
-    localStorage.removeItem('authToken');
+    [
+      'isLoggedIn',
+      'loginStatus',
+      'authToken',
+      'packageStatus',
+      'username',
+      'fullName',
+      'acctype',
+      'formData',
+      'authFormData',
+      COIN_BALANCE_CACHE_KEY,
+    ].forEach((key) => localStorage.removeItem(key));
+    window.dispatchEvent(new CustomEvent('cheradip-session-changed', {
+      detail: { loggedIn: false },
+    }));
   }
 
   /** Clear client auth and send user to login (e.g. token revoked by login on another device). */
   invalidateSession(reason: 'multi_device' | 'unauthorized' = 'unauthorized'): void {
-    if (this.invalidating || !this.hasStoredSession()) {
+    if (this.invalidating) {
       return;
     }
     this.invalidating = true;

@@ -11,10 +11,12 @@ interface PackagePlan {
   name: string;
   durationMonths: number;
   track: 'academic' | 'admission' | 'combined';
+  audience: 'student' | 'teacher';
   listPrice: number;
   price: number;
   discountPercent: number;
   payableAmount: number;
+  questionLimit: number;
 }
 
 @Component({
@@ -23,26 +25,45 @@ interface PackagePlan {
 })
 export class PackagesComponent implements OnInit {
   accountType = localStorage.getItem('acctype') || 'Student';
-  planRows: Array<{ name: string; durationMonths: number; plans: Record<string, PackagePlan> }> = [];
+  studentPlanRows: Array<{ name: string; durationMonths: number; audience: 'student'; plans: Record<string, PackagePlan> }> = [];
+  teacherPlanRows: Array<{ name: string; durationMonths: number; audience: 'teacher'; plans: Record<string, PackagePlan> }> = [];
   loading = true;
   actionCode = '';
   activeSubscription: any = null;
+  activeSubscriptions: any[] = [];
   progress: any = null;
+  studentProgress: any = null;
+  teacherProgress: any = null;
+  pendingPlan: PackagePlan | null = null;
+  sharePanelOpen = false;
+  referralLink = '';
+  referralReference = '';
 
-  isCurrentRow(row: { name: string; durationMonths: number }): boolean {
-    return !!this.activeSubscription && this.activeSubscription.planName === row.name;
+  get canUseTeacherPackages(): boolean {
+    return ['Student', 'Teacher', 'JobSeeker'].includes(this.accountType);
+  }
+
+  isCurrentRow(row: { name: string; durationMonths: number; audience: string }): boolean {
+    return this.activeSubscriptions.some((subscription) =>
+      subscription.planName === row.name && subscription.audience === row.audience
+    );
   }
   isTrackActive(row: any, track: string): boolean {
-    if (!this.isCurrentRow(row)) return false;
-    return this.activeSubscription.track === 'combined' || this.activeSubscription.track === track;
+    return this.activeSubscriptions.some((subscription) =>
+      subscription.planName === row.name &&
+      subscription.audience === row.audience &&
+      (subscription.track === track || subscription.track === 'combined')
+    );
   }
   isTrackDisabled(row: any, track: string): boolean {
-    return this.isCurrentRow(row) && row?.plans?.[track]?.code !== this.activeSubscription?.planCode;
+    return track !== 'combined' && this.activeSubscriptions.some((subscription) =>
+      subscription.planName === row.name && subscription.track === 'combined'
+      && subscription.audience === row.audience
+    );
   }
   isMembershipRow(kind: 'question' | 'exam', base: string, badge: string): boolean {
-    const account = this.progress?.accountType;
-    return (kind === 'exam' ? account === 'Student' : account === 'Teacher' || account === 'JobSeeker')
-      && this.progress?.base === base && this.progress?.badge === badge;
+    const progress = kind === 'exam' ? this.studentProgress : this.teacherProgress;
+    return !!progress && progress.base === base && progress.badge === badge;
   }
 
   constructor(private api: ApiService, private router: Router, private renderer: Renderer2,
@@ -63,8 +84,9 @@ export class PackagesComponent implements OnInit {
 
   selectPlan(event: Event, plan: PackagePlan): void {
     event.preventDefault();
-    if (this.activeSubscription?.planCode === plan.code) {
-      const ends = this.activeSubscription?.endsAt ? new Date(this.activeSubscription.endsAt).toLocaleDateString() : 'the renewal date';
+    const activePlan = this.activeSubscriptions.find((subscription) => subscription.planCode === plan.code);
+    if (activePlan && !activePlan.quotaExhausted) {
+      const ends = activePlan?.endsAt ? new Date(activePlan.endsAt).toLocaleDateString() : 'the renewal date';
       this.snackBar.open(`Already activated. Renewal will be charged after the current activation period ends on ${ends}.`, 'Close', { duration: 9000, panelClass: ['package-center-snackbar'] });
       return;
     }
@@ -75,13 +97,16 @@ export class PackagesComponent implements OnInit {
       ref.onAction().subscribe(() => this.router.navigate(['/login'], { queryParams: { returnUrl: '/packages' } }));
       return;
     }
-    const track = plan.track.charAt(0).toUpperCase() + plan.track.slice(1);
-    const ref = this.snackBar.open(
-      `Activate ${plan.name} ${track} for ৳${this.formatMoney(plan.payableAmount)}?`,
-      'Activate', { duration: 10000, panelClass: ['package-center-snackbar'] }
-    );
-    ref.onAction().subscribe(() => this.activate(plan));
+    this.pendingPlan = plan;
   }
+
+  confirmActivation(): void {
+    const plan = this.pendingPlan;
+    this.pendingPlan = null;
+    if (plan) this.activate(plan);
+  }
+
+  cancelActivation(): void { this.pendingPlan = null; }
 
   private activate(plan: PackagePlan): void {
     this.actionCode = plan.code;
@@ -108,7 +133,7 @@ export class PackagesComponent implements OnInit {
           warning.onAction().subscribe(() => this.router.navigate(['/order']));
           return;
         }
-        if (err?.status === 401 || err?.status === 403) {
+        if (err?.status === 401) {
           const login = this.snackBar.open('Please log in to activate this package.', 'Login', {
             duration: 8000, panelClass: ['package-center-snackbar', 'error-snackbar']
           });
@@ -132,14 +157,20 @@ export class PackagesComponent implements OnInit {
       next: (response) => {
         if (response.progress?.accountType) this.accountType = response.progress.accountType;
         this.progress = response.progress || null;
+        this.studentProgress = response.studentProgress || (this.accountType === 'Student' ? this.progress : null);
+        this.teacherProgress = response.teacherProgress || (this.canUseTeacherPackages ? this.progress : null);
         this.activeSubscription = response.activeSubscription || null;
-        const grouped = new Map<string, { name: string; durationMonths: number; plans: Record<string, PackagePlan> }>();
+        this.activeSubscriptions = response.activeSubscriptions || (this.activeSubscription ? [this.activeSubscription] : []);
+        const grouped = new Map<string, { name: string; durationMonths: number; audience: 'student' | 'teacher'; plans: Record<string, PackagePlan> }>();
         for (const plan of (response.plans || []) as PackagePlan[]) {
-          const key = `${plan.name}|${plan.durationMonths}`;
-          if (!grouped.has(key)) grouped.set(key, { name: plan.name, durationMonths: plan.durationMonths, plans: {} });
+          const key = `${plan.audience}|${plan.name}|${plan.durationMonths}`;
+          if (!grouped.has(key)) grouped.set(key, { name: plan.name, durationMonths: plan.durationMonths, audience: plan.audience, plans: {} });
           grouped.get(key)!.plans[plan.track] = plan;
         }
-        this.planRows = Array.from(grouped.values());
+        const rows = Array.from(grouped.values());
+        this.studentPlanRows = rows.filter(row => row.audience === 'student') as typeof this.studentPlanRows;
+        this.teacherPlanRows = rows.filter(row => row.audience === 'teacher') as typeof this.teacherPlanRows;
+        if (this.api.isLoggedIn()) this.loadReferral();
         this.loading = false;
         this.loadingService.completeOne();
       },
@@ -150,6 +181,68 @@ export class PackagesComponent implements OnInit {
         this.loading = false;
         this.loadingService.completeOne();
       }
+    });
+  }
+
+  toggleAddMoney(event: Event): void {
+    event.preventDefault();
+    window.dispatchEvent(new CustomEvent('cheradip-toggle-trx-help'));
+  }
+
+  toggleSharePanel(event: Event): void {
+    event.preventDefault();
+    if (!this.api.isLoggedIn()) {
+      const ref = this.snackBar.open('Please log in to use Refer & Earn.', 'Login', {
+        duration: 8000, panelClass: ['package-center-snackbar', 'error-snackbar']
+      });
+      ref.onAction().subscribe(() => this.router.navigate(['/login'], { queryParams: { returnUrl: '/packages' } }));
+      return;
+    }
+    this.sharePanelOpen = !this.sharePanelOpen;
+    if (!this.referralLink) this.loadReferral();
+  }
+
+  closeSharePanel(): void { this.sharePanelOpen = false; }
+
+  shareUrl(service: 'facebook' | 'messenger' | 'whatsapp' | 'telegram' | 'linkedin' | 'x' | 'email'): string {
+    const url = encodeURIComponent(this.referralLink);
+    const message = encodeURIComponent(this.shareMessage());
+    const subject = encodeURIComponent('Join me on Cheradip');
+    const urls = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${message}`,
+      messenger: `fb-messenger://share/?link=${url}`,
+      whatsapp: `https://wa.me/?text=${message}`,
+      telegram: `https://t.me/share/url?url=${url}&text=${message}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+      x: `https://twitter.com/intent/tweet?text=${message}`,
+      email: `mailto:?subject=${subject}&body=${message}`,
+    };
+    return urls[service];
+  }
+
+  async copyReferralLink(): Promise<void> {
+    if (!this.referralLink) return;
+    await navigator.clipboard.writeText(this.referralLink);
+    this.snackBar.open('Reference link copied.', 'Close', {
+      duration: 3500, panelClass: ['package-center-snackbar', 'success-snackbar']
+    });
+  }
+
+  private shareMessage(): string {
+    return `Learn, practise and grow with Cheradip. Use my verified reference ${this.referralReference} when you create your account: ${this.referralLink}`;
+  }
+
+  private loadReferral(): void {
+    if (this.referralLink) return;
+    this.api.getReferralSummary().subscribe({
+      next: value => {
+        this.referralReference = String(value.reference || '');
+        this.referralLink = `${window.location.origin}${value.referencePath || ''}`;
+      },
+      error: () => {
+        this.referralLink = '';
+        this.referralReference = '';
+      },
     });
   }
 }
