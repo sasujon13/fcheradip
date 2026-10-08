@@ -1,0 +1,69 @@
+<main class="withdraw-page">
+  <section class="withdraw-card" aria-labelledby="withdraw-title">
+    <div class="withdraw-heading">
+      <div>
+        <span class="eyebrow">Cheradip Rewards Wallet</span>
+        <h1 id="withdraw-title">Withdraw referral earnings</h1>
+        <p>Requests are paid manually and approved by a Cheradip administrator.</p>
+      </div>
+      <button type="button" class="btn-secondary" (click)="goBack()">Back</button>
+    </div>
+
+    <div class="wallet-grid" *ngIf="wallet">
+      <article><span>Account Balance</span><strong>{{ wallet.coinBalance | number:'1.0-0' }}</strong><small>Coins</small></article>
+      <article><span>Reference Balance</span><strong>৳{{ wallet.availableTaka | number:'1.2-2' }}</strong><small>Available to withdraw</small></article>
+      <article><span>Lifetime Earned</span><strong>৳{{ wallet.lifetimeEarnedTaka | number:'1.2-2' }}</strong><small>Referral rewards</small></article>
+      <article><span>Paid Out</span><strong>৳{{ wallet.lifetimeWithdrawnTaka | number:'1.2-2' }}</strong><small>Approved withdrawals</small></article>
+    </div>
+
+    <p class="loading" *ngIf="loading">Loading wallet…</p>
+
+    <form *ngIf="!loading && wallet" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="form-grid">
+        <label>Withdrawal method
+          <select formControlName="method">
+            <option *ngFor="let method of methods" [value]="method.value">{{ method.label }}</option>
+          </select>
+        </label>
+        <label>Account number
+          <input formControlName="accountNumber" autocomplete="off" placeholder="Mobile or bank account number" />
+          <small *ngIf="form.get('accountNumber')?.touched && form.get('accountNumber')?.invalid">Enter a valid account number.</small>
+        </label>
+        <label *ngIf="bankMethod">Account holder name
+          <input formControlName="accountName" autocomplete="name" placeholder="Name registered with the bank" />
+          <small *ngIf="form.get('accountName')?.touched && form.get('accountName')?.invalid">Account holder name is required.</small>
+        </label>
+        <label>Requested amount (Tk)
+          <div class="amount-row">
+            <input type="number" formControlName="amountTaka" min="100" step="0.01" placeholder="Minimum 100" />
+            <button type="button" class="btn-max" (click)="useMaximum()">Maximum</button>
+          </div>
+          <small *ngIf="form.get('amountTaka')?.touched && form.get('amountTaka')?.invalid">Minimum withdrawal is Tk 100.</small>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" (click)="goBack()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="submitting || wallet.availableTaka < 100">
+          {{ submitting ? 'Submitting…' : 'Submit withdrawal request' }}
+        </button>
+      </div>
+      <p class="minimum-note" *ngIf="wallet.availableTaka < 100">You need at least Tk 100 in reference earnings before requesting a withdrawal.</p>
+    </form>
+  </section>
+
+  <section class="withdraw-card history-card" *ngIf="withdrawals.length">
+    <h2>Withdrawal history</h2>
+    <div class="history-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Method</th><th>Account</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let row of withdrawals">
+            <td>{{ row.requestedAt | date:'medium' }}</td><td>{{ row.methodLabel }}</td><td>{{ row.accountNumber }}</td>
+            <td>৳{{ row.amountTaka | number:'1.2-2' }}</td><td><span class="status" [class]="'status status--' + row.status">{{ row.statusLabel }}</span></td>
+            <td><button *ngIf="row.status === 'pending'" type="button" class="cancel-request" (click)="cancelWithdrawal(row)">Cancel request</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>

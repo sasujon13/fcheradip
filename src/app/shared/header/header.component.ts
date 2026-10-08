@@ -43,6 +43,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
   get headerRemainingUnlocks(): number {
     return this.trxUnlock.getCachedRemaining();
   }
+  get headerReferenceBalance(): number {
+    return Number(this.packageStatus?.wallet?.availableTaka || 0);
+  }
   /** Profile → Dashboard: teachers `/dashboard`, others `/student/dashboard`. */
   get dashboardRouterSegments(): string[] {
     return getDashboardRouterLinkSegments();
@@ -802,6 +805,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
     sessionStorage.setItem('signupReturnScrollY', String(window.scrollY));
     sessionStorage.removeItem(SESSION_LOGIN_USE_STORED_RETURN);
     this.router.navigate(['/login']);
+  }
+
+  navigateToWithdraw(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDropdownOpen = false;
+    const returnUrl = this.router.url.startsWith('/withdraw') ? '/' : (this.router.url || '/');
+    void this.router.navigate(['/withdraw'], { queryParams: { returnUrl } });
   }
 
   /** Log out: clear auth storage, then full reload so header/token UI resets reliably. */

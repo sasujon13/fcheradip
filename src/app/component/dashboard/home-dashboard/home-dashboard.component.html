@@ -1,7 +1,14 @@
 <div class="dashboard-container">
   <header class="dashboard-header">
-    <h1 class="dashboard-title">Teacher's Dashboard</h1>
-    <p class="dashboard-subtitle">Track your progress and access exams, reports, and more.</p>
+    <h1 class="dashboard-title">Activated Package: {{ activatedPackageLabel }}</h1>
+    <div class="membership-summary" *ngIf="packageStatus">
+      <app-badge-profile [badge]="packageStatus.badge" [imageUrl]="packageStatus.profileImageUrl" [size]="54"></app-badge-profile>
+      <div><strong>Badge: {{ packageStatus.badge }}</strong><span>Current Base: {{ packageStatus.base }}</span></div>
+    </div>
+    <div class="dashboard-wallet-balances" *ngIf="packageStatus?.wallet">
+      <div><span>Account Balance</span><strong>{{ packageStatus.wallet.coinBalance | number:'1.0-0' }} Coins</strong></div>
+      <div><span>Reference Balance</span><strong>৳{{ packageStatus.wallet.availableTaka | number:'1.2-2' }}</strong></div>
+    </div>
   </header>
 
   <section class="stats-grid" aria-label="Your statistics">

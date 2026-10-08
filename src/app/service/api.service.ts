@@ -82,6 +82,23 @@ export class ApiService {
     return this.http.get<any>(`${this.baseUrl}/referrals/summary/`);
   }
 
+  getRewardsWallet(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/wallet/`);
+  }
+
+  requestWithdrawal(payload: {
+    method: string;
+    accountName?: string;
+    accountNumber: string;
+    amountTaka: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/wallet/`, payload);
+  }
+
+  cancelWithdrawal(id: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/wallet/withdrawals/${id}/cancel/`, {});
+  }
+
   uploadProfilePicture(file: Blob): Observable<any> {
     const form = new FormData();
     form.append('image', file, 'profile.webp');

@@ -102,3 +102,16 @@
   cursor: wait;
   opacity: .6
 }
+
+ul.dropdown li.profile-wallet-summary {
+  display: flex;
+  gap: 7px;
+  color: #275b5b;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.profile-wallet-summary strong {
+  color: #9a7800;
+  font-weight: 700;
+}

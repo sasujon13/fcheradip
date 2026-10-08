@@ -29,6 +29,8 @@ export class LoadingService {
   private loadListener: (() => void) | null = null;
   /** Non-export overlay: same stepped tick as export (pair with {@link clearLoadProgressTimer}). */
   private loadProgressTimeout: ReturnType<typeof setTimeout> | null = null;
+  /** Successful login already showed progress; do not cover the destination with a second loader. */
+  private suppressNextPageLoadOverlay = false;
 
   /** PDF/DOCX export from question creator: timed progress + custom message (does not use setTotal/completeOne). */
   private exportMode = false;
@@ -38,6 +40,11 @@ export class LoadingService {
 
   /** Set expected number of API calls (resets completed to 0). Call when a page starts loading. */
   setTotal(n: number): void {
+    if (n > 0 && this.suppressNextPageLoadOverlay) {
+      this.suppressNextPageLoadOverlay = false;
+      this.dismissPageLoadOverlay();
+      return;
+    }
     this.clearExportProgress();
     this.clearLoadProgressTimer();
     if (this.hideTimeout) {
@@ -177,6 +184,34 @@ export class LoadingService {
     } else {
       this.state$.next(this.getState());
     }
+  }
+
+  /**
+   * Immediately dismiss the normal page-loading overlay. Export progress is
+   * intentionally left alone because it represents an active file operation.
+   */
+  dismissPageLoadOverlay(): void {
+    if (this.exportMode) return;
+    this.clearLoadProgressTimer();
+    if (this.hideTimeout) {
+      clearTimeout(this.hideTimeout);
+      this.hideTimeout = null;
+    }
+    if (this.loadListener && typeof window !== 'undefined') {
+      window.removeEventListener('load', this.loadListener);
+      this.loadListener = null;
+    }
+    this.total = 0;
+    this.completed = 0;
+    this.delayingHide = false;
+    this.displayPercent = 100;
+    this.state$.next(this.getState());
+  }
+
+  /** Hide the current loader and consume the next normal page loader once. */
+  suppressNextPageLoadAfterLogin(): void {
+    this.suppressNextPageLoadOverlay = true;
+    this.dismissPageLoadOverlay();
   }
 
   /**

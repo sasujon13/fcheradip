@@ -45,6 +45,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   loginFoundIn: string | null = null;
 
   private destroy$ = new Subject<void>();
+  private successfulLoginOverlayTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Forgot Password Modal
   showForgotPasswordModal = false;
@@ -191,6 +192,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.successfulLoginOverlayTimer) {
+      clearTimeout(this.successfulLoginOverlayTimer);
+      this.successfulLoginOverlayTimer = null;
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -269,12 +274,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
           const successMsg = showWelcome
             ? 'Logged in — welcome bonus celebration starting!'
             : 'Logged in successfully!';
-          this.snackBar.open(successMsg, 'Close', {
-            duration: showWelcome ? 8000 : 7000,
-            panelClass: ['auth-flow-snackbar-top'],
-            verticalPosition: 'top',
-          });
+          // Use the same app-alert presentation as /question and /question/create.
+          // A Material snackbar keeps the global CDK overlay visible for its full 7–8s duration.
           this.showAuthAlertMessage(successMsg, true);
+          this.dismissSuccessfulLoginOverlaysWithin300ms();
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('username', username);
           if (token) localStorage.setItem('authToken', token);
@@ -324,6 +327,20 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.detectChanges();
     this.showAuthAlert = true;
     this.cdr.detectChanges();
+  }
+
+  /** Keep success feedback brief and never leave a blocking overlay over the destination. */
+  private dismissSuccessfulLoginOverlaysWithin300ms(): void {
+    this.loadingService.suppressNextPageLoadAfterLogin();
+    if (this.successfulLoginOverlayTimer) {
+      clearTimeout(this.successfulLoginOverlayTimer);
+    }
+    this.successfulLoginOverlayTimer = setTimeout(() => {
+      this.successfulLoginOverlayTimer = null;
+      this.showAuthAlert = false;
+      this.loadingService.dismissPageLoadOverlay();
+      this.cdr.detectChanges();
+    }, 300);
   }
 
   private showMultiDeviceLogoutNoticeIfNeeded(): void {

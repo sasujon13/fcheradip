@@ -42,6 +42,7 @@ import { DisappearedQuestionsComponent } from './component/user/disappeared-ques
 import { CreatedQuestionsComponent } from './component/user/created-questions/created-questions.component';
 import { SignupComponent } from './component/user/signup/signup.component';
 import { ReferEarnComponent } from './component/user/refer-earn/refer-earn.component';
+import { WithdrawComponent } from './component/user/withdraw/withdraw.component';
 import { CountrySelectorComponent } from './shared/country-selector/country-selector.component';
 import { AlertComponent } from './component/faqs/alert/alert.component';
 import { NtrcaFooterSectionComponent } from './shared/ntrca-footer-section/ntrca-footer-section.component';
@@ -195,6 +196,7 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
         DragDropModule,
         SignupComponent,
         ReferEarnComponent,
+        WithdrawComponent,
         AlertComponent,
         CountrySelectorComponent], providers: [
         MatSnackBar,

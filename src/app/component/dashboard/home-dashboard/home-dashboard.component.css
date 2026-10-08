@@ -25,6 +25,7 @@
   color: var(--student-text-light);
   margin: 0;
 }
+.membership-summary{display:flex;align-items:center;gap:1rem;color:var(--student-text-light)}.membership-summary>div{display:flex;flex-direction:column}.membership-summary strong{color:#b8860b}.dashboard-wallet-balances{display:flex;gap:14px;flex-wrap:wrap;margin-top:1rem}.dashboard-wallet-balances>div{min-width:210px;padding:14px 18px;border:1px solid rgba(var(--student-primary-rgb),.3);border-radius:9px;background:#edfafa;box-shadow:var(--student-shadow)}.dashboard-wallet-balances span,.dashboard-wallet-balances strong{display:block}.dashboard-wallet-balances span{color:var(--student-text-light);font-size:.9rem}.dashboard-wallet-balances strong{margin-top:3px;color:#9a7800;font-size:1.45rem}
 
 .stats-grid {
   display: grid;

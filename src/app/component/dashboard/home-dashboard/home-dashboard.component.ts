@@ -1,6 +1,7 @@
 import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { StudentService } from '../../../service/student.service';
 import { LoadingService } from 'src/app/service/loading.service';
+import { ApiService } from '../../../service/api.service';
 
 /**
  * Top-level `/dashboard` route — copied from student dashboard for independent edits.
@@ -13,6 +14,7 @@ import { LoadingService } from 'src/app/service/loading.service';
     standalone: false
 })
 export class HomeDashboardComponent implements OnInit, AfterViewInit {
+  packageStatus: any = null;
   stats: any = {
     examsCompleted: 0,
     averageScore: 0,
@@ -25,6 +27,7 @@ export class HomeDashboardComponent implements OnInit, AfterViewInit {
   constructor(
     private studentService: StudentService,
     private loadingService: LoadingService,
+    private api: ApiService,
   ) {}
 
   ngOnInit(): void {
@@ -40,5 +43,12 @@ export class HomeDashboardComponent implements OnInit, AfterViewInit {
     this.studentService.getStudentStats().subscribe((data: any) => {
       this.stats = data;
     });
+    this.api.getPackageStatus().subscribe({ next: data => this.packageStatus = data, error: () => {} });
+  }
+
+  get activatedPackageLabel(): string {
+    const rows = Array.isArray(this.packageStatus?.activeSubscriptions) ? this.packageStatus.activeSubscriptions : [];
+    if (!rows.length) return 'Free';
+    return rows.map((row: any) => `${row.planName || 'Package'} — ${row.track || ''}`).join(' + ');
   }
 }

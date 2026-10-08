@@ -63,6 +63,9 @@ export class CountryService {
   private static readonly PREFERRED_LANG_COUNTRY_KEY = 'preferred_lang_country';
   /** Cache so we can restore icon on reload before API returns, and keep it when API fails. */
   private static readonly SELECTED_COUNTRY_CACHE_KEY = 'selectedCountryCache';
+  /** One-time migration marker for the former Website Language default. */
+  private static readonly DEFAULT_COUNTRY_VERSION_KEY = 'defaultCountryVersion';
+  private static readonly DEFAULT_COUNTRY_VERSION = 'BD-1';
   /** For header Popular list: 5th slot = country user visits most (last selected real country). */
   private static readonly MOST_VISITED_COUNTRY_KEY = 'mostVisitedCountryCode';
   /** Header Popular fixed codes: Bangladesh, Australia, United States, India (order preserved). */
@@ -97,11 +100,24 @@ export class CountryService {
 
   /**
    * Initialize country on service creation.
-   * By default use Website Language (original Bengali + English) when user has not chosen a language. If user had a previous selection in localStorage, use that.
+   * By default use Bangladesh when the user has not chosen a country. If the user had a previous selection in localStorage, use that.
    * On restore failure we do not overwrite localStorage so the next reload can try again.
    */
   async initializeCountry(): Promise<void> {
     const savedCountryCode = localStorage.getItem('selectedCountry');
+    const defaultCountryVersion = localStorage.getItem(CountryService.DEFAULT_COUNTRY_VERSION_KEY);
+
+    if (!savedCountryCode || (
+      savedCountryCode === CountryService.WEBSITE_LANGUAGE_COUNTRY_CODE &&
+      defaultCountryVersion !== CountryService.DEFAULT_COUNTRY_VERSION
+    )) {
+      localStorage.setItem(
+        CountryService.DEFAULT_COUNTRY_VERSION_KEY,
+        CountryService.DEFAULT_COUNTRY_VERSION,
+      );
+      this.setDefaultByCountryCode('BD', true);
+      return;
+    }
 
     if (savedCountryCode === CountryService.WEBSITE_LANGUAGE_COUNTRY_CODE) {
       this.setCountry(CountryService.getWebsiteLanguageCountry(), false);
@@ -132,8 +148,6 @@ export class CountryService {
         next: (country) => this.setCountry(country, false),
         error: () => { /* keep displayed country from cache; do not overwrite with default */ }
       });
-    } else {
-      this.setDefaultWebsiteLanguage(true);
     }
   }
 
@@ -146,7 +160,17 @@ export class CountryService {
   private setDefaultByCountryCode(countryCode: string, save: boolean = true): void {
     this.getCountry(countryCode).subscribe({
       next: (country) => this.setCountry(country, save),
-      error: () => this.setDefaultWebsiteLanguage(save)
+      error: () => {
+        if (countryCode.toUpperCase() === 'BD') {
+          this.setCountry({
+            country_code: 'BD', country_name: 'Bangladesh', flag_emoji: '🇧🇩',
+            language_codes: ['bn'], phone_code: '+880', phone_length_min: 10,
+            phone_length_max: 10
+          }, save);
+          return;
+        }
+        this.setDefaultWebsiteLanguage(save);
+      }
     });
   }
 

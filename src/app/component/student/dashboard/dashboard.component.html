@@ -21,6 +21,10 @@
         <small>{{ packageStatus.completedTasks }} completed · {{ packageStatus.remainingTasks }} remaining<ng-container *ngIf="packageStatus.nextBase"> to {{ packageStatus.nextBase }}</ng-container><ng-container *ngIf="packageStatus.passingRate != null"> · Passing rate {{ packageStatus.passingRate }}%</ng-container></small>
       </div>
     </div>
+    <div class="dashboard-wallet-balances" *ngIf="packageStatus?.wallet">
+      <div><span>Account Balance</span><strong>{{ packageStatus.wallet.coinBalance | number:'1.0-0' }} Coins</strong></div>
+      <div><span>Reference Balance</span><strong>৳{{ packageStatus.wallet.availableTaka | number:'1.2-2' }}</strong></div>
+    </div>
   </header>
 
   <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
