@@ -1,6 +1,126 @@
-<div class="parent">
-    <div class="parent2">
-        <div class="preservation">
-        </div>
+<main class="manual-page" id="manual-top">
+  <button type="button" class="manual-filter-trigger" (click)="sidebarOpen = !sidebarOpen"
+    [attr.aria-expanded]="sidebarOpen" aria-controls="faq-filter-panel" title="Filter manual">
+    <i class="fa" [class.fa-filter]="!sidebarOpen" [class.fa-times]="sidebarOpen"></i>
+    <span>Filter</span>
+  </button>
+
+  <div class="manual-overlay" *ngIf="sidebarOpen" (click)="sidebarOpen = false"></div>
+
+  <aside id="faq-filter-panel" class="manual-sidebar" [class.manual-sidebar--open]="sidebarOpen">
+    <div class="manual-sidebar__head">
+      <div><span class="manual-kicker">USER MANUAL</span><h2>Find an answer</h2></div>
+      <button type="button" class="manual-sidebar__close" (click)="sidebarOpen = false" aria-label="Close filters">×</button>
     </div>
-</div>
+
+    <label class="manual-search manual-search--sidebar">
+      <i class="fa fa-search" aria-hidden="true"></i>
+      <input type="search" [(ngModel)]="searchTerm" (ngModelChange)="pruneExpandedEntries()"
+        placeholder="Search the whole manual…" aria-label="Search frequently asked questions">
+      <button *ngIf="searchTerm" type="button" (click)="searchTerm = ''; pruneExpandedEntries()" aria-label="Clear search">×</button>
+    </label>
+
+    <section class="manual-filter-section">
+      <h3>Main types</h3>
+      <button *ngFor="let option of typeOptions" type="button" class="manual-filter-option"
+        [class.active]="selectedType === option.id" (click)="selectType(option.id)">
+        <i class="fa {{ option.icon }}" aria-hidden="true"></i><span>{{ option.label }}</span>
+      </button>
+    </section>
+
+    <section class="manual-filter-section manual-chapter-filter">
+      <h3>Chapters</h3>
+      <button type="button" class="manual-filter-option" [class.active]="selectedChapter === 'all'"
+        (click)="selectChapter('all')"><span class="chapter-index">∞</span><span>Complete manual</span></button>
+      <button *ngFor="let chapter of chapters; trackBy: trackChapter" type="button" class="manual-filter-option"
+        [class.active]="selectedChapter === chapter.id" (click)="selectChapter(chapter.id)">
+        <span class="chapter-index">{{ chapter.number | number:'2.0-0' }}</span>
+        <span>{{ chapter.title }}</span><small>{{ chapter.entries.length }}</small>
+      </button>
+    </section>
+
+    <button *ngIf="hasFilters" type="button" class="manual-clear" (click)="clearFilters()">
+      <i class="fa fa-undo"></i> Clear every filter
+    </button>
+  </aside>
+
+  <div class="manual-layout" [class.manual-layout--sidebar]="sidebarOpen">
+    <header class="manual-cover">
+      <div class="manual-cover__ornament" aria-hidden="true">
+        <img src="assets/cheradip/cheradip-avatar.png" alt="">
+      </div>
+      <div class="manual-cover__content">
+        <span class="manual-edition">CHERADIP · COMPLETE GUIDE</span>
+        <h1>User Manual &amp; FAQs</h1>
+        <p>A practical, searchable handbook for learning, exams, questions, packages, AI tools, accounts, earnings and shopping.</p>
+        <div class="manual-cover__facts">
+          <span><strong>{{ chapters.length }}</strong> chapters</span>
+          <span><strong>{{ totalCount }}</strong> answers</span>
+          <span><strong>Responsive</strong> reference</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="manual-toolbar" aria-label="Manual tools">
+      <label class="manual-search manual-search--main">
+        <i class="fa fa-search" aria-hidden="true"></i>
+        <input type="search" [(ngModel)]="searchTerm" (ngModelChange)="pruneExpandedEntries()"
+          placeholder="Search login, packages, exams, questions, Tutor…" aria-label="Search this manual">
+        <button *ngIf="searchTerm" type="button" (click)="searchTerm = ''; pruneExpandedEntries()" aria-label="Clear search">×</button>
+      </label>
+      <div class="manual-toolbar__actions">
+        <button type="button" (click)="toggleAll()"><i class="fa" [class.fa-plus-square-o]="!allVisibleExpanded"
+          [class.fa-minus-square-o]="allVisibleExpanded"></i> {{ allVisibleExpanded ? 'Collapse all' : 'Expand all' }}</button>
+        <button type="button" (click)="printManual()"><i class="fa fa-print"></i> Print manual</button>
+      </div>
+    </section>
+
+    <div class="manual-result-bar">
+      <span><strong>{{ resultCount }}</strong> {{ resultCount === 1 ? 'answer' : 'answers' }} found</span>
+      <button *ngIf="hasFilters" type="button" (click)="clearFilters()">Reset view</button>
+    </div>
+
+    <section class="manual-empty" *ngIf="filteredChapters.length === 0">
+      <i class="fa fa-search" aria-hidden="true"></i><h2>No matching answer</h2>
+      <p>Try a shorter phrase, another main type, or the complete manual.</p>
+      <button type="button" (click)="clearFilters()">Show all questions</button>
+    </section>
+
+    <article *ngFor="let chapter of filteredChapters; trackBy: trackChapter" class="manual-chapter" [id]="'chapter-' + chapter.id">
+      <header class="manual-chapter__header">
+        <span class="manual-chapter__number">Chapter {{ chapter.number | number:'2.0-0' }}</span>
+        <div class="manual-chapter__title">
+          <i class="fa {{ chapter.icon }}" aria-hidden="true"></i>
+          <div><h2>{{ chapter.title }}</h2><p>{{ chapter.summary }}</p></div>
+        </div>
+        <span class="manual-chapter__count">{{ chapter.visibleEntries.length }} topics</span>
+      </header>
+
+      <div class="manual-entries">
+        <section *ngFor="let entry of chapter.visibleEntries; trackBy: trackEntry" class="manual-entry"
+          [class.manual-entry--open]="isExpanded(entry.id)" [id]="entry.id">
+          <button type="button" class="manual-question" (click)="toggleEntry(entry.id)" [attr.aria-expanded]="isExpanded(entry.id)">
+            <span class="manual-question__mark">Q</span><span>{{ entry.question }}</span>
+            <i class="fa fa-angle-down" aria-hidden="true"></i>
+          </button>
+          <div class="manual-answer" *ngIf="isExpanded(entry.id)">
+            <div class="manual-answer__mark">A</div>
+            <div class="manual-answer__body">
+              <p>{{ entry.answer }}</p>
+              <ol *ngIf="entry.steps?.length" class="manual-steps"><li *ngFor="let step of entry.steps">{{ step }}</li></ol>
+              <p *ngIf="entry.note" class="manual-note"><i class="fa fa-info-circle"></i> {{ entry.note }}</p>
+              <nav *ngIf="entry.links?.length" class="manual-links" aria-label="Related pages">
+                <a *ngFor="let link of entry.links" [routerLink]="link.route">{{ link.label }} <i class="fa fa-arrow-right"></i></a>
+              </nav>
+            </div>
+          </div>
+        </section>
+      </div>
+    </article>
+
+    <footer class="manual-footer">
+      <div><strong>Still need help?</strong><span>Include the page URL and exact error, but never share passwords or API keys.</span></div>
+      <nav><a routerLink="/live_chat">Live chat</a><a routerLink="/support">Support</a><a routerLink="/">Home</a></nav>
+    </footer>
+  </div>
+</main>

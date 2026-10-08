@@ -1,1 +1,117 @@
-<p>live-chat works!</p>
+<main class="support-page">
+  <header class="support-hero">
+    <img src="assets/cheradip/cheradip-avatar.png" alt="Cheradip" class="support-avatar">
+    <div>
+      <span class="support-kicker">BOT-FIRST HELP CENTRE</span>
+      <h1>Cheradip Support</h1>
+      <p>Ask naturally. The bot searches {{ totalAnswers | number }} reviewed answers before guiding you toward human support.</p>
+    </div>
+    <a routerLink="/faqs" class="support-manual-link"><i class="fa fa-book"></i> Open complete manual</a>
+  </header>
+
+  <section class="support-shell">
+    <aside class="support-steps" aria-label="Support process">
+      <h2>How support works</h2>
+      <ol>
+        <li [class.active]="stage === 'bot'"><span>1</span><div><strong>Ask the bot</strong><small>Best match and similar questions</small></div></li>
+        <li [class.active]="stage === 'refine'"><span>2</span><div><strong>Refine the issue</strong><small>Chapter, topic, subtopic and tags</small></div></li>
+        <li [class.active]="stage === 'escalate'"><span>3</span><div><strong>Human handoff</strong><small>Cheradip app or WhatsApp later</small></div></li>
+      </ol>
+      <div class="support-coverage"><strong>{{ totalAnswers | number }}</strong><span>knowledge answers</span></div>
+      <p><i class="fa fa-shield"></i> Never send passwords, OTPs, PINs, or private API keys.</p>
+    </aside>
+
+    <div class="support-workspace">
+      <section class="support-conversation" aria-live="polite" aria-label="Support conversation">
+        <article *ngFor="let message of messages; trackBy: trackMessage" class="support-message"
+          [class.support-message--user]="message.role === 'user'">
+          <div class="support-message__avatar" aria-hidden="true">
+            <i class="fa" [class.fa-user]="message.role === 'user'" [class.fa-comments]="message.role === 'bot'"></i>
+          </div>
+          <div class="support-bubble">
+            <strong *ngIf="message.label">{{ message.label }}</strong>
+            <p>{{ message.text }}</p>
+          </div>
+        </article>
+      </section>
+
+      <section *ngIf="stage === 'bot' && suggestions.length" class="support-suggestions" aria-label="Similar questions">
+        <h3><i class="fa fa-lightbulb-o"></i> Similar questions</h3>
+        <div>
+          <button *ngFor="let hit of suggestions; trackBy: trackHit" type="button" (click)="askSuggestion(hit)">
+            {{ hit.entry.question }}
+          </button>
+        </div>
+      </section>
+
+      <section *ngIf="awaitingSatisfaction" class="support-satisfaction">
+        <strong>Did this answer solve your question?</strong>
+        <div>
+          <button type="button" class="satisfaction-yes" (click)="rateAnswer(true)"><i class="fa fa-check"></i> Yes, solved</button>
+          <button type="button" class="satisfaction-no" (click)="rateAnswer(false)"><i class="fa fa-search"></i> No, refine help</button>
+        </div>
+      </section>
+
+      <section *ngIf="stage === 'refine'" class="support-refine">
+        <header><div><span>GUIDED SUPPORT</span><h2>Describe the issue more precisely</h2></div><button type="button" (click)="resetRefinement()">Reset</button></header>
+        <div class="support-select-grid">
+          <label><span>1. Main chapter</span>
+            <select [ngModel]="selectedChapterId" (ngModelChange)="selectChapter($event)">
+              <option value="">Select a chapter</option>
+              <option *ngFor="let chapter of chapters" [value]="chapter.id">{{ chapter.number }}. {{ chapter.title }}</option>
+            </select>
+          </label>
+          <label><span>2. Topic</span>
+            <select [disabled]="!selectedChapterId" [ngModel]="selectedTopic" (ngModelChange)="selectTopic($event)">
+              <option value="">Select a topic</option>
+              <option *ngFor="let topic of topicOptions; trackBy: trackText" [value]="topic">{{ topic }}</option>
+            </select>
+          </label>
+          <label><span>3. Subtopic</span>
+            <select [disabled]="!selectedTopic" [ngModel]="selectedSubtopic" (ngModelChange)="selectSubtopic($event)">
+              <option value="">Select a subtopic</option>
+              <option *ngFor="let subtopic of subtopicOptions; trackBy: trackText" [value]="subtopic">{{ subtopic }}</option>
+            </select>
+          </label>
+        </div>
+
+        <div *ngIf="tagOptions.length" class="support-tags">
+          <strong>4. More specification tags <small>(optional)</small></strong>
+          <div>
+            <button *ngFor="let tag of tagOptions; trackBy: trackText" type="button"
+              [class.active]="selectedTags.has(tag)" (click)="toggleTag(tag)">{{ tag }}</button>
+          </div>
+        </div>
+
+        <div class="support-results" *ngIf="selectedSubtopic">
+          <div class="support-results__head"><strong>Relevant questions</strong><span>{{ refinedResults.length }} found</span></div>
+          <div class="support-results__scroll" *ngIf="refinedResults.length; else noRefinedResults">
+            <button *ngFor="let hit of refinedResults; trackBy: trackHit" type="button" (click)="chooseRefinedAnswer(hit)">
+              <span>Q</span><div><strong>{{ hit.entry.question }}</strong><small>{{ hit.chapter.title }} · {{ hit.entry.subtopic }}</small></div><i class="fa fa-chevron-right"></i>
+            </button>
+          </div>
+          <ng-template #noRefinedResults><p class="support-no-results">No answer matches every selected tag. Remove one tag and try again.</p></ng-template>
+        </div>
+      </section>
+
+      <section *ngIf="stage === 'escalate'" class="support-escalation">
+        <i class="fa fa-headphones"></i>
+        <div><span>FINAL SUPPORT STEP</span><h2>Continue to a real support conversation</h2>
+          <p>The knowledge bot and guided search are complete. Human chat will later connect through your Cheradip support app or WhatsApp, as requested.</p>
+          <button type="button" (click)="requestHumanSupport()" [disabled]="humanChannelRequested">
+            <i class="fa fa-paper-plane"></i> {{ humanChannelRequested ? 'Handoff ready' : 'Prepare human-support handoff' }}
+          </button>
+          <small>No external message is sent until a live channel is implemented.</small>
+        </div>
+      </section>
+
+      <form class="support-composer" (ngSubmit)="ask()">
+        <label for="support-question">Ask another question</label>
+        <div><textarea id="support-question" name="supportQuestion" [(ngModel)]="question" rows="2"
+          placeholder="Example: Why is my Student package not active?" (keydown.control.enter)="ask()"></textarea>
+          <button type="submit" [disabled]="!question.trim()" aria-label="Send question"><i class="fa fa-arrow-up"></i></button></div>
+        <small>Press Send or Ctrl+Enter · Answers come from the Cheradip manual knowledge base.</small>
+      </form>
+    </div>
+  </section>
+</main>
