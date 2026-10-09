@@ -20,7 +20,7 @@
   </section>
 
   <p *ngIf="message" class="feedback success">{{ message }}</p><p *ngIf="error" class="feedback error">{{ error }}</p>
-  <div *ngIf="loading" class="book-state"><span class="spinner"></span> Loading books…</div>
+  <div *ngIf="showLoading" class="book-state"><span class="spinner"></span> Loading books…</div>
   <div *ngIf="!loading && !books.length" class="book-state">No published books match these filters.</div>
 
   <section class="book-grid" *ngIf="!loading && books.length">

@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { environment } from 'src/environments/environment';
 
@@ -29,7 +29,7 @@ interface Cart { token: string; items: Array<{ quantity: number }>; subtotal: nu
   styleUrls: ['./books.component.css'],
   standalone: false,
 })
-export class BooksComponent implements OnInit {
+export class BooksComponent implements OnDestroy, OnInit {
   private readonly api = `${environment.apiUrl}/ecommerce`;
   readonly avatar = 'assets/cheradip/cheradip-avatar.png';
   readonly wideLogo = 'assets/images/cheradip.svg';
@@ -37,6 +37,7 @@ export class BooksComponent implements OnInit {
   selectedBook: Book | null = null;
   cart: Cart | null = null;
   loading = false;
+  showLoading = false;
   adding = false;
   error = '';
   message = '';
@@ -46,6 +47,8 @@ export class BooksComponent implements OnInit {
   language = '';
   copyType: 'hard' | 'soft' | 'both' = 'soft';
   ordering = '-featured';
+  private bookRequestId = 0;
+  private loadingTimer?: ReturnType<typeof setTimeout>;
 
   readonly audiences = [
     ['', 'All readers'], ['student', 'Students'], ['job_seeker', 'Job seekers'],
@@ -66,8 +69,18 @@ export class BooksComponent implements OnInit {
     this.loadCart(localStorage.getItem('cheradipEcommerceCart') || undefined);
   }
 
+  ngOnDestroy(): void {
+    if (this.loadingTimer) clearTimeout(this.loadingTimer);
+  }
+
   loadBooks(): void {
+    const requestId = ++this.bookRequestId;
     this.loading = true;
+    this.showLoading = false;
+    if (this.loadingTimer) clearTimeout(this.loadingTimer);
+    this.loadingTimer = setTimeout(() => {
+      if (this.loading && requestId === this.bookRequestId) this.showLoading = true;
+    }, 180);
     this.error = '';
     let params = new HttpParams().set('ordering', this.ordering);
     if (this.search.trim()) params = params.set('search', this.search.trim());
@@ -76,8 +89,16 @@ export class BooksComponent implements OnInit {
     if (this.language) params = params.set('language', this.language);
     params = params.set('copy_type', this.copyType);
     this.http.get<any>(`${this.api}/books/`, { params }).subscribe({
-      next: data => { this.books = Array.isArray(data) ? data : (data.results || []); this.loading = false; },
-      error: err => { this.loading = false; this.showError(err, 'Could not load the book list. Please try again.'); },
+      next: data => {
+        if (requestId !== this.bookRequestId) return;
+        this.books = Array.isArray(data) ? data : (data.results || []);
+        this.finishBookLoading();
+      },
+      error: err => {
+        if (requestId !== this.bookRequestId) return;
+        this.finishBookLoading();
+        this.showError(err, 'Could not load the book list. Please try again.');
+      },
     });
   }
 
@@ -126,5 +147,11 @@ export class BooksComponent implements OnInit {
     });
   }
   private rememberCart(cart: Cart): void { this.cart = cart; localStorage.setItem('cheradipEcommerceCart', cart.token); }
+  private finishBookLoading(): void {
+    this.loading = false;
+    this.showLoading = false;
+    if (this.loadingTimer) clearTimeout(this.loadingTimer);
+    this.loadingTimer = undefined;
+  }
   private showError(error: HttpErrorResponse, fallback: string): void { this.message = ''; this.error = error.error?.detail || fallback; }
 }
