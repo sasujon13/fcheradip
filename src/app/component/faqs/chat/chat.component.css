@@ -5,3 +5,9 @@
 @media(max-width:900px){.support-page{padding-top:196px}.support-hero{grid-template-columns:72px 1fr}.support-avatar{width:68px;height:68px}.support-manual-link{grid-column:1/-1;text-align:center}.support-shell{grid-template-columns:1fr}.support-steps{position:static}.support-steps ol{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.support-steps li{border:0}.support-steps>p,.support-coverage{display:none}}
 @media(max-width:650px){.support-page{padding:190px 9px 48px}.support-hero{grid-template-columns:55px 1fr;gap:12px;padding:20px 17px;border-radius:15px}.support-avatar{width:52px;height:52px}.support-hero h1{font-size:2rem}.support-hero p{font-size:.88rem}.support-shell{gap:10px}.support-steps{padding:15px}.support-steps h2{display:none}.support-steps ol{gap:2px}.support-steps li{padding:4px;align-items:center}.support-steps li>span{width:25px;height:25px;flex-basis:25px}.support-steps li small{display:none}.support-conversation{min-height:220px;max-height:390px;padding:15px 11px}.support-bubble{max-width:86%;padding:10px 12px}.support-satisfaction{align-items:flex-start;flex-direction:column}.support-satisfaction>div,.support-satisfaction button{width:100%}.support-select-grid{grid-template-columns:1fr}.support-refine{padding:17px 12px}.support-escalation{padding:20px 14px}.support-escalation>i{width:44px;height:44px;flex-basis:44px}.support-composer{padding:13px 11px}}
 
+/* Keep the circular logo inside its own column at every breakpoint. */
+.support-hero{grid-template-columns:92px minmax(0,1fr) auto}
+.support-avatar{object-fit:cover;background:#fff;box-shadow:0 8px 22px rgba(0,35,35,.24)}
+@media(max-width:900px){.support-hero{grid-template-columns:72px minmax(0,1fr)}}
+@media(max-width:650px){.support-hero{grid-template-columns:55px minmax(0,1fr)}}
+

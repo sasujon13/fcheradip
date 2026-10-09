@@ -1,3 +1,5 @@
+import { ADDITIONAL_FAQ_CHAPTERS } from './faq-additional-content';
+
 export type FaqMainType = 'start' | 'student' | 'teacher' | 'jobseeker' | 'ai' | 'commerce' | 'account';
 
 export interface FaqLink {
@@ -17,6 +19,8 @@ export interface FaqEntry {
   topic?: string;
   subtopic?: string;
   tags?: string[];
+  /** Natural ways users may ask this question. Used for search, never shown as duplicate FAQs. */
+  searchQuestions?: string[];
 }
 
 export interface FaqChapter {
@@ -207,6 +211,19 @@ const BASE_FAQ_CHAPTERS: FaqChapter[] = [
       { id: 'product-types', question: 'Which product types can the store support?', answer: 'The catalog structure supports broad product categories such as clothing, electronics, mobile accessories, computer accessories, gadgets, books, and other general merchandise configured by administrators.', types: ['commerce'] },
       { id: 'cart-purpose', question: 'What is the Cart page for?', answer: 'Cart collects selected items before checkout. Product options, quantity, pricing, and delivery details depend on the selected catalog item.', links: [{ label: 'Open cart', route: '/cart' }], types: ['commerce'] },
       { id: 'books-page', question: 'Where are books listed?', answer: 'Use the Books route for the dedicated book area. Store products may also include books depending on the current catalog.', links: [{ label: 'Books', route: '/books' }], types: ['commerce', 'student', 'teacher'] },
+      { id: 'book-search-filter', question: 'How can I find the right book quickly?', answer: 'Open Books and search by title, author, ISBN, subject, or keyword. You can narrow the list by reader group, book type, hard-copy availability, and sorting order. Reset removes all selected filters.', steps: ['Open Books.', 'Enter a useful title, author, ISBN, or subject word.', 'Choose the intended reader and book type when needed.', 'Use Hard copy available if you only want printed books.', 'Press Search.'], links: [{ label: 'Browse books', route: '/books' }], types: ['commerce', 'student', 'teacher', 'jobseeker'], keywords: 'ebook search author isbn filter hard copy' },
+      { id: 'book-audiences', question: 'Which readers and book categories does the Books page support?', answer: 'Books can be classified for Students, Job Seekers, Teachers, Children, or General Readers. Supported types include Test Papers, Job Solutions, Admission Guides, Academic Guides, Teacher Guides, Textbooks, Grammar, Story or Fiction, Literature, Writer’s Books, Reference, Creative or Essay, and Other books.', links: [{ label: 'Browse books', route: '/books' }], types: ['commerce', 'student', 'teacher', 'jobseeker'] },
+      { id: 'ebook-hardcopy-difference', question: 'What is the difference between an eBook and a hard copy?', answer: 'An eBook is the downloadable digital edition and does not require shipping. A hard copy is a printed product, is limited by displayed stock, and requires delivery information. A book may offer either or both editions with different prices.', types: ['commerce', 'student', 'teacher', 'jobseeker'], keywords: 'digital printed edition shipping stock' },
+      { id: 'book-preview', question: 'Can I read a sample before buying an eBook?', answer: 'Yes when the publisher has attached a public Sample asset. Open the book details and choose “নমুনা পড়ুন”. Full paid files are deliberately not exposed in the public catalog.', links: [{ label: 'Browse books', route: '/books' }], types: ['commerce', 'student', 'teacher', 'jobseeker'], note: 'A missing sample button means that no public sample is currently attached to that book.' },
+      { id: 'book-formats', question: 'Which digital book formats can Cheradip provide?', answer: 'A book can publish PDF, editable DOCX, HTML, EPUB, DOC, or text assets, depending on what the administrator uploaded or generated. The formats currently available for a title appear on its card or detail panel.', types: ['commerce', 'student', 'teacher', 'jobseeker'] },
+      { id: 'buy-ebook', question: 'How do I buy an eBook?', answer: 'Open the book details, select the digital edition, and choose Buy now. Cheradip adds the correct digital variant to the existing eCommerce cart and opens checkout. Complete the order and submit the required payment details.', steps: ['Open Books and select a title.', 'Review its description, author, format, and price.', 'Choose the digital edition.', 'Complete checkout in eCommerce.', 'Keep the order number and private tracking token.'], links: [{ label: 'Browse books', route: '/books' }, { label: 'Open store', route: '/ecommerce' }], types: ['commerce', 'student', 'teacher', 'jobseeker'] },
+      { id: 'buy-hardcopy', question: 'How do I order a printed book?', answer: 'Choose a book that shows Hard copy and available stock, open its details, then select Buy hard copy. Checkout collects the delivery address. The server calculates shipping from the order contents and current delivery rule.', links: [{ label: 'Browse books', route: '/books' }], types: ['commerce', 'student', 'teacher', 'jobseeker'] },
+      { id: 'ebook-download', question: 'Where do I download an eBook after payment?', answer: 'Open eCommerce, choose Track order, and enter the order number with its private tracking token. After an administrator confirms payment as Paid, the tracking result shows “Your eBooks” with secure download buttons for digital books in that order.', steps: ['Open eCommerce and select Track order.', 'Enter the exact order number.', 'Enter the private tracking token supplied with the order.', 'Wait until Payment shows Paid.', 'Use the download button under Your eBooks.'], links: [{ label: 'Track order', route: '/ecommerce' }], types: ['commerce', 'student', 'teacher', 'jobseeker'], keywords: 'paid ebook file tracking token digital library' },
+      { id: 'ebook-not-downloadable', question: 'Why is my purchased eBook not showing a download button?', answer: 'The order may not yet be marked Paid, the tracking token may be incorrect, the digital book may not be part of that order, or the administrator may not have attached a downloadable file yet. Verify the order status first; if it is Paid and the file is still absent, contact support with the order number only.', types: ['commerce', 'account'], note: 'Never send the private tracking token, password, OTP, payment PIN, or API key in a public support message.' },
+      { id: 'ebook-file-private', question: 'Can someone download a paid eBook from its public catalog link?', answer: 'No. Public book responses expose only samples and videos. The full downloadable asset is served only when the request supplies a matching paid order number and its private tracking token, and the purchased order contains that book.', types: ['commerce', 'account'], keywords: 'ebook security public url paid access' },
+      { id: 'book-cover-fallback', question: 'Why does a book show the Cheradip logo instead of a cover?', answer: 'That title has no usable uploaded cover yet. The storefront uses the round Cheradip avatar for narrow cover spaces and the full Cheradip logo for wider detail spaces so the card remains readable until an administrator uploads a cover.', types: ['commerce', 'student', 'teacher', 'jobseeker'] },
+      { id: 'book-stock', question: 'Why is the hard-copy purchase button disabled?', answer: 'The printed edition may be unavailable, its stock may be zero, or its commerce variant may not be published. The digital edition can still be purchased when its own button is available.', types: ['commerce'] },
+      { id: 'book-payment-pending', question: 'I paid for an eBook but the order still says Pending. What should I do?', answer: 'Do not submit the same payment repeatedly. Check that the transaction ID was entered correctly and allow time for administrator verification. Keep the payment confirmation and order number; contact support if the status remains Pending unexpectedly.', types: ['commerce', 'account'] },
       { id: 'order-login', question: 'Do I need to log in to place or review an order?', answer: 'The checkout/order route and transaction history are protected account features. Log in so orders and payment records can be associated with the correct account.', types: ['commerce', 'account'] },
       { id: 'shipping', question: 'How is delivery cost shown?', answer: 'The storefront calculates or displays the applicable delivery rule during the shopping flow. Confirm the current amount in the order summary before completing an order.', types: ['commerce'] },
     ],
@@ -271,23 +288,6 @@ const BASE_FAQ_CHAPTERS: FaqChapter[] = [
   },
 ];
 
-interface FaqSupportLens {
-  id: string;
-  label: string;
-  question: (entry: FaqEntry) => string;
-  answer: (entry: FaqEntry, chapter: FaqChapter) => string;
-}
-
-const audienceLabels: Record<FaqMainType, string> = {
-  start: 'new and returning visitors',
-  student: 'Students',
-  teacher: 'Teachers',
-  jobseeker: 'Job Seekers',
-  ai: 'AI-service users',
-  commerce: 'shopping, payment, or rewards users',
-  account: 'signed-in account holders',
-};
-
 const faqTopicLabels: Record<FaqMainType, string> = {
   start: 'Getting started and navigation',
   student: 'Student learning',
@@ -297,11 +297,6 @@ const faqTopicLabels: Record<FaqMainType, string> = {
   commerce: 'Shopping, payments and rewards',
   account: 'Accounts and security',
 };
-
-function relatedPageText(entry: FaqEntry): string {
-  if (!entry.links?.length) return 'Use the page or control named in the answer, or search the platform directory if it is not currently visible.';
-  return `Open ${entry.links.map(link => `${link.label} (${link.route})`).join(' or ')}.`;
-}
 
 function entryTags(entry: FaqEntry, chapter: FaqChapter): string[] {
   const raw = [
@@ -316,72 +311,39 @@ function entryTags(entry: FaqEntry, chapter: FaqChapter): string[] {
     .filter(value => value.length > 1 && !stopWords.has(value)))).slice(0, 18);
 }
 
-const FAQ_SUPPORT_LENSES: FaqSupportLens[] = [
-  {
-    id: 'quick', label: 'Quick answer',
-    question: entry => `Quick answer — ${entry.question}`,
-    answer: entry => `In short: ${entry.answer} Use the related page link when one is provided, and confirm the current on-screen status before repeating a paid or account-changing action.`,
-  },
-  {
-    id: 'steps', label: 'Step-by-step',
-    question: entry => `Step-by-step help — ${entry.question}`,
-    answer: entry => `${entry.answer} ${entry.steps?.length ? `Follow this order: ${entry.steps.join(' ')}` : `${relatedPageText(entry)} Read the visible instructions, complete one action at a time, and verify the result before continuing.`}`,
-  },
-  {
-    id: 'location', label: 'Where to find it',
-    question: entry => `Where can I find this? — ${entry.question}`,
-    answer: entry => `${relatedPageText(entry)} The same feature may also be available from the header, profile menu, dashboard, or product directory according to your account and screen size. ${entry.answer}`,
-  },
-  {
-    id: 'eligibility', label: 'Eligibility and access',
-    question: entry => `Who can use this? — ${entry.question}`,
-    answer: entry => `This guidance is primarily relevant to ${entry.types.map(type => audienceLabels[type]).join(', ')}. Login, active-package, role, quota, or coin requirements still apply where the feature performs a protected or paid action. ${entry.answer}`,
-  },
-  {
-    id: 'prepare', label: 'Before you start',
-    question: entry => `What should I prepare first? — ${entry.question}`,
-    answer: entry => `Before starting, confirm the correct account, page, curriculum or product selection, available package or coin balance when relevant, and a stable connection for online actions. Never prepare or share a password, OTP, PIN, or full private API key. ${entry.answer}`,
-  },
-  {
-    id: 'result', label: 'Expected result',
-    question: entry => `What result should I expect? — ${entry.question}`,
-    answer: entry => `${entry.answer} A successful action should produce a visible page change, updated status, result, balance, record, or confirmation appropriate to the feature. Avoid repeating a payment-related action until its first result is known.`,
-  },
-  {
-    id: 'troubleshoot', label: 'Troubleshooting',
-    question: entry => `What should I check if this fails? — ${entry.question}`,
-    answer: entry => `First recheck the selected account, filters, route, package or quota, and the exact message shown. Refresh once and sign in again only if the session appears stale. ${entry.answer} If the problem continues, keep the page URL and safe error details for support.`,
-  },
-  {
-    id: 'support', label: 'Further support',
-    question: entry => `How do I get further help? — ${entry.question}`,
-    answer: entry => `${entry.answer} If this answer does not resolve the issue, use the support bot to choose the matching chapter, topic, subtopic, and tags. For later human escalation, include the page URL, account type, expected result, actual result, and safe screenshot—never secrets.`,
-  },
-];
+function createSearchQuestions(entry: FaqEntry): string[] {
+  const subject = entry.subtopic || entry.question.replace(/[?!.]+$/, '');
+  return Array.from(new Set([
+    entry.question,
+    `Please explain ${subject}.`,
+    `How do I use ${subject}?`,
+    `Where can I find or manage ${subject}?`,
+    `What should I know before using ${subject}?`,
+    `What should happen after I use ${subject}?`,
+    `Why is ${subject} not working for me?`,
+    `What should I check when I have a problem with ${subject}?`,
+    `Who can use ${subject}, and what access is required?`,
+  ]));
+}
 
-function enrichEntry(entry: FaqEntry, chapter: FaqChapter): FaqEntry[] {
+function enrichEntry(entry: FaqEntry, chapter: FaqChapter): FaqEntry {
   const topic = entry.topic || faqTopicLabels[entry.types[0]];
   const subtopic = entry.subtopic || entry.question.replace(/[?!.]+$/, '');
   const tags = entry.tags?.length ? entry.tags : entryTags(entry, chapter);
-  const direct: FaqEntry = { ...entry, topic, subtopic, tags: Array.from(new Set([...tags, 'direct answer'])) };
-  const variants = FAQ_SUPPORT_LENSES.map(lens => ({
-    ...entry,
-    id: `${entry.id}-${lens.id}`,
-    question: lens.question(entry),
-    answer: lens.answer(entry, chapter),
-    topic,
-    subtopic,
-    tags: Array.from(new Set([...tags, lens.id, lens.label.toLocaleLowerCase()])),
-  }));
-  return [direct, ...variants];
+  return { ...entry, topic, subtopic, tags, searchQuestions: createSearchQuestions({ ...entry, subtopic }) };
 }
 
 /**
- * The compact editorial entries above are expanded through practical support lenses.
- * This keeps every answer grounded in reviewed Cheradip behavior while supplying
- * more than one thousand unique, searchable questions for the manual and support bot.
+ * Every visible item is a separately reviewed Cheradip problem and answer. Natural
+ * question phrasings are indexed invisibly so search recognises more than one thousand
+ * ways users ask for help without filling the manual with repetitive synthetic copies.
  */
-export const FAQ_CHAPTERS: FaqChapter[] = BASE_FAQ_CHAPTERS.map(chapter => ({
+export const FAQ_CHAPTERS: FaqChapter[] = [...BASE_FAQ_CHAPTERS, ...ADDITIONAL_FAQ_CHAPTERS].map(chapter => ({
   ...chapter,
-  entries: chapter.entries.flatMap(entry => enrichEntry(entry, chapter)),
+  entries: chapter.entries.map(entry => enrichEntry(entry, chapter)),
 }));
+
+export const FAQ_SEARCH_QUESTION_COUNT = FAQ_CHAPTERS.reduce(
+  (total, chapter) => total + chapter.entries.reduce((count, entry) => count + (entry.searchQuestions?.length || 0), 0),
+  0,
+);

@@ -115,6 +115,12 @@
     <article class="tracking-result" *ngIf="trackedOrder">
       <div><span>Order</span><strong>{{ trackedOrder.number }}</strong></div><div><span>Status</span><strong>{{ trackedOrder.status }}</strong></div><div><span>Payment</span><strong>{{ trackedOrder.payment_status }}</strong></div><div><span>Total</span><strong>৳{{ trackedOrder.grand_total }}</strong></div>
       <ol><li *ngFor="let event of trackedOrder.history"><b>{{ event.status }}</b><small>{{ event.created_at | date:'medium' }} {{ event.note }}</small></li></ol>
+        <div class="digital-library" *ngIf="digitalLibrary.length">
+          <h2>Your eBooks</h2>
+          <a class="primary link-button" *ngFor="let book of digitalLibrary" [href]="book.download_url">
+            Download {{ book.title_bn || book.title }} <small>{{ book.formats.join(', ') | uppercase }}</small>
+          </a>
+        </div>
     </article>
   </section>
 

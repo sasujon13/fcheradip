@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
+import { ActivatedRoute } from '@angular/router';
 
 interface Category { id: number; name: string; slug: string; product_count: number; }
 interface Product {
@@ -52,15 +53,20 @@ export class EcommerceComingSoonComponent implements OnInit {
   trackNumber = '';
   trackToken = '';
   trackedOrder: any = null;
+  digitalLibrary: any[] = [];
   adminDashboard: any = null;
   adminOrders: any[] = [];
   adminPayments: any[] = [];
   importResult: any = null;
   uploadFile: File | null = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
   ngOnInit(): void {
+    const requestedView = this.route.snapshot.queryParamMap.get('view');
+    if (requestedView === 'cart' || requestedView === 'track' || requestedView === 'admin') {
+      this.activeView = requestedView;
+    }
     this.loadCategories();
     this.loadProducts();
     this.loadCart(localStorage.getItem('cheradipEcommerceCart') || undefined);
@@ -191,8 +197,18 @@ export class EcommerceComingSoonComponent implements OnInit {
     if (!this.trackNumber.trim() || !this.trackToken.trim()) return;
     const params = new HttpParams().set('tracking_token', this.trackToken.trim());
     this.http.get<any>(`${this.api}/orders/${encodeURIComponent(this.trackNumber.trim())}/`, { params }).subscribe({
-      next: order => { this.trackedOrder = order; this.error = ''; },
+      next: order => { this.trackedOrder = order; this.error = ''; this.loadDigitalLibrary(); },
       error: err => { this.trackedOrder = null; this.showError(err, 'Order not found or tracking token is incorrect.'); },
+    });
+  }
+
+  loadDigitalLibrary(): void {
+    this.digitalLibrary = [];
+    if (!this.trackedOrder || this.trackedOrder.payment_status !== 'paid') return;
+    const params = new HttpParams().set('order_number', this.trackNumber.trim()).set('tracking_token', this.trackToken.trim());
+    this.http.get<any[]>(`${this.api}/digital-library/`, { params }).subscribe({
+      next: books => this.digitalLibrary = books,
+      error: () => this.digitalLibrary = [],
     });
   }
 

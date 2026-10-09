@@ -1,96 +1,56 @@
-<div class="filter_back"></div>
-<div class="card-top" *ngIf="showCard">
-    <ul class="container d-flex filterItem">
-      <li [ngClass]="{'selected': selectedType === ''}" class="item" (click)="filterTypes('')">
-        <a>
-          <h5>All</h5>
-        </a>
-      </li>
-      <li [ngClass]="{'selected': selectedType === 'science'}" class="item" (click)="filterTypes('science')">
-        <a>
-          <h5>Sci.</h5>
-        </a>
-      </li>
-      <li [ngClass]="{'selected': selectedType === 'business'}" class="item" (click)="filterTypes('business')">
-        <a>
-          <h5>Bus.</h5>
-        </a>
-      </li>
-      <li [ngClass]="{'selected': selectedType === 'humanities'}" class="item" (click)="filterTypes('humanities')">
-        <a>
-          <h5>Hum.</h5>
-        </a>
-      </li>
-      <li class="item">
-        <a>
-          <h5>::</h5>
-        </a>
-        <select class="itemSize" (change)="onSizeChange($event)">
-          <option class="itemSize" value="" selected>
-            <a>
-              <h6>ALL</h6>
-            </a>
-          </option>
-        <option class="itemSize" value="nctb">
-          <a>
-            <h6>NCTB</h6>
-          </a>
-        </option>
-        <option class="itemSize" value="L">
-          <a>
-            <h6>Cheradip</h6>
-          </a>
-        </option>
-        <option class="itemSize" value="book">
-          <a>
-            <h6>Books</h6>
-          </a>
-        </option>
-        <option class="itemSize" value="guide">
-          <a>
-            <h6>Guides</h6>
-          </a>
-        </option>
+<main class="book-shop" aria-label="Cheradip book store">
+  <section class="book-hero">
+    <picture class="book-hero__brand"><source media="(min-width: 1200px)" [srcset]="wideLogo"><img [src]="avatar" alt="Cheradip"></picture>
+    <div><p class="eyebrow">Cheradip Books</p><h1>eBooks, Guides and Printed Books</h1>
+      <p>Find test papers, job solutions, admission guides, literature and other books for Bangladeshi students, job seekers and teachers.</p></div>
+    <a class="cart-link" routerLink="/ecommerce" [queryParams]="{ view: 'cart' }" aria-label="Open cart"><i class="fa fa-shopping-cart" aria-hidden="true"></i><span>{{ cartCount }}</span></a>
+  </section>
+
+  <section class="book-filters" aria-label="Search and filter books">
+    <label class="search-box"><i class="fa fa-search" aria-hidden="true"></i><input [(ngModel)]="search" (keyup.enter)="loadBooks()" placeholder="Search by title, author, ISBN or subject"></label>
+    <select [(ngModel)]="audience" (change)="loadBooks()" aria-label="Select reader type"><option *ngFor="let item of audiences" [value]="item[0]">{{ item[1] }}</option></select>
+    <select [(ngModel)]="bookType" (change)="loadBooks()" aria-label="Select book type"><option *ngFor="let item of bookTypes" [value]="item[0]">{{ item[1] }}</option></select>
+    <select [(ngModel)]="ordering" (change)="loadBooks()" aria-label="Sort books"><option value="-featured">Featured first</option><option value="-created_at">Newest first</option><option value="digital_price">Lowest price first</option><option value="-digital_price">Highest price first</option><option value="title">Title A–Z</option></select>
+    <select [(ngModel)]="copyType" (change)="loadBooks()" aria-label="Copy type">
+      <option value="hard">Hard Copy</option>
+      <option value="soft">Soft Copy</option>
+      <option value="both">Both</option>
     </select>
-    </li>
-    </ul>
-  </div>
-  <img src="../../../assets/images/filter.svg" class="filter" (click)="toggleCard()">
-  
-  <ul class="item-list">
-    <li *ngFor="let item of filterCategory | filter:searchKey:['name', 'bangla_name', 'code']" class="item">
-      <div class="image-container">
-        <img *ngIf="item.image" [src]="item.image" alt="{{ item.name }}" class="itemImage" [style.opacity]="item.in_stock < 1 ? 0.34 : 1">
-        <h3 class="title">{{ item.name }}<br><b style="font-size: 15px;">{{ item.bangla_name }}</b></h3>
-        <h3 class="discount"><b style="color: red; text-align: right;"> - {{ item.discount }}%</b></h3>
-        <!-- <h3 class="title">{{ item.name }} ({{ item.bangla_name }}) - {{ item.weight }} kg<br>{{ item.size }}-{{ item.code }}</h3> -->
-        <p class="price">Price : {{ productPrice(item) }} tk<sub><del> {{ item.price }} tk</del></sub>
-            <!-- <p class="price">{{ item.price }} tk / 1 kg<sub><del> {{ productPrice(item) }}</del> tk</sub> -->
-        </p>
-        <p class="footer">
-          <a class="item_footer" *ngIf="item.in_stock > 0">
-            <i class="fa fa-check-circle"></i>In Stock
-          </a>
-          <a class="item_footer outofstock" *ngIf="item.in_stock < 1">
-            <i class="fa fa-exclamation-circle outofstock"></i>Out of Stock
-          </a>
-          <a class="item_footer choice" *ngIf="item.love" (click)="removeChoiceItem(item)">
-            <i class="fa fa-heart choice" style="color: red;"></i>
-          </a>
-          <a class="item_footer" *ngIf="!item.love" (click)="addtochoice(item)">
-            <i class="fa fa-heart" style="color: teal;"></i>
-          </a>
-          <a class="item_footer" *ngIf="!item.add_to_cart" (click)="addtocart(item)">
-            <i class="fa fa-cart-plus"></i>Add to Cart
-          </a>
-          <a class="item_footer addedtocart" *ngIf="item.add_to_cart" (click)="addtocart(item)">
-            <i class="fa fa-check addedtocart"></i>Added to Cart
-          </a>
-          <a [routerLink]="['/order']" routerLinkActive="order"  class="item_footer" (click)="addtocart(item)">
-            <i class="fa fa-shopping-cart"></i>Buy
-          </a>
-        </p>
+    <button type="button" class="filter-search" (click)="loadBooks()">Search</button><button type="button" class="filter-reset" (click)="resetFilters()">Reset</button>
+  </section>
+
+  <p *ngIf="message" class="feedback success">{{ message }}</p><p *ngIf="error" class="feedback error">{{ error }}</p>
+  <div *ngIf="loading" class="book-state"><span class="spinner"></span> Loading books…</div>
+  <div *ngIf="!loading && !books.length" class="book-state">No published books match these filters.</div>
+
+  <section class="book-grid" *ngIf="!loading && books.length">
+    <article class="book-card" *ngFor="let book of books" [class.featured]="book.featured">
+      <button type="button" class="cover-button" (click)="openBook(book)">
+        <img [src]="cover(book)" (error)="onCoverError($event)" [alt]="book.title_bn || book.title"><span class="cover-shade"></span>
+        <span class="cover-brand"><img [src]="avatar" alt=""><b>Cheradip</b></span><span class="cover-title">{{ book.title_bn || book.title }}</span><span class="cover-author">{{ book.author || book.publisher }}</span>
+      </button>
+      <div class="book-card__body"><div class="chips"><span>{{ book.book_type_label }}</span><span>{{ book.audience_label }}</span></div>
+        <h2>{{ book.title_bn || book.title }}</h2><p class="english-title" *ngIf="book.title_bn">{{ book.title }}</p>
+        <p class="meta">{{ book.author || 'Cheradip' }}<ng-container *ngIf="book.edition"> · {{ book.edition }}</ng-container></p>
+        <div class="formats"><span *ngFor="let format of book.available_formats">{{ format | uppercase }}</span><span *ngIf="book.hard_copy_available">Hard copy</span></div>
+        <div class="price-row"><strong>৳{{ book.digital_price }}</strong><del *ngIf="book.compare_at_price">৳{{ book.compare_at_price }}</del></div>
+        <div class="card-actions"><button type="button" class="secondary" (click)="openBook(book)">View details</button><button type="button" [disabled]="adding || !book.digital_variant_id" (click)="addBook(book, 'digital')"><i class="fa fa-cart-plus"></i> Add eBook</button></div>
       </div>
-    </li>
-  </ul>
-  <div class="gap" style="height: 100px;"></div>
+    </article>
+  </section>
+
+  <div class="modal-backdrop" *ngIf="selectedBook" (click)="closeBook()">
+    <article class="book-modal" (click)="$event.stopPropagation()"><button class="modal-close" type="button" (click)="closeBook()" aria-label="Close book details">×</button>
+      <div class="modal-cover"><img [src]="cover(selectedBook, true)" (error)="onCoverError($event, true)" [alt]="selectedBook.title_bn || selectedBook.title"></div>
+      <div class="modal-content"><p class="eyebrow">{{ selectedBook.book_type_label }} · {{ selectedBook.audience_label }}</p>
+        <h2>{{ selectedBook.title_bn || selectedBook.title }}</h2><h3 *ngIf="selectedBook.title_bn">{{ selectedBook.title }}</h3><p>{{ selectedBook.description || selectedBook.preview_text }}</p>
+        <dl><ng-container *ngIf="selectedBook.author"><dt>Author</dt><dd>{{ selectedBook.author }}</dd></ng-container><ng-container *ngIf="selectedBook.publisher"><dt>Publisher</dt><dd>{{ selectedBook.publisher }}</dd></ng-container><ng-container *ngIf="selectedBook.isbn"><dt>ISBN</dt><dd>{{ selectedBook.isbn }}</dd></ng-container><ng-container *ngIf="selectedBook.page_count"><dt>Pages</dt><dd>{{ selectedBook.page_count }}</dd></ng-container><ng-container><dt>Language</dt><dd>{{ selectedBook.language }}</dd></ng-container></dl>
+        <div class="formats"><span *ngFor="let format of selectedBook.available_formats">{{ format | uppercase }}</span></div>
+        <a *ngIf="sample(selectedBook) as preview" class="sample-link" [href]="assetUrl(preview)" target="_blank" rel="noopener"><i class="fa fa-eye"></i> Read sample</a>
+        <a *ngIf="selectedBook.video_url" class="sample-link" [href]="selectedBook.video_url" target="_blank" rel="noopener"><i class="fa fa-play-circle"></i> Watch video</a>
+        <div class="purchase-options"><div><span>Digital edition</span><strong>৳{{ selectedBook.digital_price }}</strong><button type="button" [disabled]="adding || !selectedBook.digital_variant_id" (click)="addBook(selectedBook, 'digital', true)">Buy now</button></div>
+          <div *ngIf="selectedBook.hard_copy_available"><span>Hard copy · {{ selectedBook.hard_copy_quantity }} in stock</span><strong>৳{{ selectedBook.hard_copy_price }}</strong><button type="button" [disabled]="adding || !selectedBook.hard_copy_variant_id || selectedBook.hard_copy_quantity < 1" (click)="addBook(selectedBook, 'hardcopy', true)">Buy hard copy</button></div></div>
+      </div>
+    </article>
+  </div>
+</main>

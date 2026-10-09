@@ -4,7 +4,7 @@
     <div>
       <span class="support-kicker">BOT-FIRST HELP CENTRE</span>
       <h1>Cheradip Support</h1>
-      <p>Ask naturally. The bot searches {{ totalAnswers | number }} reviewed answers before guiding you toward human support.</p>
+      <p>Ask naturally. The bot matches {{ totalSearchQuestions | number }} question phrasings to {{ totalAnswers | number }} reviewed answers before guiding you toward human support.</p>
     </div>
     <a routerLink="/faqs" class="support-manual-link"><i class="fa fa-book"></i> Open complete manual</a>
   </header>
@@ -17,7 +17,7 @@
         <li [class.active]="stage === 'refine'"><span>2</span><div><strong>Refine the issue</strong><small>Chapter, topic, subtopic and tags</small></div></li>
         <li [class.active]="stage === 'escalate'"><span>3</span><div><strong>Human handoff</strong><small>Cheradip app or WhatsApp later</small></div></li>
       </ol>
-      <div class="support-coverage"><strong>{{ totalAnswers | number }}</strong><span>knowledge answers</span></div>
+      <div class="support-coverage"><strong>{{ totalAnswers | number }}</strong><span>verified answers · {{ totalSearchQuestions | number }} search phrasings</span></div>
       <p><i class="fa fa-shield"></i> Never send passwords, OTPs, PINs, or private API keys.</p>
     </aside>
 

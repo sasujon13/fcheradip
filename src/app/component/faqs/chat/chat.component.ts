@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, OnInit, Renderer2 } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
-import { FAQ_CHAPTERS, FaqChapter, FaqEntry } from '../faqs/faq-content';
+import { FAQ_CHAPTERS, FAQ_SEARCH_QUESTION_COUNT, FaqChapter, FaqEntry } from '../faqs/faq-content';
 
 interface SupportMessage {
   role: 'bot' | 'user';
@@ -25,6 +25,7 @@ type SupportStage = 'bot' | 'refine' | 'escalate';
 export class ChatComponent implements OnInit, AfterViewInit {
   readonly chapters = FAQ_CHAPTERS;
   readonly totalAnswers = FAQ_CHAPTERS.reduce((total, chapter) => total + chapter.entries.length, 0);
+  readonly totalSearchQuestions = FAQ_SEARCH_QUESTION_COUNT;
 
   question = '';
   messages: SupportMessage[] = [{
@@ -219,7 +220,7 @@ export class ChatComponent implements OnInit, AfterViewInit {
       const question = this.normalize(entry.question);
       const searchable = this.normalize([
         entry.question, entry.answer, entry.keywords || '', entry.topic || '', entry.subtopic || '',
-        ...(entry.tags || []), chapter.title, chapter.summary,
+        ...(entry.tags || []), ...(entry.searchQuestions || []), chapter.title, chapter.summary,
       ].join(' '));
       const searchableTokens = new Set(this.tokens(searchable));
       let score = 0;

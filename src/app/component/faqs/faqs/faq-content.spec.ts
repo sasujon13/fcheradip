@@ -1,11 +1,12 @@
-import { FAQ_CHAPTERS, FAQ_TYPE_OPTIONS } from './faq-content';
+import { FAQ_CHAPTERS, FAQ_SEARCH_QUESTION_COUNT, FAQ_TYPE_OPTIONS } from './faq-content';
 
 describe('FAQ manual content', () => {
   const entries = FAQ_CHAPTERS.flatMap(chapter => chapter.entries);
 
-  it('keeps the complete handbook inventory available', () => {
-    expect(FAQ_CHAPTERS.length).toBe(16);
-    expect(entries.length).toBeGreaterThan(1000);
+  it('keeps a substantial editorial handbook without synthetic duplicate answers', () => {
+    expect(FAQ_CHAPTERS.length).toBe(22);
+    expect(entries.length).toBeGreaterThan(230);
+    expect(FAQ_SEARCH_QUESTION_COUNT).toBeGreaterThan(2000);
     expect(FAQ_CHAPTERS.every(chapter => chapter.entries.length > 0)).toBeTrue();
   });
 
@@ -15,6 +16,8 @@ describe('FAQ manual content', () => {
 
     expect(new Set(chapterIds).size).toBe(chapterIds.length);
     expect(new Set(entryIds).size).toBe(entryIds.length);
+    expect(new Set(entries.map(entry => entry.question.trim().toLocaleLowerCase())).size).toBe(entries.length);
+    expect(new Set(entries.map(entry => entry.answer.trim().toLocaleLowerCase())).size).toBe(entries.length);
   });
 
   it('only uses declared filters and internal absolute routes', () => {
@@ -27,6 +30,8 @@ describe('FAQ manual content', () => {
       expect(entry.topic).toBeTruthy();
       expect(entry.subtopic).toBeTruthy();
       expect(entry.tags?.length || 0).toBeGreaterThan(0);
+      expect(entry.answer.trim().length).toBeGreaterThan(55);
+      expect(entry.searchQuestions?.length || 0).toBeGreaterThanOrEqual(9);
     }
   });
 });

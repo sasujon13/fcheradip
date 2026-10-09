@@ -9,6 +9,10 @@
 
 @media print{.manual-page{padding:0;background:#fff}.manual-sidebar,.manual-filter-trigger,.manual-overlay,.manual-toolbar,.manual-result-bar,.manual-footer{display:none!important}.manual-layout,.manual-layout--sidebar{width:100%;margin:0}.manual-cover{min-height:210px;box-shadow:none;break-after:page}.manual-chapter{box-shadow:none;break-before:page;border-color:#aaa}.manual-entry{break-inside:avoid}.manual-answer{display:grid!important}.manual-question>i{display:none}}
 
-.manual-cover__ornament{align-self:center;width:112px;height:112px;margin:0 0 0 25px;box-sizing:border-box;border-radius:50%;overflow:hidden}
-.manual-cover__ornament img{display:block;width:92%;height:92%;border-radius:50%;object-fit:contain}
-@media(max-width:1250px){.manual-cover__ornament{width:88px;height:88px;margin-left:16px}}
+/* The brand mark owns a fixed grid column so it can never overlap the title. */
+.manual-cover{grid-template-columns:160px minmax(0,1fr);align-items:center}
+.manual-cover__ornament{position:relative;z-index:1;display:grid;place-items:center;align-self:center;width:112px;height:112px;margin:0 auto;box-sizing:border-box;overflow:hidden;border:3px solid #e7c86d;border-radius:50%;background:#fff;box-shadow:0 10px 26px rgba(0,40,40,.24)}
+.manual-cover__ornament img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.manual-cover__content{min-width:0;padding-left:8px}
+@media(max-width:1250px){.manual-cover{grid-template-columns:112px minmax(0,1fr)}.manual-cover__ornament{width:82px;height:82px;margin:0 auto}.manual-cover__content{padding-left:4px}}
+@media(max-width:720px){.manual-cover{grid-template-columns:76px minmax(0,1fr)}.manual-cover__ornament{display:grid;width:58px;height:58px;margin:0 auto}.manual-cover__content{padding:25px 16px 25px 4px}.manual-cover h1{font-size:clamp(1.75rem,8.5vw,2.4rem)}.manual-cover p{font-size:.9rem}}

@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, HostListener, OnInit, Renderer2 } from '@angular/core';
 import { LoadingService } from 'src/app/service/loading.service';
-import { FAQ_CHAPTERS, FAQ_TYPE_OPTIONS, FaqChapter, FaqEntry, FaqMainType } from './faq-content';
+import { FAQ_CHAPTERS, FAQ_SEARCH_QUESTION_COUNT, FAQ_TYPE_OPTIONS, FaqChapter, FaqEntry, FaqMainType } from './faq-content';
 
 interface FilteredChapter extends FaqChapter {
   visibleEntries: FaqEntry[];
@@ -15,6 +15,7 @@ interface FilteredChapter extends FaqChapter {
 export class FaqsComponent implements OnInit, AfterViewInit {
   readonly chapters = FAQ_CHAPTERS;
   readonly typeOptions = FAQ_TYPE_OPTIONS;
+  readonly searchQuestionCount = FAQ_SEARCH_QUESTION_COUNT;
   selectedType: 'all' | FaqMainType = 'all';
   selectedChapter = 'all';
   searchTerm = '';
@@ -56,10 +57,11 @@ export class FaqsComponent implements OnInit, AfterViewInit {
           const matchesType = this.selectedType === 'all' || entry.types.includes(this.selectedType);
           if (!matchesType) return false;
           if (!query) return true;
-          return this.normalise([
+          const searchable = this.normalise([
             entry.question, entry.answer, entry.note || '', entry.keywords || '',
-            ...(entry.steps || []), chapter.title, chapter.summary,
-          ].join(' ')).includes(query);
+            ...(entry.steps || []), ...(entry.searchQuestions || []), chapter.title, chapter.summary,
+          ].join(' '));
+          return this.matchesQuery(searchable, query);
         }),
       }))
       .filter(chapter => chapter.visibleEntries.length > 0);
@@ -133,6 +135,29 @@ export class FaqsComponent implements OnInit, AfterViewInit {
   }
 
   private normalise(value: string): string {
-    return String(value || '').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+    return String(value || '')
+      .toLocaleLowerCase()
+      .replace(/[^a-z0-9\u0980-\u09ff/.-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private matchesQuery(searchable: string, query: string): boolean {
+    if (searchable.includes(query)) return true;
+
+    const ignored = new Set([
+      'a', 'an', 'and', 'are', 'can', 'do', 'does', 'for', 'has', 'have', 'how', 'i', 'in',
+      'is', 'it', 'me', 'my', 'no', 'not', 'of', 'on', 'or', 'the', 'to', 'what', 'when',
+      'where', 'why', 'with', 'should', 'use', 'using', 'instead', 'কী', 'কি', 'কেন', 'কিভাবে', 'কীভাবে', 'আমার', 'আমি', 'এর',
+      'এবং', 'না', 'তে', 'থেকে', 'জন্য', 'হয়', 'হয়', 'হবে',
+    ]);
+    const queryTokens = Array.from(new Set(query.split(' ')
+      .filter(token => token.length > 1 && !ignored.has(token))));
+    if (!queryTokens.length) return false;
+
+    const searchableTokens = new Set(searchable.split(' '));
+    const matches = queryTokens.filter(token => searchableTokens.has(token) || (token.length >= 5 && searchable.includes(token)));
+    const required = queryTokens.length <= 2 ? queryTokens.length : Math.ceil(queryTokens.length * 0.6);
+    return matches.length >= required;
   }
 }
