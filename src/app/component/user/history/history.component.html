@@ -1,0 +1,40 @@
+<main class="history-page">
+  <header class="history-hero">
+    <img src="assets/cheradip/cheradip-avatar.png" alt="Cheradip">
+    <div><p>CHERADIP ACCOUNT</p><h1>Purchase History</h1><span>Packages, products and books purchased using your account.</span></div>
+  </header>
+
+  <div class="history-state" *ngIf="loading"><i class="fa fa-spinner fa-spin"></i> Loading history…</div>
+  <div class="history-state history-error" *ngIf="error">{{ error }}</div>
+
+  <ng-container *ngIf="!loading && !error">
+    <section class="wallet-summary" aria-label="Wallet summary">
+      <article><i class="fa fa-money"></i><span>Main Wallet</span><strong>৳{{ wallet?.balanceTaka | number:'1.2-2' }}</strong></article>
+      <article><i class="fa fa-share-alt"></i><span>Reference Balance</span><strong>৳{{ wallet?.referenceBalanceTaka | number:'1.2-2' }}</strong></article>
+      <article><i class="fa fa-user-circle"></i><span>Account Type</span><strong>{{ profile?.accountType || 'Cheradip user' }}</strong></article>
+    </section>
+
+    <section class="history-section">
+      <div class="section-heading"><div><i class="fa fa-cube"></i><h2>Package activations</h2></div><span>{{ packages.length }}</span></div>
+      <div class="empty-history" *ngIf="!packages.length">No package activation has been recorded yet.</div>
+      <div class="history-grid" *ngIf="packages.length">
+        <article class="history-card" *ngFor="let row of packages">
+          <div class="card-top"><strong>{{ row.title }}</strong><span>{{ row.status }}</span></div>
+          <p>{{ row.audience }} package</p>
+          <div class="card-details"><span>Paid <b>৳{{ row.amountTaka | number:'1.2-2' }}</b></span><span>{{ row.createdAt | date:'medium' }}</span></div>
+          <small *ngIf="row.startsAt || row.endsAt">{{ row.startsAt | date:'mediumDate' }} – {{ row.endsAt | date:'mediumDate' }}</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="history-section">
+      <div class="section-heading"><div><i class="fa fa-shopping-bag"></i><h2>Product and book orders</h2></div><span>{{ orders.length }}</span></div>
+      <div class="empty-history" *ngIf="!orders.length">No product or book order has been recorded yet.</div>
+      <article class="order-card" *ngFor="let order of orders">
+        <div class="order-heading"><div><small>Order</small><strong>{{ order.number }}</strong></div><div><small>Total</small><strong>৳{{ order.totalTaka | number:'1.2-2' }}</strong></div></div>
+        <div class="order-status"><span><i class="fa fa-truck"></i> {{ order.status }}</span><span><i class="fa fa-credit-card"></i> {{ order.paymentMethod }} · {{ order.paymentStatus }}</span><time>{{ order.createdAt | date:'medium' }}</time></div>
+        <ul><li *ngFor="let item of order.items"><i [class]="item.isBook ? 'fa fa-book' : 'fa fa-cube'"></i><span>{{ item.name }}<small>{{ item.variant }}</small></span><b>{{ item.quantity }} × ৳{{ item.lineTotalTaka / item.quantity | number:'1.2-2' }}</b></li></ul>
+      </article>
+    </section>
+  </ng-container>
+</main>

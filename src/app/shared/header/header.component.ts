@@ -46,6 +46,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
   get headerReferenceBalance(): number {
     return Number(this.packageStatus?.wallet?.availableTaka || 0);
   }
+  get showWalletAsTaka(): boolean {
+    const path = (this.router.url || '').split('?')[0];
+    return ['/books', '/ecommerce', '/packages', '/cart', '/choice', '/order', '/renew', '/history'].some(
+      route => path === route || path.startsWith(route + '/'),
+    );
+  }
+  get headerWalletTaka(): number {
+    return this.headerRemainingUnlocks / 100;
+  }
   /** Profile → Dashboard: teachers `/dashboard`, others `/student/dashboard`. */
   get dashboardRouterSegments(): string[] {
     return getDashboardRouterLinkSegments();

@@ -29,6 +29,9 @@
           <label class="radio-option" [class.active]="authForm.get('acctype')?.value === 'JobSeeker'">
             <input type="radio" id="jobseeker" formControlName="acctype" name="acctype" value="JobSeeker" /> Job Seeker
           </label>
+          <label class="radio-option" [class.active]="authForm.get('acctype')?.value === 'Others'">
+            <input type="radio" id="others" formControlName="acctype" name="acctype" value="Others" /> Others
+          </label>
         </div>
       </div>
     </div>

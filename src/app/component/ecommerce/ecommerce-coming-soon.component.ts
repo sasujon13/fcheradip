@@ -1,7 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { ApiService } from '../../service/api.service';
+import { AuthSessionService } from '../../service/auth-session.service';
+import { getDashboardRouterLinkSegments } from '../../service/dashboard-route.util';
 
 interface Category { id: number; name: string; slug: string; product_count: number; }
 interface Product {
@@ -32,7 +36,7 @@ export class EcommerceComingSoonComponent implements OnInit {
   categories: Category[] = [];
   products: Product[] = [];
   cart: Cart | null = null;
-  activeView: 'shop' | 'cart' | 'track' | 'admin' = 'shop';
+  activeView: 'shop' | 'cart' | 'track' = 'shop';
   selectedCategory = '';
   search = '';
   ordering = '-created_at';
@@ -54,28 +58,56 @@ export class EcommerceComingSoonComponent implements OnInit {
   trackToken = '';
   trackedOrder: any = null;
   digitalLibrary: any[] = [];
-  adminDashboard: any = null;
-  adminOrders: any[] = [];
-  adminPayments: any[] = [];
-  importResult: any = null;
-  uploadFile: File | null = null;
+  accountMenuOpen = false;
+  profilePictureMenuOpen = false;
+  profilePictureBusy = false;
+  profileImageUrl: string | null = null;
+  profileBadge = 'None';
+  walletTaka = 0;
+  referenceBalanceTaka = 0;
 
-  constructor(private http: HttpClient, private route: ActivatedRoute) {}
+  constructor(
+    private http: HttpClient,
+    private route: ActivatedRoute,
+    private router: Router,
+    private apiService: ApiService,
+    private authSession: AuthSessionService,
+    private snackBar: MatSnackBar,
+  ) {}
+
+  get loginStatus(): boolean {
+    return localStorage.getItem('isLoggedIn') === 'true' && Boolean(localStorage.getItem('authToken'));
+  }
+
+  get dashboardRouterSegments(): string[] { return getDashboardRouterLinkSegments(); }
 
   ngOnInit(): void {
     const requestedView = this.route.snapshot.queryParamMap.get('view');
-    if (requestedView === 'cart' || requestedView === 'track' || requestedView === 'admin') {
+    if (requestedView === 'cart' || requestedView === 'track') {
       this.activeView = requestedView;
     }
     this.loadCategories();
     this.loadProducts();
     this.loadCart(localStorage.getItem('cheradipEcommerceCart') || undefined);
+    if (this.loginStatus) this.loadAccountSummary();
   }
 
-  setView(view: 'shop' | 'cart' | 'track' | 'admin'): void {
+  setView(view: 'shop' | 'cart' | 'track'): void {
     this.activeView = view;
     this.clearFeedback();
-    if (view === 'admin') this.loadAdmin();
+  }
+
+  loadAccountSummary(): void {
+    this.apiService.getCommerceHistory().subscribe({
+      next: value => {
+        this.profileImageUrl = value?.profile?.profileImageUrl || null;
+        this.profileBadge = value?.profile?.badge || 'None';
+        this.walletTaka = Number(value?.wallet?.balanceTaka || 0);
+        this.referenceBalanceTaka = Number(value?.wallet?.referenceBalanceTaka || 0);
+        if (this.checkout.payment_method === 'cod') this.checkout.payment_method = 'wallet';
+      },
+      error: () => {},
+    });
   }
 
   loadCategories(): void {
@@ -173,14 +205,20 @@ export class EcommerceComingSoonComponent implements OnInit {
       email: this.checkout.email, phone: this.checkout.phone,
       shipping_address: { address: this.checkout.address, city: this.checkout.city, district: this.checkout.district, postal_code: this.checkout.postal_code },
       customer_note: this.checkout.customer_note, coupon_code: this.checkout.coupon_code,
+      payment_method: this.checkout.payment_method,
     };
     this.loading = true;
     this.http.post<any>(`${this.api}/checkout/`, payload).subscribe({
       next: order => {
         this.completedOrder = order; this.loading = false; this.trackNumber = order.number;
         this.trackToken = order.tracking_token; localStorage.removeItem('cheradipEcommerceCart'); this.cart = null;
-        if (this.checkout.payment_method !== 'cod') this.submitPayment(order);
-        this.message = `Order ${order.number} placed successfully.`;
+        if (order.walletBalanceTaka !== undefined) this.walletTaka = Number(order.walletBalanceTaka);
+        if (order.referenceBalanceTaka !== undefined) this.referenceBalanceTaka = Number(order.referenceBalanceTaka);
+        if (!['cod', 'wallet'].includes(this.checkout.payment_method)) this.submitPayment(order);
+        const referenceUsed = Number(order.referenceUsedTaka || 0);
+        this.message = referenceUsed > 0
+          ? `Order ${order.number} placed successfully. ৳${referenceUsed.toFixed(2)} was used from your reference balance first.`
+          : `Order ${order.number} placed successfully.`;
       },
       error: err => { this.loading = false; this.showError(err, 'Could not place the order.'); },
     });
@@ -212,41 +250,88 @@ export class EcommerceComingSoonComponent implements OnInit {
     });
   }
 
-  loadAdmin(): void {
-    this.clearFeedback();
-    this.http.get(`${this.api}/admin/dashboard/`).subscribe({ next: data => this.adminDashboard = data, error: err => this.showError(err, 'Sign in as an administrator to manage commerce.') });
-    this.http.get<any>(`${this.api}/admin/orders/`).subscribe({ next: data => this.adminOrders = Array.isArray(data) ? data : (data.results || []), error: () => this.adminOrders = [] });
-    this.http.get<any>(`${this.api}/admin/payments/`).subscribe({ next: data => this.adminPayments = Array.isArray(data) ? data : (data.results || []), error: () => this.adminPayments = [] });
+  toggleAccountMenu(event: Event): void {
+    event.preventDefault(); event.stopPropagation();
+    this.profilePictureMenuOpen = false;
+    this.accountMenuOpen = !this.accountMenuOpen;
   }
 
-  updateOrder(order: any, newStatus: string): void {
-    this.http.patch<any>(`${this.api}/admin/orders/${order.number}/`, { status: newStatus }).subscribe({
-      next: updated => { Object.assign(order, updated); this.message = `Order ${order.number} updated.`; this.loadAdmin(); },
-      error: err => this.showError(err, 'Could not update order.'),
+  openProfilePictureMenu(event: MouseEvent): void {
+    event.preventDefault(); event.stopPropagation();
+    this.accountMenuOpen = false;
+    this.profilePictureMenuOpen = true;
+  }
+
+  chooseProfilePicture(event: Event, input: HTMLInputElement): void {
+    event.preventDefault(); event.stopPropagation();
+    this.profilePictureMenuOpen = false;
+    input.click();
+  }
+
+  onProfilePictureSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      this.notify('Use a JPG, PNG, or WebP image up to 5 MB.', true);
+      return;
+    }
+    const image = new Image();
+    image.onload = () => {
+      const side = Math.min(image.naturalWidth, image.naturalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const context = canvas.getContext('2d');
+      if (!context) { URL.revokeObjectURL(image.src); this.notify('Profile picture could not be prepared.', true); return; }
+      context.beginPath(); context.arc(256, 256, 256, 0, Math.PI * 2); context.clip();
+      context.drawImage(image, (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2, side, side, 0, 0, 512, 512);
+      URL.revokeObjectURL(image.src);
+      canvas.toBlob(blob => {
+        if (!blob) { this.notify('Profile picture could not be prepared.', true); return; }
+        this.profilePictureBusy = true;
+        this.apiService.uploadProfilePicture(blob).subscribe({
+          next: value => { this.profilePictureBusy = false; this.profileImageUrl = value?.profileImageUrl || null; this.notify('Profile picture updated.'); },
+          error: error => { this.profilePictureBusy = false; this.notify(error?.error?.error || 'Profile picture could not be updated.', true); },
+        });
+      }, 'image/webp', .9);
+    };
+    image.onerror = () => { URL.revokeObjectURL(image.src); this.notify('The selected image could not be opened.', true); };
+    image.src = URL.createObjectURL(file);
+  }
+
+  clearProfilePicture(event: Event): void {
+    event.preventDefault(); event.stopPropagation();
+    this.profilePictureMenuOpen = false;
+    this.profilePictureBusy = true;
+    this.apiService.removeProfilePicture().subscribe({
+      next: () => { this.profilePictureBusy = false; this.profileImageUrl = null; this.notify('Profile picture cleared.'); },
+      error: () => { this.profilePictureBusy = false; this.notify('Profile picture could not be cleared.', true); },
     });
   }
 
-  confirmPayment(payment: any): void {
-    this.http.patch<any>(`${this.api}/admin/payments/${payment.id}/`, { status: 'confirmed' }).subscribe({
-      next: updated => { Object.assign(payment, updated); this.message = 'Payment confirmed.'; this.loadAdmin(); },
-      error: err => this.showError(err, 'Could not confirm payment.'),
-    });
+  logout(): void {
+    this.authSession.stopSessionMonitor();
+    this.authSession.clearStoredSession();
+    window.location.assign('/login');
   }
 
-  selectCsv(event: Event): void { this.uploadFile = (event.target as HTMLInputElement).files?.[0] || null; }
-
-  importCsv(): void {
-    if (!this.uploadFile) return;
-    const body = new FormData(); body.append('file', this.uploadFile);
-    this.http.post(`${this.api}/admin/import/products/`, body).subscribe({
-      next: result => { this.importResult = result; this.message = 'CSV import completed.'; this.loadProducts(); this.loadCategories(); },
-      error: err => this.showError(err, 'CSV import failed.'),
-    });
+  @HostListener('document:click', ['$event'])
+  closeAccountMenus(event: Event): void {
+    if ((event.target as HTMLElement).closest('.commerce-account')) return;
+    this.accountMenuOpen = false;
+    this.profilePictureMenuOpen = false;
   }
 
   get cartCount(): number { return (this.cart?.items || []).reduce((sum, item) => sum + item.quantity, 0); }
-  get sampleCsvUrl(): string { return `${this.api}/admin/import/sample.csv`; }
   private rememberCart(cart: Cart): void { this.cart = cart; localStorage.setItem('cheradipEcommerceCart', cart.token); }
   private clearFeedback(): void { this.message = ''; this.error = ''; }
   private showError(error: HttpErrorResponse, fallback: string): void { this.error = error.error?.detail || fallback; }
+  private notify(message: string, error = false): void {
+    this.snackBar.open(message, 'Close', {
+      duration: error ? 7000 : 4500,
+      horizontalPosition: 'center', verticalPosition: 'top',
+      panelClass: ['package-center-snackbar', error ? 'error-snackbar' : 'success-snackbar'],
+    });
+  }
 }

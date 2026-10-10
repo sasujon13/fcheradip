@@ -33,6 +33,7 @@
             <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Student'" (click)="selectAccountType('Student')">Student</button>
             <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Teacher'" (click)="selectAccountType('Teacher')">Teacher</button>
             <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'JobSeeker'" (click)="selectAccountType('JobSeeker')">Job Seeker</button>
+            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Others'" (click)="selectAccountType('Others')">Others</button>
           </div>
         </div>
       </div>

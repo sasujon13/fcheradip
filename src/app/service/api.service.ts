@@ -78,6 +78,10 @@ export class ApiService {
     }));
   }
 
+  getCommerceHistory(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/ecommerce/account/history/`);
+  }
+
   getReferralSummary(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/referrals/summary/`);
   }

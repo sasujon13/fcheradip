@@ -1,7 +1,7 @@
 <main class="commerce-shell">
   <header class="commerce-hero">
     <a class="commerce-brand" routerLink="/index" aria-label="Cheradip home">
-      <img src="assets/images/cheradip.svg" alt="Cheradip logo">
+      <img src="assets/cheradip/cheradip-avatar.png" alt="Cheradip logo">
       <span><b>Cheradip</b><small>Marketplace</small></span>
     </a>
     <form class="commerce-search" (ngSubmit)="loadProducts()">
@@ -13,10 +13,38 @@
       <button type="submit">Search</button>
     </form>
     <nav class="commerce-actions" aria-label="Marketplace sections">
-      <button (click)="setView('shop')" [class.active]="activeView === 'shop'">Shop</button>
-      <button (click)="setView('track')" [class.active]="activeView === 'track'">Track order</button>
-      <button (click)="setView('cart')" [class.active]="activeView === 'cart'">Cart <span>{{ cartCount }}</span></button>
-      <button (click)="setView('admin')" [class.active]="activeView === 'admin'">Manage</button>
+      <button (click)="setView('shop')" [class.active]="activeView === 'shop'"><i class="fa fa-shopping-bag"></i> Shop</button>
+      <button (click)="setView('track')" [class.active]="activeView === 'track'"><i class="fa fa-truck"></i> Track order</button>
+      <button (click)="setView('cart')" [class.active]="activeView === 'cart'"><i class="fa fa-shopping-cart"></i> Cart <span>{{ cartCount }}</span></button>
+      <div class="commerce-account" *ngIf="loginStatus; else commerceGuest">
+        <button type="button" class="commerce-profile-trigger" (click)="toggleAccountMenu($event)" (contextmenu)="openProfilePictureMenu($event)" title="Profile and wallet">
+          <app-badge-profile [badge]="profileBadge" [imageUrl]="profileImageUrl" [size]="42"></app-badge-profile>
+          <b>৳{{ walletTaka | number:'1.2-2' }}</b>
+        </button>
+        <ul class="commerce-profile-menu" *ngIf="accountMenuOpen" (click)="accountMenuOpen = false">
+          <li class="wallet-line"><i class="fa fa-money"></i><span>Main ৳{{ walletTaka | number:'1.2-2' }}<small>Reference ৳{{ referenceBalanceTaka | number:'1.2-2' }}</small></span></li>
+          <li><a [routerLink]="dashboardRouterSegments"><i class="fa fa-th-large"></i> Dashboard</a></li>
+          <li><a routerLink="/packages"><i class="fa fa-cube"></i> Renew / Upgrade</a></li>
+          <li><a routerLink="/myorder"><i class="fa fa-shopping-cart"></i> All Transactions</a></li>
+          <li><a routerLink="/history"><i class="fa fa-history"></i> History</a></li>
+          <li><a routerLink="/profile"><i class="fa fa-user-edit"></i> Update Profile</a></li>
+          <li><a routerLink="/refer"><i class="fa fa-share-alt"></i> Refer &amp; Earn</a></li>
+          <li><a routerLink="/settings"><i class="fa fa-cog"></i> Settings</a></li>
+          <li><a routerLink="/disappeared-questions"><i class="fa fa-eye-slash"></i> Disappeared Questions</a></li>
+          <li><a routerLink="/created-questions"><i class="fa fa-file-text-o"></i> Created Questions</a></li>
+          <li><a routerLink="/liked-questions"><i class="fa fa-heart"></i> Liked Questions</a></li>
+          <li><a routerLink="/mobile"><i class="fa fa-lock"></i> Update Mobile Number</a></li>
+          <li><a routerLink="/password"><i class="fa fa-key"></i> Update Password</a></li>
+          <li><a routerLink="/withdraw" [queryParams]="{returnUrl: '/ecommerce'}"><i class="fa fa-money"></i> Withdraw</a></li>
+          <li><button type="button" (click)="logout()"><i class="fa fa-sign-out"></i> Logout</button></li>
+        </ul>
+        <ul class="commerce-picture-menu" *ngIf="profilePictureMenuOpen">
+          <li><button type="button" (click)="chooseProfilePicture($event, commerceProfilePictureInput)" [disabled]="profilePictureBusy"><i class="fa fa-camera"></i> Update</button></li>
+          <li *ngIf="profileImageUrl"><button type="button" (click)="clearProfilePicture($event)" [disabled]="profilePictureBusy"><i class="fa fa-trash"></i> Clear</button></li>
+        </ul>
+        <input #commerceProfilePictureInput type="file" hidden accept="image/jpeg,image/png,image/webp" (change)="onProfilePictureSelected($event)">
+      </div>
+      <ng-template #commerceGuest><div class="commerce-auth"><a routerLink="/login"><i class="fa fa-sign-in"></i> Login</a><a routerLink="/auth"><i class="fa fa-user-plus"></i> Sign Up</a></div></ng-template>
     </nav>
   </header>
 
@@ -96,8 +124,11 @@
         <div class="form-row"><input required type="email" [(ngModel)]="checkout.email" name="email" placeholder="Email"><input required [(ngModel)]="checkout.phone" name="phone" placeholder="Phone"></div>
         <textarea required [(ngModel)]="checkout.address" name="address" placeholder="Street address"></textarea>
         <div class="form-row"><input required [(ngModel)]="checkout.city" name="city" placeholder="City"><input [(ngModel)]="checkout.district" name="district" placeholder="District"><input [(ngModel)]="checkout.postal_code" name="postal" placeholder="Post code"></div>
-        <select [(ngModel)]="checkout.payment_method" name="payment_method"><option value="cod">Cash on delivery</option><option value="bkash">bKash</option><option value="nagad">Nagad</option><option value="bank">Bank transfer</option></select>
-        <input *ngIf="checkout.payment_method !== 'cod'" [(ngModel)]="checkout.transaction_id" name="transaction_id" placeholder="Transaction ID">
+        <select [(ngModel)]="checkout.payment_method" name="payment_method"><option *ngIf="loginStatus" value="wallet">Cheradip Wallet · ৳{{ walletTaka | number:'1.2-2' }}</option><option value="cod">Cash on delivery</option><option value="bkash">bKash</option><option value="nagad">Nagad</option><option value="bank">Bank transfer</option></select>
+        <small class="wallet-note" *ngIf="checkout.payment_method === 'wallet'">
+          100 coins = ৳1. Reference balance ৳{{ referenceBalanceTaka | number:'1.2-2' }} will be used first; the full purchase price is deducted from Main Wallet.
+        </small>
+        <input *ngIf="checkout.payment_method !== 'cod' && checkout.payment_method !== 'wallet'" [(ngModel)]="checkout.transaction_id" name="transaction_id" placeholder="Transaction ID">
         <input [(ngModel)]="checkout.coupon_code" name="coupon_code" placeholder="Coupon code (optional)">
         <textarea [(ngModel)]="checkout.customer_note" name="note" placeholder="Order note (optional)"></textarea>
         <div class="checkout-total"><span>Subtotal</span><strong>৳{{ cart?.subtotal | number:'1.0-2' }}</strong></div>
@@ -124,20 +155,4 @@
     </article>
   </section>
 
-  <section class="workspace admin-workspace" *ngIf="activeView === 'admin'">
-    <div class="workspace-heading"><div><p class="eyebrow">Commerce control centre</p><h1>Store management</h1></div><a class="ghost" href="/admin?db=ecommerce" target="_blank">Advanced database admin</a></div>
-    <div class="stat-grid" *ngIf="adminDashboard">
-      <article><span>Products</span><strong>{{ adminDashboard.products }}</strong></article><article><span>Pending orders</span><strong>{{ adminDashboard.pending_orders }}</strong></article><article><span>Pending payments</span><strong>{{ adminDashboard.pending_payments }}</strong></article><article><span>Low stock</span><strong>{{ adminDashboard.low_stock }}</strong></article><article><span>Paid revenue</span><strong>৳{{ adminDashboard.revenue | number:'1.0-2' }}</strong></article><article><span>Alerts</span><strong>{{ adminDashboard.unread_notifications }}</strong></article>
-    </div>
-    <div class="admin-grid">
-      <article class="admin-card"><h2>Shopify-style CSV products</h2><p>Download the ready template, keep its column names, then upload your UTF-8 CSV.</p><div class="admin-buttons"><a class="ghost" [href]="sampleCsvUrl">Download sample CSV</a><label class="file-button">Choose CSV<input type="file" accept=".csv,text/csv" (change)="selectCsv($event)"></label><button class="primary" [disabled]="!uploadFile" (click)="importCsv()">Import products</button></div><p *ngIf="uploadFile">Selected: {{ uploadFile.name }}</p><pre *ngIf="importResult">{{ importResult | json }}</pre></article>
-      <article class="admin-card"><h2>Catalog management</h2><p>Create, edit, archive, delete and inspect products, variants, categories, inventory, coupons and reviews in the existing Cheradip admin design.</p><a class="primary link-button" href="/admin?db=ecommerce" target="_blank">Open eCommerce database</a></article>
-    </div>
-    <article class="admin-card table-card"><h2>Orders</h2><div class="responsive-table"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-      <tr *ngFor="let order of adminOrders"><td>{{ order.number }}</td><td>{{ order.customer_name }}<small>{{ order.phone }}</small></td><td>৳{{ order.grand_total }}</td><td>{{ order.payment_status }}</td><td>{{ order.status }}</td><td><button (click)="updateOrder(order, 'confirmed')">Confirm</button><button (click)="updateOrder(order, 'processing')">Process</button><button (click)="updateOrder(order, 'shipped')">Ship</button><button (click)="updateOrder(order, 'delivered')">Deliver</button><button class="danger" (click)="updateOrder(order, 'cancelled')">Cancel</button></td></tr>
-    </tbody></table></div></article>
-    <article class="admin-card table-card"><h2>Payments awaiting review</h2><div class="responsive-table"><table><thead><tr><th>ID</th><th>Order</th><th>Method</th><th>Transaction</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
-      <tr *ngFor="let payment of adminPayments"><td>{{ payment.id }}</td><td>{{ payment.order }}</td><td>{{ payment.method }}</td><td>{{ payment.transaction_id || '—' }}</td><td>৳{{ payment.amount }}</td><td>{{ payment.status }}</td><td><button *ngIf="payment.status === 'pending'" (click)="confirmPayment(payment)">Confirm payment</button></td></tr>
-    </tbody></table></div></article>
-  </section>
 </main>

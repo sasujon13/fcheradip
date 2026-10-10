@@ -123,7 +123,8 @@
           </ul>
           <ul class="dropdown" [class.open]="isDropdownOpen">
             <li class="profile-wallet-summary fa fa-money" aria-label="Account and reference balances">
-              <strong>{{ headerRemainingUnlocks | number:'1.0-0' }} Coins</strong>
+              <strong *ngIf="!showWalletAsTaka">{{ headerRemainingUnlocks | number:'1.0-0' }} Coins</strong>
+              <strong *ngIf="showWalletAsTaka">৳{{ headerWalletTaka | number:'1.2-2' }}</strong>
               <b aria-hidden="true">||</b>
               <strong>{{ headerReferenceBalance | number:'1.2-2' }} Tk</strong>
             </li>
@@ -133,6 +134,8 @@
                 Upgrade</a></li>
             <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i
                   class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
+            <li><a [routerLink]="['/history']" routerLinkActive="history"><i
+                  class="fa fa-history"></i>&nbsp;&nbsp; History</a></li>
             <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update
                 Profile</a></li>
             <li><a [routerLink]="['/refer']" routerLinkActive="refer"><i class="fa fa-share-alt"></i>&nbsp; Refer &amp;
