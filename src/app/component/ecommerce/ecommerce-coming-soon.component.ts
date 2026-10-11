@@ -83,13 +83,16 @@ export class EcommerceComingSoonComponent implements OnInit {
 
   ngOnInit(): void {
     const requestedView = this.route.snapshot.queryParamMap.get('view');
+    const requestedOrder = this.route.snapshot.queryParamMap.get('order');
     if (requestedView === 'cart' || requestedView === 'track') {
       this.activeView = requestedView;
     }
+    if (requestedOrder) this.trackNumber = requestedOrder;
     this.loadCategories();
     this.loadProducts();
     this.loadCart(localStorage.getItem('cheradipEcommerceCart') || undefined);
     if (this.loginStatus) this.loadAccountSummary();
+    if (requestedOrder && this.loginStatus) this.trackOrder();
   }
 
   setView(view: 'shop' | 'cart' | 'track'): void {
@@ -216,9 +219,10 @@ export class EcommerceComingSoonComponent implements OnInit {
         if (order.referenceBalanceTaka !== undefined) this.referenceBalanceTaka = Number(order.referenceBalanceTaka);
         if (!['cod', 'wallet'].includes(this.checkout.payment_method)) this.submitPayment(order);
         const referenceUsed = Number(order.referenceUsedTaka || 0);
-        this.message = referenceUsed > 0
-          ? `Order ${order.number} placed successfully. ৳${referenceUsed.toFixed(2)} was used from your reference balance first.`
-          : `Order ${order.number} placed successfully.`;
+        const balanceNote = referenceUsed > 0
+          ? ` ৳${referenceUsed.toFixed(2)} was used from your reference balance first.`
+          : '';
+        this.message = `Order ID ${order.number} is Pending until administration marks it Order Completed.${balanceNote}`;
       },
       error: err => { this.loading = false; this.showError(err, 'Could not place the order.'); },
     });
@@ -232,17 +236,18 @@ export class EcommerceComingSoonComponent implements OnInit {
   }
 
   trackOrder(): void {
-    if (!this.trackNumber.trim() || !this.trackToken.trim()) return;
-    const params = new HttpParams().set('tracking_token', this.trackToken.trim());
-    this.http.get<any>(`${this.api}/orders/${encodeURIComponent(this.trackNumber.trim())}/`, { params }).subscribe({
+    if (!this.trackNumber.trim() || (!this.loginStatus && !this.trackToken.trim())) return;
+    let params = new HttpParams();
+    if (this.trackToken.trim()) params = params.set('tracking_token', this.trackToken.trim());
+    this.http.get<any>(`${this.api}/track/${encodeURIComponent(this.trackNumber.trim())}/`, { params }).subscribe({
       next: order => { this.trackedOrder = order; this.error = ''; this.loadDigitalLibrary(); },
-      error: err => { this.trackedOrder = null; this.showError(err, 'Order not found or tracking token is incorrect.'); },
+      error: err => { this.trackedOrder = null; this.showError(err, 'Order ID was not found or does not belong to this account.'); },
     });
   }
 
   loadDigitalLibrary(): void {
     this.digitalLibrary = [];
-    if (!this.trackedOrder || this.trackedOrder.payment_status !== 'paid') return;
+    if (!this.trackedOrder || this.trackedOrder.kind !== 'commerce' || this.trackedOrder.payment_status !== 'paid' || this.trackedOrder.status !== 'completed') return;
     const params = new HttpParams().set('order_number', this.trackNumber.trim()).set('tracking_token', this.trackToken.trim());
     this.http.get<any[]>(`${this.api}/digital-library/`, { params }).subscribe({
       next: books => this.digitalLibrary = books,

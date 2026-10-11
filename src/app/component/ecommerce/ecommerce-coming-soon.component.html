@@ -25,7 +25,7 @@
           <li class="wallet-line"><i class="fa fa-money"></i><span>Main ৳{{ walletTaka | number:'1.2-2' }}<small>Reference ৳{{ referenceBalanceTaka | number:'1.2-2' }}</small></span></li>
           <li><a [routerLink]="dashboardRouterSegments"><i class="fa fa-th-large"></i> Dashboard</a></li>
           <li><a routerLink="/packages"><i class="fa fa-cube"></i> Renew / Upgrade</a></li>
-          <li><a routerLink="/myorder"><i class="fa fa-shopping-cart"></i> All Transactions</a></li>
+          <li><a routerLink="/ecommerce" [queryParams]="{view: 'track'}"><i class="fa fa-truck"></i> Track Order</a></li>
           <li><a routerLink="/history"><i class="fa fa-history"></i> History</a></li>
           <li><a routerLink="/profile"><i class="fa fa-user-edit"></i> Update Profile</a></li>
           <li><a routerLink="/refer"><i class="fa fa-share-alt"></i> Refer &amp; Earn</a></li>
@@ -137,14 +137,17 @@
       </form>
     </div>
     <ng-template #emptyCart><div class="empty-state"><span>🛒</span><h2>Your cart is empty</h2><button class="primary" (click)="setView('shop')">Browse products</button></div></ng-template>
-    <div class="order-success" *ngIf="completedOrder"><h2>Order placed: {{ completedOrder.number }}</h2><p>Save your tracking token:</p><code>{{ completedOrder.tracking_token }}</code></div>
+    <div class="order-success" *ngIf="completedOrder"><h2>Order ID: {{ completedOrder.number }}</h2><p>Status: Pending — administration will mark it Order Completed after approval.</p><ng-container *ngIf="!loginStatus"><p>Save your private tracking token:</p><code>{{ completedOrder.tracking_token }}</code></ng-container><button type="button" class="ghost" (click)="setView('track')">Track this order</button></div>
   </section>
 
   <section class="workspace narrow" *ngIf="activeView === 'track'">
     <p class="eyebrow">Delivery progress</p><h1>Track your order</h1>
-    <form class="tracking-form" (ngSubmit)="trackOrder()"><input required [(ngModel)]="trackNumber" name="trackNumber" placeholder="Order number"><input required [(ngModel)]="trackToken" name="trackToken" placeholder="Private tracking token"><button class="primary" type="submit">Track</button></form>
+    <form class="tracking-form" (ngSubmit)="trackOrder()"><input required [(ngModel)]="trackNumber" name="trackNumber" placeholder="Order ID, for example CH-… or PKG-…"><input *ngIf="!loginStatus" required [(ngModel)]="trackToken" name="trackToken" placeholder="Private tracking token"><button class="primary" type="submit">Track</button></form>
+    <p class="tracking-help" *ngIf="loginStatus">Enter an Order ID from History. Product, eBook, and package orders are all supported.</p>
+    <p class="tracking-help" *ngIf="!loginStatus">Sign in to track with only an Order ID. Guest product orders also require the private tracking token.</p>
     <article class="tracking-result" *ngIf="trackedOrder">
-      <div><span>Order</span><strong>{{ trackedOrder.number }}</strong></div><div><span>Status</span><strong>{{ trackedOrder.status }}</strong></div><div><span>Payment</span><strong>{{ trackedOrder.payment_status }}</strong></div><div><span>Total</span><strong>৳{{ trackedOrder.grand_total }}</strong></div>
+      <div><span>Order ID</span><strong>{{ trackedOrder.number }}</strong></div><div><span>Status</span><strong>{{ trackedOrder.status_label || trackedOrder.status }}</strong></div><div><span>Payment</span><strong>{{ trackedOrder.payment_status_label || trackedOrder.payment_status }}</strong></div><div><span>Total</span><strong>৳{{ trackedOrder.grand_total }}</strong></div>
+      <div *ngIf="trackedOrder.title"><span>Service</span><strong>{{ trackedOrder.title }}</strong></div>
       <ol><li *ngFor="let event of trackedOrder.history"><b>{{ event.status }}</b><small>{{ event.created_at | date:'medium' }} {{ event.note }}</small></li></ol>
         <div class="digital-library" *ngIf="digitalLibrary.length">
           <h2>Your eBooks</h2>

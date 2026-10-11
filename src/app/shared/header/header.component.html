@@ -132,8 +132,8 @@
                   class="fa fa-th-large"></i>&nbsp;&nbsp; Dashboard</a></li>
             <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew /
                 Upgrade</a></li>
-            <li><a [routerLink]="['/myorder']" routerLinkActive="myorder"><i
-                  class="fa fa-shopping-cart"></i>&nbsp;&nbsp; All Transactions</a></li>
+            <li><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'track'}" routerLinkActive="ecommerce"><i
+                  class="fa fa-truck"></i>&nbsp;&nbsp; Track Order</a></li>
             <li><a [routerLink]="['/history']" routerLinkActive="history"><i
                   class="fa fa-history"></i>&nbsp;&nbsp; History</a></li>
             <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update

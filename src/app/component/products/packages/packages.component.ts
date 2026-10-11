@@ -115,9 +115,15 @@ export class PackagesComponent implements OnInit {
         if (typeof response.remainingBalance === 'number') {
           this.trxUnlock.setCachedRemaining(response.remainingBalance);
         }
-        this.snackBar.open(response.message || 'Package activated successfully.', 'Close', {
+        const orderSuffix = response.orderNumber ? ` Order ID: ${response.orderNumber}` : '';
+        const confirmation = this.snackBar.open(`${response.message || 'Package activated successfully.'}${orderSuffix}`, response.orderNumber ? 'Track' : 'Close', {
           duration: 6000, panelClass: ['package-center-snackbar', 'success-snackbar']
         });
+        if (response.orderNumber) {
+          confirmation.onAction().subscribe(() => this.router.navigate(['/ecommerce'], {
+            queryParams: { view: 'track', order: response.orderNumber },
+          }));
+        }
         this.actionCode = '';
         this.loadPackages(false);
       },
