@@ -1,4 +1,5 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Subject, Subscription, takeUntil } from 'rxjs';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -6,6 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../service/api.service';
 import { AuthSessionService } from '../../service/auth-session.service';
 import { getDashboardRouterLinkSegments } from '../../service/dashboard-route.util';
+import { productImageMagnifier } from './product-image-magnifier';
 
 interface Category { id: number; name: string; slug: string; product_count: number; }
 interface Product {
@@ -31,7 +33,7 @@ interface Cart { token: string; items: CartItem[]; subtotal: number; }
   styleUrls: ['./ecommerce-coming-soon.component.css'],
   standalone: false,
 })
-export class EcommerceComingSoonComponent implements OnInit {
+export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private readonly api = `${environment.apiUrl}/ecommerce`;
   categories: Category[] = [];
   products: Product[] = [];
@@ -39,16 +41,43 @@ export class EcommerceComingSoonComponent implements OnInit {
   activeView: 'shop' | 'cart' | 'track' = 'shop';
   selectedCategory = '';
   search = '';
+  categorySearch = '';
+  filtersOpen = false;
+  readonly skeletonCards = Array.from({ length: 8 });
   ordering = '-created_at';
   loading = false;
   message = '';
   error = '';
   productCount = 0;
-  currentPage = 1;
-  nextPageAvailable = false;
-  previousPageAvailable = false;
+  catalogLoading = false;
+  loadingMore = false;
+  catalogError = '';
+  hasMoreProducts = false;
+  private productBuffer: Product[] = [];
+  private revealQueue: Product[] = [];
+  private catalogOffset = 0;
+  private catalogGeneration = 0;
+  private catalogRequest?: Subscription;
+  private revealTimer?: ReturnType<typeof setTimeout>;
+  private scrollFrame?: number;
+  private catalogObserver?: IntersectionObserver;
+  private catalogSentinel?: HTMLElement;
+  private preloadedImages: HTMLImageElement[] = [];
+  private readonly destroyed = new Subject<void>();
+  private catalogQuery = new HttpParams();
+
+  @ViewChild('catalogSentinel') set productSentinel(ref: ElementRef<HTMLElement> | undefined) {
+    this.catalogObserver?.disconnect();
+    this.catalogSentinel = ref?.nativeElement;
+    if (this.catalogSentinel && typeof IntersectionObserver !== 'undefined') {
+      this.catalogObserver = new IntersectionObserver(() => this.advanceCatalog(), { rootMargin: '800px' });
+      this.catalogObserver.observe(this.catalogSentinel);
+    }
+  }
   selectedProduct: ProductDetail | null = null;
   selectedVariantId: number | null = null;
+  magnifiedProductId: number | null = null;
+  productMagnifierStyle: Record<string, string> = {};
   checkout = {
     customer_name: '', email: '', phone: '', address: '', city: '', district: '', postal_code: '',
     payment_method: 'cod', transaction_id: '', customer_note: '', coupon_code: '',
@@ -83,11 +112,12 @@ export class EcommerceComingSoonComponent implements OnInit {
 
   ngOnInit(): void {
     const requestedOrder = this.route.snapshot.queryParamMap.get('order');
-    this.route.queryParamMap.subscribe(params => {
+    this.route.queryParamMap.pipe(takeUntil(this.destroyed)).subscribe(params => {
       const requestedView = params.get('view');
       this.activeView = requestedView === 'cart' || requestedView === 'track' ? requestedView : 'shop';
       const order = params.get('order');
       if (order) this.trackNumber = order;
+      this.advanceCatalog();
     });
     this.loadCategories();
     this.loadProducts();
@@ -99,6 +129,7 @@ export class EcommerceComingSoonComponent implements OnInit {
   setView(view: 'shop' | 'cart' | 'track'): void {
     this.activeView = view;
     this.clearFeedback();
+    this.advanceCatalog();
   }
 
   loadAccountSummary(): void {
@@ -121,27 +152,173 @@ export class EcommerceComingSoonComponent implements OnInit {
     });
   }
 
-  loadProducts(page = 1): void {
-    this.loading = true;
-    let params = new HttpParams().set('ordering', this.ordering).set('page', page);
+  loadProducts(_page = 1): void {
+    this.hideProductMagnifier();
+    ++this.catalogGeneration;
+    this.catalogRequest?.unsubscribe();
+    if (this.revealTimer !== undefined) clearTimeout(this.revealTimer);
+    this.revealTimer = undefined;
+    this.products = [];
+    this.productBuffer = [];
+    this.revealQueue = [];
+    this.preloadedImages = [];
+    this.catalogOffset = 0;
+    this.productCount = 0;
+    this.catalogError = '';
+    this.catalogLoading = true;
+    this.loadingMore = false;
+    this.hasMoreProducts = true;
+    let params = new HttpParams().set('ordering', this.ordering);
     if (this.selectedCategory) params = params.set('category', this.selectedCategory);
     if (this.search.trim()) params = params.set('search', this.search.trim());
-    this.http.get<any>(`${this.api}/products/`, { params }).subscribe({
+    this.catalogQuery = params;
+    this.fetchProductBatch(true);
+  }
+
+  private fetchProductBatch(initial = false): void {
+    if (this.loadingMore || !this.hasMoreProducts || this.catalogError) return;
+    const generation = this.catalogGeneration;
+    this.loadingMore = true;
+    const params = this.catalogQuery.set('limit', initial ? 24 : 12).set('offset', this.catalogOffset);
+    this.catalogRequest = this.http.get<any>(`${this.api}/products/`, { params }).subscribe({
       next: data => {
-        this.products = Array.isArray(data) ? data : (data.results || []);
-        this.productCount = Array.isArray(data) ? data.length : (data.count || this.products.length);
-        this.currentPage = page;
-        this.nextPageAvailable = Boolean(!Array.isArray(data) && data.next);
-        this.previousPageAvailable = Boolean(!Array.isArray(data) && data.previous);
-        this.loading = false;
+        if (generation !== this.catalogGeneration) return;
+        const batch: Product[] = Array.isArray(data) ? data : (data.results || []);
+        this.productCount = Array.isArray(data) ? data.length : Number(data.count || 0);
+        this.catalogOffset += batch.length;
+        this.hasMoreProducts = !Array.isArray(data) && Boolean(data.next) && batch.length > 0;
+        const known = new Set([...this.products, ...this.productBuffer, ...this.revealQueue].map(product => product.id));
+        const unique = batch.filter(product => !known.has(product.id) && Boolean(known.add(product.id)));
+        if (initial) this.products = unique;
+        else this.productBuffer.push(...unique);
+        this.catalogLoading = false;
+        this.loadingMore = false;
+        this.preloadBufferedImages();
+        this.advanceCatalog();
       },
-      error: err => { this.loading = false; this.showError(err, 'Could not load products.'); },
+      error: () => {
+        if (generation !== this.catalogGeneration) return;
+        this.catalogLoading = false;
+        this.loadingMore = false;
+        this.catalogError = 'Could not load more products. Your loaded products are still available.';
+      },
     });
   }
 
-  chooseCategory(slug: string): void { this.selectedCategory = slug; this.loadProducts(1); }
+  private preloadBufferedImages(): void {
+    this.preloadedImages = this.productBuffer.slice(0, 12).filter(product => product.image_url).map(product => {
+      const image = new Image();
+      image.src = product.image_url;
+      return image;
+    });
+  }
+
+  private nearCatalogEnd(): boolean {
+    return !!this.catalogSentinel && this.catalogSentinel.getBoundingClientRect().top <= window.innerHeight + 800;
+  }
+
+  private advanceCatalog(force = false): void {
+    if (this.activeView !== 'shop' || this.catalogLoading) return;
+    if (this.revealQueue.length && this.revealTimer === undefined) this.revealProduct();
+    if (!this.revealQueue.length && this.productBuffer.length && (force || this.products.length < 120 || this.nearCatalogEnd())) {
+      this.revealQueue = this.productBuffer.splice(0, 12);
+      this.revealProduct();
+    }
+    // Keep only one unrevealed batch in reserve; the current reveal can run while it downloads.
+    if (!this.productBuffer.length) this.fetchProductBatch();
+  }
+
+  private revealProduct(): void {
+    this.revealTimer = undefined;
+    if (this.activeView !== 'shop') return;
+    const product = this.revealQueue.shift();
+    if (product) this.products.push(product);
+    if (this.revealQueue.length) {
+      // Accelerate the previous batch once the following batch is ready.
+      this.revealTimer = setTimeout(() => this.revealProduct(), this.productBuffer.length ? 8 : 35);
+    } else this.advanceCatalog();
+  }
+
+  loadMoreProducts(): void {
+    if (this.catalogError) {
+      this.catalogError = '';
+      this.fetchProductBatch(!this.products.length);
+    } else this.advanceCatalog(true);
+  }
+
+  get catalogProgress(): number {
+    const target = Math.min(120, this.productCount);
+    return target ? Math.min(100, Math.round(this.products.length / target * 100)) : 0;
+  }
+
+  trackProduct(_index: number, product: Product): number { return product.id; }
+
+  @HostListener('window:scroll') onCatalogScroll(): void {
+    if (this.scrollFrame !== undefined || this.activeView !== 'shop') return;
+    this.scrollFrame = requestAnimationFrame(() => {
+      this.scrollFrame = undefined;
+      this.advanceCatalog();
+    });
+  }
+
+  ngOnDestroy(): void {
+    ++this.catalogGeneration;
+    this.catalogRequest?.unsubscribe();
+    this.catalogObserver?.disconnect();
+    if (this.revealTimer !== undefined) clearTimeout(this.revealTimer);
+    if (this.scrollFrame !== undefined) cancelAnimationFrame(this.scrollFrame);
+    this.destroyed.next();
+    this.destroyed.complete();
+    this.preloadedImages = [];
+  }
+
+  get visibleCategories(): Category[] {
+    const query = this.categorySearch.trim().toLowerCase();
+    return this.categories.filter(category => category.name.toLowerCase().includes(query));
+  }
+
+  get selectedCategoryName(): string {
+    return this.categories.find(category => category.slug === this.selectedCategory)?.name || 'All products';
+  }
+
+  chooseCategory(slug: string): void {
+    this.selectedCategory = slug;
+    this.filtersOpen = false;
+    this.loadProducts(1);
+  }
+
+  resetCatalog(): void {
+    this.search = '';
+    this.selectedCategory = '';
+    this.categorySearch = '';
+    this.ordering = '-created_at';
+    this.filtersOpen = false;
+    this.loadProducts(1);
+  }
+
+  discountPercent(product: Product): number {
+    const original = Number(product.compare_at_price);
+    const price = Number(product.price);
+    if (!Number.isFinite(original) || !Number.isFinite(price) || original <= price || price < 0) return 0;
+    return Math.round((1 - price / original) * 100);
+  }
+
+  categoryIcon(name: string): string {
+    if (/cloth|fashion|shoe|bag|jewelry/i.test(name)) return 'fa-shopping-bag';
+    if (/phone|mobile|tablet|gadget/i.test(name)) return 'fa-mobile';
+    if (/computer|laptop|network/i.test(name)) return 'fa-laptop';
+    if (/beauty|fragrance|health/i.test(name)) return 'fa-leaf';
+    if (/book|stationery|office/i.test(name)) return 'fa-book';
+    if (/home|kitchen|garden|appliance/i.test(name)) return 'fa-home';
+    if (/sport|game|toy/i.test(name)) return 'fa-futbol-o';
+    if (/auto|motor|travel/i.test(name)) return 'fa-car';
+    if (/camera/i.test(name)) return 'fa-camera';
+    if (/audio|music/i.test(name)) return 'fa-headphones';
+    return 'fa-th-large';
+  }
 
   openProduct(product: Product): void {
+    this.hideProductMagnifier();
     this.http.get<ProductDetail>(`${this.api}/products/${encodeURIComponent(product.slug)}/`).subscribe({
       next: detail => {
         this.selectedProduct = detail;
@@ -154,6 +331,37 @@ export class EcommerceComingSoonComponent implements OnInit {
   }
 
   closeProduct(): void { this.selectedProduct = null; this.selectedVariantId = null; }
+
+  showProductMagnifier(event: PointerEvent, productId: number): void {
+    if (event.pointerType !== 'mouse' || !window.matchMedia('(any-hover: hover) and (any-pointer: fine)').matches) {
+      this.hideProductMagnifier();
+      return;
+    }
+    const button = event.currentTarget as HTMLElement;
+    const image = button.querySelector('img');
+    if (!image || !image.complete) { this.hideProductMagnifier(); return; }
+    const rect = image.getBoundingClientRect();
+    const container = button.getBoundingClientRect();
+    const lens = productImageMagnifier({
+      width: rect.width, height: rect.height,
+      naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+    }, event.clientX - rect.left, event.clientY - rect.top, container.width);
+    if (!lens) { this.hideProductMagnifier(); return; }
+    this.magnifiedProductId = productId;
+    this.productMagnifierStyle = {
+      width: `${lens.diameter}px`, height: `${lens.diameter}px`,
+      left: `${rect.left - container.left + lens.left}px`,
+      top: `${rect.top - container.top + lens.top}px`,
+      'background-image': `url(${JSON.stringify(image.currentSrc || image.src)})`,
+      'background-size': `${lens.backgroundWidth}px ${lens.backgroundHeight}px`,
+      'background-position': `${lens.backgroundX}px ${lens.backgroundY}px`,
+    };
+  }
+
+  hideProductMagnifier(): void {
+    this.magnifiedProductId = null;
+    this.productMagnifierStyle = {};
+  }
 
   get selectedVariant(): ProductVariant | null {
     return this.selectedProduct?.variants.find(variant => variant.id === this.selectedVariantId) || null;

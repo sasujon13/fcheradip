@@ -1,53 +1,82 @@
 <main class="commerce-shell">
-  <form class="commerce-search" (ngSubmit)="loadProducts()">
-    <select [(ngModel)]="selectedCategory" name="category" aria-label="Product category">
+  <form class="commerce-search" (ngSubmit)="loadProducts(1)">
+    <label class="search-category"><i class="fa fa-th-large" aria-hidden="true"></i><select [(ngModel)]="selectedCategory" (change)="chooseCategory(selectedCategory)" name="category" aria-label="Product category" data-ui-note="Choose a department to show its products. You can also search within that department.">
       <option value="">All categories</option>
       <option *ngFor="let category of categories" [value]="category.slug">{{ category.name }} ({{ category.product_count }})</option>
-    </select>
-    <input [(ngModel)]="search" name="search" placeholder="Search products, brands or SKU" aria-label="Search products">
-    <button type="submit">Search</button>
+    </select></label>
+    <label class="search-query"><i class="fa fa-search" aria-hidden="true"></i><input [(ngModel)]="search" name="search" placeholder="What are you looking for?" aria-label="Search products, brands or SKU">
+      <button *ngIf="search" class="clear-search" type="button" (click)="search = ''; loadProducts(1)" aria-label="Clear product search"><i class="fa fa-times" aria-hidden="true"></i></button>
+    </label>
+    <button class="search-submit" type="submit" data-ui-note="Search products by name, brand or SKU within the selected department."><i class="fa fa-search" aria-hidden="true"></i><span>Search</span></button>
   </form>
 
-  <div class="feedback success" *ngIf="message">{{ message }}</div>
-  <div class="feedback error" *ngIf="error">{{ error }}</div>
+  <div class="feedback success" role="status" *ngIf="message"><i class="fa fa-check-circle" aria-hidden="true"></i>{{ message }}</div>
+  <div class="feedback error" role="alert" *ngIf="error"><i class="fa fa-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>
 
   <ng-container *ngIf="activeView === 'shop'">
     <section class="market-intro">
-      <div><p class="eyebrow">Everything in one marketplace</p><h1>Shop with Cheradip confidence</h1><p>Fashion, electronics, accessories, gadgets, home, beauty, sports and more—organized for fast discovery.</p></div>
-      <div class="trust-grid"><span>✓ Order tracking</span><span>✓ Secure payment review</span><span>✓ Stock-aware checkout</span></div>
+      <div class="intro-copy"><h1>Everyday essentials.<br><em>Extraordinary finds.</em></h1><p>Explore fashion, technology, home and more. Find your favourites, all in one place.</p>
+        <div class="intro-footnote"><i class="fa fa-th-large" aria-hidden="true"></i>{{ categories.length }} departments to explore <span>·</span> One Cheradip wallet</div>
+      </div>
+      <div class="intro-collections" *ngIf="categories.length">
+        <p class="eyebrow">A little inspiration</p>
+        <button *ngFor="let category of categories | slice:0:3" type="button" (click)="chooseCategory(category.slug)">
+          <span class="collection-icon"><i class="fa" [ngClass]="categoryIcon(category.name)" aria-hidden="true"></i></span>
+          <span><strong>{{ category.name }}</strong><small>{{ category.product_count }} products to discover</small></span><i class="fa fa-arrow-right" aria-hidden="true"></i>
+        </button>
+      </div>
     </section>
-
-    <section class="category-strip" aria-label="Product categories">
-      <button [class.active]="!selectedCategory" (click)="chooseCategory('')">All</button>
-      <button *ngFor="let category of categories" [class.active]="selectedCategory === category.slug" (click)="chooseCategory(category.slug)">{{ category.name }} <small>{{ category.product_count }}</small></button>
-    </section>
-
-    <section class="catalog-toolbar">
-      <p><strong>{{ productCount }}</strong> products</p>
-      <select [(ngModel)]="ordering" (change)="loadProducts()" aria-label="Sort products">
-        <option value="-created_at">Newest</option><option value="price">Price: low to high</option><option value="-price">Price: high to low</option><option value="name">Name: A–Z</option>
-      </select>
-    </section>
-
-    <div class="loading" *ngIf="loading">Loading marketplace…</div>
-    <section class="product-grid" *ngIf="!loading">
-      <article class="product-card" *ngFor="let product of products">
+    <div class="catalog-layout">
+      <aside class="catalog-filters" [class.filters-open]="filtersOpen" id="marketplace-filters" aria-label="Product filters">
+        <div class="filter-heading"><h2><i class="fa fa-sliders" aria-hidden="true"></i> Departments</h2><button class="filter-close" type="button" (click)="filtersOpen = false" aria-label="Close product filters"><i class="fa fa-times" aria-hidden="true"></i></button></div>
+        <label class="category-search"><i class="fa fa-search" aria-hidden="true"></i><input [(ngModel)]="categorySearch" placeholder="Find a category" aria-label="Find a category"></label>
+        <nav class="category-list" aria-label="Product categories">
+          <button type="button" [class.active]="!selectedCategory" [attr.aria-pressed]="!selectedCategory" (click)="chooseCategory('')"><i class="fa fa-th-large" aria-hidden="true"></i><span>All products</span></button>
+          <button type="button" *ngFor="let category of visibleCategories" [class.active]="selectedCategory === category.slug" [attr.aria-pressed]="selectedCategory === category.slug" (click)="chooseCategory(category.slug)"><i class="fa" [ngClass]="categoryIcon(category.name)" aria-hidden="true"></i><span>{{ category.name }}</span><small>{{ category.product_count }}</small></button>
+          <p class="category-empty" *ngIf="!visibleCategories.length && categorySearch">No matching categories.</p>
+        </nav>
+        <button class="reset-filters" type="button" (click)="resetCatalog()"><i class="fa fa-undo" aria-hidden="true"></i> Reset filters</button>
+      </aside>
+      <div class="catalog-content" [attr.aria-busy]="catalogLoading">
+        <section class="catalog-toolbar">
+          <div><p class="eyebrow">Curated for your everyday</p><h2>{{ selectedCategoryName }}</h2><p class="result-count" role="status">{{ catalogLoading ? 'Finding your products…' : products.length + ' of ' + productCount + ' products' }}</p></div>
+          <div class="catalog-controls"><button class="filter-toggle ghost" type="button" (click)="filtersOpen = !filtersOpen" [attr.aria-expanded]="filtersOpen" aria-controls="marketplace-filters"><i class="fa fa-sliders" aria-hidden="true"></i> Filters</button>
+            <label class="sort-control"><span>Sort by</span><select [(ngModel)]="ordering" (change)="loadProducts(1)" aria-label="Sort products" data-ui-note="Sort matching products by date added, price or name. Sorting restarts progressive loading."><option value="-created_at">Newest</option><option value="price">Price: low to high</option><option value="-price">Price: high to low</option><option value="name">Name: A–Z</option></select></label>
+          </div>
+        </section>
+        <div class="active-filters" *ngIf="selectedCategory || search"><button *ngIf="selectedCategory" type="button" (click)="chooseCategory('')" [attr.aria-label]="'Remove category filter: ' + selectedCategoryName">{{ selectedCategoryName }} <i class="fa fa-times" aria-hidden="true"></i></button><button *ngIf="search" type="button" (click)="search = ''; loadProducts(1)" aria-label="Remove search filter">“{{ search }}” <i class="fa fa-times" aria-hidden="true"></i></button><button class="clear-all" type="button" (click)="resetCatalog()">Clear all</button></div>
+        <section class="product-grid skeleton-grid" *ngIf="catalogLoading" aria-label="Loading products"><article class="skeleton-card" *ngFor="let card of skeletonCards" aria-hidden="true"><div></div><span></span><span></span><span></span></article></section>
+        <div class="empty-state catalog-empty" *ngIf="!catalogLoading && !products.length"><span><i class="fa" [ngClass]="catalogError ? 'fa-exclamation-circle' : 'fa-search'" aria-hidden="true"></i></span><h3>{{ catalogError ? 'Products could not be loaded' : 'No products found' }}</h3><p>{{ catalogError ? 'Please try again in a moment.' : 'Try a different search or explore another department.' }}</p><button class="primary" type="button" (click)="resetCatalog()">{{ catalogError ? 'Try again' : 'Explore all products' }}</button></div>
+        <section class="product-grid" *ngIf="products.length" aria-label="Products">
+      <article class="product-card" *ngFor="let product of products; trackBy: trackProduct">
         <div class="product-image">
-          <img [src]="product.image_url || 'assets/images/cheradip.svg'" [alt]="product.name" loading="lazy">
-          <span class="sample" *ngIf="product.is_sample">Sample</span><span class="featured" *ngIf="product.featured">Featured</span>
+          <button class="product-image-link" type="button" (click)="openProduct(product)"
+            (pointerenter)="showProductMagnifier($event, product.id)" (pointermove)="showProductMagnifier($event, product.id)"
+            (pointerleave)="hideProductMagnifier()" (pointercancel)="hideProductMagnifier()"
+            [class.is-magnifying]="magnifiedProductId === product.id" [attr.aria-label]="'View ' + product.name"
+            data-ui-note="Move your pointer over the image to magnify its details. Click or tap to view product options.">
+            <img [src]="product.image_url || 'assets/images/cheradip.svg'" [alt]="product.name" loading="lazy">
+            <span *ngIf="magnifiedProductId === product.id" class="product-magnifier" [ngStyle]="productMagnifierStyle" aria-hidden="true"></span>
+          </button>
+          <span class="product-zoom-hint" aria-hidden="true"><i class="fa fa-search-plus"></i> Hover to zoom</span>
+          <div class="product-tags"><span class="sample" *ngIf="product.is_sample">Sample</span><span class="featured" *ngIf="product.featured"><i class="fa fa-star" aria-hidden="true"></i> Featured</span></div>
+          <span class="product-discount" *ngIf="discountPercent(product) > 0">−{{ discountPercent(product) }}%</span>
         </div>
         <div class="product-body">
-          <small>{{ product.category_name }}</small><h2>{{ product.name }}</h2><p>{{ product.short_description }}</p>
+          <small>{{ product.category_name }}</small><h3><button type="button" (click)="openProduct(product)">{{ product.name }}</button></h3><p>{{ product.short_description }}</p>
           <div class="price-row"><strong>৳{{ product.price | number:'1.0-2' }}</strong><del *ngIf="product.compare_at_price">৳{{ product.compare_at_price | number:'1.0-2' }}</del></div>
-          <div class="product-buttons"><button class="ghost" (click)="openProduct(product)">View options</button><button class="primary" [disabled]="product.stock < 1" (click)="addToCart(product)">{{ product.stock > 0 ? 'Add to cart' : 'Out of stock' }}</button></div>
+          <span class="stock-status" [class.stock-status--out]="product.stock < 1"><i class="fa" [ngClass]="product.stock > 0 ? 'fa-check-circle' : 'fa-times-circle'" aria-hidden="true"></i>{{ product.stock > 0 ? 'In stock' : 'Currently unavailable' }}</span>
+          <div class="product-buttons"><button class="ghost" type="button" (click)="openProduct(product)" [attr.aria-label]="'View options for ' + product.name">Details</button><button class="primary" type="button" [disabled]="product.stock < 1" (click)="addToCart(product)" [attr.aria-label]="'Add ' + product.name + ' to cart'"><i class="fa fa-shopping-cart" aria-hidden="true"></i>{{ product.stock > 0 ? 'Add to cart' : 'Sold out' }}</button></div>
         </div>
       </article>
     </section>
-    <nav class="catalog-pages" *ngIf="!loading && (previousPageAvailable || nextPageAvailable)" aria-label="Product pages">
-      <button class="ghost" [disabled]="!previousPageAvailable" (click)="loadProducts(currentPage - 1)">Previous</button>
-      <span>Page {{ currentPage }}</span>
-      <button class="ghost" [disabled]="!nextPageAvailable" (click)="loadProducts(currentPage + 1)">Next</button>
-    </nav>
+    <div #catalogSentinel class="catalog-stream" *ngIf="products.length" aria-label="Progressive product loading">
+      <div *ngIf="products.length < 120 && products.length < productCount" class="catalog-progress" role="progressbar" aria-label="Preparing the first products" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="catalogProgress"><span [style.width.%]="catalogProgress"></span></div>
+      <p role="status">{{ catalogError || (loadingMore ? 'Loading the next products in the background…' : products.length < productCount ? 'Scroll to explore more products' : 'You have seen all matching products') }}</p>
+      <button *ngIf="catalogError || products.length < productCount" class="ghost" type="button" [disabled]="loadingMore" (click)="loadMoreProducts()">{{ catalogError ? 'Retry loading' : 'Show more products' }}</button>
+    </div>
+      </div>
+    </div>
   </ng-container>
 
   <div class="product-modal" *ngIf="selectedProduct" (click)="closeProduct()" role="presentation">

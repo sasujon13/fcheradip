@@ -11,6 +11,7 @@ import { environment } from '../../../environments/environment';
 import { TrxUnlockService } from '../../service/trx-unlock.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../service/login-redirect.session';
 import { AuthSessionService } from '../../service/auth-session.service';
+import { TrxHelpVisibility } from '../trx-help-visibility';
 import {
   getDashboardRouterLinkSegments,
   isTeacherAccount,
@@ -117,9 +118,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
   tokenAlertMessage = '';
   showTokenAlert = false;
 
-  /** Trx help tooltip: 1s after pointerleave, then 300ms fade (matches header.shared.css). */
-  trxHelpPhase: 'off' | 'on' | 'closing' = 'off';
-  private trxHelpTimers: number[] = [];
+  /** Close after 15 idle seconds outside the help box, then the existing 300ms fade. */
+  readonly trxHelp = new TrxHelpVisibility(() => this.cdr.markForCheck());
+  get trxHelpPhase() { return this.trxHelp.phase; }
   public notifications: any[] = [];
   marqueeDuration = 24;
   academicDropdownOpen = false;
@@ -474,35 +475,25 @@ export class HeaderComponent implements OnInit, OnDestroy {
       clearTimeout(this.menuLeaveTimer);
       this.menuLeaveTimer = null;
     }
-    this.clearTrxHelpTimers();
+    this.trxHelp.destroy();
   }
 
   onTrxHelpPointerEnter(): void {
-    this.clearTrxHelpTimers();
-    this.trxHelpPhase = 'on';
+    this.trxHelp.show();
   }
 
   @HostListener('window:cheradip-toggle-trx-help')
   toggleTrxHelpFromPage(): void {
-    this.clearTrxHelpTimers();
-    this.trxHelpPhase = this.trxHelpPhase === 'on' ? 'off' : 'on';
+    this.trxHelp.toggle();
   }
 
   onTrxHelpPointerLeave(): void {
-    this.clearTrxHelpTimers();
-    const delayedClose = window.setTimeout(() => {
-      this.trxHelpPhase = 'closing';
-      const detach = window.setTimeout(() => {
-        this.trxHelpPhase = 'off';
-      }, 300);
-      this.trxHelpTimers.push(detach);
-    }, 1000);
-    this.trxHelpTimers.push(delayedClose);
+    this.trxHelp.leaveTrigger();
   }
 
-  private clearTrxHelpTimers(): void {
-    this.trxHelpTimers.forEach(clearTimeout);
-    this.trxHelpTimers.length = 0;
+  @HostListener('document:click')
+  onTrxHelpInteraction(): void {
+    this.trxHelp.interact();
   }
 
   /** Show token alert (same app-alert as vacant/recommend/merit). Reset first so it re-shows on every click. */

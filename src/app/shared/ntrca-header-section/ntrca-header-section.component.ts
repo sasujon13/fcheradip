@@ -3,6 +3,7 @@ import {
   Component,
   EventEmitter,
   HostBinding,
+  HostListener,
   Input,
   OnDestroy,
   OnInit,
@@ -11,6 +12,7 @@ import {
 import { NavigationEnd, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
+import { TrxHelpVisibility } from '../trx-help-visibility';
 
 /**
  * Shared header section for NTRCA pages: token box + main message + notice links (৮ম, ৭ম, ৬ষ্ঠ, ৫ম).
@@ -38,8 +40,8 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
   private authPollId?: ReturnType<typeof setInterval>;
   private readonly onAuthStorageBound = (): void => this.syncTokenInputLoggedIn();
 
-  trxHelpPhase: 'off' | 'on' | 'closing' = 'off';
-  private trxHelpTimers: number[] = [];
+  readonly trxHelp = new TrxHelpVisibility(() => this.cdr.markForCheck());
+  get trxHelpPhase() { return this.trxHelp.phase; }
 
   constructor(
     private router: Router,
@@ -77,28 +79,24 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
       clearInterval(this.authPollId);
       this.authPollId = undefined;
     }
-    this.clearTrxHelpTimers();
+    this.trxHelp.destroy();
   }
 
   onTrxHelpPointerEnter(): void {
-    this.clearTrxHelpTimers();
-    this.trxHelpPhase = 'on';
+    this.trxHelp.show();
   }
 
   onTrxHelpPointerLeave(): void {
-    this.clearTrxHelpTimers();
-    const delayedClose = window.setTimeout(() => {
-      this.trxHelpPhase = 'closing';
-      const detach = window.setTimeout(() => {
-        this.trxHelpPhase = 'off';
-      }, 300);
-      this.trxHelpTimers.push(detach);
-    }, 1000);
-    this.trxHelpTimers.push(delayedClose);
+    this.trxHelp.leaveTrigger();
   }
 
-  private clearTrxHelpTimers(): void {
-    this.trxHelpTimers.forEach(clearTimeout);
-    this.trxHelpTimers.length = 0;
+  @HostListener('document:click')
+  onTrxHelpInteraction(): void {
+    this.trxHelp.interact();
+  }
+
+  @HostListener('window:cheradip-toggle-trx-help')
+  toggleTrxHelpFromPage(): void {
+    this.trxHelp.toggle();
   }
 }

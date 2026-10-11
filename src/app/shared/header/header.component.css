@@ -148,17 +148,45 @@ ul.dropdown li.profile-wallet-summary {
   line-height: 1;
 }
 
+.commerce-main-menu .commerce-cart-icon {
+  position: relative;
+  display: inline-block;
+  margin-right: 8px;
+  line-height: 1;
+}
+
 .commerce-main-menu .commerce-cart-count {
-  color: #ffef55;
+  position: absolute;
+  top: -14px;
+  right: -7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  color: yellow;
   font-size: 12px;
   font-weight: 800;
+  line-height: 1;
 }
 
 @media screen and (max-width: 839px) {
   .commerce-header .navbar > .commerce-main-menu {
-    top: 62px;
+    top: 46px;
     z-index: 10010;
   }
+}
+
+@media screen and (max-width: 599.98px) {
+  .commerce-header .header-marketplace-title strong {
+    font-size: 1.1rem;
+    letter-spacing: .10em;
+  }
+}
+
+@media screen and (max-width: 439.98px) {
 
   .commerce-header .header-brand-wide {
     display: none;
@@ -191,16 +219,10 @@ ul.dropdown li.profile-wallet-summary {
     line-height: 1;
   }
 
-  .commerce-header .header-marketplace-title strong {
-    font-size: 1rem;
-    letter-spacing: .08em;
-    line-height: 1;
-  }
 }
 
 @media screen and (max-width: 390px) {
-  .commerce-header .header-marketplace-title b,
-  .commerce-header .header-marketplace-title strong {
+  .commerce-header .header-marketplace-title b {
     font-size: .88rem;
   }
 }

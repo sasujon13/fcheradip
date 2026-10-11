@@ -52,8 +52,10 @@
       <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'track'}"><i class="fa fa-truck"></i> Track Order</a></li>
       <li class="menu_item"><a [routerLink]="['/history']" [queryParams]="ecommerceHistoryQueryParams"
           routerLinkActive="history"><i class="fa fa-history"></i> My Orders</a></li>
-      <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'cart'}"><i class="fa fa-shopping-cart"></i> Cart
-        <span class="commerce-cart-count">{{ commerceCartCount }}</span></a></li>
+      <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'cart'}">
+        <span class="commerce-cart-icon"><i class="fa fa-shopping-cart" aria-hidden="true"></i>
+          <span class="commerce-cart-count" aria-live="polite" aria-atomic="true">{{ commerceCartCount }}</span>
+        </span> Cart</a></li>
     </ul>
 
     <div class="header-right-group">
@@ -194,7 +196,8 @@
           <span aria-hidden="true">{{ null | coinEmoji }}</span>
           <b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins
         </p>
-        <div class="hover-message-box" [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
+        <div class="hover-message-box" (pointerenter)="trxHelp.enterBox()" (pointerleave)="trxHelp.leaveBox()"
+          [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
           [class.ntrca-help-phase-closing]="trxHelpPhase === 'closing'" style="text-align: left;">
           1. Follow me at <a href="https://facebook.com/p.cheradip" target="_blank">facebook.com/p.cheradip</a><br>
           2. Send Money to <strong>01722710298</strong> (Minimum Tk 20)<br>

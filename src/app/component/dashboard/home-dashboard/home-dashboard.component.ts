@@ -75,7 +75,12 @@ export class HomeDashboardComponent implements OnInit, AfterViewInit {
   }
 
   get accountTypeLabel(): string {
-    return this.packageStatus?.progress?.accountType || localStorage.getItem('acctype') || 'Cheradip';
+    return String(this.packageStatus?.progress?.accountType || localStorage.getItem('acctype') || 'Cheradip')
+      .replace(/job\s*seeker/i, 'Job Seeker');
+  }
+
+  get userFullName(): string {
+    return (localStorage.getItem('fullName') || '').trim() || 'Your Dashboard';
   }
 
   renewPackage(subscription: any): void {
