@@ -115,3 +115,92 @@ ul.dropdown li.profile-wallet-summary {
   color: #9a7800;
   font-weight: 700;
 }
+
+/* The marketplace reuses this header's account, TrxID, notification and
+   country controls; only its brand and primary menu differ. */
+.commerce-header .navbar {
+  z-index: 10001;
+}
+
+.header-brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.header-brand-avatar,
+.header-marketplace-title b {
+  display: none;
+}
+
+.header-marketplace-title {
+  display: flex;
+  align-items: center;
+  height: 50px;
+}
+
+.header-marketplace-title strong {
+  color: #ffe69a;
+  font-size: clamp(1.28rem, 1.65vw, 1.72rem);
+  letter-spacing: .13em;
+  line-height: 1;
+}
+
+.commerce-main-menu .commerce-cart-count {
+  color: #ffef55;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media screen and (max-width: 839px) {
+  .commerce-header .navbar > .commerce-main-menu {
+    top: 62px;
+    z-index: 10010;
+  }
+
+  .commerce-header .header-brand-wide {
+    display: none;
+  }
+
+  .commerce-header .header-brand-avatar {
+    display: block;
+    width: 50px;
+    height: 50px;
+    border: 3px solid #f3cf45;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .commerce-header .header-brand-link {
+    gap: 9px;
+  }
+
+  .commerce-header .header-marketplace-title {
+    display: grid;
+    align-content: space-between;
+    height: 46px;
+    padding: 1px 0;
+  }
+
+  .commerce-header .header-marketplace-title b {
+    display: block;
+    color: #fff;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .commerce-header .header-marketplace-title strong {
+    font-size: 1rem;
+    letter-spacing: .08em;
+    line-height: 1;
+  }
+}
+
+@media screen and (max-width: 390px) {
+  .commerce-header .header-marketplace-title b,
+  .commerce-header .header-marketplace-title strong {
+    font-size: .88rem;
+  }
+}

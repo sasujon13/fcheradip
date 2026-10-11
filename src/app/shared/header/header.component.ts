@@ -25,6 +25,35 @@ import {
 })
 
 export class HeaderComponent implements OnInit, OnDestroy {
+  get isCommerceRoute(): boolean {
+    const url = this.router.url || '';
+    const path = url.split('?')[0].split('#')[0];
+    if (path === '/ecommerce' || path.startsWith('/ecommerce/')) {
+      return true;
+    }
+
+    if (path !== '/history') {
+      return false;
+    }
+
+    const query = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
+    return new URLSearchParams(query).get('from')?.toLowerCase() === 'ecommerce';
+  }
+
+  readonly ecommerceHistoryQueryParams = { from: 'ecommerce' };
+  commerceCartCount = 0;
+
+  @HostListener('window:cheradip-ecommerce-cart-count', ['$event'])
+  updateCommerceCartCount(event: Event): void {
+    this.commerceCartCount = Number((event as CustomEvent<number>).detail || 0);
+  }
+
+  @HostListener('window:cheradip-profile-picture-updated', ['$event'])
+  updateProfilePictureFromProfile(event: Event): void {
+    this.profileImageUrl = (event as CustomEvent<{ profileImageUrl: string | null }>).detail.profileImageUrl;
+    this.cdr.markForCheck();
+  }
+
   isDropdownOpen = false;
   toggleDropdown() {
     this.profilePictureMenuOpen = false;

@@ -1,0 +1,940 @@
+.dashboard-container {
+  width: min(100%, 1540px);
+  margin: 0 auto 56px;
+  padding: 28px clamp(14px, 3vw, 36px);
+  color: var(--student-text);
+  box-sizing: border-box;
+}
+
+.dashboard-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(22px, 3.5vw, 42px);
+  border: 1px solid rgba(0, 128, 128, .24);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 5%, rgba(212, 175, 55, .3), transparent 27%),
+    linear-gradient(132deg, #006d6d 0%, #008080 53%, #159c96 100%);
+  box-shadow: 0 24px 54px rgba(0, 77, 77, .2);
+}
+
+.dashboard-hero::after {
+  position: absolute;
+  right: -75px;
+  bottom: -105px;
+  width: 260px;
+  height: 260px;
+  border: 42px solid rgba(255, 255, 255, .06);
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+}
+
+.dashboard-hero__top {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(18px, 3vw, 36px);
+}
+
+.dashboard-avatar {
+  position: relative;
+  display: inline-flex;
+  width: 96px;
+  height: 96px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: inherit;
+  text-decoration: none;
+  filter: drop-shadow(0 12px 20px rgba(0, 45, 45, .25));
+}
+
+.dashboard-avatar--button {
+  cursor: pointer;
+}
+
+.dashboard-avatar > span {
+  position: absolute;
+  right: -2px;
+  bottom: 3px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 3px solid #087c79;
+  border-radius: 50%;
+  background: #fff;
+  color: #00736f;
+  font-size: 12px;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, .2);
+}
+
+.dashboard-profile-picture__menu {
+  position: absolute;
+  top: 104px;
+  left: 0;
+  z-index: 10050;
+  width: 164px;
+  margin: 0;
+  padding: 7px;
+  list-style: none;
+  border: 1px solid #b7d6d3;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 34px rgba(0, 58, 58, .23);
+}
+
+.dashboard-profile-picture__menu li {
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-profile-picture__menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: #006d6d;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.dashboard-profile-picture__menu button:hover {
+  background: #e8f6f6;
+}
+
+.dashboard-profile-picture__menu button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.dashboard-eyebrow {
+  margin: 0 0 5px;
+  color: #d8b84f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.dashboard-identity h1 {
+  margin: 0;
+  color: #fff;
+  font-family: 'Roboto', sans-serif;
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+
+.dashboard-membership-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dashboard-membership-tags span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 999px;
+  background: rgba(0, 62, 62, .24);
+  color: #fff8d7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-wallets {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: fit-content;
+  max-width: 100%;
+  gap: 8px;
+  margin: 0 0 18px auto;
+}
+
+.dashboard-wallets article {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 5px 12px rgba(0, 61, 61, .12);
+}
+
+.dashboard-wallets i {
+  color: #008080;
+  font-size: 16px;
+}
+
+.dashboard-wallets strong {
+  margin: 0;
+  color: #876a05;
+  font-size: 16px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.dashboard-primary-actions {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.dashboard-primary-actions a {
+  display: flex;
+  min-height: 80px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 15px 20px;
+  border: 1px solid #f5d36a;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #f9df7a 0%, #d4af37 55%, #c39919 100%);
+  color: #244642;
+  box-shadow: 0 14px 30px rgba(68, 47, 0, .2);
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 750;
+  transition: transform .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+
+.dashboard-primary-actions a:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(115deg, #ffe795 0%, #d9b642 55%, #cba323 100%);
+  box-shadow: 0 16px 32px rgba(68, 47, 0, .24);
+}
+
+.dashboard-primary-actions a:is(:hover, :focus-visible),
+.dashboard-primary-actions a:is(:hover, :focus-visible) :is(i, span, b, small) {
+  color: #005f5b;
+}
+
+.dashboard-primary-actions .dashboard-upgrade-button {
+  justify-content: flex-start;
+}
+
+.dashboard-upgrade-button > i:first-child {
+  font-size: 24px;
+}
+
+.dashboard-upgrade-button > i:last-child {
+  margin-left: auto;
+}
+
+.dashboard-upgrade-button span {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-upgrade-button b {
+  font-size: 16px;
+}
+
+.dashboard-base-progress {
+  position: relative;
+  z-index: 1;
+  margin-top: 22px;
+  color: rgba(255, 255, 255, .86);
+}
+
+.dashboard-base-progress__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 7px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-base-progress__track {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .26);
+  border-radius: 999px;
+  background: rgba(0, 51, 51, .35);
+}
+
+.dashboard-base-progress__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e2bf4e, #fff0a6);
+  box-shadow: 0 0 18px rgba(255, 230, 134, .45);
+  transition: width .35s ease;
+}
+
+.dashboard-base-progress > small {
+  display: block;
+  margin-top: 7px;
+  font-size: 11px;
+}
+
+.dashboard-loading {
+  position: relative;
+  z-index: 1;
+  padding: 38px 10px;
+  color: #fff;
+  text-align: center;
+}
+
+.renewal-panel,
+.quick-actions {
+  margin-top: 26px;
+  padding: clamp(20px, 3vw, 30px);
+  border: 1px solid #d9e9e7;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(0, 84, 84, .08);
+}
+
+.dashboard-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.dashboard-section-heading h2 {
+  margin: 0;
+  color: #174f4d;
+  font-size: clamp(19px, 2vw, 25px);
+  line-height: 1.2;
+}
+
+.dashboard-section-heading > a {
+  color: #007b78;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.dashboard-section-heading > a:hover {
+  text-decoration: underline;
+}
+
+.renewal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 14px;
+}
+
+.renewal-card {
+  --renewal-gold: #9a7200;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 14px;
+  padding: 17px;
+  border: 1px solid #dce9e8;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fff 0%, #fffaf0 100%);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.renewal-card:hover {
+  transform: translateY(-2px);
+  border-color: #d4af37;
+  box-shadow: 0 12px 24px rgba(0, 88, 88, .1);
+}
+
+.renewal-card__icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #e6f8f6, #ccebe7);
+  color: #008080;
+  font-size: 19px;
+  box-shadow: 0 7px 16px rgba(0, 128, 128, .12);
+}
+
+.renewal-card__title {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.renewal-card__title h3 {
+  flex: 0 0 auto;
+  max-width: 40%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--renewal-gold);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.renewal-card__title span {
+  flex-shrink: 0;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #dff6e8;
+  color: #18713e;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.renewal-card__title span.is-grace {
+  background: #fff0cf;
+  color: #9a5b00;
+}
+
+.renewal-card__title .renewal-card__date {
+  position: relative;
+  isolation: isolate;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #005f5b;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: right;
+  animation: renewal-date-blink 2.4s ease-in-out infinite;
+}
+
+.renewal-card__date::before {
+  position: absolute;
+  z-index: -1;
+  inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(255, 241, 188, .9) 0%, rgba(255, 241, 188, .55) 50%, transparent 85%);
+  filter: blur(4px);
+  opacity: .8;
+  pointer-events: none;
+  content: '';
+}
+
+@keyframes renewal-date-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .72; }
+}
+
+.renewal-progress {
+  margin: 12px 0 10px;
+}
+
+.renewal-progress__labels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 3px;
+  color: var(--renewal-gold);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.renewal-progress__labels span {
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.renewal-progress__labels span:last-child {
+  margin-left: auto;
+  color: #657977;
+}
+
+.renewal-progress__labels i {
+  position: absolute;
+  bottom: -3px;
+  left: 8px;
+}
+
+.renewal-progress__labels span:last-child i {
+  right: 8px;
+  left: auto;
+}
+
+.renewal-progress__track {
+  position: relative;
+  height: 13px;
+  margin: 0 6px;
+  border-radius: 999px;
+  background: #e5eceb;
+  box-shadow: inset 0 1px 3px rgba(0, 50, 50, .1);
+}
+
+.renewal-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--renewal-gold);
+}
+
+.renewal-progress__pointer {
+  position: absolute;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--renewal-gold);
+  box-shadow: 0 1px 5px rgba(154, 114, 0, .3);
+}
+
+.renewal-card button,
+.renewal-empty a {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid #007c79;
+  border-radius: 10px;
+  background: #fff;
+  color: #00736f;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+
+.renewal-card button:hover:not(:disabled),
+.renewal-empty a:hover {
+  transform: translateY(-1px);
+  background: #007c79;
+  color: #fff;
+}
+
+.renewal-card button:disabled {
+  cursor: wait;
+  opacity: .62;
+}
+
+.renewal-card button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-color: #008080;
+  color: #008080;
+  font-size: 18px;
+}
+
+.renewal-card button:hover:not(:disabled) {
+  background: #008080;
+}
+
+.renewal-empty {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px;
+  border: 1px dashed #a8ceca;
+  border-radius: 15px;
+  background: #f7fcfb;
+}
+
+.renewal-empty > i {
+  color: #008080;
+  font-size: 28px;
+}
+
+.renewal-empty div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.renewal-empty b {
+  color: #285e5b;
+  font-size: 13px;
+}
+
+.renewal-empty span {
+  color: #718583;
+  font-size: 11px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(155px, 1fr));
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.dashboard-container .stat-box {
+  --stat-accent: #008080;
+  --stat-soft: #e5f6f3;
+  --stat-border: #b5ded8;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  align-items: center;
+  column-gap: 12px;
+  overflow: hidden;
+  min-height: 156px;
+  padding: 26px 22px;
+  border: 1px solid var(--stat-border);
+  border-radius: 22px;
+  background: linear-gradient(135deg, #fff 35%, var(--stat-soft) 100%);
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(0, 60, 60, .06);
+  box-sizing: border-box;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.dashboard-container .stat-box::before {
+  position: absolute;
+  right: 22px;
+  bottom: 0;
+  left: 22px;
+  height: 4px;
+  border-radius: 8px 8px 0 0;
+  background: var(--stat-accent);
+  content: '';
+  opacity: .75;
+}
+
+.dashboard-container .stat-box::after {
+  position: absolute;
+  top: -45px;
+  right: -28px;
+  width: 145px;
+  height: 145px;
+  border: 18px solid var(--stat-accent);
+  border-radius: 50%;
+  content: '';
+  opacity: .045;
+  pointer-events: none;
+}
+
+.dashboard-container .stat-box:hover {
+  transform: translateY(-4px);
+  border-color: var(--stat-accent);
+  box-shadow: 0 16px 30px rgba(0, 84, 84, .12);
+}
+
+.stat-icon {
+  position: relative;
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 58px;
+  height: 58px;
+  margin: 0;
+  place-items: center;
+  border: 1px solid var(--stat-border);
+  border-radius: 18px;
+  background: linear-gradient(150deg, #fff, var(--stat-soft));
+  color: var(--stat-accent);
+  box-shadow: 0 7px 14px rgba(0, 50, 50, .06);
+  font-size: 25px;
+  transform: rotate(-6deg);
+  transition: transform .2s ease;
+}
+
+.stat-icon i {
+  color: inherit;
+  transform: rotate(6deg);
+}
+
+.stat-box:hover .stat-icon { transform: rotate(0) scale(1.05); }
+.dashboard-container .stat-box--score { --stat-accent: #4565d1; --stat-soft: #edf0ff; --stat-border: #d0d8f7; }
+.dashboard-container .stat-box--rank { --stat-accent: #b78109; --stat-soft: #fff5dc; --stat-border: #eedaa5; }
+.dashboard-container .stat-box--streak { --stat-accent: #d25435; --stat-soft: #fff0e9; --stat-border: #f3cbbc; }
+
+.dashboard-container .stat-value {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+  color: #183c3c;
+  font-size: clamp(32px, 3.3vw, 44px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-container .stat-label {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  margin-top: 9px;
+  color: #536c6a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.action-cards {
+  display: grid;
+  grid-template-columns: repeat(var(--action-grid-tracks, 8), minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 13px;
+  padding: 4px;
+}
+
+.action-card {
+  --action-accent: #008080;
+  --action-soft: #e5f6f3;
+  --action-border: #b5ded8;
+  display: flex;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px 16px;
+  border: 1px solid #dce9e8;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fff 72%, var(--action-soft));
+  color: #234846;
+  text-decoration: none;
+  text-align: center;
+  box-sizing: border-box;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.action-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--action-accent);
+  background: linear-gradient(180deg, #fff 20%, var(--action-soft));
+  box-shadow: 0 13px 24px rgba(0, 93, 93, .1);
+}
+
+.action-card--primary {
+  border-color: var(--action-border);
+}
+
+.action-card--create { --action-accent: #7860ce; --action-soft: #f2edff; --action-border: #ded1fc; }
+.action-card--library { --action-accent: #168f82; --action-soft: #e6f7f3; --action-border: #b6e1d9; }
+.action-card--created { --action-accent: #3971d2; --action-soft: #ebf2ff; --action-border: #cbdcfb; }
+.action-card--exam { --action-accent: #be860b; --action-soft: #fff5de; --action-border: #efdda8; }
+.action-card--report { --action-accent: #c65277; --action-soft: #ffedf3; --action-border: #f4c9d7; }
+.action-card--tutor { --action-accent: #5068d6; --action-soft: #eef0ff; --action-border: #d2d9fc; }
+.action-card--profile { --action-accent: #d16935; --action-soft: #fff0e5; --action-border: #f6d7c2; }
+.action-card--live { --action-accent: #d44f58; --action-soft: #ffedf0; --action-border: #f5c8ce; }
+.action-card--practice { --action-accent: #3971d2; --action-soft: #ebf2ff; --action-border: #cbdcfb; }
+.action-card--achievements { --action-accent: #7860ce; --action-soft: #f2edff; --action-border: #ded1fc; }
+.action-card--leaderboard { --action-accent: #168f82; --action-soft: #e6f7f3; --action-border: #b6e1d9; }
+
+.action-icon {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  margin: 0 auto 16px;
+  place-items: center;
+  border: 1px solid var(--action-border);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #fff, var(--action-soft));
+  color: var(--action-accent);
+  font-size: 28px;
+  box-shadow: 0 7px 15px rgba(0, 50, 50, .06);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.action-icon i {
+  color: inherit;
+}
+
+.action-card:hover .action-icon {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 10px 20px rgba(0, 50, 50, .11);
+}
+
+.action-label {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.action-desc {
+  margin-top: 4px;
+  color: #748684;
+  font-size: 11px;
+  line-height: 1.5;
+  max-width: 180px;
+}
+
+.student-error {
+  margin: 18px 0 0;
+  padding: 12px 15px;
+  border: 1px solid #f0b3aa;
+  border-radius: 10px;
+  background: #fff3f1;
+  color: #9a3526;
+}
+
+.dashboard-container a:focus-visible,
+.dashboard-container button:focus-visible,
+.renewal-panel:focus-visible,
+.renewal-card:focus-visible,
+.dashboard-avatar--button:focus-visible {
+  outline: 3px solid rgba(212, 175, 55, .6);
+  outline-offset: 3px;
+}
+
+@media screen and (max-width: 1040px) {
+  .dashboard-hero__top {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+}
+
+@media screen and (max-width: 820px) {
+  .dashboard-primary-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .dashboard-container {
+    padding: 14px 10px 36px;
+  }
+
+  .dashboard-hero {
+    padding: 20px 16px;
+    border-radius: 18px;
+  }
+
+  .dashboard-hero__top {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .dashboard-membership-tags {
+    justify-content: center;
+  }
+
+  .dashboard-wallets strong {
+    font-size: 14px;
+  }
+
+  .dashboard-base-progress {
+    text-align: left;
+  }
+
+  .dashboard-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .renewal-panel,
+  .quick-actions {
+    padding: 18px 14px;
+    border-radius: 17px;
+  }
+
+  .renewal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .dashboard-container .stat-box {
+    grid-template-columns: 1fr;
+    min-height: 160px;
+    padding: 18px;
+  }
+
+  .stat-icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 14px;
+    border-radius: 13px;
+    font-size: 20px;
+  }
+
+  .dashboard-container .stat-value { grid-row: 2; }
+  .dashboard-container .stat-label { grid-row: 3; }
+
+  .renewal-card {
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .renewal-card__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
+  .renewal-card button {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    font-size: 16px;
+  }
+
+  .renewal-progress__labels {
+    font-size: 11px;
+  }
+
+  .renewal-empty {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media screen and (max-width: 360px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .renewal-card__title .renewal-card__date { animation: none; }
+  .dashboard-container .stat-box,
+  .stat-icon,
+  .action-card,
+  .action-icon { transition: none; }
+  .dashboard-container .stat-box:hover,
+  .stat-box:hover .stat-icon,
+  .action-card:hover,
+  .action-card:hover .action-icon { transform: none; }
+}

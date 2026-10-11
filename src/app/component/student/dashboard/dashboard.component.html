@@ -1,11 +1,21 @@
-<div class="dashboard-container">
-  <header class="dashboard-header">
-    <h1 class="dashboard-title">Activated Package: {{ activatedPackageLabel }}</h1>
-    <div class="membership-summary" *ngIf="packageStatus">
-      <div class="dashboard-profile-picture" (click)="openProfilePictureMenu($event)"
+<main class="dashboard-container">
+  <header class="dashboard-hero">
+    <div class="dashboard-wallets" *ngIf="packageStatus?.wallet">
+      <article aria-label="Main balance" title="Main balance in Coins">
+        <i class="fa fa-wallet" aria-hidden="true"></i>
+        <strong>{{ packageStatus.wallet.coinBalance | number:'1.0-0' }} Coins</strong>
+      </article>
+      <article aria-label="Reference balance" title="Available referral balance in Taka">
+        <i class="fa fa-hand-holding-usd" aria-hidden="true"></i>
+        <strong>৳{{ packageStatus.wallet.availableTaka | number:'1.2-2' }}</strong>
+      </article>
+    </div>
+    <div class="dashboard-hero__top" *ngIf="packageStatus; else dashboardLoading">
+      <div class="dashboard-avatar dashboard-avatar--button" (click)="openProfilePictureMenu($event)"
         (contextmenu)="openProfilePictureMenu($event)" title="Profile picture options">
         <app-badge-profile [badge]="packageStatus.badge" [imageUrl]="packageStatus.profileImageUrl"
-          [size]="54"></app-badge-profile>
+          [size]="96"></app-badge-profile>
+        <span><i class="fa fa-camera" aria-hidden="true"></i></span>
         <ul class="dashboard-profile-picture__menu" *ngIf="profilePictureMenuOpen" (click)="$event.stopPropagation()">
           <li><button type="button" (click)="chooseProfilePicture($event, dashboardProfilePictureInput)"
               [disabled]="profilePictureBusy"><i class="fa fa-camera"></i>&nbsp; Update</button></li>
@@ -15,81 +25,126 @@
       </div>
       <input #dashboardProfilePictureInput type="file" hidden accept="image/jpeg,image/png,image/webp"
         (change)="onProfilePictureSelected($event)" />
-      <div class="membership-copy"><strong>Badge: {{ packageStatus.badge }}</strong><span>Current Base: {{ packageStatus.base }}</span></div>
-      <div class="base-progress" [attr.aria-label]="'Base progress ' + baseProgressPercent + '%'">
-        <div class="base-progress__bar"><span [style.width.%]="baseProgressPercent"></span></div>
-        <small>{{ packageStatus.completedTasks }} completed · {{ packageStatus.remainingTasks }} remaining<ng-container *ngIf="packageStatus.nextBase"> to {{ packageStatus.nextBase }}</ng-container><ng-container *ngIf="packageStatus.passingRate != null"> · Passing rate {{ packageStatus.passingRate }}%</ng-container></small>
+
+      <div class="dashboard-identity">
+        <p class="dashboard-eyebrow">{{ accountTypeLabel }} account</p>
+        <h1>My Cheradip Dashboard</h1>
+        <div class="dashboard-membership-tags">
+          <span><i class="fa fa-award" aria-hidden="true"></i> Badge: {{ packageStatus.badge }}</span>
+          <span><i class="fa fa-layer-group" aria-hidden="true"></i> Base: {{ packageStatus.base }}</span>
+        </div>
       </div>
+
     </div>
-    <div class="dashboard-wallet-balances" *ngIf="packageStatus?.wallet">
-      <div><span>Account Balance</span><strong>{{ packageStatus.wallet.coinBalance | number:'1.0-0' }} Coins</strong></div>
-      <div><span>Reference Balance</span><strong>৳{{ packageStatus.wallet.availableTaka | number:'1.2-2' }}</strong></div>
+
+    <ng-template #dashboardLoading>
+      <div class="dashboard-loading"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Loading your dashboard…</div>
+    </ng-template>
+
+    <nav class="dashboard-primary-actions" aria-label="Membership actions">
+      <a class="dashboard-upgrade-button" routerLink="/packages">
+        <i class="fa fa-rocket" aria-hidden="true"></i>
+        <span><b>Upgrade Packages</b></span>
+        <i class="fa fa-arrow-right" aria-hidden="true"></i>
+      </a>
+      <a routerLink="/refer"><i class="fa fa-share-alt" aria-hidden="true"></i> Refer &amp; Earn</a>
+      <a routerLink="/history"><i class="fa fa-history" aria-hidden="true"></i> Purchase History</a>
+    </nav>
+
+    <div class="dashboard-base-progress" *ngIf="packageStatus">
+      <div class="dashboard-base-progress__heading">
+        <span>Progress to {{ packageStatus.nextBase || 'your next milestone' }}</span>
+        <b>{{ baseProgressPercent }}%</b>
+      </div>
+      <div class="dashboard-base-progress__track" role="progressbar" [attr.aria-valuenow]="baseProgressPercent"
+        aria-valuemin="0" aria-valuemax="100"><span [style.width.%]="baseProgressPercent"></span></div>
+      <small>{{ packageStatus.completedTasks }} completed · {{ packageStatus.remainingTasks }} remaining<ng-container
+          *ngIf="packageStatus.passingRate != null"> · Passing rate {{ packageStatus.passingRate }}%</ng-container></small>
     </div>
   </header>
 
   <p *ngIf="errorMessage" class="student-error" role="alert">{{ errorMessage }}</p>
 
+  <section class="renewal-panel" aria-label="Activated renewable packages" tabindex="0"
+    data-ui-note="Renew confirms the existing plan. If its current period is still active, payment remains scheduled for the renewal date under your package rules.">
+    <div class="renewal-grid" *ngIf="renewableSubscriptions.length; else noRenewablePackages">
+      <article class="renewal-card" *ngFor="let subscription of renewableSubscriptions" tabindex="0"
+        [attr.data-ui-note]="renewalNote(subscription)">
+        <span class="renewal-card__icon"><i class="fa fa-sync-alt" aria-hidden="true"></i></span>
+        <div class="renewal-card__content" *ngIf="questionProgress(subscription) as progress">
+          <div class="renewal-card__title"><h3 [attr.data-ui-note]="renewalNote(subscription)">{{ subscription.planName }}</h3><span
+              [class.is-grace]="subscription.status === 'grace'">{{ subscription.status | titlecase }}</span>
+            <small class="renewal-card__date">Next Renew: {{ (subscription.nextRenewalAt || subscription.endsAt) | date:'mediumDate' }}</small>
+          </div>
+          <div class="renewal-progress" *ngIf="progress.total">
+            <div class="renewal-progress__labels">
+              <span><b>{{ progress.completed }}</b> completed<i class="fa fa-caret-down" aria-hidden="true"></i></span>
+              <span><b>{{ progress.remaining }}</b> remaining<i class="fa fa-caret-down" aria-hidden="true"></i></span>
+            </div>
+            <div class="renewal-progress__track" role="progressbar" [attr.aria-label]="subscription.planName + ' questions completed'"
+              aria-valuemin="0" [attr.aria-valuemax]="progress.total" [attr.aria-valuenow]="progress.completed"
+              [attr.aria-valuetext]="progress.completed + ' questions completed, ' + progress.remaining + ' remaining'"
+              [attr.data-ui-note]="renewalNote(subscription)">
+              <span class="renewal-progress__fill" [style.width.%]="progress.percent"></span>
+              <span class="renewal-progress__pointer" [style.left.%]="progress.percent" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+        <button type="button" (click)="renewPackage(subscription)" [disabled]="!!renewingPlanCode"
+          [attr.aria-label]="renewingPlanCode === subscription.planCode ? 'Checking renewal' : 'Renew ' + subscription.planName"
+          data-ui-note="Renew confirms the existing plan. If its current period is still active, payment remains scheduled for the renewal date under your package rules. Wallet checks apply when payment is due.">
+          <i class="fa" [class.fa-spinner]="renewingPlanCode === subscription.planCode"
+            [class.fa-spin]="renewingPlanCode === subscription.planCode"
+            [class.fa-redo]="renewingPlanCode !== subscription.planCode" aria-hidden="true"></i>
+        </button>
+      </article>
+    </div>
+    <ng-template #noRenewablePackages>
+      <div class="renewal-empty"><i class="fa fa-calendar-check" aria-hidden="true"></i><div><b>No paid renewable
+            package is active.</b><span>Free or included access does not renew automatically.</span></div><a
+          routerLink="/packages">Choose a package</a></div>
+    </ng-template>
+  </section>
+
   <section class="stats-grid" aria-label="Your statistics">
-    <div class="stat-box stat-box--primary">
-      <span class="stat-icon" aria-hidden="true"><i class="fa fa-check-circle"></i></span>
-      <div class="stat-value">{{ stats.examsCompleted }}</div>
-      <div class="stat-label">Exams Completed</div>
-    </div>
-    <div class="stat-box stat-box--score">
-      <span class="stat-icon" aria-hidden="true"><i class="fa fa-percent"></i></span>
-      <div class="stat-value">{{ stats.averageScore }}%</div>
-      <div class="stat-label">Average Score</div>
-    </div>
-    <div class="stat-box stat-box--rank">
-      <span class="stat-icon" aria-hidden="true"><i class="fa fa-trophy"></i></span>
-      <div class="stat-value">#{{ stats.currentRank }}</div>
-      <div class="stat-label">Current Rank</div>
-    </div>
-    <div class="stat-box stat-box--streak">
-      <span class="stat-icon" aria-hidden="true"><i class="fa fa-fire"></i></span>
-      <div class="stat-value">{{ stats.loginStreak }}</div>
-      <div class="stat-label">Login Streak (Days)</div>
-    </div>
+    <div class="stat-box stat-box--primary"><span class="stat-icon" aria-hidden="true"><i
+          class="fa fa-check-circle"></i></span><div class="stat-value">{{ stats.examsCompleted }}</div><div
+        class="stat-label">Exams Completed</div></div>
+    <div class="stat-box stat-box--score"><span class="stat-icon" aria-hidden="true"><i
+          class="fa fa-percent"></i></span><div class="stat-value">{{ stats.averageScore }}%</div><div
+        class="stat-label">Average Score</div></div>
+    <div class="stat-box stat-box--rank"><span class="stat-icon" aria-hidden="true"><i
+          class="fa fa-trophy"></i></span><div class="stat-value">#{{ stats.currentRank }}</div><div
+        class="stat-label">Current Rank</div></div>
+    <div class="stat-box stat-box--streak"><span class="stat-icon" aria-hidden="true"><i
+          class="fa fa-fire"></i></span><div class="stat-value">{{ stats.loginStreak }}</div><div
+        class="stat-label">Login Streak (Days)</div></div>
   </section>
 
   <section class="quick-actions">
-    <h2 class="section-title">Quick Actions</h2>
-    <div class="action-cards">
-      <a [routerLink]="['/student/liveexam']" class="action-card action-card--primary">
-        <span class="action-icon"><i class="fa fa-play-circle"></i></span>
-        <span class="action-label">Live Exams</span>
-        <span class="action-desc">Join scheduled exams</span>
-      </a>
-      <a [routerLink]="['/student/regularexam']" class="action-card action-card--primary">
-        <span class="action-icon"><i class="fa fa-list-alt"></i></span>
-        <span class="action-label">Regular Exam</span>
-        <span class="action-desc">Filter & practice by topic</span>
-      </a>
-      <a [routerLink]="['/student/archive']" class="action-card action-card--primary">
-        <span class="action-icon"><i class="fa fa-archive"></i></span>
-        <span class="action-label">Practice Exams</span>
-        <span class="action-desc">Practice anytime</span>
-      </a>
-      <a [routerLink]="['/student/report']" class="action-card">
-        <span class="action-icon"><i class="fa fa-chart-line"></i></span>
-        <span class="action-label">Reports</span>
-        <span class="action-desc">View performance</span>
-      </a>
-      <a [routerLink]="['/student/stats']" class="action-card">
-        <span class="action-icon"><i class="fa fa-trophy"></i></span>
-        <span class="action-label">Stats & Achievements</span>
-        <span class="action-desc">Track progress</span>
-      </a>
-      <a [routerLink]="['/student/leaderboard']" class="action-card">
-        <span class="action-icon"><i class="fa fa-users"></i></span>
-        <span class="action-label">Leaderboard</span>
-        <span class="action-desc">See rankings</span>
-      </a>
-      <a [routerLink]="['/student/tutor']" class="action-card">
-        <span class="action-icon"><i class="fa fa-graduation-cap"></i></span>
-        <span class="action-label">AI Tutor</span>
-        <span class="action-desc">Learn with AI</span>
-      </a>
+    <div class="dashboard-section-heading"><div><p class="dashboard-eyebrow">Shortcuts</p><h2>Quick Actions</h2></div></div>
+    <div class="action-cards" appBalancedActionCards>
+      <a routerLink="/student/liveexam" class="action-card action-card--primary action-card--live"><span class="action-icon"><i
+            class="fa fa-play-circle"></i></span><span class="action-label">Live Exams</span><span
+          class="action-desc">Join scheduled exams</span></a>
+      <a routerLink="/student/regularexam" class="action-card action-card--primary action-card--exam"><span class="action-icon"><i
+            class="fa fa-list-alt"></i></span><span class="action-label">Regular Exam</span><span
+          class="action-desc">Filter and practise by topic</span></a>
+      <a routerLink="/student/archive" class="action-card action-card--primary action-card--practice"><span class="action-icon"><i
+            class="fa fa-archive"></i></span><span class="action-label">Practice Exams</span><span
+          class="action-desc">Practise anytime</span></a>
+      <a routerLink="/student/report" class="action-card action-card--report"><span class="action-icon"><i
+            class="fa fa-chart-line"></i></span><span class="action-label">Reports</span><span
+          class="action-desc">View performance</span></a>
+      <a routerLink="/student/stats" class="action-card action-card--achievements"><span class="action-icon"><i
+            class="fa fa-trophy"></i></span><span class="action-label">Stats &amp; Achievements</span><span
+          class="action-desc">Track progress</span></a>
+      <a routerLink="/student/leaderboard" class="action-card action-card--leaderboard"><span class="action-icon"><i
+            class="fa fa-users"></i></span><span class="action-label">Leaderboard</span><span
+          class="action-desc">See rankings</span></a>
+      <a routerLink="/tutor" class="action-card action-card--tutor"><span class="action-icon"><i
+            class="fa fa-graduation-cap"></i></span><span class="action-label">AI Tutor</span><span
+          class="action-desc">Learn with curriculum context</span></a>
     </div>
   </section>
-</div>
+</main>

@@ -41,6 +41,9 @@ export class ProfileComponent implements OnInit, AfterViewInit {
   village: any;
   /** Read-only display: mobile number (username) from profile. */
   displayUsername: string = '';
+  profileImageUrl: string | null = null;
+  profileBadge = 'None';
+  profilePictureBusy = false;
 
   // Change Password Modal
   showChangePasswordModal = false;
@@ -83,6 +86,13 @@ export class ProfileComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     this.loadingService.setTotal(1);
+    this.apiService.getPackageStatus().subscribe({
+      next: status => {
+        this.profileImageUrl = status?.profileImageUrl || null;
+        this.profileBadge = status?.badge || 'None';
+      },
+      error: () => {},
+    });
     const searchBarElement = document.getElementById('searchBar');
     if (searchBarElement) {
       searchBarElement.style.display = 'none';
@@ -140,6 +150,72 @@ export class ProfileComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     setTimeout(() => this.loadingService.completeOne(), 0);
+  }
+
+  onProfilePictureSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.profilePictureBusy) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      this.showProfilePictureMessage('Use a JPG, PNG, or WebP image up to 5 MB.', true);
+      return;
+    }
+
+    this.profilePictureBusy = true;
+    const image = new Image();
+    const imageUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(imageUrl);
+      const side = Math.min(image.naturalWidth, image.naturalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 512;
+      const context = canvas.getContext('2d');
+      if (!context || !side) {
+        this.profilePictureBusy = false;
+        this.showProfilePictureMessage('Profile picture could not be prepared.', true);
+        return;
+      }
+      context.beginPath();
+      context.arc(256, 256, 256, 0, Math.PI * 2);
+      context.clip();
+      context.drawImage(image, (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2,
+        side, side, 0, 0, 512, 512);
+      canvas.toBlob(blob => {
+        if (!blob) {
+          this.profilePictureBusy = false;
+          this.showProfilePictureMessage('Profile picture could not be prepared.', true);
+          return;
+        }
+        this.apiService.uploadProfilePicture(blob).subscribe({
+          next: data => {
+            this.profilePictureBusy = false;
+            this.profileImageUrl = data?.profileImageUrl || null;
+            window.dispatchEvent(new CustomEvent('cheradip-profile-picture-updated', {
+              detail: { profileImageUrl: this.profileImageUrl },
+            }));
+            this.showProfilePictureMessage('Profile picture updated.');
+          },
+          error: error => {
+            this.profilePictureBusy = false;
+            this.showProfilePictureMessage(error?.error?.error || 'Profile picture could not be updated.', true);
+          },
+        });
+      }, 'image/webp', .9);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl);
+      this.profilePictureBusy = false;
+      this.showProfilePictureMessage('The selected image could not be opened.', true);
+    };
+    image.src = imageUrl;
+  }
+
+  private showProfilePictureMessage(message: string, error = false): void {
+    this.snackBar.open(message, 'Close', {
+      duration: error ? 7000 : 5000,
+      panelClass: ['package-center-snackbar', error ? 'error-snackbar' : 'success-snackbar'],
+    });
   }
 
   private applyLocalStoragePatch(): void {

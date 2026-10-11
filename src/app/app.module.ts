@@ -22,6 +22,7 @@ import { WrapRomanLinesPipe } from './shared/wrap-roman-lines.pipe';
 import { FormatQuestionMediaPipe } from './shared/format-question-media.pipe';
 import { HighlightMatchPipe } from './shared/highlight-match.pipe';
 import { QuestionRichImgObserveDirective } from './shared/question-rich-img-observe.directive';
+import { BalancedActionCardsDirective } from './shared/balanced-action-cards.directive';
 import { OrderByPipe } from './shared/orderBy.pipe';
 import { hDirective } from './shared/hfilter.directive';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -121,6 +122,7 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
         FormatQuestionMediaPipe,
         HighlightMatchPipe,
         QuestionRichImgObserveDirective,
+        BalancedActionCardsDirective,
         OrderByPipe,
         hDirective,
         LoginComponent,

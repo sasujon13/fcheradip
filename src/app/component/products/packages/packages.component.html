@@ -140,6 +140,105 @@
     <tr class="tblhead2"><td class="tbltd2">PR</td><td class="tbltd2">----------</td><td class="tbltd2">Passing Rate</td></tr>
   </table>
 </div>
+
+<section class="package-guide" aria-labelledby="package-guide-title">
+  <header class="package-guide__intro">
+    <span class="package-guide__eyebrow">Read before you activate</span>
+    <h2 id="package-guide-title">Package &amp; Service Guide</h2>
+    <p>Understand the account types, package tracks, badges, wallet benefits and renewal rules before choosing a package.</p>
+  </header>
+
+  <nav class="package-guide__nav" aria-label="Package guide topics">
+    <button type="button" (click)="scrollToGuide('guide-account-types')">Account Types</button>
+    <button type="button" (click)="scrollToGuide('guide-student-packages')">Student Packages</button>
+    <button type="button" (click)="scrollToGuide('guide-teacher-packages')">Teacher Packages</button>
+    <button type="button" (click)="scrollToGuide('guide-package-tracks')">Package Tracks</button>
+    <button type="button" (click)="scrollToGuide('guide-badges')">Bases &amp; Badges</button>
+    <button type="button" (click)="scrollToGuide('guide-wallet')">Wallet &amp; Referral</button>
+    <button type="button" (click)="scrollToGuide('guide-renewal')">Activation &amp; Renewal</button>
+  </nav>
+
+  <div class="package-guide__grid">
+    <article id="guide-account-types" class="package-guide__article">
+      <div class="package-guide__heading">
+        <i class="fa fa-users" aria-hidden="true"></i>
+        <h3>Which account type should I use?</h3>
+      </div>
+      <p><strong>Student</strong> accounts are designed for studying, practising questions and attending exams. Students may also activate a Teacher Package when they want to create question sets.</p>
+      <p><strong>Teacher</strong> and <strong>Job Seeker</strong> accounts can use both Student Packages and Teacher Packages. Each package family is activated and charged separately.</p>
+      <p><strong>Others</strong> is suitable for customers who mainly use Cheradip Marketplace, Books, wallet, orders and profile services.</p>
+      <div class="package-guide__note">Choose the account type that best describes your main activity. Your purchases, orders and progress stay attached to the same Cheradip account.</div>
+    </article>
+
+    <article id="guide-student-packages" class="package-guide__article">
+      <div class="package-guide__heading">
+        <i class="fa fa-graduation-cap" aria-hidden="true"></i>
+        <h3>What do Student Packages provide?</h3>
+      </div>
+      <p>The Student Free Package opens the available student learning facilities for <strong>one month</strong>, followed by a <strong>7-day grace period</strong>. Attending any type of exam remains free.</p>
+      <p>After the free and grace periods, a paid Student Package keeps the relevant question collection available. Without one, locked questions can still be opened with Cheradip Coins.</p>
+      <p>Academic, Admission and Combined subscriptions are independent learning tracks. You may keep more than one compatible subscription active when required.</p>
+    </article>
+
+    <article id="guide-teacher-packages" class="package-guide__article">
+      <div class="package-guide__heading">
+        <i class="fa fa-chalkboard-teacher" aria-hidden="true"></i>
+        <h3>How do Teacher Packages work?</h3>
+      </div>
+      <p>Teacher Packages provide a question-set allowance for creating Academic, Admission or Combined content. The allowed amount is shown before each package price in the table above.</p>
+      <p>An MCQ batch counts as <strong>one question set</strong> and a CQ batch counts as <strong>one question set</strong>, regardless of how many individual questions are inside that batch. Creating MCQ and CQ together counts as two sets.</p>
+      <p>When the allowance is used, repay or activate an eligible package to receive a new allowance. Without an active paid Teacher Package, eligible users may create questions by paying with Coins.</p>
+    </article>
+
+    <article id="guide-package-tracks" class="package-guide__article">
+      <div class="package-guide__heading">
+        <i class="fa fa-compass" aria-hidden="true"></i>
+        <h3>Academic, Admission or Combined?</h3>
+      </div>
+      <div class="package-guide__definition"><strong>Academic</strong><span>School and college curriculum-based questions and study content.</span></div>
+      <div class="package-guide__definition"><strong>Admission</strong><span>Admission preparation questions and related competitive practice content.</span></div>
+      <div class="package-guide__definition"><strong>Combined</strong><span>Both Academic and Admission content under one package track.</span></div>
+      <p>When Combined is active for a package row, Academic and Admission in that same row are already included and are not charged separately.</p>
+    </article>
+
+    <article id="guide-badges" class="package-guide__article">
+      <div class="package-guide__heading">
+        <i class="fa fa-certificate" aria-hidden="true"></i>
+        <h3>How do Bases and Badges help?</h3>
+      </div>
+      <p><strong>New</strong> is the starter paid base and uses the Star badge. <strong>Premium</strong> is the paid base with the Silver badge. Higher badges are earned from completed activity: <strong>E</strong> means exams attended and <strong>Q</strong> means questions created.</p>
+      <p>For students, <strong>PR</strong> is the passing rate used with exam milestones. <strong>Disc.</strong> is the discount available on the next renewal, and <strong>RV</strong> is the referral commission percentage.</p>
+      <p>To hold an earned badge, a student must attend at least 50 exams, or a teacher must create at least 50 questions, during the latest three months. If activity falls below the requirement, the badge steps down while the account history is kept.</p>
+      <div class="package-guide__note">Free packages do not award a badge. Badge benefits are calculated separately for Student and Teacher activity.</div>
+    </article>
+
+    <article id="guide-wallet" class="package-guide__article">
+      <div class="package-guide__heading">
+        <i class="fa fa-money" aria-hidden="true"></i>
+        <h3>Wallet, referrals and gifts</h3>
+      </div>
+      <p>Use your Cheradip Wallet to activate packages and buy eligible Cheradip products or services. Package purchases create an Order ID so the transaction can be reviewed in your order history.</p>
+      <p>Share your verified referral link from <strong>Refer &amp; Earn</strong>. When an eligible referred user makes a qualifying payment, your current RV rate determines the commission. The commission is added to your reference balance and its Coin value is also reflected in the main wallet.</p>
+      <p>Eligible reference earnings can be withdrawn through the available payment methods, subject to the minimum withdrawal amount. You may also gift a package to another user.</p>
+      <div class="package-guide__links">
+        <a routerLink="/refer"><i class="fa fa-share" aria-hidden="true"></i> Refer &amp; Earn</a>
+        <a routerLink="/history"><i class="fa fa-history" aria-hidden="true"></i> Order History</a>
+        <a routerLink="/withdraw"><i class="fa fa-money" aria-hidden="true"></i> Withdraw</a>
+      </div>
+    </article>
+
+    <article id="guide-renewal" class="package-guide__article">
+      <div class="package-guide__heading">
+        <i class="fa fa-refresh" aria-hidden="true"></i>
+        <h3>Activation, changes and renewal</h3>
+      </div>
+      <p>Select a price in the package table, review the confirmation message and activate it with your wallet. If the wallet balance is insufficient, add money before trying again.</p>
+      <p>You may hold Student and Teacher subscriptions separately. A higher plan is charged and begins from its activation date. Moving from a higher plan to a lower eligible plan does not create an extra upgrade charge.</p>
+      <p>Selecting the same active plan does not charge it again immediately. It remains scheduled for renewal after the current activation period. If renewal payment fails, Cheradip provides warning notices during the allowed grace period before cancellation.</p>
+      <div class="package-guide__note">Always check the highlighted active row, duration, track and payable amount in the table before confirming.</div>
+    </article>
+  </div>
+</section>
 <div class="gap" style="height: 100px;"></div>
 
 <div class="package-dialog-backdrop" *ngIf="pendingPlan" (click)="cancelActivation()">

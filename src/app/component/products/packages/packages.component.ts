@@ -234,6 +234,10 @@ export class PackagesComponent implements OnInit {
     });
   }
 
+  scrollToGuide(sectionId: string): void {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   private shareMessage(): string {
     return `Learn, practise and grow with Cheradip. Use my verified reference ${this.referralReference} when you create your account: ${this.referralLink}`;
   }

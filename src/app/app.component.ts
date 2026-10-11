@@ -185,11 +185,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  /** Product sites provide their own branded navigation instead of stacking two fixed headers. */
+  /** Manual/micro-app routes own their navigation; the marketplace uses the shared header in commerce mode. */
   private shouldShowSiteHeader(url: string): boolean {
-    const path = (url || '').split('?')[0].split('#')[0];
-    const isCommerceRoute = path === '/ecommerce' || path.startsWith('/ecommerce/');
-    return !this.isAiltManualRoute(url) && !isCommerceRoute;
+    return !this.isAiltManualRoute(url);
   }
 
 }

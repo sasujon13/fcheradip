@@ -5,6 +5,10 @@ import { of } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { ApiService } from '../../../service/api.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
+import { TrxUnlockService } from '../../../service/trx-unlock.service';
+import { packageQuestionProgress } from '../../../shared/package-question-progress';
+import { packageRenewalNote } from '../../../shared/package-renewal-note';
 
 @Component({
     selector: 'app-dashboard',
@@ -13,6 +17,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     standalone: false
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
+  readonly questionProgress = packageQuestionProgress;
+  readonly renewalNote = packageRenewalNote;
   errorMessage = '';
   stats: any = {
     examsCompleted: 0,
@@ -23,6 +29,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     currentLevel: 1
   };
   packageStatus: any = null;
+  renewingPlanCode = '';
   profilePictureMenuOpen = false;
   profilePictureBusy = false;
   get baseProgressPercent(): number {
@@ -48,11 +55,26 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return `${current.planName || 'Package'}${track ? ` — ${track}` : ''}`;
   }
 
+  get renewableSubscriptions(): any[] {
+    const subscriptions = Array.isArray(this.packageStatus?.activeSubscriptions)
+      ? this.packageStatus.activeSubscriptions
+      : [];
+    return subscriptions.filter((subscription: any) =>
+      subscription?.autoRenew === true && ['active', 'grace'].includes(subscription?.status)
+    );
+  }
+
+  get accountTypeLabel(): string {
+    return this.packageStatus?.progress?.accountType || localStorage.getItem('acctype') || 'Cheradip';
+  }
+
   constructor(
     private studentService: StudentService,
     private loadingService: LoadingService,
     private api: ApiService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private router: Router,
+    private trxUnlock: TrxUnlockService,
   ) {}
 
   ngOnInit(): void {
@@ -73,7 +95,43 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       next: (data: any) => { this.stats = { ...this.stats, ...(data || {}) }; },
       error: () => { this.errorMessage = 'Your progress could not be loaded. Please refresh and try again.'; }
     });
-    this.api.getPackageStatus().subscribe({ next: (data) => this.packageStatus = data, error: () => {} });
+    this.loadPackageStatus();
+  }
+
+  renewPackage(subscription: any): void {
+    const planCode = String(subscription?.planCode || '');
+    if (!planCode || this.renewingPlanCode) return;
+    this.renewingPlanCode = planCode;
+    this.api.subscribePackage(planCode).subscribe({
+      next: response => {
+        this.renewingPlanCode = '';
+        if (typeof response?.remainingBalance === 'number') {
+          this.trxUnlock.setCachedRemaining(response.remainingBalance);
+        }
+        this.showProfileMessage(response?.message || 'Renewal status updated.');
+        this.loadPackageStatus();
+      },
+      error: error => {
+        this.renewingPlanCode = '';
+        if (error?.error?.code === 'insufficient_balance') {
+          const notice = this.snackBar.open(
+            'Your wallet balance is insufficient for this renewal. Please recharge and try again.',
+            'Recharge',
+            { duration: 10000, panelClass: ['package-center-snackbar', 'error-snackbar'] },
+          );
+          notice.onAction().subscribe(() => this.router.navigate(['/order']));
+          return;
+        }
+        this.showProfileMessage(error?.error?.error || 'The package could not be renewed.', true);
+      },
+    });
+  }
+
+  private loadPackageStatus(): void {
+    this.api.getPackageStatus().subscribe({
+      next: data => this.packageStatus = data,
+      error: () => {},
+    });
   }
 
   openProfilePictureMenu(event: MouseEvent): void {

@@ -1,15 +1,20 @@
-<header>
+<header [class.commerce-header]="isCommerceRoute">
   <div class="navbar">
     <div class="menu-toggle" #menuToggle (click)="toggleMenu()" (mouseenter)="onMobileMenuEnter()"
       (mouseleave)="onMobileMenuLeave()">
-      <i class="fa fa-bars"></i> <a [routerLink]="['/index']" routerLinkActive="index"><img
-          src="./assets/images/cheradip.svg" class="logo"></a>
+      <i class="fa fa-bars"></i>
+      <a [routerLink]="['/index']" routerLinkActive="index" class="header-brand-link">
+        <img src="./assets/images/cheradip.svg" class="logo header-brand-wide" alt="Cheradip">
+        <img *ngIf="isCommerceRoute" src="assets/cheradip/cheradip-avatar.png"
+          class="header-brand-avatar" alt="Cheradip">
+        <span *ngIf="isCommerceRoute" class="header-marketplace-title"><b>Cheradip</b><strong>MARKETPLACE</strong></span>
+      </a>
     </div>
     <!-- <div class="search-bar" id="searchBar">
       <input type="text" class="form-control" name="searchTerm" id="searchTerm" [(ngModel)]="searchTerm" (keyup)="search($event)" placeholder="Search here ... ..">
       <i class="fa fa-search"></i>
     </div> -->
-    <ul class="menu" [class.active]="menuActive" (click)="closeMenu()" (mouseenter)="onMobileMenuEnter()"
+    <ul *ngIf="!isCommerceRoute" class="menu" [class.active]="menuActive" (click)="closeMenu()" (mouseenter)="onMobileMenuEnter()"
       (mouseleave)="onMobileMenuLeave()">
       <li class="menu_item"><a [routerLink]="['']" routerLinkActive=""><i class="fa fa-home"></i></a></li>
       <!-- <li class="menu_item"><a [routerLink]="['/books']" routerLinkActive="books"><i class="fa fa-book"></i> Books</a></li> -->
@@ -39,6 +44,16 @@
       <li class="menu_item"><a [routerLink]="['/packages']" routerLinkActive="packages"><i
             class="fa fa-layer-group"></i></a></li>
       <li class="menu_item"><a [routerLink]="['/faqs']" routerLinkActive="faqs"><i class="fa fa-question-circle"></i> FAQs</a></li>
+    </ul>
+
+    <ul *ngIf="isCommerceRoute" class="menu commerce-main-menu" [class.active]="menuActive" (click)="closeMenu()"
+      (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
+      <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'shop'}"><i class="fa fa-shopping-bag"></i> Shop</a></li>
+      <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'track'}"><i class="fa fa-truck"></i> Track Order</a></li>
+      <li class="menu_item"><a [routerLink]="['/history']" [queryParams]="ecommerceHistoryQueryParams"
+          routerLinkActive="history"><i class="fa fa-history"></i> My Orders</a></li>
+      <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'cart'}"><i class="fa fa-shopping-cart"></i> Cart
+        <span class="commerce-cart-count">{{ commerceCartCount }}</span></a></li>
     </ul>
 
     <div class="header-right-group">
@@ -128,18 +143,20 @@
               <b aria-hidden="true">||</b>
               <strong>{{ headerReferenceBalance | number:'1.2-2' }} Tk</strong>
             </li>
+            <li><a [routerLink]="['/refer']" routerLinkActive="refer"><i
+                  class="fa fa-share-alt"></i>&nbsp;&nbsp; Refer &amp; Earn</a></li>
             <li><a [routerLink]="dashboardRouterSegments" routerLinkActive="dashboard"><i
                   class="fa fa-th-large"></i>&nbsp;&nbsp; Dashboard</a></li>
-            <li><a [routerLink]="['/renew']" routerLinkActive="renew"><i class="fa fa-cube"></i>&nbsp;&nbsp; Renew /
-                Upgrade</a></li>
+            <li><a [routerLink]="dashboardRouterSegments" routerLinkActive="dashboard"
+                title="Manage renewals and upgrades from your dashboard"><i
+                  class="fa fa-sync-alt"></i>&nbsp;&nbsp; Renew / Upgrade</a></li>
             <li><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'track'}" routerLinkActive="ecommerce"><i
                   class="fa fa-truck"></i>&nbsp;&nbsp; Track Order</a></li>
-            <li><a [routerLink]="['/history']" routerLinkActive="history"><i
+            <li><a [routerLink]="['/history']"
+                [queryParams]="isCommerceRoute ? ecommerceHistoryQueryParams : null" routerLinkActive="history"><i
                   class="fa fa-history"></i>&nbsp;&nbsp; Purchase History</a></li>
             <li><a [routerLink]="['/profile']" routerLinkActive="profile"><i class="fa fa-user-edit"></i>&nbsp; Update
                 Profile</a></li>
-            <li><a [routerLink]="['/refer']" routerLinkActive="refer"><i class="fa fa-share-alt"></i>&nbsp; Refer &amp;
-                Earn</a></li>
             <li><a [routerLink]="['/settings']" routerLinkActive="settings"><i class="fa fa-cog"></i>&nbsp; Settings</a>
             </li>
             <li><a [routerLink]="['/disappeared-questions']" routerLinkActive="disappeared-questions"><i
@@ -148,8 +165,6 @@
                   class="fa fa-file-text-o"></i>&nbsp; Created Questions</a></li>
             <li><a [routerLink]="['/liked-questions']" routerLinkActive="liked-questions"><i
                   class="fa fa-heart"></i>&nbsp; Liked Questions</a></li>
-            <li><a [routerLink]="['/mobile']" routerLinkActive="mobile"><i class="fa  fa-lock"></i>&nbsp; Update Mobile
-                Number</a></li>
             <li><a [routerLink]="['/password']" routerLinkActive="password"><i class="fa  fa-key"></i>&nbsp; Update
                 Password</a></li>
             <li><a href="" (click)="navigateToWithdraw($event)"><i class="fa fa-money"></i>&nbsp;&nbsp; Withdraw</a>

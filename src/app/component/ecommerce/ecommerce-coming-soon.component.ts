@@ -82,12 +82,13 @@ export class EcommerceComingSoonComponent implements OnInit {
   get dashboardRouterSegments(): string[] { return getDashboardRouterLinkSegments(); }
 
   ngOnInit(): void {
-    const requestedView = this.route.snapshot.queryParamMap.get('view');
     const requestedOrder = this.route.snapshot.queryParamMap.get('order');
-    if (requestedView === 'cart' || requestedView === 'track') {
-      this.activeView = requestedView;
-    }
-    if (requestedOrder) this.trackNumber = requestedOrder;
+    this.route.queryParamMap.subscribe(params => {
+      const requestedView = params.get('view');
+      this.activeView = requestedView === 'cart' || requestedView === 'track' ? requestedView : 'shop';
+      const order = params.get('order');
+      if (order) this.trackNumber = order;
+    });
     this.loadCategories();
     this.loadProducts();
     this.loadCart(localStorage.getItem('cheradipEcommerceCart') || undefined);
@@ -323,13 +324,18 @@ export class EcommerceComingSoonComponent implements OnInit {
 
   @HostListener('document:click', ['$event'])
   closeAccountMenus(event: Event): void {
-    if ((event.target as HTMLElement).closest('.commerce-account')) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('.commerce-account')) return;
     this.accountMenuOpen = false;
     this.profilePictureMenuOpen = false;
   }
 
   get cartCount(): number { return (this.cart?.items || []).reduce((sum, item) => sum + item.quantity, 0); }
-  private rememberCart(cart: Cart): void { this.cart = cart; localStorage.setItem('cheradipEcommerceCart', cart.token); }
+  private rememberCart(cart: Cart): void {
+    this.cart = cart;
+    localStorage.setItem('cheradipEcommerceCart', cart.token);
+    window.dispatchEvent(new CustomEvent<number>('cheradip-ecommerce-cart-count', { detail: this.cartCount }));
+  }
   private clearFeedback(): void { this.message = ''; this.error = ''; }
   private showError(error: HttpErrorResponse, fallback: string): void { this.error = error.error?.detail || fallback; }
   private notify(message: string, error = false): void {

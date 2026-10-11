@@ -1,4 +1,19 @@
 <div class="login_signup_form">
+  <div class="profile-picture-editor" [attr.aria-busy]="profilePictureBusy">
+    <div class="profile-picture-editor__image">
+      <app-badge-profile [badge]="profileBadge" [imageUrl]="profileImageUrl" [size]="112"></app-badge-profile>
+      <button type="button" class="profile-picture-editor__edit" (click)="profilePictureInput.click()"
+        [disabled]="profilePictureBusy"
+        [attr.aria-label]="profileImageUrl ? 'Change profile picture' : 'Add profile picture'"
+        [title]="profileImageUrl ? 'Change profile picture' : 'Add profile picture'">
+        <i class="fa" [class.fa-pencil]="!profilePictureBusy" [class.fa-spinner]="profilePictureBusy"
+          [class.fa-spin]="profilePictureBusy" aria-hidden="true"></i>
+      </button>
+    </div>
+    <span aria-live="polite">{{ profilePictureBusy ? 'Saving picture…' : (profileImageUrl ? 'Change profile picture' : 'Add profile picture') }}</span>
+    <input #profilePictureInput type="file" hidden accept="image/jpeg,image/png,image/webp"
+      (change)="onProfilePictureSelected($event)" />
+  </div>
   <h2>Profile Update</h2>
   <form [formGroup]="authForm" (ngSubmit)="onAuth()">
   

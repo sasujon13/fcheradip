@@ -39,7 +39,6 @@ div.profile_back{
   position: fixed;
   width: 100%;
   max-width: 1920px;
-  z-index: 98;
   user-select: none;
   margin-top: 0;
   overflow: visible;
@@ -133,7 +132,6 @@ header .tokenbox.header-tokenbox .token-input-box input {
   font-size: 14px;
   width: 132px;
   border: 5px solid var(--color_primary_teal);
-  border-left: 5px solid var(--color_primary_teal);
   position: relative;
   z-index: 1001;
 }
@@ -154,6 +152,7 @@ header .tokenbox.header-tokenbox .token-input-box button {
   position: relative;
   z-index: 1001;
   cursor: pointer;
+  margin-top: 1px;
 }
 
 
@@ -350,7 +349,6 @@ header .tokenbox.header-tokenbox .hover-message-box a {
 }
 .header-country-dropdown-drawer.open {
   overflow-y: auto;
-  transition: max-height 0.35s ease;
   /* Same scrollbar as login/signup: var(--color_primary_teal) thumb, light track */
   scrollbar-width: thin;
   scrollbar-color: #008080 #f1f1f1;
@@ -573,8 +571,7 @@ a:hover{
   color: yellowgreen !important;
 }
 .sign_menu{
-  margin-top: 40px;
-  margin-bottom: -60px;
+  margin-top: 98px;
   margin-right: 0;
   background-color: var(--color_primary_teal);
   padding: 5px 0 5px 10px;
@@ -656,10 +653,6 @@ i.fa-bars{
     right: 180px;
     top: 70px;
   }
-  
-  .search-bar input {
-    background-color: var(--color_primary_teal);
-  }
 }
 
 @media screen and (max-width: 839px) {
@@ -687,18 +680,13 @@ i.fa-bars{
   /* Drawer only for main nav (first .menu under .navbar), not for .sign_menu */
   /* Same padding when open and closed so only max-height animates (no instant shrink) */
   .navbar > .menu {
-    display: flex;
     flex-direction: column;
-    position: absolute;
     top: 42px;
-    right: 0;
     left: auto;
     width: auto;
     max-width: 90vw;
     background-color: var(--color_primary_teal);
     z-index: 102;
-    list-style: none;
-    margin: 0;
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.35s ease;
@@ -712,7 +700,6 @@ i.fa-bars{
     max-height: 80vh;
     overflow-y: auto;
     pointer-events: auto;
-    transition: max-height 0.35s ease;
   }
   /* Same vertical spacing on li when open and closed so only max-height animates */
   .navbar > .menu li {
@@ -722,27 +709,16 @@ i.fa-bars{
   .sign_menu {
     display: flex !important;
     flex-direction: row;
-    position: absolute;
     right: 0;
-    top: 35px;
-    margin-top: 0;
     margin-right: -28px;
     max-height: none;
     overflow: visible;
     align-items: center;
-    background-color: var(--color_primary_teal);
     padding: 1px 0 1px 20px;
-    border-top-left-radius: 20px;
-    border-bottom-left-radius: 20px;
-    border-bottom: 1px solid white;
-    -webkit-user-select: none;
-    user-select: none;
     width: 185px;
   }
   .sign_menu li a {
     padding: 4px 0;
-    font-size: 14px !important;
-    display: block;
   }
   .sign_menu li#menu_item0,
   .sign_menu li#menu_item1 {
@@ -789,6 +765,12 @@ i.fa-bars{
 
   .search-bar input {
     background-color: var(--color_primary_teal);
+  }
+}
+
+@media screen and (max-width: 379px) {
+  .sign_menu {
+    margin-top: 162px;
   }
 }
 

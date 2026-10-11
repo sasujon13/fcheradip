@@ -1,19 +1,16 @@
-import { Injector, Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { CountryService } from './country.service';
 import { environment } from '../../environments/environment';
 
 /**
  * Adds X-Language header to all API requests so the backend can translate
  * response data to the selected country's language (Google Translate).
- * Uses Injector to get CountryService lazily in intercept() to avoid circular DI:
- * HTTP_INTERCEPTORS → LanguageInterceptor → CountryService → HttpClient → HTTP_INTERCEPTORS.
+ * Reads the persisted preference directly so CountryService can safely make
+ * its own HttpClient requests without re-entering its dependency graph.
  */
 @Injectable()
 export class LanguageInterceptor implements HttpInterceptor {
-  constructor(private injector: Injector) {}
-
   intercept(
     request: HttpRequest<unknown>,
     next: HttpHandler
@@ -27,13 +24,21 @@ export class LanguageInterceptor implements HttpInterceptor {
       });
     }
 
-    const lang = this.injector.get(CountryService).getPreferredLang();
+    const lang = this.getPreferredLanguage();
     if (lang) {
       request = request.clone({
         setHeaders: { 'X-Language': lang },
       });
     }
     return next.handle(request);
+  }
+
+  private getPreferredLanguage(): string {
+    try {
+      return localStorage.getItem('preferred_lang') || document.documentElement.lang || 'en';
+    } catch {
+      return document.documentElement.lang || 'en';
+    }
   }
 
   private isApiRequest(url: string): boolean {
