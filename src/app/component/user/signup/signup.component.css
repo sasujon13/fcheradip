@@ -361,6 +361,25 @@ select.form-control {
   background-position: right 12px center;
   padding-right: 36px;
 }
+.account-type-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: inherit;
+  padding: 8px 14px;
+}
+.account-type-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  object-fit: contain;
+}
+.account-type-icon--selected {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+}
 .signup-drawer-panel {
   position: absolute;
   top: 100%;
@@ -388,10 +407,12 @@ select.form-control {
   max-height: inherit;
 }
 .signup-drawer-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 11px;
   width: 100%;
   text-align: left;
-  padding: 12px 14px;
+  padding: 8px 14px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -399,6 +420,13 @@ select.form-control {
   color: #333;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
+}
+.account-type-option span {
+  flex: 1 1 auto;
+}
+.account-type-check {
+  flex: 0 0 auto;
+  color: #008080;
 }
 .signup-drawer-option:hover {
   background: rgba(0, 128, 128, 0.1);

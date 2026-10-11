@@ -19,21 +19,33 @@
         </app-country-selector>
       </div>
     </div>
-    <!-- Account Type (drawer) -->
+    <!-- Account Type (custom dropdown so every option can include its own local image) -->
     <div class="form-group signup-drawer-wrap">
       <span class="label-colon"><label for="acctype">Account Type</label><span class="colon">:</span></span>
       <div class="form-field signup-drawer-field">
-        <div #accountTypeTrigger class="signup-drawer-trigger form-control"
+        <button #accountTypeTrigger id="acctype" type="button" class="signup-drawer-trigger account-type-trigger form-control"
           [ngClass]="{ 'is-invalid': authForm.get('acctype')?.touched && authForm.get('acctype')?.invalid }"
+          aria-haspopup="listbox"
+          aria-controls="account-type-options"
+          [attr.aria-expanded]="accountTypeDrawerOpen"
           (click)="toggleAccountTypeDrawer()">
-          {{ authForm.get('acctype')?.value || 'Select' }}
-        </div>
-        <div class="signup-drawer-panel" [class.closed]="!accountTypeDrawerOpen" [style.max-height.px]="accountTypeDrawerMaxHeight">
+          <img class="account-type-icon account-type-icon--selected" [src]="selectedAccountTypeOption.icon" alt="" aria-hidden="true">
+          <span>{{ selectedAccountTypeOption.label }}</span>
+        </button>
+        <div id="account-type-options" class="signup-drawer-panel" role="listbox" aria-label="Account Type"
+          [attr.aria-hidden]="!accountTypeDrawerOpen"
+          [class.closed]="!accountTypeDrawerOpen" [style.max-height.px]="accountTypeDrawerMaxHeight">
           <div class="signup-drawer-inner">
-            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Student'" (click)="selectAccountType('Student')">Student</button>
-            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Teacher'" (click)="selectAccountType('Teacher')">Teacher</button>
-            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'JobSeeker'" (click)="selectAccountType('JobSeeker')">Job Seeker</button>
-            <button type="button" class="signup-drawer-option" [class.active]="authForm.get('acctype')?.value === 'Others'" (click)="selectAccountType('Others')">Others</button>
+            <button *ngFor="let option of accountTypeOptions" type="button" class="signup-drawer-option account-type-option"
+              role="option"
+              [attr.aria-selected]="authForm.get('acctype')?.value === option.value"
+              [attr.tabindex]="accountTypeDrawerOpen ? 0 : -1"
+              [class.active]="authForm.get('acctype')?.value === option.value"
+              (click)="selectAccountType(option.value)">
+              <img class="account-type-icon" [src]="option.icon" alt="" aria-hidden="true">
+              <span>{{ option.label }}</span>
+              <i *ngIf="authForm.get('acctype')?.value === option.value" class="fa fa-check account-type-check" aria-hidden="true"></i>
+            </button>
           </div>
         </div>
       </div>

@@ -196,6 +196,18 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly DRAWER_MIN = 150;
   private readonly DRAWER_MAX = 600;
   private readonly BOTTOM_GAP = 100;
+  readonly accountTypeOptions = [
+    { value: 'Student', label: 'Student', icon: 'assets/account-types/student.png' },
+    { value: 'Teacher', label: 'Teacher', icon: 'assets/account-types/teacher.png' },
+    { value: 'JobSeeker', label: 'Job Seeker', icon: 'assets/account-types/job-seeker.png' },
+    { value: 'Others', label: 'Others', icon: 'assets/account-types/others.png' },
+  ] as const;
+
+  get selectedAccountTypeOption(): (typeof this.accountTypeOptions)[number] {
+    const selectedValue = this.authForm?.get('acctype')?.value;
+    return this.accountTypeOptions.find((option) => option.value === selectedValue)
+      ?? this.accountTypeOptions[0];
+  }
 
   constructor(
     private fb: FormBuilder,
@@ -943,6 +955,12 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
       this.accountTypeDrawerOpen = false;
       this.classDrawerOpen = false;
     }
+  }
+
+  @HostListener('document:keydown.escape')
+  closeOpenDrawers(): void {
+    this.accountTypeDrawerOpen = false;
+    this.classDrawerOpen = false;
   }
 
   private computeDrawerMaxHeight(triggerEl: HTMLElement): number {
