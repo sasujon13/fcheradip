@@ -30,7 +30,7 @@
           <div class="topic-question-explanation" *ngIf="item.explanation" [innerHTML]="item.explanation | formatQuestionMedia | wrapRomanLines"></div>
         </div>
         <div class="topic-question-item-actions">
-          <button type="button" class="topic-question-action-btn btn-live" (click)="live(item.qid)" title="Show this question again">Live</button>
+          <button type="button" class="topic-question-action-btn btn-live" (click)="live(item)" title="Show this question again">Live</button>
         </div>
       </div>
     </li>

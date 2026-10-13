@@ -1,4 +1,5 @@
-import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA, APP_INITIALIZER } from '@angular/core';
+import { AuthSessionService } from './service/auth-session.service';
 import { BrowserModule } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 
@@ -27,7 +28,6 @@ import { OrderByPipe } from './shared/orderBy.pipe';
 import { hDirective } from './shared/hfilter.directive';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { ChoiceComponent } from './component/cart/choice/choice.component';
 import { LoginComponent } from './component/user/login/login.component';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -83,6 +83,7 @@ import { StatsComponent } from './component/student/stats/stats.component';
 import { LeaderboardComponent } from './component/student/leaderboard/leaderboard.component';
 import { TutorComponent } from './component/student/tutor/tutor.component';
 import { ScraperComponent } from './component/scraper/scraper/scraper.component';
+import { InstituteScraperComponent } from './component/scraper/institute-scraper.component';
 import { WelcomeCeremonyPreviewComponent } from './dev/welcome-ceremony-preview/welcome-ceremony-preview.component';
 import { AiltManualComponent } from './component/ailt/ailt-manual.component';
 import { AiltPageComponent } from './component/ailt/ailt-page.component';
@@ -113,7 +114,6 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
         ChatComponent,
         OrderComponent,
         PackagesComponent,
-        ChoiceComponent,
         CoinEmojiPipe,
         CoinCounterPipe,
         FilterPipe,
@@ -179,6 +179,7 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
         LeaderboardComponent,
         TutorComponent,
         ScraperComponent,
+        InstituteScraperComponent,
         WelcomeCeremonyPreviewComponent,
         AiltManualComponent,
         AiltPageComponent,
@@ -204,6 +205,7 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
         AlertComponent,
         CountrySelectorComponent], providers: [
         MatSnackBar,
+        { provide: APP_INITIALIZER, useFactory: (session: AuthSessionService) => () => session.restoreSharedSession(), deps: [AuthSessionService], multi: true },
         { provide: HTTP_INTERCEPTORS, useClass: LanguageInterceptor, multi: true },
         { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
         { provide: UrlSerializer, useClass: ParenthesisSafeUrlSerializer },

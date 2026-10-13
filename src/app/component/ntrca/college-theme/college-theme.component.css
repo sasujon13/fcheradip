@@ -419,6 +419,26 @@
   border-radius: 6px;
 }
 
+.ct-teachers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+
+.ct-teacher {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d3e9e7;
+  border-radius: 10px;
+  background: #f7fcfb;
+}
+
+.ct-teacher h3 { margin: 0 0 6px; color: var(--ct-teal-dark); font-size: 1rem; }
+.ct-teacher p { margin: 3px 0; overflow-wrap: anywhere; }
+.ct-teacher-contact { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.ct-teacher-contact a { color: var(--ct-teal-dark); overflow-wrap: anywhere; }
+.ct-teacher-note { margin: 12px 0 0; font-size: .9rem; }
+
 .ct-loading,
 .ct-error {
   max-width: 500px;

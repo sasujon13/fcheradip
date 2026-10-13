@@ -27,13 +27,13 @@
             class="fa pencil fa-pencil-square-o"></i> {{ studentStudyMode ? 'Study' : 'Create Question' }}</a></li>
       <li class="menu_item"><a [routerLink]="['/ntrca']" routerLinkActive="ntrca"><i class="fa fa-graduation-cap"></i>
           NTRCA</a></li>
-      <!-- <li class="menu_item"><a [routerLink]="['/scrape']" routerLinkActive="scrape"><i class="fa fa-download"></i> Scraper</a></li> -->
+      <li class="menu_item" *ngIf="scraperStaff"><a [routerLink]="['/scrape']" routerLinkActive="scrape" data-ui-note="Staff-only question and institute scraping workspace."><i class="fa fa-download"></i> Scraper</a></li>
 
       <!-- <li class="menu_item"><a [routerLink]="['/live_chat']" routerLinkActive="live_chat"><i class="fa pencil fa-pencil-square-o"></i></a></li>
         <li class="menu_item"><a [routerLink]="['/create_question']" routerLinkActive="create_question"><i class="fa pencil fa-pencil-square-o"></i></a></li> -->
-      <li class="menu_item"><a [routerLink]="['/choice']" routerLinkActive="choice"><i
+      <li class="menu_item"><a [routerLink]="['/liked-questions']" routerLinkActive="choice" aria-label="Liked Questions" data-ui-note="Open your liked questions for later study."><i
             class="fa fa-heart fa-heart2"></i>
-          <div class="badge">{{totalChoiceItem}}</div>
+          <div class="badge" aria-live="polite" aria-atomic="true">{{totalChoiceItem}}</div>
         </a></li>
       <li class="menu_item"><a [routerLink]="['/cart']" routerLinkActive="cart">
           <div class="badge badge2">{{totalCartItem}}</div><i class="fa fa-shopping-cart"></i>
@@ -52,7 +52,7 @@
       <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'track'}"><i class="fa fa-truck"></i> Track Order</a></li>
       <li class="menu_item"><a [routerLink]="['/history']" [queryParams]="ecommerceHistoryQueryParams"
           routerLinkActive="history"><i class="fa fa-history"></i> My Orders</a></li>
-      <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'cart'}">
+      <li class="menu_item"><a [routerLink]="['/cart']" [queryParams]="ecommerceHistoryQueryParams" routerLinkActive="cart">
         <span class="commerce-cart-icon"><i class="fa fa-shopping-cart" aria-hidden="true"></i>
           <span class="commerce-cart-count" aria-live="polite" aria-atomic="true">{{ commerceCartCount }}</span>
         </span> Cart</a></li>
@@ -183,8 +183,7 @@
   <div class="tokenbox header-tokenbox" *ngIf="!isNtrcaSectionRoute">
     <div class="token-input-box">
       <br>
-      <div class="hover-message-container" (pointerenter)="onTrxHelpPointerEnter()"
-        (pointerleave)="onTrxHelpPointerLeave()">
+      <div class="hover-message-container" #trxHelpContainer (pointerenter)="onTrxHelpPointerEnter()">
         <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
           [style.margin-left]="loginStatus ? '-174px' : '0'" />
         <button (click)="applyToken()">Apply</button>

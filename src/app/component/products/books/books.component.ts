@@ -34,6 +34,8 @@ export class BooksComponent implements OnDestroy, OnInit {
   readonly avatar = 'assets/cheradip/cheradip-avatar.png';
   readonly wideLogo = 'assets/images/cheradip.svg';
   books: Book[] = [];
+  nextBooksUrl: string | null = null;
+  loadingMore = false;
   selectedBook: Book | null = null;
   cart: Cart | null = null;
   loading = false;
@@ -66,6 +68,9 @@ export class BooksComponent implements OnDestroy, OnInit {
 
   ngOnInit(): void {
     this.loadBooks();
+    const cartOwner = localStorage.getItem('cheradipEcommerceCartOwner') || '';
+    const currentOwner = localStorage.getItem('isLoggedIn') === 'true' ? (localStorage.getItem('username') || '') : '';
+    if (cartOwner && cartOwner !== currentOwner) localStorage.removeItem('cheradipEcommerceCart');
     this.loadCart(localStorage.getItem('cheradipEcommerceCart') || undefined);
   }
 
@@ -92,6 +97,7 @@ export class BooksComponent implements OnDestroy, OnInit {
       next: data => {
         if (requestId !== this.bookRequestId) return;
         this.books = Array.isArray(data) ? data : (data.results || []);
+        this.nextBooksUrl = data.next || null;
         this.finishBookLoading();
       },
       error: err => {
@@ -105,6 +111,22 @@ export class BooksComponent implements OnDestroy, OnInit {
   resetFilters(): void {
     this.search = ''; this.audience = ''; this.bookType = ''; this.language = '';
     this.copyType = 'soft'; this.ordering = '-featured'; this.loadBooks();
+  }
+
+  loadMoreBooks(): void {
+    if (!this.nextBooksUrl || this.loadingMore) return;
+    this.loadingMore = true;
+    const requestId = this.bookRequestId;
+    this.http.get<any>(this.nextBooksUrl).subscribe({
+      next: data => {
+        this.loadingMore = false;
+        if (requestId !== this.bookRequestId) return;
+        const known = new Set(this.books.map(book => book.slug));
+        this.books = [...this.books, ...(data.results || []).filter((book: Book) => !known.has(book.slug))];
+        this.nextBooksUrl = data.next || null;
+      },
+      error: err => { this.loadingMore = false; this.showError(err, 'Could not load more books. Please try again.'); },
+    });
   }
 
   openBook(book: Book): void {
@@ -125,7 +147,7 @@ export class BooksComponent implements OnDestroy, OnInit {
       next: cart => {
         this.rememberCart(cart); this.adding = false;
         this.message = `${book.title_bn || book.title} was added to your cart.`;
-        if (buyNow) this.router.navigate(['/ecommerce'], { queryParams: { view: 'cart' } });
+        if (buyNow) this.router.navigate(['/cart']);
       },
       error: err => { this.adding = false; this.showError(err, 'Could not add this book to your cart. Please try again.'); },
     });
@@ -143,10 +165,18 @@ export class BooksComponent implements OnDestroy, OnInit {
     const url = token ? `${this.api}/cart/${encodeURIComponent(token)}/` : `${this.api}/cart/`;
     this.http.get<Cart>(url).subscribe({
       next: cart => this.rememberCart(cart),
-      error: () => { localStorage.removeItem('cheradipEcommerceCart'); if (token) this.loadCart(); },
+      error: err => {
+        if (token && err.status === 404) { localStorage.removeItem('cheradipEcommerceCart'); this.loadCart(); }
+        else this.showError(err, 'Your cart could not be loaded. Its saved contents have not been cleared.');
+      },
     });
   }
-  private rememberCart(cart: Cart): void { this.cart = cart; localStorage.setItem('cheradipEcommerceCart', cart.token); }
+  private rememberCart(cart: Cart): void {
+    this.cart = cart;
+    localStorage.setItem('cheradipEcommerceCart', cart.token);
+    localStorage.setItem('cheradipEcommerceCartOwner', localStorage.getItem('isLoggedIn') === 'true' ? (localStorage.getItem('username') || '') : '');
+    window.dispatchEvent(new CustomEvent<number>('cheradip-ecommerce-cart-count', { detail: this.cartCount }));
+  }
   private finishBookLoading(): void {
     this.loading = false;
     this.showLoading = false;

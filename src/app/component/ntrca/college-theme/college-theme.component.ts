@@ -30,6 +30,8 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   loading = true;
   error: string | null = null;
   data: any = null;
+  teachers: Array<{ name: string; nameBn: string; designation: string; subject: string; mobile: string; email: string }> = [];
+  teacherContactsUnlocked = false;
 
   /** Token box: TrxID (8–10 digits) input and apply. */
   newToken: string = '';
@@ -208,6 +210,8 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     this.loading = true;
     this.error = null;
     this.data = null;
+    this.teachers = [];
+    this.teacherContactsUnlocked = false;
     if (!this.slug) {
       this.error = 'Invalid institute link.';
       this.loading = false;
@@ -277,9 +281,14 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
       }),
       catchError(() => of(null))
     );
-    forkJoin({ banbeis: banbeis$, institutes: institutes$ }).subscribe({
-      next: ({ banbeis, institutes }) => {
+    const teachers$ = this.http.get<any>(`${this.institutesUrl}${encodeURIComponent(eiin)}/teachers/`).pipe(
+      catchError(() => of(null))
+    );
+    forkJoin({ banbeis: banbeis$, institutes: institutes$, teachers: teachers$ }).subscribe({
+      next: ({ banbeis, institutes, teachers }) => {
         this.data = this.mergeData(banbeis, institutes);
+        this.teachers = Array.isArray(teachers?.teachers) ? teachers.teachers : [];
+        this.teacherContactsUnlocked = !!teachers?.contactsUnlocked;
         if (!this.data || (!banbeis && !institutes)) {
           this.error = 'No details found for this institute.';
         } else {
@@ -393,9 +402,10 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     return '—';
   }
 
-  /** Current year minus 1 for "Total Students of YYYY" / "Class-wise Students of YYYY" (updates every year). */
-  get studentsYear(): number {
-    return new Date().getFullYear() - 1;
+  /** Use the dataset's reporting year; do not relabel unchanged figures each January. */
+  get studentsYear(): number | null {
+    const year = Number(this.data?.year);
+    return Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null;
   }
 
   /** Parse Record into rows of 3 columns (array of arrays). */
@@ -496,10 +506,10 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  /** Column headings for PreStats: Level, then years (currentYear-3), (currentYear-2), (currentYear-1). */
+  /** The three recorded periods end at the reporting year when one is supplied. */
   get preStatsColumnHeadings(): string[] {
-    const y = new Date().getFullYear();
-    return ['Level', String(y - 3), String(y - 2), String(y - 1)];
+    const y = this.studentsYear;
+    return y ? ['Level', String(y - 2), String(y - 1), String(y)] : ['Level', 'Period 1', 'Period 2', 'Period 3'];
   }
 
   get classwiseColumnHeadings(): string[] {

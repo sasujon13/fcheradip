@@ -1,0 +1,58 @@
+<section class="institute-scraper" aria-label="Institute directory updater">
+  <div class="source-summary">
+    <h2>Institute directory updates</h2>
+    <p>Banbeis supplies institute details. EMIS supplies a public teacher directory by EIIN; conflicting institute names are kept for review, not silently overwritten.</p>
+    <div class="source-links">
+      <a href="https://institute-search.ieims.banbeis.gov.bd/" target="_blank" rel="noopener">Banbeis directory ↗</a>
+      <a href="https://emis.gov.bd/EMIS/portalone" target="_blank" rel="noopener">EMIS portal ↗</a>
+    </div>
+  </div>
+
+  <div class="source-stats" *ngIf="status">
+    <span><b>{{ status.localInstitutes | number }}</b> local institutes</span>
+    <span *ngIf="status.sourceTotal"><b>{{ status.sourceTotal | number }}</b> at Banbeis on last run</span>
+    <span *ngIf="status.lastPage"><b>{{ status.lastPage }}</b> last completed page</span>
+  </div>
+
+  <div class="scrape-controls">
+    <label>Update one EIIN <input type="text" [(ngModel)]="targetEiin" inputmode="numeric" maxlength="6" placeholder="Six-digit EIIN" [disabled]="running || targetLoading"></label>
+    <button type="button" class="secondary" (click)="updateOne('preview')" [disabled]="running || targetLoading || loadingPreview">Preview EIIN</button>
+    <button type="button" class="primary" (click)="updateOne('apply')" [disabled]="running || targetLoading || loadingPreview">Update EIIN</button>
+  </div>
+
+  <div class="scrape-controls">
+    <label>Start page <input type="number" [(ngModel)]="page" min="1" [disabled]="running"></label>
+    <label>Records per page <input type="number" [(ngModel)]="size" min="1" max="25" [disabled]="running"></label>
+    <label>Pages this run <input type="number" [(ngModel)]="pagesThisRun" min="1" max="100" [disabled]="running"></label>
+    <label class="emis-toggle"><input type="checkbox" [(ngModel)]="enrichEmis" [disabled]="running"> Add EMIS teacher directory</label>
+  </div>
+  <p class="scrape-note">Preview checks up to three records without saving. Run updates the local directory one page at a time. A failed page can be retried safely; previously imported EIINs are updated rather than duplicated.</p>
+  <div class="scrape-actions">
+    <button type="button" class="secondary" (click)="preview()" [disabled]="running || loadingPreview || targetLoading">{{ loadingPreview ? 'Checking…' : 'Preview page' }}</button>
+    <button type="button" class="primary" (click)="start()" [disabled]="running || loadingPreview || targetLoading">Run institute update</button>
+    <button type="button" class="stop" (click)="stop()" [disabled]="!running || stopRequested">Stop after page</button>
+  </div>
+  <div class="scrape-progress" *ngIf="running || completedPages">
+    <div role="progressbar" [attr.aria-valuenow]="progress" aria-valuemin="0" aria-valuemax="100"><span [style.width.%]="progress"></span></div>
+    <p>{{ completedPages }} / {{ pagesThisRun }} pages in this run · {{ progress | number:'1.0-0' }}%</p>
+  </div>
+  <p class="scrape-message" *ngIf="message">{{ message }}</p>
+  <p class="scrape-error" role="alert" *ngIf="error">{{ error }}</p>
+
+  <section class="scrape-results" *ngIf="previewResult || result">
+    <h3>{{ previewResult && !running && !completedPages ? 'Preview' : 'Latest imported page' }}</h3>
+    <p *ngIf="result">{{ completedPages ? 'Page ' + result.page : 'EIIN update' }}: {{ result.created }} new, {{ result.updated }} updated, {{ result.unchanged }} unchanged, {{ result.failed }} failed. Teachers: {{ result.teachersCreated || 0 }} new, {{ result.teachersUpdated || 0 }} updated, {{ result.teachersUnlisted || 0 }} no longer listed.</p>
+    <div class="result-list" *ngFor="let row of (previewResult && !completedPages ? previewResult.records : result?.records)">
+      <b>{{ row.eiin }}</b> <span>{{ row.name || 'Unnamed institute' }}</span>
+      <small>{{ row.status }}<ng-container *ngIf="row.hasContact"> · contact available</ng-container></small>
+      <small *ngIf="row.emisName">EMIS: {{ row.emisName }}</small>
+      <small *ngIf="row.teacherCount"> · {{ row.teacherCount }} teachers</small>
+      <small class="warn" *ngIf="row.emisWarning || row.detail">{{ row.emisWarning || row.detail }}</small>
+    </div>
+  </section>
+
+  <div class="scrape-log" *ngIf="logs.length" aria-live="polite">
+    <h3>Run log</h3>
+    <p *ngFor="let line of logs">{{ line }}</p>
+  </div>
+</section>

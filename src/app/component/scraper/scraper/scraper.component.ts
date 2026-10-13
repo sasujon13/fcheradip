@@ -9,6 +9,9 @@ import { LoadingService } from 'src/app/service/loading.service';
     standalone: false
 })
 export class ScraperComponent implements OnInit, AfterViewInit, AfterViewChecked {
+  accessLoading = true;
+  staffAllowed = false;
+  activeTab: 'questions' | 'institutes' = 'questions';
   @ViewChild('logBox') logBoxRef?: ElementRef<HTMLTextAreaElement>;
   private scrollLogToBottom = false;
   sitePreset: 'daricomma' | 'chorcha' | 'eprosnobank' | 'livemcq' | 'other' = 'daricomma';
@@ -58,12 +61,21 @@ export class ScraperComponent implements OnInit, AfterViewInit, AfterViewChecked
     private api: ApiService,
     private cdr: ChangeDetectorRef,
     private loadingService: LoadingService
-  ) {
-    this.loadHelper();
-  }
+  ) {}
 
   ngOnInit(): void {
     this.loadingService.setTotal(1);
+    this.api.scraperAccess().subscribe({
+      next: () => {
+        this.staffAllowed = true;
+        this.accessLoading = false;
+        this.loadHelper();
+      },
+      error: () => {
+        this.staffAllowed = false;
+        this.accessLoading = false;
+      },
+    });
   }
 
   ngAfterViewInit(): void {

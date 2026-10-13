@@ -3,14 +3,12 @@
  */
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { CartComponent } from './component/cart/cart/cart.component';
 import { PackagesComponent } from './component/products/packages/packages.component';
 import { BooksComponent } from './component/products/books/books.component';
 import { AboutComponent } from './component/user/about/about.component';
 import { ChatComponent } from './component/faqs/chat/chat.component';
 import { OrderComponent } from './component/cart/order/order.component';
 import { FaqsComponent } from './component/faqs/faqs/faqs.component';
-import { ChoiceComponent } from './component/cart/choice/choice.component';
 import { LoginComponent } from './component/user/login/login.component';
 import { AuthGuard } from './service/authgard.service';
 import { SignupComponent } from './component/user/signup/signup.component';
@@ -180,9 +178,9 @@ const routes: Routes = [
   {path:'recommend8', component: Recommend8Component},
   {path:'recommend5', component: Recommend5Component},
   {path:'recommend6', component: Recommend6Component},
-  {path:'choice', component: ChoiceComponent},
+  {path:'choice', redirectTo: 'liked-questions', pathMatch: 'full'},
   {path:'order', component: OrderComponent, canActivate: [AuthGuard]},
-  {path:'cart', component: CartComponent},
+  {path:'cart', component: EcommerceComingSoonComponent, data: { view: 'cart' }},
   {path:'scrape', component: ScraperComponent},
   {path:'login', component: LoginComponent},
   { path: 'dashboard', component: HomeDashboardComponent, canActivate: [AuthGuard] },
@@ -220,11 +218,11 @@ const routes: Routes = [
       { path: 'regularexam', component: RegularexamComponent },
       { path: 'exam-set/:id', component: ExamSetSessionComponent },
       { path: 'archive', component: RegularexamComponent, data: { examMode: 'practice' } },
-      { path: 'exam/:id', component: ExamComponent },
+      { path: 'exam/:id', redirectTo: 'exam-set/:id', pathMatch: 'full' },
       { path: 'report', component: ReportComponent },
       { path: 'stats', component: StatsComponent },
       { path: 'leaderboard', component: LeaderboardComponent },
-      { path: 'tutor', component: TutorComponent }
+      { path: 'tutor', redirectTo: '/tutor', pathMatch: 'full' }
     ]
   },
 ];

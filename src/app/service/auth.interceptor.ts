@@ -27,11 +27,18 @@ export class AuthInterceptor implements HttpInterceptor {
       isApi = pathNorm === apiPathNorm || pathNorm.startsWith(apiPathNorm + '/');
     }
     let sentAuth = false;
+    if (isApi) request = request.clone({ withCredentials: true });
     if (token && isApi) {
       sentAuth = true;
       request = request.clone({
         setHeaders: { Authorization: `Bearer ${token}` },
       });
+    }
+    const scraperRequest = request.url.includes('/scraper/') || request.url.includes('/run_scraper');
+    if (isApi && scraperRequest && !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(request.method) &&
+        !request.headers.has('X-CSRFToken')) {
+      const csrfToken = this.cookieValue('csrftoken');
+      if (csrfToken) request = request.clone({ setHeaders: { 'X-CSRFToken': csrfToken } });
     }
     return next.handle(request).pipe(
       catchError((err: HttpErrorResponse) => {
@@ -41,6 +48,12 @@ export class AuthInterceptor implements HttpInterceptor {
         return throwError(() => err);
       })
     );
+  }
+
+  private cookieValue(name: string): string {
+    const prefix = `${name}=`;
+    const cookie = document.cookie.split(';').map(part => part.trim()).find(part => part.startsWith(prefix));
+    return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
   }
 
   /** Wrong password on login/signup must not treat 401 as “logged out elsewhere”. */

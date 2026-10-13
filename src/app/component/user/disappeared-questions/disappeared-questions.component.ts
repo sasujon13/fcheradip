@@ -27,8 +27,9 @@ export class DisappearedQuestionsComponent implements OnInit {
     this.items = this.disappeared.getItems();
   }
 
-  live(qid: string): void {
-    this.disappeared.remove(qid);
+  live(item: DisappearedItem): void {
+    const qid = item.qid;
+    this.disappeared.remove(qid, item);
     this.refresh();
     this.message = 'Question ' + qid + ' restored. It will show again in the question list.';
     setTimeout(() => (this.message = ''), 7000);

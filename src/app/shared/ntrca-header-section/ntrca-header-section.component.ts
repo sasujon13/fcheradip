@@ -1,6 +1,7 @@
 import {
   ChangeDetectorRef,
   Component,
+  ElementRef,
   EventEmitter,
   HostBinding,
   HostListener,
@@ -8,6 +9,7 @@ import {
   OnDestroy,
   OnInit,
   Output,
+  ViewChild,
 } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -40,7 +42,9 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
   private authPollId?: ReturnType<typeof setInterval>;
   private readonly onAuthStorageBound = (): void => this.syncTokenInputLoggedIn();
 
+  @ViewChild('trxHelpContainer') trxHelpContainer?: ElementRef<HTMLElement>;
   readonly trxHelp = new TrxHelpVisibility(() => this.cdr.markForCheck());
+  private readonly trxHelpDocumentClick = (event: MouseEvent): void => this.onTrxHelpInteraction(event);
   get trxHelpPhase() { return this.trxHelp.phase; }
 
   constructor(
@@ -49,6 +53,7 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    document.addEventListener('click', this.trxHelpDocumentClick, true);
     this.syncTokenInputLoggedIn();
     this.authRouteSub = this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
@@ -70,6 +75,7 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    document.removeEventListener('click', this.trxHelpDocumentClick, true);
     window.removeEventListener('storage', this.onAuthStorageBound);
     if (this.authRouteSub) {
       this.authRouteSub.unsubscribe();
@@ -86,13 +92,8 @@ export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
     this.trxHelp.show();
   }
 
-  onTrxHelpPointerLeave(): void {
-    this.trxHelp.leaveTrigger();
-  }
-
-  @HostListener('document:click')
-  onTrxHelpInteraction(): void {
-    this.trxHelp.interact();
+  onTrxHelpInteraction(event: MouseEvent): void {
+    this.trxHelp.documentClick(event.target, this.trxHelpContainer?.nativeElement);
   }
 
   @HostListener('window:cheradip-toggle-trx-help')

@@ -5,6 +5,7 @@ import { Observable, of, throwError } from 'rxjs';
 import { catchError, finalize, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 import { SESSION_LOGIN_USE_STORED_RETURN } from './login-redirect.session';
+import { NtrcaUnlockedEiinsService } from './ntrca-unlocked-eiins.service';
 
 /** Remove once per session if present (old unlock stored Trx row id here). */
 const LEGACY_ACTIVE_TRX_LS = 'cheradipActiveTrxRowId';
@@ -37,7 +38,8 @@ export class TrxUnlockService {
   constructor(
     private http: HttpClient,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone,
+    private ntrcaUnlocked: NtrcaUnlockedEiinsService
   ) {
     this.restoreCoinBalance();
   }
@@ -195,12 +197,12 @@ export class TrxUnlockService {
    * NTRCA paid unlock: server debits **only** ``customer.settings.balance`` (Bearer).
    * Request body is empty — no Trx row id, no localStorage.
    */
-  useOneUnlock(): Observable<{ success: boolean; remaining: number }> {
+  useOneUnlock(eiin: string): Observable<{ success: boolean; remaining: number }> {
     if (!this.hasAppSession()) {
       return of({ success: false, remaining: 0 });
     }
     return this.http
-      .post<{ success: boolean; remaining: number }>(`${environment.apiUrl}/token/use_trx/`, {})
+      .post<{ success: boolean; remaining: number }>(`${environment.apiUrl}/token/use_trx/`, { eiin })
       .pipe(
         map((r) => ({
           success: Boolean(r?.success),
@@ -212,6 +214,7 @@ export class TrxUnlockService {
         map((r) => {
           if (r.success) {
             this.setCoinBalance(r.remaining);
+            this.ntrcaUnlocked.confirmServerUnlock(eiin);
           }
           return r;
         }),

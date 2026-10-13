@@ -40,7 +40,7 @@
       <ng-container *ngTemplateOutlet="packageMatrix; context: { teacherPackage: false, rows: studentPlanRows }"></ng-container>
       <p class="price">Make Money by Refering your Friends!</p>
       <p class="footer">
-        <a href="" (click)="toggleAddMoney($event)" class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
+        <a href="" (click)="toggleAddMoney($event)" data-trx-help-trigger class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
         <a href="" (click)="toggleSharePanel($event)" class="item_footer"><i class="fa fa-share"></i>Refer</a>
         <a href="" (click)="$event.preventDefault(); copyReferralLink()" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
       </p>
@@ -84,7 +84,7 @@
       <ng-container *ngTemplateOutlet="packageMatrix; context: { teacherPackage: true, rows: teacherPlanRows }"></ng-container>
       <p class="price">Repay a Package after using its Question Set!</p>
       <p class="footer">
-        <a href="" (click)="toggleAddMoney($event)" class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
+        <a href="" (click)="toggleAddMoney($event)" data-trx-help-trigger class="item_footer"><i class="fa fa-shopping-cart"></i>Buy</a>
         <a href="" (click)="toggleSharePanel($event)" class="item_footer"><i class="fa fa-share"></i>Refer</a>
         <a href="" (click)="$event.preventDefault(); copyReferralLink()" class="item_footer"><i class="fa fa-copy"></i>Get Referral Link</a>
       </p>

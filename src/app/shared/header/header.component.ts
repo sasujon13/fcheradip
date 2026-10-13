@@ -12,6 +12,7 @@ import { TrxUnlockService } from '../../service/trx-unlock.service';
 import { SESSION_LOGIN_USE_STORED_RETURN } from '../../service/login-redirect.session';
 import { AuthSessionService } from '../../service/auth-session.service';
 import { TrxHelpVisibility } from '../trx-help-visibility';
+import { LovedQuestionsService } from '../../service/loved-questions.service';
 import {
   getDashboardRouterLinkSegments,
   isTeacherAccount,
@@ -33,7 +34,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       return true;
     }
 
-    if (path !== '/history') {
+    if (!['/history', '/cart', '/cart/'].includes(path)) {
       return false;
     }
 
@@ -46,7 +47,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   @HostListener('window:cheradip-ecommerce-cart-count', ['$event'])
   updateCommerceCartCount(event: Event): void {
-    this.commerceCartCount = Number((event as CustomEvent<number>).detail || 0);
+    const detail = (event as CustomEvent<number | { count: number }>).detail;
+    const count = Number(typeof detail === 'object' ? detail?.count : detail);
+    this.commerceCartCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    this.totalCartItem = this.commerceCartCount;
+    this.cdr.markForCheck();
   }
 
   @HostListener('window:cheradip-profile-picture-updated', ['$event'])
@@ -78,7 +83,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
   get showWalletAsTaka(): boolean {
     const path = (this.router.url || '').split('?')[0];
-    return ['/books', '/ecommerce', '/packages', '/cart', '/choice', '/order', '/renew', '/history'].some(
+    return ['/books', '/ecommerce', '/packages', '/cart', '/order', '/renew', '/history'].some(
       route => path === route || path.startsWith(route + '/'),
     );
   }
@@ -118,8 +123,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   tokenAlertMessage = '';
   showTokenAlert = false;
 
-  /** Close after 15 idle seconds outside the help box, then the existing 300ms fade. */
+  @ViewChild('trxHelpContainer') trxHelpContainer?: ElementRef<HTMLElement>;
+  /** Stay open while hovered; close 15 seconds after leaving or immediately on outside click. */
   readonly trxHelp = new TrxHelpVisibility(() => this.cdr.markForCheck());
+  private readonly trxHelpDocumentClick = (event: MouseEvent): void => this.onTrxHelpInteraction(event);
   get trxHelpPhase() { return this.trxHelp.phase; }
   public notifications: any[] = [];
   marqueeDuration = 24;
@@ -177,6 +184,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   public totalCartItem: number = 0;
   public totalChoiceItem: number = 0;
+  private likedCountSub?: Subscription;
   public searchTerm!: string;
   menuActive = false;
   inactivityTimeout: any;
@@ -186,6 +194,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   profileImageUrl: string | null = null;
   profileBadge = 'Star';
   profilePictureMenuOpen = false;
+  scraperStaff = false;
+  private scraperAccessVersion = 0;
   profilePictureBusy = false;
   get studentStudyMode(): boolean {
     const accountType = String(localStorage.getItem('acctype') || '').replace(/\s+/g, '').toLowerCase();
@@ -228,9 +238,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
     private trxUnlock: TrxUnlockService,
-    private authSession: AuthSessionService) { }
+    private authSession: AuthSessionService,
+    private lovedQuestions: LovedQuestionsService) { }
 
   ngOnInit(): void {
+    this.likedCountSub = this.lovedQuestions.count$.subscribe(count => {
+      this.totalChoiceItem = count;
+      this.cdr.markForCheck();
+    });
+    document.addEventListener('click', this.trxHelpDocumentClick, true);
     // Route components call setTotal() during their own ngOnInit. Deliver the
     // shared header state on the next task so Angular does not mutate a header
     // binding halfway through the same development-mode change-detection pass.
@@ -253,14 +269,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
       }
     });
     this.loadNotifications();
+    this.refreshScraperAccess();
     this.checkVisibility();
     localStorage.getItem('isLoggedIn');
     localStorage.getItem('authToken');
     localStorage.getItem('formData');
     sessionStorage.getItem('sessionCartItems'); //added later
     localStorage.getItem(`cartState_`); //added later
-    sessionStorage.getItem('sessionChoiceItems'); //added later
-    localStorage.getItem(`choiceState_`); //added later
     this.applyHeaderLoginChromeFromStorage();
     this.apiService.search.subscribe((val: any) => {
       this.searchKey = val;
@@ -390,6 +405,26 @@ export class HeaderComponent implements OnInit, OnDestroy {
   /** Keeps token-input margin and other bindings aligned with `localStorage.isLoggedIn` after login redirect. */
   private refreshLoginStatusFromStorage(): void {
     this.applyHeaderLoginChromeFromStorage();
+    this.refreshScraperAccess();
+  }
+
+  private refreshScraperAccess(): void {
+    const version = ++this.scraperAccessVersion;
+    this.scraperStaff = false;
+    this.apiService.scraperAccess().subscribe({
+      next: value => {
+        if (version === this.scraperAccessVersion) {
+          this.scraperStaff = !!value.allowed;
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => {
+        if (version === this.scraperAccessVersion) {
+          this.scraperStaff = false;
+          this.cdr.markForCheck();
+        }
+      },
+    });
   }
 
   /** Sync profile vs Login/SignUp visibility and `header.logged-in` from storage (init + every navigation). */
@@ -439,6 +474,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.trxUnlock.clearCachedBalance();
     }
     this.applyHeaderLoginChromeFromStorage();
+    this.refreshScraperAccess();
   }
 
   /** Refill header TrxID box from session stash after login (hidden on NTRCA section routes). */
@@ -452,6 +488,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.likedCountSub?.unsubscribe();
+    document.removeEventListener('click', this.trxHelpDocumentClick, true);
     if (this.loadingSub) {
       this.loadingSub.unsubscribe();
       this.loadingSub = null;
@@ -487,13 +525,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.trxHelp.toggle();
   }
 
-  onTrxHelpPointerLeave(): void {
-    this.trxHelp.leaveTrigger();
-  }
-
-  @HostListener('document:click')
-  onTrxHelpInteraction(): void {
-    this.trxHelp.interact();
+  onTrxHelpInteraction(event: MouseEvent): void {
+    this.trxHelp.documentClick(event.target, this.trxHelpContainer?.nativeElement);
   }
 
   /** Show token alert (same app-alert as vacant/recommend/merit). Reset first so it re-shows on every click. */

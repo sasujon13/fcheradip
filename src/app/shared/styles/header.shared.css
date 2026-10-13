@@ -199,10 +199,7 @@ header .tokenbox.header-tokenbox .hover-message-box {
   visibility: hidden;
   pointer-events: none;
   transform: translateY(6px);
-  transition:
-    opacity 300ms ease,
-    visibility 0ms linear 300ms,
-    transform 300ms ease;
+  transition: none;
 }
 
 header .tokenbox.header-tokenbox .hover-message-box.ntrca-help-phase-on {

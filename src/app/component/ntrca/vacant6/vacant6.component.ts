@@ -560,7 +560,7 @@ export class Vacant6Component implements OnInit, AfterViewInit {
       });
     };
 
-    this.trxUnlock.useOneUnlock().subscribe({
+    this.trxUnlock.useOneUnlock(key).subscribe({
       next: (r) => {
         if (r.success) {
           this.trxUnlock.setCachedRemaining(r.remaining);

@@ -48,11 +48,11 @@ export const CHERADIP_PRODUCT_SITES: readonly CheradipProductSite[] = [
   {
     id: 'ecommerce',
     name: 'eCommerce',
-    description: 'Cheradip product marketplace. Full commerce development is the next approved phase.',
+    description: 'Shop products and books, pay with your wallet and track orders.',
     icon: '🛒',
     url: 'https://ecommerce.cheradip.com',
     localRoute: '/ecommerce',
-    status: 'Coming next',
+    status: 'Available',
   },
 ] as const;
 

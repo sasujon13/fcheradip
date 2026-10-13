@@ -853,7 +853,13 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
   /* ------------------------------------------------- love & edit request */
 
   isLoved(q: any): boolean {
-    return !!this.lovedService.has(q?.qid);
+    return !!this.lovedService.has(q?.qid, {
+      ...q,
+      level_tr: q?.level_tr || this.set?.level_tr,
+      class_level: q?.class_level || this.set?.class_level,
+      subject_tr: q?.subject_tr || this.set?.subject_tr,
+      table: q?.table || this.subjectQuestionTableNameForPayload(),
+    });
   }
 
   toggleLove(q: any, ev?: Event): void {
@@ -864,12 +870,14 @@ export class ExamSetSessionComponent implements OnInit, OnDestroy {
     const sub = this.set?.subject_tr || q.subject_tr || q.subject || '';
     const meta: any = {
       qid: q.qid,
+      subject: q.subject || sub, subject_name: q.subject_name,
       question: q.question, option_1: q.option_1, option_2: q.option_2,
       option_3: q.option_3, option_4: q.option_4, answer: q.answer,
       explanation: q.explanation, explanation2: q.explanation2, explanation3: q.explanation3,
       subsource: q.subsource, type: q.type, level: q.level,
       chapter_no: q.chapter_no, chapter: q.chapter, topic_no: q.topic_no, topic: q.topic,
       level_tr: level, class_level: cls, subject_tr: sub,
+      group: this.set?.group || q.group || '',
       table: q.table || this.subjectQuestionTableNameForPayload(),
     };
     this.lovedService.toggle(q.qid, meta);

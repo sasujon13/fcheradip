@@ -29,6 +29,11 @@ export function questionSaveDebitTotal(questions: Array<{ type?: unknown }>): nu
 export interface QuestionUnlockItem {
   qid: string;
   is_cq: boolean;
+  level_tr?: string;
+  class_level?: string;
+  subject_tr?: string;
+  db_alias?: string;
+  access_key?: string;
 }
 
 export interface QuestionUnlockResult {
@@ -42,6 +47,8 @@ export interface QuestionUnlockResult {
   unlockedQids?: string[];
   /** Temporary package access; qids must not be persisted as coin purchases. */
   packageAccess?: boolean;
+  unlockedKeys?: string[];
+  questions?: any[];
 }
 
 function parseApiRemaining(body: unknown): number | null {
@@ -82,6 +89,8 @@ export class QuestionUnlockService {
         detail?: string;
         unlocked_qids?: unknown;
         package_access?: boolean;
+        unlocked_keys?: string[];
+        questions?: any[];
       }>(`${environment.apiUrl}/token/unlock_questions/`, { items })
       .pipe(
         map((r) => {
@@ -98,6 +107,8 @@ export class QuestionUnlockService {
             detail: r?.detail,
             unlockedQids,
             packageAccess: Boolean(r?.package_access),
+            unlockedKeys: r?.unlocked_keys,
+            questions: r?.questions || [],
           };
         }),
         catchError((err: { status?: number; error?: unknown }) => {

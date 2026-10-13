@@ -3,8 +3,8 @@
     <br>
     <div
       class="hover-message-container"
+      #trxHelpContainer
       (pointerenter)="onTrxHelpPointerEnter()"
-      (pointerleave)="onTrxHelpPointerLeave()"
     >
       <input type="text" [ngModel]="newToken" (ngModelChange)="newTokenChange.emit($event)" placeholder="8/10 Digits TrxID" maxlength="10"
       [style.margin-left.px]="tokenInputLoggedIn ? -174 : 0"/>

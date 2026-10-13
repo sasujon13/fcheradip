@@ -17,6 +17,23 @@ export interface ScraperLibrary {
   questionPerPage?: number;
 }
 
+export interface InstituteScrapeResult {
+  page: number;
+  size: number;
+  sourceTotal: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  failed: number;
+  emisSkipped: number;
+  teachersCreated?: number;
+  teachersUpdated?: number;
+  teachersUnlisted?: number;
+  nextPage: number;
+  applied: boolean;
+  records: Array<{ eiin: string; name?: string; emisName?: string; status: string; detail?: string; emisWarning?: string; hasContact?: boolean; teacherCount?: number }>;
+}
+
 export interface CreatedQuestionSet {
   id: number;
   name: string;
@@ -78,8 +95,10 @@ export class ApiService {
     }));
   }
 
-  getCommerceHistory(): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/ecommerce/account/history/`);
+  getCommerceHistory(packageOffset = 0, orderOffset = 0): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/ecommerce/account/history/`, {
+      params: { package_offset: packageOffset, order_offset: orderOffset },
+    });
   }
 
   getReferralSummary(): Observable<any> {
@@ -517,6 +536,21 @@ export class ApiService {
 
   saveJsonData(jsonData: any) {
     return this.http.post(`${this.baseUrl}/save_json_data/`, jsonData);
+  }
+
+  /** Check whether the signed-in user may open the staff scraping workspace. */
+  scraperAccess(): Observable<{ allowed: boolean; staff: boolean }> {
+    return this.http.get<{ allowed: boolean; staff: boolean }>(`${this.baseUrl}/scraper/institutes/access/`);
+  }
+
+  instituteScrapeStatus(): Observable<{ localInstitutes: number; lastPage: number | null; lastSize: number | null; sourceTotal: number | null; lastProcessedAt: string | null }> {
+    return this.http.get<any>(`${this.baseUrl}/scraper/institutes/status/`);
+  }
+
+  instituteScrapePage(payload: { page: number; size: number; mode: 'preview' | 'apply'; enrichEmis: boolean; eiin?: string }): Observable<InstituteScrapeResult> {
+    const csrf = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1];
+    const headers = csrf ? { 'X-CSRFToken': decodeURIComponent(csrf) } : undefined;
+    return this.http.post<InstituteScrapeResult>(`${this.baseUrl}/scraper/institutes/page/`, payload, { headers });
   }
 
   /** Run scraper via backend (avoids CORS): fetches pages and returns combined JSON. */

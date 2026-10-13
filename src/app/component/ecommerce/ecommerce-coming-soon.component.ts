@@ -38,6 +38,8 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   categories: Category[] = [];
   products: Product[] = [];
   cart: Cart | null = null;
+  cartLoading = false;
+  cartError = '';
   activeView: 'shop' | 'cart' | 'track' = 'shop';
   selectedCategory = '';
   search = '';
@@ -57,6 +59,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private revealQueue: Product[] = [];
   private catalogOffset = 0;
   private catalogGeneration = 0;
+  private catalogStarted = false;
   private catalogRequest?: Subscription;
   private revealTimer?: ReturnType<typeof setTimeout>;
   private scrollFrame?: number;
@@ -108,28 +111,57 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     return localStorage.getItem('isLoggedIn') === 'true' && Boolean(localStorage.getItem('authToken'));
   }
 
+  get cartTitle(): string {
+    const name = this.loginStatus ? (localStorage.getItem('fullName') || '').trim() : '';
+    return name ? `${name}'s Cart` : 'Your cart';
+  }
+
   get dashboardRouterSegments(): string[] { return getDashboardRouterLinkSegments(); }
 
   ngOnInit(): void {
     const requestedOrder = this.route.snapshot.queryParamMap.get('order');
+    this.trackToken = this.router.getCurrentNavigation()?.extras.state?.['trackingToken'] || '';
     this.route.queryParamMap.pipe(takeUntil(this.destroyed)).subscribe(params => {
       const requestedView = params.get('view');
-      this.activeView = requestedView === 'cart' || requestedView === 'track' ? requestedView : 'shop';
+      const cartRoute = this.route.snapshot.data['view'] === 'cart';
+      this.activeView = cartRoute ? 'cart' : requestedView === 'cart' || requestedView === 'track' ? requestedView : 'shop';
+      if (!cartRoute && requestedView === 'cart') {
+        // Keep published cart URLs working, but use one canonical shopping cart.
+        void this.router.navigate(['/cart'], { queryParams: { from: 'ecommerce' }, replaceUrl: true });
+      }
       const order = params.get('order');
       if (order) this.trackNumber = order;
+      this.ensureCatalogLoaded();
       this.advanceCatalog();
     });
-    this.loadCategories();
-    this.loadProducts();
+    const cartOwner = localStorage.getItem('cheradipEcommerceCartOwner') || '';
+    const currentOwner = this.loginStatus ? (localStorage.getItem('username') || '') : '';
+    if (cartOwner && cartOwner !== currentOwner) localStorage.removeItem('cheradipEcommerceCart');
     this.loadCart(localStorage.getItem('cheradipEcommerceCart') || undefined);
     if (this.loginStatus) this.loadAccountSummary();
-    if (requestedOrder && this.loginStatus) this.trackOrder();
+    if (requestedOrder && (this.loginStatus || this.trackToken)) this.trackOrder();
+  }
+
+  private ensureCatalogLoaded(): void {
+    if (this.activeView !== 'shop' || this.catalogStarted) return;
+    this.catalogStarted = true;
+    this.loadCategories();
+    this.loadProducts();
   }
 
   setView(view: 'shop' | 'cart' | 'track'): void {
-    this.activeView = view;
     this.clearFeedback();
-    this.advanceCatalog();
+    this.activeView = view;
+    if (view === 'cart') void this.router.navigate(['/cart'], { queryParams: { from: 'ecommerce' } });
+    else if (this.route.snapshot.data['view'] === 'cart') void this.router.navigate(['/ecommerce'], {
+      queryParams: view === 'track' ? { view: 'track', order: this.trackNumber || null } : {},
+      state: view === 'track' ? { trackingToken: this.trackToken } : undefined,
+    });
+    else {
+      this.activeView = view;
+      this.ensureCatalogLoaded();
+      this.advanceCatalog();
+    }
   }
 
   loadAccountSummary(): void {
@@ -153,6 +185,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   loadProducts(_page = 1): void {
+    this.catalogStarted = true;
     this.hideProductMagnifier();
     ++this.catalogGeneration;
     this.catalogRequest?.unsubscribe();
@@ -367,11 +400,19 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     return this.selectedProduct?.variants.find(variant => variant.id === this.selectedVariantId) || null;
   }
 
-  loadCart(token?: string): void {
+  loadCart(token: string | undefined = localStorage.getItem('cheradipEcommerceCart') || undefined): void {
+    this.cartLoading = true;
+    this.cartError = '';
     const url = token ? `${this.api}/cart/${encodeURIComponent(token)}/` : `${this.api}/cart/`;
     this.http.get<Cart>(url).subscribe({
-      next: cart => this.rememberCart(cart),
-      error: () => { localStorage.removeItem('cheradipEcommerceCart'); if (token) this.loadCart(); },
+      next: cart => { this.rememberCart(cart); this.cartLoading = false; },
+      error: err => {
+        this.cartLoading = false;
+        if (token && err.status === 404) {
+          localStorage.removeItem('cheradipEcommerceCart');
+          this.loadCart();
+        } else this.cartError = 'Your cart could not be loaded. Please try again.';
+      },
     });
   }
 
@@ -404,7 +445,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    this.http.post<Cart>(`${this.api}/cart/${this.cart.token}/`, { variant_id: item.variant_id, quantity }).subscribe({
+    this.http.post<Cart>(`${this.api}/cart/${this.cart.token}/`, { variant_id: item.variant_id, quantity, operation: 'set' }).subscribe({
       next: cart => this.rememberCart(cart), error: err => this.showError(err, 'Could not update quantity.'),
     });
   }
@@ -424,6 +465,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       next: order => {
         this.completedOrder = order; this.loading = false; this.trackNumber = order.number;
         this.trackToken = order.tracking_token; localStorage.removeItem('cheradipEcommerceCart'); this.cart = null;
+        window.dispatchEvent(new CustomEvent<number>('cheradip-ecommerce-cart-count', { detail: 0 }));
         if (order.walletBalanceTaka !== undefined) this.walletTaka = Number(order.walletBalanceTaka);
         if (order.referenceBalanceTaka !== undefined) this.referenceBalanceTaka = Number(order.referenceBalanceTaka);
         if (!['cod', 'wallet'].includes(this.checkout.payment_method)) this.submitPayment(order);
@@ -449,7 +491,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     let params = new HttpParams();
     if (this.trackToken.trim()) params = params.set('tracking_token', this.trackToken.trim());
     this.http.get<any>(`${this.api}/track/${encodeURIComponent(this.trackNumber.trim())}/`, { params }).subscribe({
-      next: order => { this.trackedOrder = order; this.error = ''; this.loadDigitalLibrary(); },
+      next: order => { this.trackedOrder = order; this.trackToken = order.tracking_token || this.trackToken; this.error = ''; this.loadDigitalLibrary(); },
       error: err => { this.trackedOrder = null; this.showError(err, 'Order ID was not found or does not belong to this account.'); },
     });
   }
@@ -542,6 +584,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private rememberCart(cart: Cart): void {
     this.cart = cart;
     localStorage.setItem('cheradipEcommerceCart', cart.token);
+    localStorage.setItem('cheradipEcommerceCartOwner', this.loginStatus ? (localStorage.getItem('username') || '') : '');
     window.dispatchEvent(new CustomEvent<number>('cheradip-ecommerce-cart-count', { detail: this.cartCount }));
   }
   private clearFeedback(): void { this.message = ''; this.error = ''; }

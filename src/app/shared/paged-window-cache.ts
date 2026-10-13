@@ -29,6 +29,7 @@ export interface PagedFetchResult<T> {
  */
 export class PagedWindowCache<T> {
   private readonly byPage = new Map<number, T[]>();
+  generation = 0;
 
   constructor(
     public readonly pageSize: number,
@@ -42,6 +43,7 @@ export class PagedWindowCache<T> {
   totalCount = 0;
 
   clear(): void {
+    this.generation++;
     this.byPage.clear();
     this.totalCount = 0;
   }
@@ -110,6 +112,8 @@ export interface SyncPagedWindowOptions<T> {
  */
 export function syncPagedWindowCache<T>(options: SyncPagedWindowOptions<T>): Subscription {
   const { cache, currentPage, fetchPage, onDisplay, onMeta, onLoading } = options;
+  const generation = cache.generation;
+  const subscriptions = new Subscription();
 
   const showCurrent = (): void => {
     const items = cache.get(currentPage) ?? [];
@@ -124,13 +128,14 @@ export function syncPagedWindowCache<T>(options: SyncPagedWindowOptions<T>): Sub
     if (!missing.length) {
       return;
     }
-    forkJoin(
+    subscriptions.add(forkJoin(
       missing.map((p) =>
         fetchPage(p).pipe(
           catchError(() => of({ items: [] as T[], totalCount: cache.totalCount }))
         )
       )
     ).subscribe((results) => {
+      if (generation !== cache.generation || subscriptions.closed) return;
       missing.forEach((p, i) => {
         const res = results[i];
         if (res) {
@@ -138,23 +143,24 @@ export function syncPagedWindowCache<T>(options: SyncPagedWindowOptions<T>): Sub
         }
       });
       cache.pruneWindow(anchorPage, cache.totalPages);
-    });
+    }));
   };
 
   if (cache.has(currentPage)) {
     showCurrent();
     onLoading?.(false);
     prefetch(currentPage);
-    return new Subscription();
+    return subscriptions;
   }
 
   onLoading?.(true);
-  return fetchPage(currentPage)
+  subscriptions.add(fetchPage(currentPage)
     .pipe(
       catchError(() => of({ items: [] as T[], totalCount: 0 }))
     )
     .subscribe({
       next: (res) => {
+        if (generation !== cache.generation || subscriptions.closed) return;
         cache.set(currentPage, res.items, res.totalCount);
         cache.pruneWindow(currentPage, cache.totalPages);
         showCurrent();
@@ -162,9 +168,11 @@ export function syncPagedWindowCache<T>(options: SyncPagedWindowOptions<T>): Sub
         prefetch(currentPage);
       },
       error: () => {
+        if (generation !== cache.generation || subscriptions.closed) return;
         cache.set(currentPage, [], 0);
         showCurrent();
         onLoading?.(false);
       },
-    });
+    }));
+  return subscriptions;
 }

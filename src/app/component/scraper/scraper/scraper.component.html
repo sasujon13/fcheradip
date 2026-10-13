@@ -1,6 +1,15 @@
 <div class="scraper-page">
   <div class="scraper-inner">
-    <h1 class="scraper-title">Web Scraper</h1>
+    <h1 class="scraper-title">Scraping workspace</h1>
+    <p *ngIf="accessLoading" class="scraper-access-message">Checking staff access…</p>
+    <p *ngIf="!accessLoading && !staffAllowed" class="scraper-access-message">This workspace is available only to signed-in Cheradip staff and administrators. <a routerLink="/login">Sign in</a></p>
+    <ng-container *ngIf="staffAllowed">
+    <nav class="scraper-tabs" aria-label="Scraping type">
+      <button type="button" [class.active]="activeTab === 'questions'" [attr.aria-current]="activeTab === 'questions' ? 'page' : null" (click)="activeTab = 'questions'">Questions</button>
+      <button type="button" [class.active]="activeTab === 'institutes'" [attr.aria-current]="activeTab === 'institutes' ? 'page' : null" (click)="activeTab = 'institutes'">Institutes</button>
+    </nav>
+    <app-institute-scraper [hidden]="activeTab !== 'institutes'"></app-institute-scraper>
+    <ng-container *ngIf="activeTab === 'questions'">
     <section class="scraper-section">
       <div class="form-group">
         <span class="label-colon"><label>Website</label><span class="colon">:</span></span>
@@ -90,5 +99,7 @@
       </div>
       <p class="error-msg" *ngIf="error">{{ error }}</p>
     </section>
+    </ng-container>
+    </ng-container>
   </div>
 </div>

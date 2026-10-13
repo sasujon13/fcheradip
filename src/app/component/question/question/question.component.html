@@ -341,7 +341,7 @@
 
     <!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
     <div style="background-color: #afd2c3;" class="topic-questions-section"
-      *ngIf="primarySubject && topicQuestions.length > 0" appQuestionRichImgHost>
+      *ngIf="likedOnly || (primarySubject && topicQuestions.length > 0)" appQuestionRichImgHost>
       <div class="topic-questions-header">
         <div class="topic-questions-actions">
           <label class="select-all-label">
@@ -379,7 +379,7 @@
 
   <!-- Questions for selected topic(s) or subject-only: show when we have the 999 list for current subject -->
   <div class="question-container2" [class.question-container2--filter-collapsed]="filtersCollapsedToIcon">
-    <div class="topic-questions-section" *ngIf="primarySubject && (topicQuestions.length > 0 || isSearchActive)" appQuestionRichImgHost>
+    <div class="topic-questions-section" *ngIf="likedOnly || (primarySubject && (topicQuestions.length > 0 || isSearchActive))" appQuestionRichImgHost>
       <div class="topic-questions-header" style="display: none;">
         <div class="topic-questions-actions">
           <label class="select-all-label">
@@ -514,7 +514,7 @@
             <span class="topic-question-subsource" *ngIf="!isEditingItem(item.q.qid) && getSubsourceDisplay(item.q)">{{ getSubsourceDisplay(item.q)
               }}</span>
             <div class="topic-question-extra"
-              *ngIf="isQuestionRevealed(item.q.qid) && hasUnlockableExtraContent(item.q)">
+              *ngIf="isQuestionRevealed(item.q) && hasUnlockableExtraContent(item.q)">
               <span class="topic-question-answer" *ngIf="hasNonEmptyUnlockField(item.q.answer)">
                 <span class="topic-question-answer-label">{{ getUnlockAnswerLabel(item.q) }}:</span>
                 <span class="topic-question-answer-option-marker"
@@ -535,16 +535,16 @@
             <div class="topic-question-item-actions" *ngIf="!isEditingItem(item.q.qid)"
               (click)="$event.stopPropagation()">
               <button type="button" class="topic-question-action-btn topic-question-action-lock"
-                [class.topic-question-action-lock--coins]="!questionUnlockUsesFreeStyle(item.q.qid)"
+                [class.topic-question-action-lock--coins]="!questionUnlockUsesFreeStyle(item.q)"
                 (click)="toggleQuestionUnlock(item.q, $event)"
                 [title]="getLockButtonTitle(item.q)">
-                <ng-container *ngIf="questionUnlockUsesFreeStyle(item.q.qid); else questionLockNeedsCoins">
-                  <i class="fa" [ngClass]="isQuestionRevealed(item.q.qid) ? 'fa-unlock' : 'fa-lock'"
+                <ng-container *ngIf="questionUnlockUsesFreeStyle(item.q); else questionLockNeedsCoins">
+                  <i class="fa" [ngClass]="isQuestionRevealed(item.q) ? 'fa-unlock' : 'fa-lock'"
                     aria-hidden="true"></i>
                 </ng-container>
                 <ng-template #questionLockNeedsCoins>🔒</ng-template>
               </button>
-              <button type="button" class="topic-question-action-btn" [class.loved]="isLoved(item.q.qid)"
+              <button type="button" class="topic-question-action-btn" [class.loved]="isLoved(item.q)"
                 (click)="toggleLove(item.q, $event)" title="Like"> <i class="fa fa-heart" aria-hidden="true"></i>
               </button>
               <button type="button" class="topic-question-action-btn topic-question-action-disappear"
@@ -559,6 +559,7 @@
           </div>
         </li>
       </ul>
+      <p *ngIf="likedOnly && !isSearchActive && !questionsListLoading && !topicQuestions.length" class="no-topic-questions">{{ hasAnyFilterSelection ? 'No liked questions match these filters.' : 'No liked questions yet. Use the heart button on a question to save it here.' }}</p>
       <p *ngIf="isSearchActive && searchLoading" class="no-topic-questions">Searching ...</p>
       <p *ngIf="isSearchActive && serverSearchArrived && !searchLoading && searchResults && searchResults.length === 0"
         class="no-topic-questions">No matching questions found.</p>

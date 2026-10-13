@@ -3,7 +3,7 @@
     <picture class="book-hero__brand"><source media="(min-width: 1200px)" [srcset]="wideLogo"><img [src]="avatar" alt="Cheradip"></picture>
     <div><p class="eyebrow">Cheradip Books</p><h1>eBooks, Guides and Printed Books</h1>
       <p>Find test papers, job solutions, admission guides, literature and other books for Bangladeshi students, job seekers and teachers.</p></div>
-    <a class="cart-link" routerLink="/ecommerce" [queryParams]="{ view: 'cart' }" aria-label="Open cart"><i class="fa fa-shopping-cart" aria-hidden="true"></i><span>{{ cartCount }}</span></a>
+    <a class="cart-link" routerLink="/cart" aria-label="Open cart"><i class="fa fa-shopping-cart" aria-hidden="true"></i><span>{{ cartCount }}</span></a>
   </section>
 
   <section class="book-filters" aria-label="Search and filter books">
@@ -39,6 +39,7 @@
     </article>
   </section>
 
+  <button *ngIf="nextBooksUrl" type="button" (click)="loadMoreBooks()" [disabled]="loadingMore">{{ loadingMore ? 'Loading…' : 'Load more books' }}</button>
   <div class="modal-backdrop" *ngIf="selectedBook" (click)="closeBook()">
     <article class="book-modal" (click)="$event.stopPropagation()"><button class="modal-close" type="button" (click)="closeBook()" aria-label="Close book details">×</button>
       <div class="modal-cover"><img [src]="cover(selectedBook, true)" (error)="onCoverError($event, true)" [alt]="selectedBook.title_bn || selectedBook.title"></div>

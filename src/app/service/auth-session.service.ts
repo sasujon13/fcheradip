@@ -1,7 +1,7 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { EMPTY, Subscription, fromEvent, interval, merge } from 'rxjs';
-import { catchError, filter } from 'rxjs/operators';
+import { EMPTY, Subscription, fromEvent, interval, merge, firstValueFrom } from 'rxjs';
+import { catchError, filter, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { COIN_BALANCE_CACHE_KEY } from './trx-unlock.service';
 
@@ -26,7 +26,10 @@ export class AuthSessionService implements OnDestroy {
     return localStorage.getItem('isLoggedIn') === 'true' && !!token;
   }
 
-  clearStoredSession(): void {
+  clearStoredSession(revoke = true): void {
+    if (revoke && /^(?:[a-z]+\.)?cheradip\.com$/.test(location.hostname)) {
+      void fetch(`${environment.apiUrl}/session/`, { method: 'POST', credentials: 'include', keepalive: true }).catch(() => undefined);
+    }
     [
       'isLoggedIn',
       'loginStatus',
@@ -38,10 +41,24 @@ export class AuthSessionService implements OnDestroy {
       'formData',
       'authFormData',
       COIN_BALANCE_CACHE_KEY,
+      'cheradipEcommerceCart',
+      'cheradipEcommerceCartOwner',
     ].forEach((key) => localStorage.removeItem(key));
     window.dispatchEvent(new CustomEvent('cheradip-session-changed', {
       detail: { loggedIn: false },
     }));
+  }
+
+  async restoreSharedSession(): Promise<void> {
+    if (this.hasStoredSession() || !/^(?:[a-z]+\.)?cheradip\.com$/.test(location.hostname)) return;
+    try {
+      const session = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/session/`, { withCredentials: true }).pipe(timeout(4000)));
+      if (!session?.loggedIn || !session.authToken) return;
+      for (const key of ['authToken', 'username', 'fullName', 'acctype']) localStorage.setItem(key, session[key] || '');
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('loginStatus', 'true');
+      window.dispatchEvent(new CustomEvent('cheradip-session-changed', { detail: { loggedIn: true } }));
+    } catch { /* An unavailable API must not prevent public pages from opening. */ }
   }
 
   /** Clear client auth and send user to login (e.g. token revoked by login on another device). */
@@ -51,7 +68,7 @@ export class AuthSessionService implements OnDestroy {
     }
     this.invalidating = true;
     this.stopSessionMonitor();
-    this.clearStoredSession();
+    this.clearStoredSession(false);
     if (reason === 'multi_device') {
       try {
         sessionStorage.setItem(SESSION_LOGOUT_REASON_KEY, 'multi_device');

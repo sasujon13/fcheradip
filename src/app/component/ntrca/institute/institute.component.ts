@@ -2,7 +2,7 @@ import { Component, OnInit, AfterViewInit, OnDestroy, Renderer2, HostListener } 
 import { ApiService } from 'src/app/service/api.service';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { debounceTime, of, Subject } from 'rxjs';
+import { debounceTime, of, Subject, Subscription } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
 import {
@@ -50,6 +50,9 @@ export class InstituteComponent implements OnInit, OnDestroy {
   /** Sliding window: current ± 1 pages (max 300 institutes at 100/page). */
   private readonly institutePageCache = createNtrcaPagedCache<any>();
   private instituteListCacheKey = '';
+  private instituteFetch?: Subscription;
+  private searchFetch?: Subscription;
+  private filterGeneration = 0;
 
   /** When current search returned no results, we show last shown results and this message. */
   lastShownMessage: string | null = null;
@@ -102,7 +105,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
     this.getTypes();
     this.getDivisions();
     this.loadInstitutes();
-    this.searchSubject.pipe(
+    this.searchFetch = this.searchSubject.pipe(
       debounceTime(200)
     ).subscribe(search => {
       this.searchTerm = search;
@@ -112,9 +115,6 @@ export class InstituteComponent implements OnInit, OnDestroy {
     if (searchBarElement) {
       searchBarElement.style.display = 'block';
     }
-    document.addEventListener('contextmenu', function (event) {
-      event.preventDefault();
-    });
   }
 
   ngAfterViewInit(): void {
@@ -186,12 +186,16 @@ export class InstituteComponent implements OnInit, OnDestroy {
       this.selectedDivisions = this.selectedDivisions.filter(d => d !== divisionName);
     }
 
+    this.selectedDistricts = [];
+    this.selectedThanas = [];
+    this.thanas = [];
     this.loadDistricts();
     this.loadInstitutes()
   }
 
 
   loadDistricts() {
+    const generation = ++this.filterGeneration;
     if (this.selectedDivisions.length === 0) {
       this.districts = [];
       return;
@@ -203,7 +207,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
     });
 
     this.http.get<string[]>(`${this.baseUrl}unique_districts/`, { params })
-      .subscribe(res => this.districts = res);
+      .subscribe(res => { if (generation === this.filterGeneration) this.districts = res; });
   }
 
   onDistrictChange(districtName: string, event: any) {
@@ -212,11 +216,13 @@ export class InstituteComponent implements OnInit, OnDestroy {
     } else {
       this.selectedDistricts = this.selectedDistricts.filter(d => d !== districtName);
     }
+    this.selectedThanas = [];
     this.loadThanas();
     this.loadInstitutes();
   }
 
   loadThanas() {
+    const generation = ++this.filterGeneration;
     if (this.selectedDistricts.length === 0) {
       this.thanas = [];
       return;
@@ -228,7 +234,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
     });
 
     this.http.get<string[]>(`${this.baseUrl}unique_thanas/`, { params })
-      .subscribe(res => this.thanas = res);
+      .subscribe(res => { if (generation === this.filterGeneration) this.thanas = res; });
   }
 
   onThanaChange(thanaName: string, event: any) {
@@ -270,6 +276,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
   }
 
   loadInstitutes(page: number = 1, searchTerm?: string) {
+    this.instituteFetch?.unsubscribe();
     if (searchTerm !== undefined) {
       this.searchTerm = searchTerm;
     }
@@ -280,7 +287,7 @@ export class InstituteComponent implements OnInit, OnDestroy {
     }
     this.pageIndex = page;
 
-    syncPagedWindowCache({
+    this.instituteFetch = syncPagedWindowCache({
       cache: this.institutePageCache,
       currentPage: page,
       fetchPage: (p) => this.fetchInstitutePage(p),
@@ -487,6 +494,8 @@ export class InstituteComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.instituteFetch?.unsubscribe();
+    this.searchFetch?.unsubscribe();
     this.clearDropdownLeaveTimer();
   }
 }

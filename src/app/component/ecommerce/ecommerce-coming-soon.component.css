@@ -121,12 +121,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @keyframes skeleton-shimmer { to { background-position:-200% 0; } }
 .empty-state { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; min-height:260px; padding:36px 18px; border:1px dashed #bfd4ca; border-radius:16px; background:#fff; color:var(--muted); text-align:center; }
 .empty-state>span { font-size:38px; color:var(--teal); }
+.empty-cart-image { width:min(250px,100%); height:auto; object-fit:contain; }
 .empty-state h2,.empty-state h3,.empty-state p { margin:0; }
 .empty-state h3 { color:var(--ink); font-size:19px; }
 .empty-state p { font-size:13px; }
 
 /* Local cart, checkout and tracking surfaces. Shared navigation is untouched. */
-.workspace { margin:30px 0; }
+.workspace { margin:14px 0; }
 .workspace.narrow { max-width:820px; margin:36px auto; padding:clamp(20px,4vw,36px); border:1px solid var(--line); border-radius:20px; background:#fff; }
 .workspace h1 { margin:0 0 20px; font-size:clamp(24px,3vw,34px); font-weight:600; letter-spacing:-.035em; }
 .workspace-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; }

@@ -104,10 +104,7 @@
   text-align: left;
   pointer-events: none;
   transform: translateY(6px);
-  transition:
-    opacity 300ms ease,
-    visibility 0ms linear 300ms,
-    transform 300ms ease;
+  transition: none;
 }
 
 :host .hover-message-box.ntrca-help-phase-on {
@@ -119,7 +116,7 @@
   transition-timing-function: ease;
 }
 
-/* After 1s grace: fades out smoothly in 300ms */
+/* After the 15-second timeout: fades out smoothly in 300ms. */
 :host .hover-message-box.ntrca-help-phase-closing {
   opacity: 0;
   visibility: visible;

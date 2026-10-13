@@ -1,5 +1,5 @@
 <main class="commerce-shell">
-  <form class="commerce-search" (ngSubmit)="loadProducts(1)">
+  <form *ngIf="activeView === 'shop'" class="commerce-search" (ngSubmit)="loadProducts(1)">
     <label class="search-category"><i class="fa fa-th-large" aria-hidden="true"></i><select [(ngModel)]="selectedCategory" (change)="chooseCategory(selectedCategory)" name="category" aria-label="Product category" data-ui-note="Choose a department to show its products. You can also search within that department.">
       <option value="">All categories</option>
       <option *ngFor="let category of categories" [value]="category.slug">{{ category.name }} ({{ category.product_count }})</option>
@@ -98,7 +98,10 @@
   </div>
 
   <section class="workspace" *ngIf="activeView === 'cart'">
-    <div class="workspace-heading"><div><p class="eyebrow">Checkout</p><h1>Your cart</h1></div><button class="ghost" (click)="setView('shop')">Continue shopping</button></div>
+    <div class="workspace-heading"><div><h1>{{ cartTitle }}</h1></div><button class="ghost" (click)="setView('shop')">Continue shopping</button></div>
+    <p *ngIf="cartLoading" role="status">Loading your cart…</p>
+    <div *ngIf="cartError" class="empty-state" role="alert"><h2>Cart unavailable</h2><p>{{ cartError }}</p><button class="primary" type="button" (click)="loadCart()">Try again</button></div>
+    <ng-container *ngIf="!cartLoading && !cartError">
     <div class="cart-layout" *ngIf="cart?.items?.length; else emptyCart">
       <div class="cart-items">
         <article *ngFor="let item of cart?.items">
@@ -125,7 +128,8 @@
         <button class="primary" type="submit" [disabled]="loading">{{ loading ? 'Placing order…' : 'Place order' }}</button>
       </form>
     </div>
-    <ng-template #emptyCart><div class="empty-state"><span>🛒</span><h2>Your cart is empty</h2><button class="primary" (click)="setView('shop')">Browse products</button></div></ng-template>
+    <ng-template #emptyCart><div class="empty-state"><img class="empty-cart-image" src="assets/images/fish.png" alt="Empty shopping cart"><h2>Your cart is empty</h2><p>Add products or books to see them here.</p><button class="primary" type="button" (click)="setView('shop')">Browse products</button></div></ng-template>
+    </ng-container>
     <div class="order-success" *ngIf="completedOrder"><h2>Order ID: {{ completedOrder.number }}</h2><p>Status: Pending — administration will mark it Order Completed after approval.</p><ng-container *ngIf="!loginStatus"><p>Save your private tracking token:</p><code>{{ completedOrder.tracking_token }}</code></ng-container><button type="button" class="ghost" (click)="setView('track')">Track this order</button></div>
   </section>
 

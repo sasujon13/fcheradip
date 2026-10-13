@@ -3,11 +3,10 @@
 
 .scraper-page {
   min-height: 60vh;
-  padding: 2rem 1rem;
-  margin-top: 140px;
+  padding: 140px 1rem 2rem;
 }
 .scraper-inner {
-  max-width: 640px;
+  max-width: 760px;
   margin: 0 auto;
   background: #fff;
   border-radius: 12px;
@@ -15,15 +14,18 @@
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 .scraper-title {
-  margin: -90px 0 0.5rem -24px;
-  font-size: 2rem;
+  margin: 0 0 1rem;
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
   color: white;
   text-align: center;
   background: var(--color_primary_teal);
   padding: 12px;
-  min-width: 640px;
-  position: fixed;
+  border-radius: 8px;
 }
+.scraper-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:20px}
+.scraper-tabs button{background:#e8f3f1;border:1px solid #a6d0cb;border-radius:8px;color:#075d59;font:inherit;font-weight:700;padding:11px;cursor:pointer}
+.scraper-tabs button.active{background:#087b78;color:#fff;border-color:#087b78}
+.scraper-access-message{font-size:.95rem;color:#426663;margin:16px 0}
 .scraper-desc {
   margin: 0 0 1.25rem 0;
   font-size: 0.9rem;

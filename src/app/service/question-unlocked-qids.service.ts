@@ -64,67 +64,13 @@ export class QuestionUnlockedQidsService {
    * When not logged in, returns legacy session list only.
    */
   syncFromServer(): Observable<string[]> {
-    const local = this.readLegacySessionQids();
-    if (!this.hasBearerSession()) {
-      return of([...new Set(local)]);
-    }
-    return this.http
-      .get<{ settings?: Record<string, unknown> }>(`${environment.apiUrl}/customer_settings/`)
-      .pipe(
-        map((res) => {
-          const server = this.normalizeList(res?.settings?.[UNLOCKED_QUESTION_QIDS_SETTINGS_KEY]);
-          const merged = [...new Set([...server, ...local])];
-          return { server, merged };
-        }),
-        switchMap(({ server, merged }) => {
-          const needPush =
-            merged.length !== server.length || local.some((q) => !server.includes(q));
-          if (!needPush) {
-            this.writeLegacySessionMirror(merged);
-            return of(merged);
-          }
-          return this.http
-            .post<{ settings?: Record<string, unknown> }>(`${environment.apiUrl}/customer_settings/`, {
-              settings: { [UNLOCKED_QUESTION_QIDS_SETTINGS_KEY]: merged },
-            })
-            .pipe(
-              map((postRes) => {
-                const saved = this.normalizeList(
-                  postRes?.settings?.[UNLOCKED_QUESTION_QIDS_SETTINGS_KEY]
-                );
-                const finalList = saved.length ? saved : merged;
-                this.writeLegacySessionMirror(finalList);
-                return finalList;
-              }),
-              catchError(() => {
-                this.writeLegacySessionMirror(merged);
-                return of(merged);
-              })
-            );
-        }),
-        catchError(() => of([...new Set(local)]))
-      );
+    if (!this.hasBearerSession()) return of([]);
+    return this.http.get<{ settings?: Record<string, unknown> }>(`${environment.apiUrl}/customer_settings/`)
+      .pipe(map(res => this.normalizeList(res?.settings?.['unlocked_question_keys'])));
   }
 
-  /** Persist full list after new unlock(s). */
-  persistFullList(qids: string[]): Observable<string[]> {
-    const unique = this.normalizeList(qids);
-    this.writeLegacySessionMirror(unique);
-    if (!this.hasBearerSession()) {
-      return of(unique);
-    }
-    return this.http
-      .post<{ settings?: Record<string, unknown> }>(`${environment.apiUrl}/customer_settings/`, {
-        settings: { [UNLOCKED_QUESTION_QIDS_SETTINGS_KEY]: unique },
-      })
-      .pipe(
-        map((res) => {
-          const saved = this.normalizeList(res?.settings?.[UNLOCKED_QUESTION_QIDS_SETTINGS_KEY]);
-          const finalList = saved.length ? saved : unique;
-          this.writeLegacySessionMirror(finalList);
-          return finalList;
-        }),
-        catchError(() => of(unique))
-      );
+  /** Only the priced unlock API can grant an entitlement. */
+  persistFullList(_qids: string[]): Observable<string[]> {
+    return this.syncFromServer();
   }
 }

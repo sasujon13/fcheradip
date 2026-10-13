@@ -1,6 +1,6 @@
 export type TrxHelpPhase = 'off' | 'on' | 'closing';
 
-/** Idle dismissal for both shared payment-help headers, including click-to-open. */
+/** Keep payment help open while hovered; dismiss after 15 seconds outside it. */
 export class TrxHelpVisibility {
   phase: TrxHelpPhase = 'off';
   private pointerOnBox = false;
@@ -10,6 +10,7 @@ export class TrxHelpVisibility {
   constructor(private changed: () => void) {}
 
   show(): void {
+    if (this.phase === 'on') return;
     this.clearTimers();
     this.setPhase('on');
     this.scheduleClose();
@@ -22,7 +23,8 @@ export class TrxHelpVisibility {
 
   enterBox(): void {
     this.pointerOnBox = true;
-    this.show();
+    this.clearTimers();
+    this.setPhase('on');
   }
 
   leaveBox(): void {
@@ -30,12 +32,12 @@ export class TrxHelpVisibility {
     this.scheduleClose();
   }
 
-  interact(): void {
-    if (this.phase !== 'off') this.show();
-  }
-
-  leaveTrigger(): void {
-    this.scheduleClose();
+  documentClick(target: EventTarget | null, container?: HTMLElement): void {
+    if (this.phase === 'off') return;
+    const element = target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
+    if (element?.closest('[data-trx-help-trigger]')) return;
+    if (target instanceof Node && container?.contains(target)) return;
+    this.hide();
   }
 
   hide(): void {
@@ -53,7 +55,6 @@ export class TrxHelpVisibility {
     if (this.phase === 'off' || this.pointerOnBox) return;
     this.idleTimer = window.setTimeout(() => {
       this.idleTimer = undefined;
-      if (this.pointerOnBox) return;
       this.setPhase('closing');
       this.fadeTimer = window.setTimeout(() => {
         this.fadeTimer = undefined;

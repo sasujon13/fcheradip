@@ -90,8 +90,24 @@
       </table>
     </section>
 
+    <section class="ct-section" *ngIf="teachers.length" aria-label="Teachers directory">
+      <h2 class="ct-section-title">Teachers (EMIS) · {{ teachers.length }}</h2>
+      <div class="ct-teachers">
+        <article class="ct-teacher" *ngFor="let teacher of teachers">
+          <h3>{{ teacher.nameBn || teacher.name }}</h3>
+          <p *ngIf="teacher.nameBn && teacher.nameBn !== teacher.name">{{ teacher.name }}</p>
+          <p *ngIf="teacher.designation || teacher.subject">{{ teacher.designation }}<span *ngIf="teacher.designation && teacher.subject"> · </span>{{ teacher.subject }}</p>
+          <div class="ct-teacher-contact" *ngIf="teacherContactsUnlocked && (teacher.mobile || teacher.email)">
+            <a *ngIf="teacher.mobile" [href]="'tel:' + teacher.mobile">{{ teacher.mobile }}</a>
+            <a *ngIf="teacher.email" [href]="'mailto:' + teacher.email">{{ teacher.email }}</a>
+          </div>
+        </article>
+      </div>
+      <p class="ct-teacher-note" *ngIf="!teacherContactsUnlocked">Unlock this institute's details to view teacher contact information.</p>
+    </section>
+
     <section class="ct-section" *ngIf="recordParsed.length">
-      <h2 class="ct-section-title">Total Students of {{ studentsYear }}</h2>
+      <h2 class="ct-section-title">Total Students<span *ngIf="studentsYear"> of {{ studentsYear }}</span></h2>
       <table class="ct-table ct-record-table" [ngClass]="'ct-cols-' + recordVisibleColIndices.length">
         <thead>
           <tr>
@@ -107,7 +123,7 @@
     </section>
 
     <section class="ct-section" *ngIf="record2Rows.length">
-      <h2 class="ct-section-title">Class-wise Students of {{ studentsYear }}</h2>
+      <h2 class="ct-section-title">Class-wise Students<span *ngIf="studentsYear"> of {{ studentsYear }}</span></h2>
       <table class="ct-table ct-record-table" [ngClass]="'ct-cols-' + record2VisibleColIndices.length">
         <thead>
           <tr>

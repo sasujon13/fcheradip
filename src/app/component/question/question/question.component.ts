@@ -209,6 +209,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   lovedQids: Set<number | string> = new Set();
   /** When true (route /liked-questions), only loved questions are shown/filtered. */
   likedOnly = false;
+  private likedChangesSub?: Subscription;
   /** Paid unlocks persisted on server (re-unlock never charges again). */
   purchasedUnlockedQids = new Set<string>();
   /** Package-only reveals are never purchases and are removed when access expires. */
@@ -322,6 +323,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** Middle number in "X Selected of Y of Total Z". */
   get totalQuestionsInCurrentSelection(): number {
+    if (this.likedOnly) return this.questionListTotalCount;
     if (this.questionListTotalCount > 0) {
       return this.questionListTotalCount;
     }
@@ -363,6 +365,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** Load page with 3-page sliding cache (prev/current/next, max 90 questions). */
   loadQuestionsPage(page: number): void {
+    if (this.likedOnly) {
+      this.loadLikedQuestionsPage(page);
+      return;
+    }
     const sub = this.primarySubject;
     if (!sub) {
       return;
@@ -404,7 +410,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
           .pipe(
             map((res) => {
               let rows = this.applyUserEditsToQuestions(res.questions || []);
-              rows = rows.filter((q) => !this.disappearedQuestions.isDisappeared(q?.qid));
+              rows = rows.filter((q) => !this.isDisappearedQuestion(q));
               if (res.revision?.row_count != null) {
                 this.totalQuestionsInDbForSubject = res.revision.row_count;
               }
@@ -428,6 +434,61 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         }
         this.cdr.detectChanges();
       },
+    });
+  }
+
+  /** Filter the full saved list before slicing, never a subject's unrelated API page. */
+  private filteredLikedQuestions(): any[] {
+    const equal = (a: unknown, b: unknown) => String(a ?? '').trim() === String(b ?? '').trim();
+    const matches = (values: string[] | undefined, ...fields: unknown[]) =>
+      !values?.length || fields.some(field => values.some(value => equal(value, field)));
+    const chapters = this.chapterQueryValues();
+    const topics = this.topicQueryValues();
+    return this.lovedService.lovedQuestions().filter(q => {
+      if (this.isDisappearedQuestion(q)) return false;
+      if (this.selectedLevel && !equal(q.level_tr, this.selectedLevel)) return false;
+      if (this.selectedClass && !equal(q.class_level, this.selectedClass)) return false;
+      if (this.selectedSubjectTr && !equal(q.subject_tr || q.subject, this.selectedSubjectTr)) return false;
+      if (this.selectedGroup) {
+        if (q.group && !equal(q.group, this.selectedGroup)) return false;
+        if (!q.group && this.subjects.length && !this.subjects.some(s => equal(s.subject_tr, q.subject_tr || q.subject))) return false;
+      }
+      return matches(chapters, q.chapter_no, q.chapter) && matches(topics, q.topic_no, q.topic)
+        && this.questionMatchesSourceYear(q)
+        && (!this.selectedQuestionTypes.size || this.selectedQuestionTypes.has(this.normalizeQuestionTypeLabel(q.type)));
+    });
+  }
+
+  private buildLikedListCacheKey(): string {
+    return JSON.stringify({ liked: true, level: this.selectedLevel, class: this.selectedClass,
+      group: this.selectedGroup, subject: this.selectedSubjectTr, chapters: this.chapterQueryValues(),
+      topics: this.topicQueryValues(), sources: [...this.selectedSources].sort(), years: [...this.selectedYears].sort(),
+      types: [...this.selectedQuestionTypes].sort() });
+  }
+
+  private loadLikedQuestionsPage(requestedPage: number): void {
+    this.resetSearchState();
+    const rows = this.filteredLikedQuestions();
+    const key = this.buildLikedListCacheKey();
+    if (this.questionListCacheKey !== key) {
+      this.questionPageCache.clear();
+      this.questionListCacheKey = key;
+    }
+    const page = Math.min(Math.max(1, requestedPage), Math.max(1, Math.ceil(rows.length / this.questionListPageSize)));
+    this.topicQuestionsPage = page;
+    this.totalQuestionsInDbForSubject = this.lovedService.lovedQuestions().length;
+    syncPagedWindowCache({
+      cache: this.questionPageCache, currentPage: page,
+      fetchPage: p => of({ items: rows.slice((p - 1) * this.questionListPageSize, p * this.questionListPageSize), totalCount: rows.length }),
+      onDisplay: items => {
+        this.pagedTopicQuestions = items;
+        this.topicQuestionsLoaded = true;
+        this.syncSelectionRowsFromLoadedPages();
+        this.cdr.markForCheck();
+        setTimeout(() => this.measureOptionsLayouts(), 80);
+      },
+      onMeta: meta => this.questionListTotalCount = meta.totalCount,
+      onLoading: loading => this.questionsListLoading = loading,
     });
   }
 
@@ -515,7 +576,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     qid: number | string,
     patch: Record<string, any>
   ): void {
-    const matchQid = (q: any) => q?.qid != null && q.qid == qid;
+    const matchQid = (q: any) => q?.qid != null && q.qid == qid && (!patch['access_key'] || this.questionStateKey(q) === patch['access_key']);
     this.pagedTopicQuestions = this.pagedTopicQuestions.map((q) =>
       matchQid(q) ? { ...q, ...patch } : q
     );
@@ -989,12 +1050,19 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.disappearedQuestions.load();
     this.lovedQids = new Set(this.lovedService.qids());
     this.likedOnly = !!this.route.snapshot.data['likedOnly'];
+    this.likedChangesSub = this.lovedService.changes$.subscribe(() => {
+      this.lovedQids = new Set(this.lovedService.qids());
+      if (this.likedOnly) {
+        this.invalidateQuestionPageCache();
+        this.loadQuestionsPage(this.topicQuestionsPage);
+      }
+    });
     this.setupQuestionSearch();
     this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
     if (this.apiService.isLoggedIn()) {
       try {
         const cached = JSON.parse(localStorage.getItem('packageStatus') || '{}');
-        this.studentStudyMode = !!cached?.active && cached?.progress?.accountType === 'Student';
+        this.studentStudyMode = !!cached?.activeSubscriptions?.some((row: any) => row.audience === 'student');
       } catch {}
       this.refreshStudentPackageAccess();
       this.packageStatusTimer = setInterval(() => this.refreshStudentPackageAccess(), 60000);
@@ -1032,6 +1100,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    this.likedChangesSub?.unsubscribe();
     if (this.packageStatusTimer) clearInterval(this.packageStatusTimer);
     if (this.dropdownLeaveTimer) clearTimeout(this.dropdownLeaveTimer);
     if (this.searchDebounceTimer) {
@@ -1050,7 +1119,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   private refreshStudentPackageAccess(): void {
     this.apiService.getPackageStatus().subscribe({
       next: (value) => {
-        const active = !!value?.active && value?.progress?.accountType === 'Student';
+        const active = !!value?.activeSubscriptions?.some((row: any) => row.audience === 'student');
         if (!active && this.packageTemporaryQids.size) {
           const next = new Set(this.revealedUnlockedQids);
           this.packageTemporaryQids.forEach((qid) => next.delete(qid));
@@ -1407,8 +1476,9 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicDropdownOpen = false;
     this.currentSubject = '';
     this.currentChapter = '';
+    if (this.likedOnly) this.loadQuestionsPage(1);
     if (!this.selectedLevel) {
-      this.router.navigate(['/question']);
+      if (!this.likedOnly) this.router.navigate(['/question']);
       return;
     }
     this.apiService.getQuestionClasses(this.selectedLevel).subscribe({
@@ -1471,6 +1541,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicDropdownOpen = false;
     this.currentSubject = '';
     this.currentChapter = '';
+    if (this.likedOnly) this.loadQuestionsPage(1);
     this.loadGroupsAndSubjects(() => this.syncQuestionRouteQueryParams());
     this.syncQuestionRouteQueryParams();
     this.saveFilterState();
@@ -1511,6 +1582,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicDropdownOpen = false;
     this.currentSubject = '';
     this.currentChapter = '';
+    if (this.likedOnly) this.loadQuestionsPage(1);
     this.loadSubjects(() => this.syncQuestionRouteQueryParams());
     this.syncQuestionRouteQueryParams();
     this.saveFilterState();
@@ -1547,10 +1619,16 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.apiService.getQuestionSubjects(params).subscribe({
       next: (res) => {
         this.subjects = res.subjects || [];
+        this.subjectListLoading = false;
+        if (this.likedOnly) {
+          this.invalidateQuestionPageCache();
+          this.loadQuestionsPage(1);
+        }
         afterDone?.();
       },
       error: () => {
         this.subjects = [];
+        this.subjectListLoading = false;
         afterDone?.();
       },
       complete: () => {
@@ -1610,7 +1688,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedQuestionTypes = new Set();
     this.selectedInstituteType = null;
     const sub = this.primarySubject;
-    const stored = this._pendingFilterState ?? this.loadFilterState();
+    const stored = this.likedOnly ? null : (this._pendingFilterState ?? this.loadFilterState());
     const keepQuestionSelection =
       this._restoreChapterTopicAfterSubjectLoad ||
       (!!sub &&
@@ -1632,6 +1710,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.topicQuestionsPage = 1;
     this.currentSubject = sub ? sub.subject_tr : '';
     this.currentChapter = '';
+    if (this.likedOnly) this.loadQuestionsPage(1);
     if (sub) {
       this.loadingService.setTotal(1);
       this.apiService.getQuestionChapters({
@@ -1741,12 +1820,22 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.moreFiltersOpen = false;
     this.instituteTypeDropdownOpen = false;
     this.currentChapter = '';
-    try { localStorage.removeItem(this.FILTER_STORAGE_KEY); } catch (_) {}
+    if (this.likedOnly) {
+      this.invalidateQuestionPageCache();
+      this.loadQuestionsPage(1);
+    }
+    if (!this.likedOnly) {
+      try { localStorage.removeItem(this.FILTER_STORAGE_KEY); } catch (_) {}
+    }
     this.cdr.detectChanges();
   }
 
   /** Persist current filter selections to localStorage. Uses chapterIds/topicIds (same pattern as subject and more filters). */
   private saveFilterState(): void {
+    if (this.likedOnly) {
+      if (this.questionListCacheKey !== this.buildLikedListCacheKey()) this.loadQuestionsPage(1);
+      return;
+    }
     try {
       const state = {
         level: this.selectedLevel || undefined,
@@ -1893,7 +1982,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cdr.markForCheck();
       },
       error: () => {
-        this.applyPurchasedUnlockedQids(this.questionUnlockedQids.readLegacySessionQids(), true);
+        // Cached client lists must never authorize an unpaid question.
         this.cdr.markForCheck();
       },
     });
@@ -1923,24 +2012,40 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.purchasedUnlockedQids = purchased;
   }
 
-  isQuestionPurchased(qid: number | string | null | undefined): boolean {
-    if (qid == null || qid === '') return false;
-    return this.purchasedUnlockedQids.has(String(qid));
+  private questionStateKey(value: any): string {
+    if (value == null) return '';
+    if (typeof value === 'string' && value.startsWith('[')) return value;
+    const q = typeof value === 'object' ? value : this.getDisplayedQuestions().find(item => String(item.q.qid) === String(value))?.q;
+    if (q?.access_key) return q.access_key;
+    if (q?.table) return JSON.stringify([q.db_alias || (/honour/i.test(q.level_tr || '') ? 'honours' : 'hsc'), q.table, String(q.qid)]);
+    return String(q?.qid ?? value);
   }
 
-  isQuestionPackageUnlocked(qid: number | string | null | undefined): boolean {
+  private unlockItem(q: any): QuestionUnlockItem {
+    return { qid: String(q.qid), is_cq: this.isQuestionCreative(q), access_key: this.questionStateKey(q),
+      level_tr: q.level_tr || this.selectedLevel, class_level: q.class_level || this.selectedClass,
+      subject_tr: q.subject_tr || this.selectedSubjectTr, db_alias: q.db_alias };
+  }
+
+  isQuestionPurchased(qid: any): boolean {
     if (qid == null || qid === '') return false;
-    return this.packageTemporaryQids.has(String(qid));
+    const key = this.questionStateKey(qid);
+    return this.purchasedUnlockedQids.has(key);
+  }
+
+  isQuestionPackageUnlocked(qid: any): boolean {
+    if (qid == null || qid === '') return false;
+    return this.packageTemporaryQids.has(this.questionStateKey(qid));
   }
 
   /** True when this lock can be toggled without another coin purchase. */
-  questionUnlockUsesFreeStyle(qid: number | string | null | undefined): boolean {
+  questionUnlockUsesFreeStyle(qid: any): boolean {
     return this.isQuestionPurchased(qid) || this.isQuestionPackageUnlocked(qid);
   }
 
-  isQuestionRevealed(qid: number | string | null | undefined): boolean {
+  isQuestionRevealed(qid: any): boolean {
     if (qid == null || qid === '') return false;
-    return this.revealedUnlockedQids.has(String(qid));
+    return this.revealedUnlockedQids.has(this.questionStateKey(qid));
   }
 
   /** Lock button teal: already paid, currently hidden — re-show is free. */
@@ -1950,7 +2055,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   lockQuestionReveal(qid: number | string, ev: Event): void {
     ev.stopPropagation();
-    const k = String(qid);
+    const k = this.questionStateKey(qid);
     if (!this.isQuestionRevealed(k)) return;
     this.revealedUnlockedQids.delete(k);
     this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
@@ -1959,7 +2064,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   revealQuestionFree(qid: number | string, ev: Event): void {
     ev.stopPropagation();
-    const k = String(qid);
+    const k = this.questionStateKey(qid);
     if (!this.isQuestionPurchased(k) || this.isQuestionRevealed(k)) return;
     this.revealedUnlockedQids.add(k);
     this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
@@ -1972,7 +2077,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   ): void {
     ev.stopPropagation();
     if (q?.qid == null || this.unlockBusy) return;
-    const k = String(q.qid);
+    const k = this.questionStateKey(q);
     if (this.isQuestionRevealed(k)) {
       this.lockQuestionReveal(k, ev);
       return;
@@ -1987,12 +2092,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.cdr.markForCheck();
       return;
     }
-    this.runQuestionUnlock([{ qid: k, is_cq: this.isQuestionCreative(q) }]);
+    this.runQuestionUnlock([this.unlockItem(q)]);
   }
 
   getLockButtonTitle(q: { qid?: string | number; type?: unknown }): string {
     if (q?.qid == null) return '';
-    const k = String(q.qid);
+    const k = this.questionStateKey(q);
     if (this.isQuestionRevealed(k)) return 'Lock (hide answer and explanation)';
     if (this.isQuestionPurchased(k)) return 'Show answer (already unlocked — no charge)';
     if (this.studentStudyMode) return 'Unlock (included in active package — no coins)';
@@ -2003,11 +2108,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return v != null && String(v).trim() !== '';
   }
 
-  private unlockSubjectName(q?: { subject_name?: unknown; subject?: unknown }): string {
+  private unlockSubjectName(q?: { subject_name?: unknown; subject?: unknown; subject_tr?: unknown }): string {
     const subject = this.primarySubject;
     return [
       q?.subject_name,
       q?.subject,
+      q?.subject_tr,
       subject?.subject_name,
       subject?.name,
       subject?.subject_tr,
@@ -2121,7 +2227,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   allDisplayedQuestionsRevealed(): boolean {
     const shown = this.getDisplayedQuestions();
     if (!shown.length) return false;
-    return shown.every((item) => this.isQuestionRevealed(item.q.qid));
+    return shown.every((item) => this.isQuestionRevealed(item.q));
   }
 
   /** Page lock button teal when every hidden question on the page was already purchased. */
@@ -2130,7 +2236,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!shown.length || this.allDisplayedQuestionsRevealed()) return false;
     return shown.every(
       (item) =>
-        this.isQuestionRevealed(item.q.qid) || this.isQuestionPurchased(item.q.qid)
+        this.isQuestionRevealed(item.q) || this.isQuestionPurchased(item.q)
     );
   }
 
@@ -2159,7 +2265,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (this.allDisplayedQuestionsRevealed()) {
       const next = new Set(this.revealedUnlockedQids);
-      shown.forEach((item) => next.delete(String(item.q.qid)));
+      shown.forEach((item) => next.delete(this.questionStateKey(item.q)));
       this.revealedUnlockedQids = next;
       this.cdr.markForCheck();
       return;
@@ -2168,12 +2274,12 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const toPurchase: QuestionUnlockItem[] = [];
     const nextRevealed = new Set(this.revealedUnlockedQids);
     for (const item of shown) {
-      const qid = String(item.q.qid);
+      const qid = this.questionStateKey(item.q);
       if (this.isQuestionRevealed(qid)) continue;
       if (this.isQuestionPurchased(qid) || (this.studentStudyMode && this.isQuestionPackageUnlocked(qid))) {
         nextRevealed.add(qid);
       } else {
-        toPurchase.push({ qid, is_cq: this.isQuestionCreative(item.q) });
+        toPurchase.push(this.unlockItem(item.q));
       }
     }
 
@@ -2189,7 +2295,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private totalUnlockDebit(items: QuestionUnlockItem[]): number {
     return items
-      .filter((it) => !this.purchasedUnlockedQids.has(it.qid))
+      .filter((it) => !this.purchasedUnlockedQids.has(it.access_key || this.questionStateKey(it.qid)))
       .reduce(
         (sum, it) => sum + (it.is_cq ? QUESTION_UNLOCK_DEBIT_CQ : QUESTION_UNLOCK_DEBIT_MCQ),
         0
@@ -2211,15 +2317,15 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private runQuestionUnlock(items: QuestionUnlockItem[]): void {
-    const chargeable = items.filter((it) => !this.purchasedUnlockedQids.has(it.qid));
+    const chargeable = items.filter((it) => !this.purchasedUnlockedQids.has(it.access_key || this.questionStateKey(it.qid)));
     items.forEach((it) => {
-      if (this.purchasedUnlockedQids.has(it.qid)) {
-        this.revealedUnlockedQids.add(it.qid);
+      if (this.purchasedUnlockedQids.has(it.access_key || this.questionStateKey(it.qid))) {
+        this.revealedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid));
       }
     });
 
     if (chargeable.length === 0) {
-      items.forEach((it) => this.revealedUnlockedQids.add(it.qid));
+      items.forEach((it) => this.revealedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid)));
       this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
       this.cdr.markForCheck();
       return;
@@ -2236,20 +2342,26 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       next: (r) => {
         this.unlockBusy = false;
         if (r.success) {
+          for (const unlocked of r.questions || []) {
+            for (const item of this.getDisplayedQuestions()) {
+              if (this.questionStateKey(item.q) === unlocked.access_key) Object.assign(item.q, unlocked);
+            }
+            this.patchQuestionInMemoryCaches(unlocked.qid, unlocked);
+          }
           if (r.packageAccess) {
-            (r.unlockedQids || chargeable.map((it) => it.qid)).forEach((qid) => {
+            (r.questions?.map(q => q.access_key) || chargeable.map((it) => it.access_key || this.questionStateKey(it.qid))).forEach((qid) => {
               this.packageTemporaryQids.add(String(qid));
               this.revealedUnlockedQids.add(String(qid));
             });
-          } else if (r.unlockedQids?.length) {
-            this.applyUnlockedQidsFromServer(r.unlockedQids);
+          } else if (r.unlockedKeys?.length) {
+            this.applyUnlockedQidsFromServer(r.unlockedKeys);
           } else {
             chargeable.forEach((it) => {
-              this.purchasedUnlockedQids.add(it.qid);
-              this.revealedUnlockedQids.add(it.qid);
+              this.purchasedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid));
+              this.revealedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid));
             });
           }
-          items.forEach((it) => this.revealedUnlockedQids.add(it.qid));
+          items.forEach((it) => this.revealedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid)));
           this.purchasedUnlockedQids = new Set(this.purchasedUnlockedQids);
           this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
           if (!r.packageAccess) this.persistPurchasedUnlockedQids();
@@ -2669,8 +2781,15 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     return raw.replace(/"/g, '');
   }
 
-  isLoved(qid: number | string): boolean {
-    return this.lovedQids.has(qid);
+  isLoved(qidOrQ: any): boolean {
+    const q = qidOrQ && typeof qidOrQ === 'object' ? qidOrQ : { qid: qidOrQ };
+    return this.lovedService.has(q.qid, {
+      ...q,
+      level_tr: q.level_tr || this.selectedLevel,
+      class_level: q.class_level || this.selectedClass,
+      subject_tr: q.subject_tr || this.selectedSubjectTr,
+      table: q.table || (this.primarySubject ? this.subjectQuestionTableName(this.selectedLevel, this.selectedClass, this.selectedSubjectTr) : undefined),
+    });
   }
 
   toggleLove(qidOrQ: number | string | any, event?: Event): void {
@@ -2678,18 +2797,20 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const q = qidOrQ && typeof qidOrQ === 'object' ? qidOrQ : null;
     const qid = q ? q.qid : qidOrQ;
     if (q) {
-      const level = this.selectedLevel || q.level_tr || '';
-      const cls = this.selectedClass || q.class_level || '';
-      const sub = this.selectedSubjectTr || q.subject_tr || q.subject || '';
+      const level = q.level_tr || this.selectedLevel || '';
+      const cls = q.class_level || this.selectedClass || '';
+      const sub = q.subject_tr || this.selectedSubjectTr || q.subject || '';
       const meta: any = {
-        qid,
+        access_key: q.access_key, db_alias: q.db_alias,
+        qid, subject: q.subject || sub, subject_name: q.subject_name,
         question: q.question, option_1: q.option_1, option_2: q.option_2,
         option_3: q.option_3, option_4: q.option_4, answer: q.answer,
         explanation: q.explanation, explanation2: q.explanation2, explanation3: q.explanation3,
         subsource: q.subsource, type: q.type, level: q.level,
         chapter_no: q.chapter_no, chapter: q.chapter, topic_no: q.topic_no, topic: q.topic,
         level_tr: level, class_level: cls, subject_tr: sub,
-        table: this.subjectQuestionTableName(level, cls, sub),
+        group: q.group || this.selectedGroup || '',
+        table: q.table || this.subjectQuestionTableName(level, cls, sub),
       };
       this.lovedService.toggle(qid, meta);
     } else {
@@ -2701,7 +2822,15 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private filterLikedOnly(list: any[]): any[] {
     if (!this.likedOnly) return list;
-    return list.filter((q: any) => this.lovedQids.has(q?.qid));
+    return list.filter((q: any) => this.isLoved(q));
+  }
+
+  private isDisappearedQuestion(value: any): boolean {
+    const q = typeof value === 'object' && value ? value : this.getDisplayedQuestions().find(item => String(item.q.qid) === String(value))?.q;
+    return this.disappearedQuestions.isDisappeared(q?.qid ?? value, {
+      question: q?.question,
+      table: q?.table || this.subjectQuestionTableName(q?.level_tr || this.selectedLevel, q?.class_level || this.selectedClass, q?.subject_tr || this.selectedSubjectTr),
+    });
   }
 
   /** Disappear question: hide from list until user restores it from Disappeared Questions (Live). Stored in user settings by qid. */
@@ -2710,7 +2839,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const q = itemOrQid && typeof itemOrQid === 'object' && itemOrQid.q ? itemOrQid.q : null;
     const qid = q ? (q.qid ?? itemOrQid) : itemOrQid;
     if (q) {
-      this.disappearedQuestions.addWithData(qid, { question: q.question, option_1: q.option_1, option_2: q.option_2, option_3: q.option_3, option_4: q.option_4, answer: q.answer, explanation: q.explanation, type: q.type });
+      this.disappearedQuestions.addWithData(qid, { ...q, table: q.table || this.subjectQuestionTableName(q.level_tr || this.selectedLevel, q.class_level || this.selectedClass, q.subject_tr || this.selectedSubjectTr) });
     } else {
       this.disappearedQuestions.add(qid);
     }
@@ -2733,6 +2862,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   trackByQuestionQid(_index: number, item: { q: any; fullIndex: number }): number | string {
+    if (this.likedOnly) return JSON.stringify([item.q?.table || [item.q?.level_tr, item.q?.class_level, item.q?.subject_tr], String(item.q?.qid ?? _index)]);
     return item.q?.qid ?? _index;
   }
 
@@ -3047,7 +3177,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
    * @param useFullSubjectCache When true, use entire 999 subject cache for filtering (create/export/select-all), not only chunks loaded for the current list page.
    */
   private getTopicQuestionsFilteredSortedCore(applyTypeFilter: boolean, useFullSubjectCache = false): any[] {
-    const filterDisappeared = (arr: any[]) => arr.filter((q: any) => !this.disappearedQuestions.isDisappeared(q?.qid));
+    const filterDisappeared = (arr: any[]) => arr.filter((q: any) => !this.isDisappearedQuestion(q));
     const filterByType = (arr: any[]) =>
       !applyTypeFilter || this.selectedQuestionTypes.size === 0
         ? arr
@@ -3072,16 +3202,10 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   getDisplayedQuestions(): { q: any; fullIndex: number }[] {
     if (this.isSearchActive) {
       const sr = this.searchResults ?? [];
-      return this.likedOnly ? sr.filter((q: any) => this.lovedQids.has(q?.qid)) : sr;
+      return this.likedOnly ? sr.filter((item: any) => this.isLoved(item.q)) : sr;
     }
     const start = (this.effectiveTopicQuestionsPage - 1) * this.questionListPageSize;
-    let pool = this.pagedTopicQuestions;
-    if (this.likedOnly) {
-      // Default: show ALL liked questions (from saved snapshots) until a filter
-      // picks a subject — the loader then replaces this with that subject's liked rows.
-      pool = pool && pool.length ? pool : this.lovedService.lovedQuestions();
-      pool = pool.filter((q: any) => this.lovedQids.has(q?.qid));
-    }
+    const pool = this.pagedTopicQuestions;
     return pool.map((q: any, i: number) => ({ q, fullIndex: start + i }));
   }
 
@@ -3360,7 +3484,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const next = new Set<number | string>();
     for (const id of source) {
       if (id == null || id === '') continue;
-      if (this.disappearedQuestions.isDisappeared(id)) continue;
+      if (this.isDisappearedQuestion(id)) continue;
       next.add(this.selectionQidKey(id));
     }
     return next;
@@ -3428,7 +3552,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const out: any[] = [];
     const seen = new Set<string>();
     for (const id of this.selectedQuestionIds) {
-      if (this.disappearedQuestions.isDisappeared(id)) continue;
+      if (this.isDisappearedQuestion(id)) continue;
       const key = this.selectionQidKey(id);
       if (seen.has(key)) continue;
       const q = this.findQuestionByQidForSelection(id);
@@ -3451,7 +3575,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     const resolved = new Set(partial.map((q) => (q?.qid != null ? this.selectionQidKey(q.qid) : '')));
     const need = new Set<string>();
     for (const id of this.selectedQuestionIds) {
-      if (this.disappearedQuestions.isDisappeared(id)) continue;
+      if (this.isDisappearedQuestion(id)) continue;
       const key = this.selectionQidKey(id);
       if (!resolved.has(key)) need.add(key);
     }
@@ -3483,7 +3607,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
             .pipe(
               map((r) => {
                 let rows = this.applyUserEditsToQuestions(r.questions || []);
-                rows = rows.filter((q) => !this.disappearedQuestions.isDisappeared(q?.qid));
+                rows = rows.filter((q) => !this.isDisappearedQuestion(q));
                 return rows;
               })
             )
@@ -3580,7 +3704,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.pruneSelectedQuestionsCache();
     let n = 0;
     for (const id of this.selectedQuestionIds) {
-      if (!this.disappearedQuestions.isDisappeared(id)) n++;
+      if (!this.isDisappearedQuestion(id)) n++;
     }
     return n;
   }
@@ -3725,6 +3849,13 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
     this.currentSearchTerm = term;
+    if (this.likedOnly) {
+      this.searchResults = this.rankQuestionsForSearch(this.filteredLikedQuestions(), term)
+        .slice(0, this.searchMaxLoaded).map((q, i) => ({ q, fullIndex: i }));
+      this.serverSearchArrived = true;
+      this.cdr.detectChanges();
+      return;
+    }
     this.serverSearchArrived = false;
     // Invalidate any in-flight server search for a previous term and hide its
     // loader -> a fresh request for this term starts only after the 3s debounce.
@@ -3745,6 +3876,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   onSearchSubmit(): void {
     const term = this.currentSearchTerm.trim();
     if (!term) return;
+    if (this.likedOnly) { this.onSearch(term); return; }
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
       this.searchDebounceTimer = null;
@@ -3783,13 +3915,14 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     this.searchResults = null;
     this.serverSearchArrived = false;
     this.searchLoading = false;
-    this.cdr.detectChanges();
+    if (this.likedOnly) this.cdr.markForCheck();
+    else this.cdr.detectChanges();
   }
 
   /** Already-loaded questions eligible for local search (respects disappeared / source/year / type filters). */
   private searchLoadedPool(): any[] {
     return this.questionPageCache.allCachedItems().filter((q: any) => {
-      if (this.disappearedQuestions.isDisappeared(q?.qid)) return false;
+      if (this.isDisappearedQuestion(q)) return false;
       if (!this.questionMatchesSourceYear(q)) return false;
       if (this.selectedQuestionTypes.size === 0) return true;
       return this.selectedQuestionTypes.has(this.normalizeQuestionTypeLabel(q?.type));
@@ -3928,7 +4061,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       .pipe(
         map((res) => {
           let rows = this.applyUserEditsToQuestions(res.questions || []);
-          rows = rows.filter((q) => !this.disappearedQuestions.isDisappeared(q?.qid));
+          rows = rows.filter((q) => !this.isDisappearedQuestion(q));
           const items = this.rankQuestionsForSearch(rows, term)
             .slice(0, this.searchMaxLoaded)
             .map((q, i) => ({ q, fullIndex: i }));

@@ -6,6 +6,7 @@
 
   <div class="history-state" *ngIf="loading"><i class="fa fa-spinner fa-spin"></i> Loading history…</div>
   <div class="history-state history-error" *ngIf="error">{{ error }}</div>
+  <div class="history-state history-error" *ngIf="loadMoreError">{{ loadMoreError }}</div>
 
   <ng-container *ngIf="!loading && !error">
     <section class="wallet-summary" aria-label="Wallet summary">
@@ -14,8 +15,13 @@
       <article><i class="fa fa-user-circle"></i><span>Account Type</span><strong>{{ profile?.accountType || 'Cheradip user' }}</strong></article>
     </section>
 
+    <ng-container *ngFor="let section of sectionOrder">
+      <ng-container *ngTemplateOutlet="section === 'orders' ? productOrders : packageActivations"></ng-container>
+    </ng-container>
+
+    <ng-template #packageActivations>
     <section class="history-section">
-      <div class="section-heading"><div><i class="fa fa-cube"></i><h2>Package activations</h2></div><span>{{ packages.length }}</span></div>
+      <div class="section-heading"><div><i class="fa fa-cube"></i><h2>Package activations</h2></div><span>{{ packages.length }} / {{ packageTotal }}</span></div>
       <div class="empty-history" *ngIf="!packages.length">No package activation has been recorded yet.</div>
       <div class="history-grid" *ngIf="packages.length">
         <article class="history-card" *ngFor="let row of packages">
@@ -26,16 +32,21 @@
           <small *ngIf="row.startsAt || row.endsAt">{{ row.startsAt | date:'mediumDate' }} – {{ row.endsAt | date:'mediumDate' }}</small>
         </article>
       </div>
+      <button type="button" *ngIf="packages.length < packageTotal" [disabled]="!!loadingMore" (click)="loadMore('packages')">{{ loadingMore === 'packages' ? 'Loading…' : 'Load more packages' }}</button>
     </section>
+    </ng-template>
 
+    <ng-template #productOrders>
     <section class="history-section">
-      <div class="section-heading"><div><i class="fa fa-shopping-bag"></i><h2>Product and book orders</h2></div><span>{{ orders.length }}</span></div>
+      <div class="section-heading"><div><i class="fa fa-shopping-bag"></i><h2>Product and book orders</h2></div><span>{{ orders.length }} / {{ orderTotal }}</span></div>
       <div class="empty-history" *ngIf="!orders.length">No product or book order has been recorded yet.</div>
       <article class="order-card" *ngFor="let order of orders">
         <div class="order-heading"><div><small>Order ID</small><a class="order-id-link" routerLink="/ecommerce" [queryParams]="{view: 'track', order: order.number}">{{ order.number }}</a></div><div><small>Total</small><strong>৳{{ order.totalTaka | number:'1.2-2' }}</strong></div></div>
         <div class="order-status"><span><i class="fa fa-truck"></i> {{ order.status }}</span><span><i class="fa fa-credit-card"></i> {{ order.paymentMethod }} · {{ order.paymentStatus }}</span><time>{{ order.createdAt | date:'medium' }}</time></div>
         <ul><li *ngFor="let item of order.items"><i [class]="item.isBook ? 'fa fa-book' : 'fa fa-cube'"></i><span>{{ item.name }}<small>{{ item.variant }}</small></span><b>{{ item.quantity }} × ৳{{ item.lineTotalTaka / item.quantity | number:'1.2-2' }}</b></li></ul>
       </article>
+      <button type="button" *ngIf="orders.length < orderTotal" [disabled]="!!loadingMore" (click)="loadMore('orders')">{{ loadingMore === 'orders' ? 'Loading…' : 'Load more orders' }}</button>
     </section>
+    </ng-template>
   </ng-container>
 </main>

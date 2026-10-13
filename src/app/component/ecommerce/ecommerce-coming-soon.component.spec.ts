@@ -89,7 +89,7 @@ describe('Marketplace progressive loading', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [HttpClientTestingModule] });
     http = TestBed.inject(HttpTestingController);
-    component = new EcommerceComingSoonComponent(TestBed.inject(HttpClient), null as any, null as any, null as any, null as any, null as any);
+    component = new EcommerceComingSoonComponent(TestBed.inject(HttpClient), { snapshot: { data: {} } } as any, { navigate: () => Promise.resolve(true) } as any, null as any, null as any, null as any);
     spyOn<any>(component, 'nearCatalogEnd').and.returnValue(false);
   });
   afterEach(() => { component.ngOnDestroy(); http.verify(); });
