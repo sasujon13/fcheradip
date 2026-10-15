@@ -1117,10 +1117,29 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private refreshStudentPackageAccess(): void {
+    this.questionUnlockedQids.syncFromServer().subscribe({
+      next: (list) => {
+        const valid = new Set(list.map((key) => String(key)));
+        for (const key of this.purchasedUnlockedQids) {
+          if (!valid.has(key) && !this.packageTemporaryQids.has(key)) {
+            this.revealedUnlockedQids.delete(key);
+          }
+        }
+        this.purchasedUnlockedQids = valid;
+        this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
+        this.cdr.markForCheck();
+      },
+      error: () => {},
+    });
     this.apiService.getPackageStatus().subscribe({
       next: (value) => {
-        const active = !!value?.activeSubscriptions?.some((row: any) => row.audience === 'student');
-        if (!active && this.packageTemporaryQids.size) {
+        const subscriptions = value?.activeSubscriptions || [];
+        const active = subscriptions.some((row: any) => row.audience === 'student');
+        const paidUnlockAccess = subscriptions.some((row: any) => {
+          const code = String(row.planCode || '');
+          return !!code && !/^(?:teacher-)?free-/.test(code);
+        });
+        if (!paidUnlockAccess && this.packageTemporaryQids.size) {
           const next = new Set(this.revealedUnlockedQids);
           this.packageTemporaryQids.forEach((qid) => next.delete(qid));
           this.packageTemporaryQids.clear();
@@ -2086,7 +2105,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.revealQuestionFree(k, ev);
       return;
     }
-    if (this.isQuestionPackageUnlocked(k) && this.studentStudyMode) {
+    if (this.isQuestionPackageUnlocked(k)) {
       this.revealedUnlockedQids.add(k);
       this.revealedUnlockedQids = new Set(this.revealedUnlockedQids);
       this.cdr.markForCheck();
@@ -2276,7 +2295,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     for (const item of shown) {
       const qid = this.questionStateKey(item.q);
       if (this.isQuestionRevealed(qid)) continue;
-      if (this.isQuestionPurchased(qid) || (this.studentStudyMode && this.isQuestionPackageUnlocked(qid))) {
+      if (this.isQuestionPurchased(qid) || this.isQuestionPackageUnlocked(qid)) {
         nextRevealed.add(qid);
       } else {
         toPurchase.push(this.unlockItem(item.q));
@@ -2332,11 +2351,8 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const debit = this.totalUnlockDebit(chargeable);
-    const balance = this.trxUnlock.getCachedRemaining();
-    if (!this.studentStudyMode && debit > balance) {
-      this.openInsufficientCoinsUnlockAlert(debit, balance);
-      return;
-    }
+    // The server decides package coverage before checking the wallet. A cached
+    // low balance must not block a zero-cost unlock under an active paid plan.
     this.unlockBusy = true;
     this.questionUnlock.unlockQuestions(chargeable).subscribe({
       next: (r) => {
@@ -2347,18 +2363,18 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
               if (this.questionStateKey(item.q) === unlocked.access_key) Object.assign(item.q, unlocked);
             }
             this.patchQuestionInMemoryCaches(unlocked.qid, unlocked);
+            if (unlocked.package_access && !unlocked.purchased && unlocked.access_key) {
+              this.packageTemporaryQids.add(String(unlocked.access_key));
+            }
           }
           if (r.packageAccess) {
-            (r.questions?.map(q => q.access_key) || chargeable.map((it) => it.access_key || this.questionStateKey(it.qid))).forEach((qid) => {
-              this.packageTemporaryQids.add(String(qid));
-              this.revealedUnlockedQids.add(String(qid));
-            });
+            // Per-question flags above keep existing coin purchases permanent
+            // for their two-year term even when this batch also had plan access.
           } else if (r.unlockedKeys?.length) {
             this.applyUnlockedQidsFromServer(r.unlockedKeys);
           } else {
-            chargeable.forEach((it) => {
-              this.purchasedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid));
-              this.revealedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid));
+            (r.questions || []).forEach((q) => {
+              if (q.purchased && q.access_key) this.purchasedUnlockedQids.add(String(q.access_key));
             });
           }
           items.forEach((it) => this.revealedUnlockedQids.add(it.access_key || this.questionStateKey(it.qid)));

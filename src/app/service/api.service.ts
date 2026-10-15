@@ -34,6 +34,36 @@ export interface InstituteScrapeResult {
   records: Array<{ eiin: string; name?: string; emisName?: string; status: string; detail?: string; emisWarning?: string; hasContact?: boolean; teacherCount?: number }>;
 }
 
+export interface InstituteRefreshStatus {
+  status: 'not_requested' | 'queued' | 'running' | 'complete' | 'failed';
+  changed: boolean;
+  lastCheckedAt: string | null;
+  outcome?: string;
+  warning?: string;
+}
+
+export interface InstituteAutomaticRun {
+  runId: string;
+  status: 'running' | 'complete';
+  total: number;
+  processed: number;
+  completed: number;
+  failed: number;
+  cursor: string;
+  startedAt: string;
+  completedAt: string | null;
+  logDirectory: string;
+  completedLogUrl: string;
+  failedLogUrl: string;
+}
+
+export interface InstituteAutomaticStep {
+  run: InstituteAutomaticRun;
+  records: Array<{ eiin: string; status: string; outcome: string; detail: string }>;
+  hasMore: boolean;
+  nextAfter: string;
+}
+
 export interface CreatedQuestionSet {
   id: number;
   name: string;
@@ -551,6 +581,38 @@ export class ApiService {
     const csrf = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1];
     const headers = csrf ? { 'X-CSRFToken': decodeURIComponent(csrf) } : undefined;
     return this.http.post<InstituteScrapeResult>(`${this.baseUrl}/scraper/institutes/page/`, payload, { headers });
+  }
+
+  requestInstituteRefresh(eiin: string): Observable<InstituteRefreshStatus> {
+    const csrf = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1];
+    const headers = csrf ? { 'X-CSRFToken': decodeURIComponent(csrf) } : undefined;
+    return this.http.post<InstituteRefreshStatus>(
+      `${this.baseUrl}/institutes/${encodeURIComponent(eiin)}/refresh/`, {}, { headers });
+  }
+
+  instituteRefreshStatus(eiin: string): Observable<InstituteRefreshStatus> {
+    return this.http.get<InstituteRefreshStatus>(`${this.baseUrl}/institutes/${encodeURIComponent(eiin)}/refresh/`);
+  }
+
+  instituteAutomaticStatus(): Observable<{ run: InstituteAutomaticRun | null }> {
+    return this.http.get<{ run: InstituteAutomaticRun | null }>(`${this.baseUrl}/scraper/institutes/automatic/status/`);
+  }
+
+  instituteAutomaticStart(mode: 'all' | 'failed'): Observable<{ run: InstituteAutomaticRun; mode: string; selected: number }> {
+    const csrf = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1];
+    const headers = csrf ? { 'X-CSRFToken': decodeURIComponent(csrf) } : undefined;
+    return this.http.post<{ run: InstituteAutomaticRun; mode: string; selected: number }>(
+      `${this.baseUrl}/scraper/institutes/automatic/start/`, { mode }, { headers });
+  }
+
+  instituteAutomaticStep(payload: { runId: string; mode: 'all' | 'failed'; after?: string }): Observable<InstituteAutomaticStep> {
+    const csrf = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1];
+    const headers = csrf ? { 'X-CSRFToken': decodeURIComponent(csrf) } : undefined;
+    return this.http.post<InstituteAutomaticStep>(`${this.baseUrl}/scraper/institutes/automatic/step/`, payload, { headers });
+  }
+
+  instituteAutomaticLog(kind: 'completed' | 'failed'): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/scraper/institutes/automatic/logs/${kind}/`, { responseType: 'blob' });
   }
 
   /** Run scraper via backend (avoids CORS): fetches pages and returns combined JSON. */

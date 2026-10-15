@@ -6,6 +6,20 @@
 .source-links a:hover{text-decoration:underline}
 .source-stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
 .source-stats span{border-radius:8px;background:#e8f5f3;padding:8px 11px;font-size:.82rem}
+.automatic-update{padding:16px;border:1px solid #bfded9;border-radius:12px;background:#f7fcfb;margin-bottom:18px}
+.automatic-update h3{margin:0 0 6px;color:#075e5b;font-size:1.12rem}
+.automatic-update>p{font-size:.88rem;margin:0 0 12px;color:#526b69}
+.automatic-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.automatic-actions button{border:0;border-radius:8px;padding:9px 15px;font:inherit;font-weight:700;cursor:pointer}
+.automatic-actions button:disabled{opacity:.55;cursor:not-allowed}
+.automatic-actions .primary{background:#087b78;color:#fff}
+.automatic-actions .secondary{background:#e5f2f0;color:#075e5b}
+.automatic-actions .stop{background:#f9e5df;color:#8b392f}
+.automatic-counts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.automatic-counts span{padding:6px 9px;border-radius:7px;background:#e8f5f3;font-size:.83rem}
+.log-location{overflow-wrap:anywhere}
+.manual-update{border-top:1px solid #d5e8e5;padding-top:12px}
+.manual-update summary{color:#075e5b;font-weight:700;cursor:pointer;margin-bottom:12px}
 .scrape-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
 .scrape-controls label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;font-weight:600}
 .scrape-controls input[type=number],.scrape-controls input[type=text]{width:100%;padding:8px;border:1px solid #c7dcd9;border-radius:7px;box-sizing:border-box}

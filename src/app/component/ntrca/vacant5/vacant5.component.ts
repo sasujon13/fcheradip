@@ -535,6 +535,7 @@ export class Vacant5Component implements OnInit, AfterViewInit {
   unlockEIIN(eiin: string | number): void {
     const key = this.ntrcaUnlocked.normalizeEiinKey(eiin);
     if (!key || this.unlockedEIINs.has(key)) return;
+    if (!this.trxUnlock.requireLoginForUnlock()) return;
 
     const vacancy = this.vacancies.find((v) => this.ntrcaUnlocked.normalizeEiinKey(v.EIIN) === key);
     if (!vacancy) return;

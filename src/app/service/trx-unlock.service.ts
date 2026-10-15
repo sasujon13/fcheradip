@@ -58,6 +58,13 @@ export class TrxUnlockService {
     });
   }
 
+  /** An institute unlock requires login before any balance check or debit. */
+  requireLoginForUnlock(): boolean {
+    if (this.hasAppSession()) return true;
+    this.goToLogin();
+    return false;
+  }
+
   stashPendingTrxidIfAny(raw: string): void {
     const v = (raw || '').trim().slice(0, 10);
     if (v) {
@@ -193,19 +200,17 @@ export class TrxUnlockService {
       );
   }
 
-  /**
-   * NTRCA paid unlock: server debits **only** ``customer.settings.balance`` (Bearer).
-   * Request body is empty — no Trx row id, no localStorage.
-   */
-  useOneUnlock(eiin: string): Observable<{ success: boolean; remaining: number }> {
-    if (!this.hasAppSession()) {
+  /** Server grants plan access or a two-year coin purchase after checking login. */
+  useOneUnlock(eiin: string): Observable<{ success: boolean; remaining: number; detail?: string; packageAccess?: boolean }> {
+    if (!this.requireLoginForUnlock()) {
       return of({ success: false, remaining: 0 });
     }
     return this.http
-      .post<{ success: boolean; remaining: number }>(`${environment.apiUrl}/token/use_trx/`, { eiin })
+      .post<{ success: boolean; remaining: number; detail?: string; packageAccess?: boolean }>(`${environment.apiUrl}/token/use_trx/`, { eiin })
       .pipe(
         map((r) => ({
           success: Boolean(r?.success),
+          packageAccess: Boolean(r?.packageAccess),
           remaining:
             typeof r?.remaining === 'number' && Number.isFinite(r.remaining)
               ? Math.max(0, r.remaining)
@@ -218,7 +223,7 @@ export class TrxUnlockService {
           }
           return r;
         }),
-        catchError((err: { status?: number; error?: { remaining?: number } }) => {
+        catchError((err: { status?: number; error?: { remaining?: number; detail?: string } }) => {
           if (err?.status === 401) {
             this.goToLogin();
           }
@@ -229,6 +234,7 @@ export class TrxUnlockService {
           return of({
             success: false,
             remaining: Number.isFinite(rem) && rem >= 0 ? rem : this.getCachedRemaining(),
+            detail: err?.error?.detail || 'Unlock failed. Please try again.',
           });
         })
       );

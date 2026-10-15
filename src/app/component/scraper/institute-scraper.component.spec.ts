@@ -12,6 +12,7 @@ describe('InstituteScraperComponent', () => {
   it('advances only after a successful page and keeps a failed page for retry', () => {
     const api = {
       instituteScrapeStatus: () => of({ localInstitutes: 1, lastPage: null, lastSize: null, sourceTotal: null, lastProcessedAt: null }),
+      instituteAutomaticStatus: () => of({ run: null }),
       instituteScrapePage: jasmine.createSpy('page').and.callFake(({ page }: { page: number }) => of(response(page, page === 2 ? 1 : 0))),
     };
     const component = new InstituteScraperComponent(api as any);
@@ -28,6 +29,7 @@ describe('InstituteScraperComponent', () => {
   it('preview does not start an import', () => {
     const api = {
       instituteScrapeStatus: () => of({ localInstitutes: 1, lastPage: null, lastSize: null, sourceTotal: null, lastProcessedAt: null }),
+      instituteAutomaticStatus: () => of({ run: null }),
       instituteScrapePage: jasmine.createSpy('preview').and.returnValue(of({ ...response(1), applied: false })),
     };
     const component = new InstituteScraperComponent(api as any);
@@ -36,6 +38,31 @@ describe('InstituteScraperComponent', () => {
     expect(api.instituteScrapePage).toHaveBeenCalledWith(jasmine.objectContaining({ mode: 'preview' }));
     expect(component.previewResult?.applied).toBeFalse();
     expect(component.running).toBeFalse();
+    component.ngOnDestroy();
+  });
+
+  it('automatically processes local EIINs and leaves a separate failure count', () => {
+    const run = { runId: 'run-1', status: 'running', total: 3, processed: 0, completed: 0,
+      failed: 0, cursor: '', startedAt: '', completedAt: null, logDirectory: 'logs',
+      completedLogUrl: '', failedLogUrl: '' } as const;
+    const finished = { ...run, status: 'complete', processed: 3, completed: 2, failed: 1,
+      cursor: '100003' } as const;
+    const api = {
+      instituteScrapeStatus: () => of({ localInstitutes: 3, lastPage: null, lastSize: null, sourceTotal: null, lastProcessedAt: null }),
+      instituteAutomaticStatus: () => of({ run: null }),
+      instituteAutomaticStart: jasmine.createSpy('start').and.returnValue(of({ run, mode: 'all', selected: 3 })),
+      instituteAutomaticStep: jasmine.createSpy('step').and.returnValue(of({ run: finished, hasMore: false,
+        nextAfter: '100003', records: [{ eiin: '100001', status: 'completed', outcome: 'unchanged', detail: '' },
+          { eiin: '100002', status: 'failed', outcome: '', detail: 'Banbeis unavailable' }] })),
+    };
+    const component = new InstituteScraperComponent(api as any);
+    component.ngOnInit();
+    component.startAutomatic('all');
+    expect(api.instituteAutomaticStart).toHaveBeenCalledWith('all');
+    expect(api.instituteAutomaticStep).toHaveBeenCalledWith(jasmine.objectContaining({ runId: 'run-1', mode: 'all' }));
+    expect(component.automaticRun?.failed).toBe(1);
+    expect(component.automaticProgress).toBe(100);
+    expect(component.automaticRunning).toBeFalse();
     component.ngOnDestroy();
   });
 });

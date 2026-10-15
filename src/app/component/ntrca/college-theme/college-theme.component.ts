@@ -9,10 +9,28 @@ import { environment } from 'src/environments/environment';
 import { LastInstitutesService } from 'src/app/service/last-institutes.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
-import { NtrcaUnlockedEiinsService } from 'src/app/service/ntrca-unlocked-eiins.service';
+import { ApiService, InstituteRefreshStatus } from 'src/app/service/api.service';
 import { slugForUrlDisplay } from 'src/app/url-serializer';
+import { chooseStaffName } from './staff-name.util';
 
-const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
+interface InstituteStaffMember {
+  name: string;
+  nameBn: string;
+  displayName: string;
+  initials: string;
+  designation: string;
+  subject: string;
+  mobile: string;
+  email: string;
+  pdsId: string;
+  indexNo: string;
+  district: string;
+  bcsBatch: string;
+  photoUrl: string;
+  joiningDate: string | null;
+  presentJoiningDate: string | null;
+  photoFailed?: boolean;
+}
 
 @Component({
     selector: 'app-college-theme',
@@ -21,7 +39,7 @@ const STORAGE_UNLOCKED_EIINS = 'unlockedEIINs';
     standalone: false
 })
 export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
-  private banbeisUrl = `${environment.apiUrl}/banbeis/`;
+  private pageDetailsUrl = `${environment.apiUrl}/institutes/`;
   private institutesUrl = `${environment.apiUrl}/institutes/`;
   /** Direct fetch by EIIN (no search). Used when opening from sitemap / eiin or eiin-name URL. */
   private instituteByEiinUrl = `${environment.apiUrl}/institute/`;
@@ -30,13 +48,25 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   loading = true;
   error: string | null = null;
   data: any = null;
-  teachers: Array<{ name: string; nameBn: string; designation: string; subject: string; mobile: string; email: string }> = [];
-  teacherContactsUnlocked = false;
+  sourceDetails: any = {};
+  additionalDetails: Array<{ label: string; value: string }> = [];
+  sourceWebsiteUrl = '';
+  sourceUpdatedAt: string | null = null;
+  staffUpdatedAt: string | null = null;
+  teachers: InstituteStaffMember[] = [];
+  canRefreshSources = false;
+  refreshingSources = false;
+  refreshMessage = '';
+  refreshError = '';
+  publicRefreshMessage = '';
+  private publicRefreshPollId?: ReturnType<typeof setInterval>;
+  private publicRefreshPolling = false;
+  private publicRefreshPollStartedAt = 0;
+  private publicRefreshTimedOut = false;
 
   /** Token box: TrxID (8–10 digits) input and apply. */
   newToken: string = '';
   trxRemaining = 0;
-  unlockedEIINs: Set<string> = new Set();
   /** Token input horizontal offset when logged in (matches header token box). */
   tokenInputLoggedIn = false;
   private tokenPollId?: ReturnType<typeof setInterval>;
@@ -50,7 +80,7 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     private lastInstitutes: LastInstitutesService,
     private loadingService: LoadingService,
     private trxUnlock: TrxUnlockService,
-    private ntrcaUnlocked: NtrcaUnlockedEiinsService,
+    private api: ApiService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -59,25 +89,10 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     this.trxRemaining = this.trxUnlock.getCachedRemaining();
     this.newToken = this.trxUnlock.readPendingTrxidForInput(this.newToken);
     this.trxUnlock.fetchCoinBalance().subscribe((n) => (this.trxRemaining = n));
-    const stored = localStorage.getItem(STORAGE_UNLOCKED_EIINS);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(Array.isArray(parsed) ? parsed : []));
-      } catch {
-        /* ignore */
-      }
-    }
-    this.ntrcaUnlocked.syncServerWithLocalMigration().subscribe((list) => {
-      this.unlockedEIINs = new Set(this.ntrcaUnlocked.normalizeList(list));
-      try {
-        localStorage.setItem(STORAGE_UNLOCKED_EIINS, JSON.stringify(Array.from(this.unlockedEIINs)));
-      } catch {
-        /* ignore */
-      }
-      this.cdr.markForCheck();
+    this.api.scraperAccess().subscribe({
+      next: access => { this.canRefreshSources = !!access.allowed; },
+      error: () => { this.canRefreshSources = false; },
     });
-
     this.route.paramMap.subscribe(() => {
       this.slug = this.getSlugFromUrl();
       this.eiin = this.extractEiin(this.slug);
@@ -95,6 +110,7 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    this.stopPublicRefreshPolling();
     if (this.tokenPollId != null) {
       clearInterval(this.tokenPollId);
       this.tokenPollId = undefined;
@@ -207,11 +223,20 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadData(): void {
+    this.stopPublicRefreshPolling();
+    this.publicRefreshMessage = '';
+    this.publicRefreshTimedOut = false;
     this.loading = true;
     this.error = null;
     this.data = null;
     this.teachers = [];
-    this.teacherContactsUnlocked = false;
+    this.refreshMessage = '';
+    this.refreshError = '';
+    this.sourceDetails = {};
+    this.additionalDetails = [];
+    this.sourceWebsiteUrl = '';
+    this.sourceUpdatedAt = null;
+    this.staffUpdatedAt = null;
     if (!this.slug) {
       this.error = 'Invalid institute link.';
       this.loading = false;
@@ -222,6 +247,7 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     if (eiinFromSlug) {
       this.eiin = eiinFromSlug;
       this.loadDataByEiin(this.eiin);
+      this.requestPublicRefresh(this.eiin);
       return;
     }
     // Slug is name-only: search institutes; if no match, use last shown (from storage) and replace URL with eiin-name
@@ -249,6 +275,7 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
         }
         this.eiin = foundEiin;
         this.loadDataByEiin(this.eiin);
+        this.requestPublicRefresh(this.eiin);
         const name = (foundInstitute?.instituteName ?? foundInstitute?.Name ?? '').trim();
         const nameBn = (foundInstitute?.instituteNameBn ?? '').trim();
         const useBengali = this.slugLooksBengali(this.slug) && nameBn;
@@ -264,14 +291,71 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
+  private requestPublicRefresh(eiin: string): void {
+    if (!/^\d{6}$/.test(eiin) || Number(eiin) < 100000) return;
+    this.publicRefreshTimedOut = false;
+    this.api.requestInstituteRefresh(eiin).subscribe({
+      next: status => {
+        if (this.eiin !== eiin) return;
+        this.applyPublicRefreshStatus(eiin, status, false);
+      },
+      error: () => {
+        if (this.eiin === eiin) this.publicRefreshMessage = 'Source check is unavailable; showing saved information.';
+      },
+    });
+  }
+
+  private applyPublicRefreshStatus(eiin: string, status: InstituteRefreshStatus, fromPoll: boolean): void {
+    if (status.status === 'queued' || status.status === 'running') {
+      if (this.publicRefreshTimedOut) return;
+      this.publicRefreshMessage = 'Checking Banbeis and EMIS in the background. Saved details remain available.';
+      if (!this.publicRefreshPollId) {
+        this.publicRefreshPollStartedAt = Date.now();
+        this.publicRefreshPollId = setInterval(() => this.pollPublicRefresh(eiin), 5000);
+      }
+      return;
+    }
+    this.stopPublicRefreshPolling();
+    if (status.status === 'failed') {
+      this.publicRefreshMessage = 'The latest source check could not finish; showing saved information.';
+    } else if (fromPoll && status.changed) {
+      this.publicRefreshMessage = 'New information was found and is now shown below.' +
+        (status.warning ? ` ${status.warning}` : '');
+      this.loadDataByEiin(eiin);
+    } else if (fromPoll) {
+      this.publicRefreshMessage = status.warning || 'Source check complete. No changes were found.';
+    } else if (status.lastCheckedAt) {
+      this.publicRefreshMessage = status.warning || 'Recently checked against Banbeis and EMIS.';
+    }
+  }
+
+  private pollPublicRefresh(eiin: string): void {
+    if (this.eiin !== eiin) { this.stopPublicRefreshPolling(); return; }
+    if (Date.now() - this.publicRefreshPollStartedAt > 120000) {
+      this.stopPublicRefreshPolling();
+      this.publicRefreshTimedOut = true;
+      this.publicRefreshMessage = 'The source check is still queued. Saved details are shown; revisit later for updates.';
+      return;
+    }
+    if (this.publicRefreshPolling) return;
+    this.publicRefreshPolling = true;
+    this.api.instituteRefreshStatus(eiin).subscribe({
+      next: status => {
+        this.publicRefreshPolling = false;
+        if (this.eiin === eiin) this.applyPublicRefreshStatus(eiin, status, true);
+      },
+      error: () => { this.publicRefreshPolling = false; this.stopPublicRefreshPolling(); },
+    });
+  }
+
+  private stopPublicRefreshPolling(): void {
+    if (this.publicRefreshPollId) clearInterval(this.publicRefreshPollId);
+    this.publicRefreshPollId = undefined;
+  }
+
   /** Load institute data by EIIN from banbeis and institutes APIs (no search). */
   private loadDataByEiin(eiin: string): void {
-    const banbeis$ = this.http.get<any>(`${this.banbeisUrl}?eiin=${encodeURIComponent(eiin)}`).pipe(
-      map(res => {
-        const results = res?.results || res;
-        const list = Array.isArray(results) ? results : [results];
-        return list.length ? list[0] : null;
-      }),
+    const pageDetails$ = this.http.get<any>(`${this.pageDetailsUrl}${encodeURIComponent(eiin)}/page-details/`).pipe(
       catchError(() => of(null))
     );
     const institutes$ = this.http.get<any>(`${this.instituteByEiinUrl}?eiin=${encodeURIComponent(eiin)}`).pipe(
@@ -281,14 +365,25 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
       }),
       catchError(() => of(null))
     );
-    const teachers$ = this.http.get<any>(`${this.institutesUrl}${encodeURIComponent(eiin)}/teachers/`).pipe(
-      catchError(() => of(null))
-    );
-    forkJoin({ banbeis: banbeis$, institutes: institutes$, teachers: teachers$ }).subscribe({
-      next: ({ banbeis, institutes, teachers }) => {
+    forkJoin({ pageDetails: pageDetails$, institutes: institutes$ }).subscribe({
+      next: ({ pageDetails, institutes }) => {
+        const banbeis = pageDetails?.banbeis || null;
         this.data = this.mergeData(banbeis, institutes);
-        this.teachers = Array.isArray(teachers?.teachers) ? teachers.teachers : [];
-        this.teacherContactsUnlocked = !!teachers?.contactsUnlocked;
+        this.teachers = (Array.isArray(pageDetails?.teachers) ? pageDetails.teachers : [])
+          .map((teacher: InstituteStaffMember) => {
+            const displayName = chooseStaffName(teacher.name, teacher.nameBn);
+            return {
+              ...teacher,
+              displayName,
+              initials: this.staffInitials(displayName),
+              photoFailed: false,
+            };
+          });
+        this.sourceDetails = pageDetails?.sourceDetails || {};
+        this.additionalDetails = Array.isArray(pageDetails?.additionalDetails) ? pageDetails.additionalDetails : [];
+        this.sourceWebsiteUrl = this.safeSourceWebsite(this.sourceDetails.webSite);
+        this.sourceUpdatedAt = pageDetails?.sourceUpdatedAt || null;
+        this.staffUpdatedAt = pageDetails?.staffUpdatedAt || null;
         if (!this.data || (!banbeis && !institutes)) {
           this.error = 'No details found for this institute.';
         } else {
@@ -301,6 +396,55 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
         this.loading = false;
       }
     });
+  }
+
+  /** Staff-controlled refresh; public visitors only read the last saved snapshot. */
+  updateFromSources(): void {
+    if (!this.canRefreshSources || this.refreshingSources || !/^\d{6}$/.test(this.eiin)) return;
+    const eiin = this.eiin;
+    this.refreshingSources = true;
+    this.refreshMessage = '';
+    this.refreshError = '';
+    this.api.instituteScrapePage({ page: 1, size: 1, mode: 'apply', enrichEmis: true, eiin })
+      .subscribe({
+        next: result => {
+          this.refreshingSources = false;
+          if (this.eiin !== eiin) return;
+          const record = result.records?.[0];
+          if (result.failed || record?.status === 'failed') {
+            this.refreshError = record?.detail || 'Banbeis could not be refreshed. Existing details remain available.';
+            return;
+          }
+          this.refreshMessage = record?.emisWarning
+            ? `Banbeis updated. EMIS staff could not be refreshed: ${record.emisWarning}`
+            : 'Banbeis and EMIS data checked. The latest saved information is shown below.';
+          this.loadDataByEiin(eiin);
+        },
+        error: err => {
+          this.refreshingSources = false;
+          if (this.eiin !== eiin) return;
+          this.refreshError = err?.error?.detail || 'Could not refresh the institute from the source websites.';
+        },
+      });
+  }
+
+  private safeSourceWebsite(value: unknown): string {
+    if (typeof value !== 'string') return '';
+    const site = value.trim();
+    if (!site) return '';
+    const candidate = /^https?:\/\//i.test(site) ? site : `https://${site}`;
+    try {
+      const parsed = new URL(candidate);
+      return ['http:', 'https:'].includes(parsed.protocol) && parsed.hostname.includes('.') ? parsed.href : '';
+    } catch {
+      return '';
+    }
+  }
+
+  private staffInitials(name: string): string {
+    if (name === 'Name unavailable') return '?';
+    const parts = String(name || '').trim().replace(/^md(?:\.\s*|\s+)/i, '').split(/\s+/).filter(Boolean);
+    return parts.slice(0, 3).map(part => Array.from(part)[0] || '').join('').toLocaleUpperCase() || '?';
   }
 
   private mergeData(banbeis: any, institute: any): any {
@@ -330,8 +474,9 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
       SSCDepts: b.SSCDepts ?? null,
       HSCDepts: b.HSCDepts ?? null,
       MPO: b.MPO ?? null,
-      Rejion: b.Rejion ?? i.divisionName ?? null,
-      divisionName: i.divisionName ?? b.Rejion ?? null,
+      Linked: b.Linked ?? null,
+      Rejion: b.Rejion ?? null,
+      divisionName: i.divisionName ?? null,
       GovtStatus: b.GovtStatus,
       isGovt: i.isGovt,
       mobile: i.mobile ?? null,

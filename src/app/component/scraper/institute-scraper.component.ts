@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ApiService, InstituteScrapeResult } from '../../service/api.service';
+import { ApiService, InstituteAutomaticRun, InstituteScrapeResult } from '../../service/api.service';
 
 @Component({
   selector: 'app-institute-scraper',
@@ -25,6 +25,16 @@ export class InstituteScraperComponent implements OnInit, OnDestroy {
   error = '';
   message = '';
   logs: string[] = [];
+  automaticRun: InstituteAutomaticRun | null = null;
+  automaticRunning = false;
+  automaticStopRequested = false;
+  automaticMode: 'all' | 'failed' = 'all';
+  automaticAfter = '';
+  automaticError = '';
+  automaticMessage = '';
+  automaticLogs: string[] = [];
+  private automaticSourceFailureStreak = 0;
+  private automaticTimer?: ReturnType<typeof setTimeout>;
   status: { localInstitutes: number; lastPage: number | null; lastSize: number | null; sourceTotal: number | null; lastProcessedAt: string | null } | null = null;
   private readonly destroyed = new Subject<void>();
 
@@ -32,10 +42,16 @@ export class InstituteScraperComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.refreshStatus();
+    this.api.instituteAutomaticStatus().pipe(takeUntil(this.destroyed)).subscribe({
+      next: value => { this.automaticRun = value.run; },
+      error: () => { this.automaticError = 'Could not load the last automatic update status.'; },
+    });
   }
 
   ngOnDestroy(): void {
     this.stopRequested = true;
+    this.automaticStopRequested = true;
+    if (this.automaticTimer) clearTimeout(this.automaticTimer);
     this.destroyed.next();
     this.destroyed.complete();
   }
@@ -53,7 +69,7 @@ export class InstituteScraperComponent implements OnInit, OnDestroy {
   }
 
   preview(): void {
-    if (this.running || this.loadingPreview || this.targetLoading) return;
+    if (this.running || this.loadingPreview || this.targetLoading || this.automaticRunning) return;
     this.error = '';
     this.previewResult = null;
     this.loadingPreview = true;
@@ -65,7 +81,7 @@ export class InstituteScraperComponent implements OnInit, OnDestroy {
   }
 
   start(): void {
-    if (this.running || this.targetLoading) return;
+    if (this.running || this.targetLoading || this.automaticRunning) return;
     if (!Number.isInteger(this.page) || this.page < 1 || !Number.isInteger(this.size) || this.size < 1 || this.size > 25 ||
         !Number.isInteger(this.pagesThisRun) || this.pagesThisRun < 1 || this.pagesThisRun > 100) {
       this.error = 'Choose a positive start page, 1–25 records per page, and 1–100 pages for this run.';
@@ -84,8 +100,96 @@ export class InstituteScraperComponent implements OnInit, OnDestroy {
     this.message = 'Stopping after the current page…';
   }
 
+  startAutomatic(mode: 'all' | 'failed'): void {
+    if (this.automaticRunning || this.running || this.targetLoading) return;
+    this.automaticError = '';
+    this.automaticMessage = '';
+    this.automaticStopRequested = false;
+    this.automaticMode = mode;
+    this.automaticAfter = '';
+    this.automaticSourceFailureStreak = 0;
+    this.automaticRunning = true;
+    this.api.instituteAutomaticStart(mode).pipe(takeUntil(this.destroyed)).subscribe({
+      next: value => {
+        this.automaticRun = value.run;
+        this.automaticMessage = mode === 'all'
+          ? `Updating ${value.selected} local EIINs in order. Keep this page open; you can stop and resume.`
+          : `Retrying ${value.selected} EIINs from failed.txt.`;
+        this.automaticStep();
+      },
+      error: err => {
+        this.automaticRunning = false;
+        this.automaticError = err?.error?.detail || 'Could not start the institute update.';
+      },
+    });
+  }
+
+  stopAutomatic(): void {
+    this.automaticStopRequested = true;
+    this.automaticMessage = 'Stopping after the current EIIN batch…';
+  }
+
+  private automaticStep(): void {
+    if (!this.automaticRun || this.automaticStopRequested) {
+      this.automaticRunning = false;
+      this.automaticMessage = 'Paused. Click Update to resume, or Update on Failed to retry failures.';
+      return;
+    }
+    this.api.instituteAutomaticStep({ runId: this.automaticRun.runId, mode: this.automaticMode,
+                                      after: this.automaticAfter })
+      .pipe(takeUntil(this.destroyed)).subscribe({
+        next: value => {
+          this.automaticRun = value.run;
+          this.automaticAfter = value.nextAfter;
+          const sourceOutage = value.records.length > 0 && value.records.every(record =>
+            record.status === 'failed' && /timeout|timed out|connection|502|503|429|ssl|temporarily unavailable|non-json/i.test(record.detail));
+          this.automaticSourceFailureStreak = sourceOutage
+            ? this.automaticSourceFailureStreak + value.records.length : 0;
+          for (const record of value.records) {
+            this.automaticLogs = [
+              `${record.eiin}: ${record.status === 'completed' ? record.outcome : 'failed'}${record.detail ? ' · ' + record.detail : ''}`,
+              ...this.automaticLogs,
+            ].slice(0, 100);
+          }
+          if (this.automaticStopRequested || !value.hasMore || this.automaticSourceFailureStreak >= 3) {
+            this.automaticRunning = false;
+            this.automaticMessage = this.automaticSourceFailureStreak >= 3
+              ? 'Paused because Banbeis appears unavailable. Review failed.txt, then click Update to resume later.' :
+              this.automaticStopRequested ? 'Paused after the current batch.' :
+              this.automaticMode === 'failed' ? 'Failed-EIIN retry finished. Download the files to review remaining failures.' :
+                'Database EIIN update finished. Download the two files to review results.';
+            this.refreshStatus();
+          } else {
+            this.automaticTimer = setTimeout(() => this.automaticStep(), 0);
+          }
+        },
+        error: err => {
+          this.automaticRunning = false;
+          this.automaticError = err?.error?.detail || 'The update stopped. Click Update to resume.';
+        },
+      });
+  }
+
+  downloadAutomaticLog(kind: 'completed' | 'failed'): void {
+    this.api.instituteAutomaticLog(kind).pipe(takeUntil(this.destroyed)).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${kind}-${this.automaticRun?.runId || 'institutes'}.txt`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+      error: () => { this.automaticError = `Could not download ${kind}.txt.`; },
+    });
+  }
+
+  get automaticProgress(): number {
+    return this.automaticRun?.total ? Math.min(100, this.automaticRun.processed / this.automaticRun.total * 100) : 0;
+  }
+
   updateOne(mode: 'preview' | 'apply'): void {
-    if (this.running || this.loadingPreview || this.targetLoading) return;
+    if (this.running || this.loadingPreview || this.targetLoading || this.automaticRunning) return;
     const eiin = this.targetEiin.trim();
     if (!/^\d{6}$/.test(eiin)) {
       this.error = 'Enter a six-digit EIIN.';
