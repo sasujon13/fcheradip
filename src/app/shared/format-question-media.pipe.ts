@@ -7,8 +7,8 @@ import { environment } from '../../environments/environment';
  * - Path after `/media/` allows any char except `<` `"` (spaces in filenames, Bengali, `_(`…`)`, etc.).
  *   Caption is `_(` … `)` immediately before `.ext`; use greedy matching to the **last** `)` so text like
  *   `(Fig1%20-…%E0…here)` or nested `(` `)` in the label does not break parsing.
- * - Uses src={backendUrl}/manage/media/... (dev: http://localhost:8000 so images load from Django, not :4200).
- *   Production: backendUrl '' → /manage/media/... same origin (see cheradip.urls static on /manage/media/).
+ * - Uses src={backendUrl}/manage/media/...; an empty backendUrl uses the same-origin /manage proxy in
+ *   development and production. The dev proxy forwards HTTPS context to Django for media requests.
  * - Optional image label: filename ends with `_(`caption`).ext` — label under image (1em). Empty `_()` → no label.
  * - If basename has `_(`…`)` and the long filename 404s, `data-q-media-fallback` uses stem.ext (e.g. 2_7_0026_0.png);
  *   caption/label still comes from the full path in the question text.

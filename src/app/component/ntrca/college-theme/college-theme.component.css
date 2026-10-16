@@ -286,6 +286,20 @@
   background: var(--ct-teal);
 }
 
+.ct-basic .ct-section-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.8rem;
+}
+
+.ct-source-checked {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .ct-table {
   width: 100%;
   border-collapse: collapse;
@@ -502,15 +516,6 @@
   gap: 8px 14px;
   margin-bottom: 16px;
 }
-.ct-public-refresh {
-  margin: 0 0 12px;
-  padding: 9px 12px;
-  border-left: 3px solid var(--ct-teal);
-  border-radius: 5px;
-  background: var(--ct-teal-bg);
-  color: var(--ct-teal-dark);
-  font-size: .9rem;
-}
 .ct-source-actions button {
   border: 0;
   border-radius: 7px;
@@ -608,7 +613,8 @@
   text-align: center;
 }
 .ct-teacher-contact a { color: var(--ct-teal-dark); font-size: .87rem; text-decoration: none; overflow-wrap: anywhere; }
-.ct-teacher-contact a:hover { text-decoration: underline; }
+.ct-teacher-contact a:hover,
+.ct-teacher-contact a:focus-visible { text-decoration: none; }
 .ct-teacher-contact i { margin-right: 6px; }
 
 @media (max-width: 760px) {

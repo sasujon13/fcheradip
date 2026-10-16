@@ -58,7 +58,6 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   refreshingSources = false;
   refreshMessage = '';
   refreshError = '';
-  publicRefreshMessage = '';
   private publicRefreshPollId?: ReturnType<typeof setInterval>;
   private publicRefreshPolling = false;
   private publicRefreshPollStartedAt = 0;
@@ -224,7 +223,6 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
 
   loadData(): void {
     this.stopPublicRefreshPolling();
-    this.publicRefreshMessage = '';
     this.publicRefreshTimedOut = false;
     this.loading = true;
     this.error = null;
@@ -299,16 +297,13 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
         if (this.eiin !== eiin) return;
         this.applyPublicRefreshStatus(eiin, status, false);
       },
-      error: () => {
-        if (this.eiin === eiin) this.publicRefreshMessage = 'Source check is unavailable; showing saved information.';
-      },
+      error: () => { /* Saved institute details remain available. */ },
     });
   }
 
   private applyPublicRefreshStatus(eiin: string, status: InstituteRefreshStatus, fromPoll: boolean): void {
     if (status.status === 'queued' || status.status === 'running') {
       if (this.publicRefreshTimedOut) return;
-      this.publicRefreshMessage = 'Checking Banbeis and EMIS in the background. Saved details remain available.';
       if (!this.publicRefreshPollId) {
         this.publicRefreshPollStartedAt = Date.now();
         this.publicRefreshPollId = setInterval(() => this.pollPublicRefresh(eiin), 5000);
@@ -316,16 +311,8 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
     this.stopPublicRefreshPolling();
-    if (status.status === 'failed') {
-      this.publicRefreshMessage = 'The latest source check could not finish; showing saved information.';
-    } else if (fromPoll && status.changed) {
-      this.publicRefreshMessage = 'New information was found and is now shown below.' +
-        (status.warning ? ` ${status.warning}` : '');
+    if (fromPoll && status.changed) {
       this.loadDataByEiin(eiin);
-    } else if (fromPoll) {
-      this.publicRefreshMessage = status.warning || 'Source check complete. No changes were found.';
-    } else if (status.lastCheckedAt) {
-      this.publicRefreshMessage = status.warning || 'Recently checked against Banbeis and EMIS.';
     }
   }
 
@@ -334,7 +321,6 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
     if (Date.now() - this.publicRefreshPollStartedAt > 120000) {
       this.stopPublicRefreshPolling();
       this.publicRefreshTimedOut = true;
-      this.publicRefreshMessage = 'The source check is still queued. Saved details are shown; revisit later for updates.';
       return;
     }
     if (this.publicRefreshPolling) return;

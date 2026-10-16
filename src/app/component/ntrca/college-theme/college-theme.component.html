@@ -38,9 +38,6 @@
   </header>
 
   <main class="ct-main">
-    <p class="ct-public-refresh" *ngIf="publicRefreshMessage" role="status" aria-live="polite">
-      <i class="fa fa-refresh" aria-hidden="true"></i> {{ publicRefreshMessage }}
-    </p>
     <div class="ct-source-actions" *ngIf="canRefreshSources">
       <button type="button" (click)="updateFromSources()" [disabled]="refreshingSources" title="Check this EIIN against public Banbeis and EMIS sources and save available changes">
         <i class="fa fa-refresh" aria-hidden="true"></i> {{ refreshingSources ? 'Updating sources…' : 'Update Banbeis & EMIS' }}
@@ -50,8 +47,9 @@
       <span *ngIf="refreshError" class="ct-source-error" role="alert">{{ refreshError }}</span>
     </div>
     <section class="ct-section ct-basic">
-      <h2 class="ct-section-title">Basic Information</h2>
-      <p class="ct-staff-note" *ngIf="sourceUpdatedAt">Banbeis checked: {{ sourceUpdatedAt | date:'mediumDate' }}</p>
+      <h2 class="ct-section-title">Basic Information
+        <small class="ct-source-checked" *ngIf="sourceUpdatedAt">Banbeis checked: {{ sourceUpdatedAt | date:'mediumDate' }}</small>
+      </h2>
       <table class="ct-table">
         <tbody>
           <tr><th>Name (English)</th><td>{{ data?.Name ?? data?.instituteName ?? '—' }}</td></tr>
@@ -75,7 +73,7 @@
             পোস্ট অফিস: {{ data?.PostOffice ?? sourceDetails?.postOfficeNameBn ?? '—' }} - {{ data?.PostCode ?? sourceDetails?.postOfficeCode ?? '—' }}<br>
             ওয়ার্ড নং: {{ data?.WardNo ?? sourceDetails?.wardNo ?? '—' }}</td></tr>
           <tr><th>Govt. Status</th><td>{{ govtStatusText }}</td></tr>
-          <tr *ngIf="data?.year"><th>Year</th><td>{{ data.year }} ({{ data.submissionDate }})</td></tr>
+          <tr *ngIf="data?.year"><th>Submission Year</th><td>{{ data.year }} ({{ data.submissionDate }})</td></tr>
         </tbody>
       </table>
     </section>
@@ -146,9 +144,7 @@
     <section class="ct-section" aria-label="Current institute staff">
       <h2 class="ct-section-title">Current Staff (EMIS) · {{ teachers.length }}</h2>
       <div class="ct-staff-content">
-        <p class="ct-staff-note" *ngIf="teachers.length">Ordered by designation, then earliest available joining date.</p>
         <p class="ct-staff-note" *ngIf="!teachers.length">No staff roster has been imported for this institute yet, or EMIS has no public staff record.</p>
-        <p class="ct-staff-note" *ngIf="staffUpdatedAt">Last updated: {{ staffUpdatedAt | date:'mediumDate' }}</p>
         <div class="ct-teachers" *ngIf="teachers.length">
             <article class="ct-teacher" *ngFor="let teacher of teachers">
               <header class="ct-teacher-heading">

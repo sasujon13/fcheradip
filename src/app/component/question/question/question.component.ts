@@ -4216,7 +4216,7 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.editQuestion?.qid) {
       this.apiService.updateQuestion(this.editQuestion.qid, payload).subscribe({
         next: () => this.goBackToList(),
-        error: () => {}
+        error: (err) => this.showQuestionCreationError(err)
       });
     } else {
       const sub = this.primarySubject;
@@ -4237,13 +4237,30 @@ export class QuestionComponent implements OnInit, OnDestroy, AfterViewInit {
         explanation: payload.explanation || '',
         explanation2: payload.explanation2,
         explanation3: payload.explanation3,
-        type: payload.type || 'CQ'
+        type: payload.type || 'CQ',
+        subsource: payload.subsource || ''
       };
-      this.apiService.submitPendingQuestionRequest(req).subscribe({
+      this.apiService.submitPendingQuestion(req).subscribe({
         next: () => this.goBackToList(),
-        error: () => {}
+        error: (err) => this.showQuestionCreationError(err)
       });
     }
+  }
+
+  private showQuestionCreationError(err: any): void {
+    const body = err?.error || {};
+    let message = body.detail || body.error || 'Could not submit the question. Please try again.';
+    if (body.code === 'insufficient_balance') {
+      const shortfall = Math.max(0, Number(body.required || 0) - Number(body.remaining || 0));
+      message = `${body.packageMessage ? body.packageMessage + ' ' : ''}Insufficient coins. Need ${body.required}, you have ${body.remaining}. (Need more ${(shortfall / 100).toFixed(2)} Taka)`;
+    }
+    this.coinAlertMessage = String(message);
+    this.showCoinAlert = false;
+    this.cdr.markForCheck();
+    queueMicrotask(() => {
+      this.showCoinAlert = true;
+      this.cdr.markForCheck();
+    });
   }
 
   onCancelForm(): void {

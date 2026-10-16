@@ -1062,8 +1062,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** True when this init restored an existing draft (session/history/local). */
   private creatorRestoredDraftOnce = false;
-  /** A Teacher package may cover this save; the backend makes the final track/quota decision. */
-  private teacherPackageMayCoverSave = false;
 
   /** Shown over the header line row after ± font-size click (fixed viewport position). */
   headerLineFontToastVisible = false;
@@ -1086,14 +1084,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.loadingService.setTotal(1);
     if (this.apiService.isLoggedIn()) {
       this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
-      this.apiService.getPackageStatus().pipe(take(1)).subscribe({
-        next: value => {
-          this.teacherPackageMayCoverSave = (value?.activeSubscriptions || []).some(
-            (row: any) => row?.audience === 'teacher' && !row?.quotaExhausted
-          );
-        },
-        error: () => { this.teacherPackageMayCoverSave = false; },
-      });
     }
     let restored = false;
 
@@ -1572,11 +1562,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.cdr.markForCheck();
   }
 
-  /** Smart Question Creator: verify coins, then auto-fit, then {@link save}. */
+  /** Smart Question Creator: auto-fit, then let the server check package/coin access on save. */
   private async runAutoFitThenSave(): Promise<void> {
-    if (!this.assertSufficientCoinsForSave()) {
-      return;
-    }
     await this.runForcedPreviewAutoFit();
     this.save();
   }
@@ -11960,8 +11947,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return `Insufficient coins. Need ${debit}, you have ${balance}. (Need more ${taka} Taka)`;
   }
 
-  private openInsufficientCoinsSaveAlert(debit: number, balance: number): void {
-    this.coinAlertMessage = this.formatInsufficientCoinsSaveAlertMessage(debit, balance);
+  private openSaveAccessAlert(message: string): void {
+    this.coinAlertMessage = message;
     this.showCoinAlert = false;
     this.cdr.markForCheck();
     queueMicrotask(() => {
@@ -11970,43 +11957,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     });
   }
 
-  private maybeShowInsufficientCoinsSaveAlertFromError(err: unknown): boolean {
-    const body = (err as { error?: { detail?: string; error?: string; required?: number; remaining?: number } })
+  private maybeShowSaveAccessAlertFromError(err: unknown): boolean {
+    const body = (err as { error?: { code?: string; detail?: string; error?: string; required?: number; remaining?: number; packageMessage?: string } })
       ?.error;
     const detail = typeof body?.detail === 'string' ? body.detail.trim() : '';
     const errMsg = typeof body?.error === 'string' ? body.error.trim() : '';
-    const isInsufficient = /insufficient/i.test(detail) || /insufficient/i.test(errMsg);
-    if (!isInsufficient) {
-      return false;
-    }
-    const debit =
-      typeof body?.required === 'number' && Number.isFinite(body.required)
-        ? body.required
-        : this.questionSaveCoinCost;
-    const balance =
-      typeof body?.remaining === 'number' && Number.isFinite(body.remaining)
-        ? body.remaining
-        : this.trxUnlock.getCachedRemaining();
-    if (typeof body?.remaining === 'number' && Number.isFinite(body.remaining)) {
-      this.trxUnlock.setCachedRemaining(body.remaining);
-    }
-    this.openInsufficientCoinsSaveAlert(debit, balance);
-    return true;
-  }
-
-  private assertSufficientCoinsForSave(): boolean {
-    if (this.teacherPackageMayCoverSave) {
+    if (body?.code === 'insufficient_balance' || /insufficient/i.test(detail) || /insufficient/i.test(errMsg)) {
+      const debit = typeof body?.required === 'number' ? body.required : this.questionSaveCoinCost;
+      const balance = typeof body?.remaining === 'number' ? body.remaining : this.trxUnlock.getCachedRemaining();
+      if (typeof body?.remaining === 'number') this.trxUnlock.setCachedRemaining(body.remaining);
+      const packageNote = body?.packageMessage ? `${body.packageMessage} ` : '';
+      this.openSaveAccessAlert(packageNote + this.formatInsufficientCoinsSaveAlertMessage(debit, balance));
       return true;
     }
-    const debit = this.questionSaveCoinCost;
-    if (debit <= 0) {
+    if (body?.code === 'package_question_limit_reached') {
+      this.openSaveAccessAlert(errMsg || 'Your Teacher Package question limit is reached. Renew or choose another package.');
       return true;
     }
-    const balance = this.trxUnlock.getCachedRemaining();
-    if (debit <= balance) {
-      return true;
-    }
-    this.openInsufficientCoinsSaveAlert(debit, balance);
     return false;
   }
 
@@ -12043,10 +12010,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.router.navigate(['/login']);
       return;
     }
-    if (!this.assertSufficientCoinsForSave()) {
-      return;
-    }
-
     this.apiService.getCustomerSettings().subscribe({
       next: (res) => {
         const settings = res.settings as Record<string, unknown> | undefined;
@@ -12096,9 +12059,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private async doSaveAsync(format: ExportFormat): Promise<void> {
-    if (!this.assertSufficientCoinsForSave()) {
-      return;
-    }
     this.saving = true;
     this.saveSuccessMessage = '';
     this.saveExportLayoutBusy = true;
@@ -12441,26 +12401,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
 
-    for (let i = 0; i < blobs.length; i++) {
-      this.downloadBlob(blobs[i]!, downloadNames[i]!);
-      if (i < blobs.length - 1) {
-        await new Promise((r) => setTimeout(r, 500));
-      }
-    }
-
-    const listed = downloadNames.join(', ');
-    const answerNote =
-      this.selectionHasMcqType() || this.questions.length > 0
-        ? ' Includes MCQ answer-key and answers/explanations sheets when applicable.'
-        : '';
-    const questionFileCount = exportTargets.length;
-    this.saveSuccessMessage = splitExport
-      ? `Created and downloaded (${questionFileCount} question files × formats): ${listed}. Saved to Created Questions.${answerNote}`
-      : multiMcq
-        ? `Created and downloaded (${questionFileCount} sets × formats): ${listed}. Saved to Created Questions.${answerNote}`
-        : `Created and downloaded: ${listed}. Saved to Created Questions.${answerNote}`;
-    this.cdr.markForCheck();
-
+    // Do not hand out generated files until the server has accepted the Teacher
+    // Package allowance or the coin charge for this account and question mix.
     try {
       const created = await firstValueFrom(
         this.apiService.createQuestionSet({
@@ -12484,6 +12426,24 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       );
       this.applySaveCoinDebitFromResponse(created);
       this.commitExamSerialAfterSave();
+      for (let i = 0; i < blobs.length; i++) {
+        this.downloadBlob(blobs[i]!, downloadNames[i]!);
+        if (i < blobs.length - 1) {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+      const listed = downloadNames.join(', ');
+      const answerNote =
+        this.selectionHasMcqType() || this.questions.length > 0
+          ? ' Includes MCQ answer-key and answers/explanations sheets when applicable.'
+          : '';
+      const questionFileCount = exportTargets.length;
+      this.saveSuccessMessage = splitExport
+        ? `Created and downloaded (${questionFileCount} question files × formats): ${listed}. Saved to Created Questions.${answerNote}`
+        : multiMcq
+          ? `Created and downloaded (${questionFileCount} sets × formats): ${listed}. Saved to Created Questions.${answerNote}`
+          : `Created and downloaded: ${listed}. Saved to Created Questions.${answerNote}`;
+      this.cdr.markForCheck();
       try {
         if (created?.id != null) {
           localStorage.setItem(CREATED_QUESTIONS_LAST_SAVED_SET_ID_KEY, String(created.id));
@@ -12496,7 +12456,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         void this.router.navigate(['/created-questions'], { queryParams: { highlight: highlightId } });
       });
     } catch (err) {
-      if (!this.maybeShowInsufficientCoinsSaveAlertFromError(err)) {
+      if (!this.maybeShowSaveAccessAlertFromError(err)) {
         this.saveSuccessMessage = this.createSetSaveErrorMessage(err);
       }
       this.cdr.markForCheck();
