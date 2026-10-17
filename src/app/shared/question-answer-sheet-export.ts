@@ -275,10 +275,9 @@ export function filterExportLayoutForKind(
       if (Array.isArray(colsRaw)) {
         for (const col of colsRaw) {
           const mapped = remapCol(col);
-          if (mapped.length) questionColumnIndexes.push(mapped);
+          questionColumnIndexes.push(mapped);
         }
       }
-      if (!questionColumnIndexes.length) continue;
 
       const leadRaw = row['leadBindingIndexes'];
       const leadBindingIndexes: number[] = [];
@@ -289,12 +288,14 @@ export function filterExportLayoutForKind(
         }
       }
 
+      if (!questionColumnIndexes.some(col => col.length) && !leadBindingIndexes.length) continue;
+
       pagePlan.push({
         ...row,
         kind,
         headerKind: kind,
         questionColumnIndexes,
-        ...(leadBindingIndexes.length ? { leadBindingIndexes } : {}),
+        leadBindingIndexes,
       });
     }
   }
@@ -304,6 +305,15 @@ export function filterExportLayoutForKind(
     exportPreviewPagePlan: pagePlan,
     exportPreviewQuestionQids: filteredRows.map((r) => r['qid']),
   };
+  const originalSerials = sourceLayout['previewSerialByIndex'];
+  if (originalSerials && typeof originalSerials === 'object') {
+    const serials: Record<string, unknown> = {};
+    for (const [oldIndex, newIndex] of oldToNew) {
+      const value = (originalSerials as Record<string, unknown>)[String(oldIndex)];
+      if (value !== undefined) serials[String(newIndex)] = value;
+    }
+    out['previewSerialByIndex'] = serials;
+  }
   if (kind === 'creative') {
     delete out['mcqSetLetter'];
   }
@@ -522,10 +532,9 @@ function remapExportPreviewPagePlanForAnswerSheet(
           const ai = remap(Number(x));
           if (ai !== undefined) mapped.push(ai);
         }
-        if (mapped.length) questionColumnIndexes.push(mapped);
+        questionColumnIndexes.push(mapped);
       }
     }
-    if (!questionColumnIndexes.length) continue;
     const leadRaw = row['leadBindingIndexes'];
     const leadBindingIndexes: number[] = [];
     if (Array.isArray(leadRaw)) {
@@ -534,10 +543,11 @@ function remapExportPreviewPagePlanForAnswerSheet(
         if (ai !== undefined) leadBindingIndexes.push(ai);
       }
     }
+    if (!questionColumnIndexes.some(col => col.length) && !leadBindingIndexes.length) continue;
     out.push({
       ...row,
       questionColumnIndexes,
-      ...(leadBindingIndexes.length ? { leadBindingIndexes } : {}),
+      leadBindingIndexes,
     });
   }
   return out;

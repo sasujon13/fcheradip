@@ -1,7 +1,11 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { forkJoin } from 'rxjs';
-import { finalize } from 'rxjs/operators';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, Optional } from '@angular/core';
+import { CreatedQuestionsRowLayout } from './created-questions-row-layout';
+import { QuestionExportFilesService } from '../../../shared/question-export-files.service';
+import { accountSessionKey } from '../../../service/account-session-state';
+import { collectQuestionExportBlobs } from '../../../shared/question-export-download';
+import { ActivatedRoute, Router } from '@angular/router';
+import { forkJoin, from } from 'rxjs';
+import { finalize, switchMap } from 'rxjs/operators';
 import { ApiService, CreatedQuestionSet } from '../../../service/api.service';
 import { LoadingService } from 'src/app/service/loading.service';
 import {
@@ -26,7 +30,8 @@ import {
     styleUrls: ['./created-questions.component.css'],
     standalone: false
 })
-export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
+export class CreatedQuestionsComponent implements OnInit, AfterViewInit, OnDestroy {
+  private rowLayout?: CreatedQuestionsRowLayout;
   private static readonly MCQ_SET_LETTERS = ['ক', 'খ', 'গ', 'ঘ'] as const;
 
   sets: CreatedQuestionSet[] = [];
@@ -36,6 +41,10 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   renameValue = '';
   selectedSubject = '';
   selectedChapter = '';
+  private subjectOptionsKey = '';
+  private cachedSubjectOptions: {value: string; label: string}[] = [];
+  private chapterOptionsKey = '';
+  private cachedChapterOptions: {value: string; label: string}[] = [];
   downloadingAllPdf = false;
   /** Set id while row PDF/DOCX export is in progress (global loader via {@link LoadingService}). */
   downloadingSetId: number | null = null;
@@ -48,7 +57,10 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   constructor(
     private apiService: ApiService,
     private loadingService: LoadingService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    public exportFiles: QuestionExportFilesService = new QuestionExportFilesService(),
+    private router?: Router,
+    @Optional() private host?: ElementRef<HTMLElement>
   ) {}
 
   ngOnInit(): void {
@@ -65,6 +77,11 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     setTimeout(() => this.loadingService.completeOne(), 0);
+    if (this.host) this.rowLayout = new CreatedQuestionsRowLayout(this.host.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.rowLayout?.destroy();
   }
 
   /** Parse name like "Subject_Chapter_No_Topics..." into subject and chapter keys for filtering. */
@@ -81,23 +98,29 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
 
   /** Unique subject keys (for filter dropdown) from current sets. */
   get subjectOptions(): { value: string; label: string }[] {
+    const cacheKey = JSON.stringify(this.sets.map(set => set.name));
+    if (this.subjectOptionsKey === cacheKey) return this.cachedSubjectOptions;
     const keys = new Set<string>();
     this.sets.forEach(s => {
       const { subjectKey } = this.getParsed(s.name);
       if (subjectKey) keys.add(subjectKey);
     });
-    return [{ value: '', label: 'All subjects' }, ...Array.from(keys).sort().map(k => ({ value: k, label: k.replace(/_/g, ' ') }))];
+    this.subjectOptionsKey = cacheKey;
+    return this.cachedSubjectOptions = [{ value: '', label: 'All subjects' }, ...Array.from(keys).sort().map(k => ({ value: k, label: k.replace(/_/g, ' ') }))];
   }
 
   /** Chapter options: all chapters, or only chapters for selected subject. */
   get chapterOptions(): { value: string; label: string }[] {
+    const cacheKey = JSON.stringify([this.selectedSubject, this.sets.map(set => set.name)]);
+    if (this.chapterOptionsKey === cacheKey) return this.cachedChapterOptions;
     const keys = new Set<string>();
     this.sets.forEach(s => {
       const { subjectKey, chapterKey } = this.getParsed(s.name);
       if (this.selectedSubject && subjectKey !== this.selectedSubject) return;
       if (chapterKey) keys.add(chapterKey);
     });
-    return [{ value: '', label: 'All chapters' }, ...Array.from(keys).sort((a, b) => (Number(a) - Number(b)) || a.localeCompare(b)).map(k => ({ value: k, label: k }))];
+    this.chapterOptionsKey = cacheKey;
+    return this.cachedChapterOptions = [{ value: '', label: 'All chapters' }, ...Array.from(keys).sort((a, b) => (Number(a) - Number(b)) || a.localeCompare(b)).map(k => ({ value: k, label: k }))];
   }
 
   /** Sets filtered by selected subject and chapter. */
@@ -124,7 +147,7 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
 
   /** True while any PDF/DOCX/ZIP export is running (show site-wide loader). */
   get isDownloadBusy(): boolean {
-    return this.downloadingAllPdf || this.downloadingSetId != null;
+    return this.downloadingAllPdf || this.downloadingSetId != null || this.exportFiles.busy;
   }
 
   onSubjectFilterChange(): void {
@@ -220,6 +243,10 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
   startRename(set: CreatedQuestionSet): void {
     this.renamingId = set.id;
     this.renameValue = set.name;
+  }
+
+  editQuestions(set: CreatedQuestionSet): void {
+    if (!this.isDownloadBusy) void this.router?.navigate(['/question/create'], {queryParams: {editSet: set.id}});
   }
 
   cancelRename(): void {
@@ -416,31 +443,6 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
     return out;
   }
 
-  private downloadBlobsSequentially(
-    blobs: Blob[],
-    filenames: string[],
-    gapMs = 400
-  ): void {
-    const run = async () => {
-      for (let i = 0; i < blobs.length; i++) {
-        const url = URL.createObjectURL(blobs[i]!);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filenames[i]!;
-        a.rel = 'noopener';
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 180_000);
-        if (i < blobs.length - 1) {
-          await new Promise((r) => setTimeout(r, gapMs));
-        }
-      }
-    };
-    void run();
-  }
-
   /** Question PDF/DOCX items plus `-answers` and `-mcq-answers` (same as Save from question creator). */
   private buildAllExportItemsForSet(
     set: CreatedQuestionSet,
@@ -578,16 +580,21 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
       return;
     }
     this.downloadingSetId = set.id;
+    const owner = accountSessionKey();
     this.loadingService.beginPdfDocxExport(
       format,
       format === 'pdf'
         ? 'Preparing PDF download! please wait.......'
         : 'Preparing DOCX download! please wait.......'
     );
-    const items = this.buildAllExportItemsForSet(set, format);
+    let items: ReturnType<CreatedQuestionsComponent['buildAllExportItemsForSet']> = [];
     const ext = format === 'pdf' ? '.pdf' : '.docx';
-    forkJoin(items.map((item) => this.apiService.exportQuestions(item.payload)))
+    this.apiService.getCreatedQuestionSet(set.id, true)
       .pipe(
+        switchMap(full => {
+          items = this.buildAllExportItemsForSet(full, format);
+          return from(collectQuestionExportBlobs(items.map(item => this.apiService.exportQuestions(item.payload))));
+        }),
         finalize(() => {
           this.downloadingSetId = null;
           this.loadingService.endPdfDocxExport();
@@ -595,45 +602,37 @@ export class CreatedQuestionsComponent implements OnInit, AfterViewInit {
       )
       .subscribe({
         next: (blobs) => {
-          this.downloadBlobsSequentially(
-            blobs,
-            items.map((item) => `${item.filename}${ext}`)
-          );
+          const names = items.map((item) => `${item.filename}${ext}`);
+          void this.exportFiles.publishAndDownload(blobs, names, this.exportFilenameStem(set), owner);
         },
-        error: () => {},
+        error: (error) => { this.error = error?.error?.error || 'Could not prepare all files. Please try again.'; },
       });
   }
 
-  /** Download all filtered sets as a single ZIP (one click, one save prompt). */
+  /** Prepare individual PDFs; the same ready-files panel offers folder/ZIP delivery. */
   downloadAllPdf(): void {
     const list = this.filteredSets;
     if (!list.length || this.isDownloadBusy) {
       return;
     }
     this.downloadingAllPdf = true;
-    this.loadingService.beginPdfDocxExport('pdf', 'Preparing ZIP download! please wait.......');
-    const items = list.flatMap((set) => {
-      const exportItems = this.buildAllExportItemsForSet(set, 'pdf');
-      return exportItems.map((item) => {
-        const { format: _f, filename, ...rest } = item.payload;
-        return { ...rest, filename };
-      });
-    });
-    this.apiService.exportQuestionsBulk(items as Parameters<ApiService['exportQuestionsBulk']>[0]).pipe(
+    const owner = accountSessionKey();
+    this.loadingService.beginPdfDocxExport('pdf', 'Preparing PDF files! please wait.......');
+    let items: Array<{filename: string; payload: Parameters<ApiService['exportQuestions']>[0]}> = [];
+    forkJoin(list.map(set => this.apiService.getCreatedQuestionSet(set.id, true))).pipe(
+      switchMap(fullSets => {
+        items = fullSets.flatMap(set => this.buildAllExportItemsForSet(set, 'pdf'));
+        return from(collectQuestionExportBlobs(items.map(item => this.apiService.exportQuestions(item.payload))));
+      }),
       finalize(() => {
         this.downloadingAllPdf = false;
         this.loadingService.endPdfDocxExport();
       })
     ).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'created_questions_all.zip';
-        a.click();
-        URL.revokeObjectURL(url);
+      next: (blobs) => {
+        void this.exportFiles.publishAndDownload(blobs, items.map(item => `${item.filename}.pdf`), 'created_questions_all', owner);
       },
-      error: () => {}
+      error: (error) => { this.error = error?.error?.error || 'Could not prepare all PDFs. Please try again.'; }
     });
   }
 }

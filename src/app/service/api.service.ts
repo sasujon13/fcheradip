@@ -5,6 +5,7 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { resolveAuthTokenFromResponse } from './auth-response.util';
 import { normalizeQuestionApiResponse } from '../shared/question-api-normalize';
+import { accountSessionKey } from './account-session-state';
 
 export interface ScraperLibrary {
   loginUrl?: string;
@@ -94,6 +95,7 @@ export class ApiService {
   baseUrl = environment.apiUrl;
   public search = new BehaviorSubject<string>("");
   userData: any;
+  private sessionNotificationScheduled = false;
 
   constructor(private http: HttpClient) { }
 
@@ -120,7 +122,9 @@ export class ApiService {
   }
 
   getPackageStatus(): Observable<any> {
+    const session = accountSessionKey();
     return this.http.get<any>(`${this.baseUrl}/packages/status/`).pipe(tap((value) => {
+      if (!session || session !== accountSessionKey()) return;
       try { localStorage.setItem('packageStatus', JSON.stringify(value || {})); } catch {}
     }));
   }
@@ -245,9 +249,8 @@ export class ApiService {
       tap((response: any) => {
         if (response) {
           const token = resolveAuthTokenFromResponse(response);
-          if (token) {
-            this.setToken(token);
-          }
+          if (!token) throw new Error('Login did not return a valid session. Please try again.');
+          this.setToken(token);
           localStorage.setItem('acctype', response.acctype ?? '');
           localStorage.setItem('fullName', response.fullName ?? response.full_name ?? '');
           localStorage.setItem('username', response.username ?? username);
@@ -401,7 +404,18 @@ export class ApiService {
   }
 
   private setToken(token: string): void {
+    if (localStorage.getItem('authToken') !== token) localStorage.removeItem('packageStatus');
     localStorage.setItem('authToken', token);
+    // Storage events only reach OTHER tabs. Notify this tab once identity and
+    // all synchronous login/signup/profile handlers have finished storing fields.
+    if (this.sessionNotificationScheduled) return;
+    this.sessionNotificationScheduled = true;
+    queueMicrotask(() => {
+      this.sessionNotificationScheduled = false;
+      if (accountSessionKey()) window.dispatchEvent(new CustomEvent('cheradip-session-changed', {
+        detail: { loggedIn: true },
+      }));
+    });
   }
 
   getToken(): string | null {
@@ -538,8 +552,8 @@ export class ApiService {
   }
 
   /** Created question sets: get one */
-  getCreatedQuestionSet(id: number): Observable<CreatedQuestionSet> {
-    return this.http.get<CreatedQuestionSet>(`${this.baseUrl}/created_question_sets/${id}/`);
+  getCreatedQuestionSet(id: number, recoverForEdit = false): Observable<CreatedQuestionSet> {
+    return this.http.get<CreatedQuestionSet>(`${this.baseUrl}/created_question_sets/${id}/`, recoverForEdit ? {params: {for_edit: '1'}} : {});
   }
 
   /** Created question sets: rename (PATCH name) */

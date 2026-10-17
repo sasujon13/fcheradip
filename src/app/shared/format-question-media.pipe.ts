@@ -40,8 +40,8 @@ const MEDIA_ANY_RE = new RegExp(
   'gi'
 );
 
-/** Shown as alt (and when the image fails to load in many browsers). */
-export const QUESTION_MEDIA_IMG_ALT = 'Images are loading...';
+/** Stable image description; loading state is tracked separately from alt text. */
+export const QUESTION_MEDIA_IMG_ALT = 'Question image';
 const QUESTION_MEDIA_IMG_INLINE_STYLE =
   'max-width:100%;height:auto;max-height:480px;vertical-align:middle;display:inline-block;box-sizing:border-box;margin:2px 8px 6px 0;object-fit:contain;object-position:left center;';
 const QUESTION_MEDIA_STACK_INLINE_STYLE =

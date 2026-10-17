@@ -3,6 +3,7 @@
   appQuestionRichImgHost
   [appQuestionRichImgFontTrigger]="previewRichImgFontTriggerKey"
 >
+  <p *ngIf="editingSavedSetId != null" class="save-success" role="status">Editing a copy of {{ editingSavedSetName }}. Save creates a new saved set under the normal package/coin rules; the original is unchanged.</p>
   <!-- Match /question: justified stem, (ক)–(ঘ) options, 4-col or 2-col grid from measured wraps -->
   <ng-template #previewQuestionBlock let-q="q" let-sl="sl" let-idx="idx">
     <ng-container *ngIf="isCompanionTypeHeadingRow(q); else previewQuestionBody">
@@ -1084,6 +1085,7 @@
             type="button"
             class="preview-kind-slider-btn"
             [class.preview-kind-slider-btn--active]="previewKindFocus === 'creative'"
+            [disabled]="autoFitBlockingOverlayVisible"
             (click)="setPreviewKindFocus('creative')"
           >
             CQ
@@ -1092,6 +1094,7 @@
             type="button"
             class="preview-kind-slider-btn"
             [class.preview-kind-slider-btn--active]="previewKindFocus === 'mcq'"
+            [disabled]="autoFitBlockingOverlayVisible"
             (click)="setPreviewKindFocus('mcq')"
           >
             MCQ
@@ -1457,12 +1460,13 @@
     [style.--preview-q-subpart-pl]="previewQSubpartPaddingLeftEm"
     aria-hidden="true"
   >
-    <div #measureHeader class="preview-header preview-measure-header" *ngIf="questionHeader.trim() && measureCreativeHeaderRailVisible()">
+    <div #measureHeader class="preview-header preview-measure-header" [style.width.px]="measureHeaderPrintableWidthPx()" *ngIf="questionHeader.trim() && measureCreativeHeaderRailVisible()">
       <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: 0 }"></ng-container>
     </div>
     <div
       #measureHeaderMcq
       class="preview-header preview-measure-header"
+      [style.width.px]="measureHeaderPrintableWidthPx(true)"
       *ngIf="measureMcqHeaderRailVisible()"
     >
       <ng-container *ngTemplateOutlet="paperQuestionHeader; context: { pi: measureRailMcqHeaderSheetPi() }"></ng-container>
@@ -1611,6 +1615,7 @@
   </div>
 
   <p *ngIf="saveSuccessMessage" class="save-success">{{ saveSuccessMessage }}</p>
+  <app-question-export-files></app-question-export-files>
 </div>
 
 <!-- Fixed magnifier: above page chrome; pointer-events none so hover tracking stays on preview -->

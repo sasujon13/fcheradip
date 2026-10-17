@@ -8,8 +8,8 @@
 }
 
 .ui-help-ready:is(h1, h2, h3, h4, h5, h6, label, legend, th, summary, [role='heading']) {
-  text-decoration-line: underline;
-  text-decoration-style: dotted;
+  /* text-decoration-line: underline;
+  text-decoration-style: dotted; */
   text-decoration-color: var(--ui-help-outline);
   text-underline-offset: 3px;
 }

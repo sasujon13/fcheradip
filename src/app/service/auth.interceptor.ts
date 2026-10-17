@@ -4,6 +4,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthSessionService } from './auth-session.service';
+import { accountSessionKey } from './account-session-state';
 
 /** Adds Authorization: Bearer <token> when request is to our API and token exists. */
 @Injectable()
@@ -15,6 +16,7 @@ export class AuthInterceptor implements HttpInterceptor {
     next: HttpHandler
   ): Observable<HttpEvent<unknown>> {
     const token = localStorage.getItem('authToken');
+    const requestSession = accountSessionKey();
     const apiUrlNorm = (environment.apiUrl || '').replace(/\/$/, '');
     let isApi = false;
     if (request.url.startsWith('http')) {
@@ -42,7 +44,7 @@ export class AuthInterceptor implements HttpInterceptor {
     }
     return next.handle(request).pipe(
       catchError((err: HttpErrorResponse) => {
-        if (sentAuth && err.status === 401 && !this.isPublicAuthPost(request)) {
+        if (sentAuth && requestSession && requestSession === accountSessionKey() && err.status === 401 && !this.isPublicAuthPost(request)) {
           this.authSession.invalidateSession('multi_device');
         }
         return throwError(() => err);

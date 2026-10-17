@@ -13,6 +13,7 @@ import { SESSION_LOGIN_USE_STORED_RETURN } from '../../service/login-redirect.se
 import { AuthSessionService } from '../../service/auth-session.service';
 import { TrxHelpVisibility } from '../trx-help-visibility';
 import { LovedQuestionsService } from '../../service/loved-questions.service';
+import { accountSessionKey } from '../../service/account-session-state';
 import {
   getDashboardRouterLinkSegments,
   isTeacherAccount,
@@ -44,9 +45,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   readonly ecommerceHistoryQueryParams = { from: 'ecommerce' };
   commerceCartCount = 0;
+  private cartSummaryVersion = 0;
+  private cartSummarySession = '';
+  private packageStatusVersion = 0;
 
   @HostListener('window:cheradip-ecommerce-cart-count', ['$event'])
   updateCommerceCartCount(event: Event): void {
+    ++this.cartSummaryVersion; // an older badge read must not undo Add/Remove
     const detail = (event as CustomEvent<number | { count: number }>).detail;
     const count = Number(typeof detail === 'object' ? detail?.count : detail);
     this.commerceCartCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
@@ -263,6 +268,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.refreshLoginStatusFromStorage();
         this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
         this.loadPackageStatus();
+        this.refreshCartCount();
         setTimeout(() => {
           this.checkVisibility();
         }, 100000);
@@ -293,15 +299,48 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.syncNewTokenFromPendingStash();
     this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
     this.loadPackageStatus();
+    this.refreshCartCount();
+  }
+
+  private refreshCartCount(): void {
+    const session = accountSessionKey();
+    const version = ++this.cartSummaryVersion;
+    if (session !== this.cartSummarySession) {
+      this.commerceCartCount = this.totalCartItem = 0;
+      this.cartSummarySession = session;
+    }
+    const cartOwner = localStorage.getItem('cheradipEcommerceCartOwner') || '';
+    const username = session ? localStorage.getItem('username') || '' : '';
+    const token = !cartOwner || cartOwner === username ? localStorage.getItem('cheradipEcommerceCart') : null;
+    if (!session && !token) {
+      this.commerceCartCount = this.totalCartItem = 0;
+      return;
+    }
+    this.http.get<{token: string | null; count: number}>(`${environment.apiUrl}/ecommerce/cart/summary/`, {
+      params: token ? {token} : {},
+    }).subscribe({
+      next: summary => {
+        if (version !== this.cartSummaryVersion || session !== accountSessionKey()) return;
+        this.commerceCartCount = this.totalCartItem = Math.max(0, Math.floor(Number(summary.count) || 0));
+        if (summary.token) {
+          localStorage.setItem('cheradipEcommerceCart', summary.token);
+          localStorage.setItem('cheradipEcommerceCartOwner', username);
+        }
+        this.cdr.markForCheck();
+      }, error: () => { /* retain this account's last confirmed count on network failure */ },
+    });
   }
 
   private loadPackageStatus(): void {
+    const version = ++this.packageStatusVersion;
+    const session = accountSessionKey();
     if (!this.loginStatus) {
       this.packageStatus = null; this.profileImageUrl = null; this.profileBadge = 'Star';
       return;
     }
     this.apiService.getPackageStatus().subscribe({
       next: (status) => {
+        if (version !== this.packageStatusVersion || session !== accountSessionKey()) return;
         this.packageStatus = status;
         this.profileImageUrl = status?.profileImageUrl || null;
         this.profileBadge = status?.badge || 'Star';
@@ -310,7 +349,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
           .onAction().subscribe(() => this.router.navigate(['/order']));
         this.cdr.markForCheck();
       }, error: (err) => {
-        if (err?.status === 401) this.logout();
+        if (version === this.packageStatusVersion && session === accountSessionKey() && err?.status === 401) this.logout();
       }
     });
   }
@@ -465,6 +504,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   /** Remove stale profile/login chrome immediately when the server rejects the session. */
   @HostListener('window:cheradip-session-changed')
   onSessionChanged(): void {
+    ++this.packageStatusVersion;
+    this.packageStatus = null;
+    this.profileImageUrl = null;
+    this.profileBadge = 'Star';
     if (!this.authSession.hasStoredSession()) {
       this.packageStatus = null;
       this.profileImageUrl = null;
@@ -475,6 +518,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
     this.applyHeaderLoginChromeFromStorage();
     this.refreshScraperAccess();
+    if (this.authSession.hasStoredSession()) {
+      this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
+      this.loadPackageStatus();
+    }
+    this.refreshCartCount();
+  }
+
+  @HostListener('window:storage', ['$event'])
+  onAccountStorageChanged(event: StorageEvent): void {
+    if (event.key === null || ['authToken', 'username', 'isLoggedIn'].includes(event.key)) this.onSessionChanged();
   }
 
   /** Refill header TrxID box from session stash after login (hidden on NTRCA section routes). */
@@ -488,6 +541,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    ++this.packageStatusVersion;
+    ++this.cartSummaryVersion;
     this.likedCountSub?.unsubscribe();
     document.removeEventListener('click', this.trxHelpDocumentClick, true);
     if (this.loadingSub) {

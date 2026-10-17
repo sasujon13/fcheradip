@@ -1,4 +1,5 @@
 import { NgModule, CUSTOM_ELEMENTS_SCHEMA, APP_INITIALIZER } from '@angular/core';
+import { QuestionExportFilesComponent } from './shared/question-export-files.component';
 import { AuthSessionService } from './service/auth-session.service';
 import { BrowserModule } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
@@ -191,7 +192,7 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
         AiServicesLandingComponent,
     ],
     bootstrap: [AppComponent],
-    schemas: [CUSTOM_ELEMENTS_SCHEMA], imports: [BrowserModule,
+    schemas: [CUSTOM_ELEMENTS_SCHEMA], imports: [BrowserModule, QuestionExportFilesComponent,
         CommonModule,
         AppRoutingModule,
         FormsModule,

@@ -1,10 +1,39 @@
 
 @import url('../../app/shared/styles/question-primary-colors.css');
-@import url('src/assets/font-awesome-4.7.0/css/font-awesome.min.css');
+@import url('src/assets/font-awesome-5.15.4/css/all.min.css');
+@import url('src/assets/font-awesome-5.15.4/css/v4-shims.min.css');
 @import url('../../app/shared/styles/loader-glow.shared.css');
 @import url('../../app/shared/styles/question-rich-img.shared.css');
 
 @font-face {
+    font-family: 'Cheradip Paper';
+    src: url('src/assets/fonts/CheradipPaperRoboto.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'Cheradip Paper';
+    src: url('src/assets/fonts/CheradipPaperRoboto.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'Cheradip Paper Bengali';
+    src: url('src/assets/fonts/NotoSansBengali-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'Cheradip Paper Bengali';
+    src: url('src/assets/fonts/NotoSansBengali-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+  }
+  @font-face {
     font-family: 'Roboto Regular';
     src: url('src/assets/fonts/Roboto-Regular.ttf') format('truetype');
   }
@@ -48,7 +77,9 @@
    * instead of the system sans-serif fallback (which is Nirmala UI on Windows).
    * Remove this whole block to go back to the previous look.
    */
-  body, body * {
+  /* KaTeX selects distinct math/symbol fonts per span; forcing Roboto there
+     changes formula widths and makes preview pagination disagree with PDF. */
+  body, body *:not(.katex):not(.katex *):not(.fa):not(.fas):not(.far):not(.fal):not(.fab):not(.fa-solid):not(.fa-regular):not(.fa-brands):not(.material-icons):not([class^="fa-"]):not([class*=" fa-"]) {
     font-family: 'Roboto', 'Noto Sans Bengali', sans-serif !important;
   }
 
@@ -60,13 +91,15 @@
   /* Keep icon webfonts intact (so .fa / .material-icons keep rendering as glyphs).
      `revert` would fall back to the *inherited* value here (which is our test stack),
      so we must restore the icon font names explicitly. */
-  .fa, i[class^="fa-"], i[class*=" fa-"] {
-    font-family: 'FontAwesome' !important;
+  .fas, .fa-solid, .far, .fa-regular, .fal {
+    font-family: 'Font Awesome 5 Free' !important;
   }
-  .fas, .fa-solid { font-family: 'Font Awesome 5 Free', 'FontAwesome' !important; font-weight: 900 !important; }
-  .far, .fa-regular { font-family: 'Font Awesome 5 Free', 'FontAwesome' !important; }
-  .fal { font-family: 'Font Awesome 5 Pro', 'FontAwesome' !important; }
-  .fab, .fa-brands { font-family: 'Font Awesome 5 Brands', 'FontAwesome' !important; }
+  .fas, .fa-solid { font-weight: 900 !important; }
+  .far, .fa-regular, .fal { font-weight: 400 !important; }
+  .fab, .fa-brands {
+    font-family: 'Font Awesome 5 Brands' !important;
+    font-weight: 400 !important;
+  }
   .material-icons { font-family: 'Material Icons' !important; }
   
   html { height: 100%; }

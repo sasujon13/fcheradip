@@ -1,4 +1,5 @@
 <div class="created-questions-page">
+  <app-question-export-files></app-question-export-files>
   <p *ngIf="error" class="error-msg">{{ error }}</p>
   <p *ngIf="loading" class="loading">Loading…</p>
   <div *ngIf="!loading && sets.length" class="filter-row">
@@ -74,20 +75,25 @@
               <button type="button" class="btn-icon btn-cancel" (click)="cancelRename()" title="Cancel"><i class="fa fa-times"></i></button>
             </ng-container>
             <ng-template #showName>
-              <span class="set-name-counter" [attr.title]="set.question_header || null">{{ set.name }}</span>
+              <span class="set-name-counter" [attr.title]="set.name" [attr.data-ui-note]="set.name">{{ set.name }}</span>
             </ng-template>
           </td>
           <td class="col-meta-actions">
+            <div class="set-details">
+            <span class="set-metadata">
             <span class="meta-inline">{{ set.questions.length || 0 }} questions</span>
             <span class="meta-inline" *ngIf="set.created_at">{{ set.created_at | date:'short' }}</span>
+            </span>
             <span class="actions-inline">
               <ng-container *ngIf="renamingId !== set.id">
+                <button type="button" class="btn-icon" (click)="editQuestions(set)" [disabled]="isDownloadBusy" title="Edit questions" aria-label="Edit questions"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></button>
                 <button type="button" class="btn-icon" (click)="startRename(set)" title="Rename"><i class="fa fa-pencil"></i></button>
                 <button type="button" class="btn-icon" (click)="downloadSet(set, 'pdf')" [disabled]="isDownloadBusy" title="Download PDF"><i class="fa fa-file-pdf-o"></i></button>
                 <button type="button" class="btn-icon" (click)="downloadSet(set, 'docx')" [disabled]="isDownloadBusy" title="Download DOCX"><i class="fa fa-file-word-o"></i></button>
                 <button style="color: darkred;" type="button" class="btn-icon btn-danger" (click)="deleteSet(set)" title="Delete">X</button>
               </ng-container>
             </span>
+            </div>
           </td>
         </tr>
       </tbody>

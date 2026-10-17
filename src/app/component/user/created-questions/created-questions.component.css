@@ -53,12 +53,13 @@
   color: #666;
 }
 .sets-table-wrap {
-  overflow-x: auto;
+  container-type: inline-size;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
 }
 .sets-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.9375rem;
 }
@@ -86,12 +87,12 @@
   text-align: center;
 }
 .sets-table .col-title {
-  min-width: 180px;
+  min-width: 0;
 }
 .sets-table .col-meta-actions {
-  white-space: nowrap;
+  white-space: normal;
   text-align: right;
-  min-width: 200px;
+  width: var(--set-details-width, 29rem);
   padding-right: 12px;
 }
 .sets-table thead th.col-meta-actions {
@@ -187,27 +188,50 @@
   font-variant-numeric: tabular-nums;
 }
 .set-name-counter {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.5;
+  max-height: 3em;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .set-header {
   color: #555;
   font-weight: normal;
 }
+.set-details {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+.set-metadata {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
 .col-meta-actions .meta-inline {
   font-size: 0.875rem;
   color: #777;
-  margin-right: 0.75rem;
 }
 .col-meta-actions .meta-inline + .meta-inline::before {
-  content: " · ";
-  margin-right: 0.25rem;
+  content: "·";
+  margin-right: 0.5rem;
   color: #999;
 }
 .actions-inline {
   display: inline-flex;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
   align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
   gap: 0.25rem;
-  margin-left: 0.5rem;
 }
 .btn-icon {
   display: inline-flex;
@@ -247,12 +271,95 @@
   padding: 0.35rem 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
-  min-width: 160px;
+  min-width: 0;
+  width: min(100%, 22rem);
+  box-sizing: border-box;
   margin-right: 0.35rem;
   font-size: inherit;
 }
 .col-title .btn-icon {
   vertical-align: middle;
+}
+
+/* Collapse only after every name would exceed two lines in the single-row
+   layout. The observer also rechecks after filtering, renaming and font loads. */
+  .sets-table-wrap--compact .sets-table .col-meta-actions {
+    width: 16rem;
+  }
+  .sets-table-wrap--compact .set-details {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+  }
+
+@container (max-width: 640px) {
+  .sets-table-wrap--compact .sets-table thead,
+  .sets-table-wrap--compact .sets-table tbody {
+    display: block;
+  }
+  .sets-table-wrap--compact .sets-table tr {
+    display: grid;
+    grid-template-columns: 1.75rem 1.75rem minmax(0, 1fr);
+  }
+  .sets-table-wrap--compact .sets-table .col-check,
+  .sets-table-wrap--compact .sets-table .col-sl,
+  .sets-table-wrap--compact .sets-table .col-meta-actions {
+    width: auto;
+  }
+  .sets-table-wrap--compact .sets-table thead th,
+  .sets-table-wrap--compact .set-row td {
+    padding: 0.5rem 0.35rem;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .sets-table-wrap--compact .sets-table .col-meta-actions {
+    grid-column: 3;
+    padding-top: 0;
+    padding-right: 0.35rem;
+  }
+  .sets-table-wrap--compact .sets-table .col-check,
+  .sets-table-wrap--compact .sets-table .col-sl {
+    grid-row: 1 / 3;
+    align-content: center;
+  }
+  .sets-table-wrap--compact .set-row .col-title {
+    border-bottom: 0;
+  }
+  .sets-table-wrap--compact .set-details {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.75rem;
+  }
+  .sets-table-wrap--compact .sets-table thead th.col-meta-actions {
+    padding-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .created-questions-page {
+    padding: 0.75rem;
+  }
+  .filter-row {
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding-inline: 0.75rem;
+  }
+}
+
+@container (max-width: 360px) {
+  .col-meta-actions .meta-inline {
+    font-size: 0.75rem;
+  }
+  .set-metadata {
+    gap: 0.3rem;
+  }
+  .col-meta-actions .meta-inline + .meta-inline::before {
+    margin-right: 0.3rem;
+  }
+  .actions-inline .btn-icon {
+    width: 1.875rem;
+    height: 1.875rem;
+  }
 }
 
 

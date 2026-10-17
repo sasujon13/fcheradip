@@ -4,6 +4,7 @@ import { EMPTY, Subscription, fromEvent, interval, merge, firstValueFrom } from 
 import { catchError, filter, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { COIN_BALANCE_CACHE_KEY } from './trx-unlock.service';
+import { accountSessionKey } from './account-session-state';
 
 /** Shown on /login after another device replaces this session. */
 export const SESSION_LOGOUT_REASON_KEY = 'cheradipSessionLogoutReason';
@@ -53,6 +54,7 @@ export class AuthSessionService implements OnDestroy {
     if (this.hasStoredSession() || !/^(?:[a-z]+\.)?cheradip\.com$/.test(location.hostname)) return;
     try {
       const session = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/session/`, { withCredentials: true }).pipe(timeout(4000)));
+      if (this.hasStoredSession()) return; // a manual login may have completed meanwhile
       if (!session?.loggedIn || !session.authToken) return;
       for (const key of ['authToken', 'username', 'fullName', 'acctype']) localStorage.setItem(key, session[key] || '');
       localStorage.setItem('isLoggedIn', 'true');
@@ -86,11 +88,12 @@ export class AuthSessionService implements OnDestroy {
     if (!this.hasStoredSession() || this.invalidating) {
       return;
     }
+    const session = accountSessionKey();
     this.http
       .get(`${environment.apiUrl}/customer_settings/`)
       .pipe(
         catchError((err: { status?: number }) => {
-          if (err?.status === 401) {
+          if (err?.status === 401 && session === accountSessionKey()) {
             this.invalidateSession('multi_device');
           }
           return EMPTY;

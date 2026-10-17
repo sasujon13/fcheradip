@@ -1,7 +1,8 @@
 import { Injectable, OnDestroy, Optional } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subscription } from 'rxjs';
+import { accountSessionKey } from './account-session-state';
 
 /**
  * Lightweight shared "Liked / Loved Questions" store (localStorage-backed).
@@ -21,8 +22,19 @@ export class LovedQuestionsService implements OnDestroy {
   readonly changes$ = this.changesSubject.asObservable();
   get count(): number { this.ensureOwner(); return this.set.size; }
   private owner = this.currentOwner();
-  private readonly sessionChanged = (): void => { this.owner = this.currentOwner(); this.claimLegacyOnce(); this.load(); this.syncFromServer(); };
-  private currentOwner(): string { return localStorage.getItem('isLoggedIn') === 'true' ? (localStorage.getItem('username') || 'guest') : 'guest'; }
+  private syncSubscription?: Subscription;
+  private serverReady = false;
+  private syncPending = false;
+  private readonly pendingMutations = new Map<string, boolean>();
+  private readonly sessionChanged = (): void => {
+    this.syncSubscription?.unsubscribe();
+    if (this.owner !== this.currentOwner()) this.pendingMutations.clear();
+    this.owner = this.currentOwner();
+    this.serverReady = false;
+    this.syncPending = false;
+    this.claimLegacyOnce(); this.load(); this.syncFromServer();
+  };
+  private currentOwner(): string { return accountSessionKey() ? (localStorage.getItem('username') || 'guest') : 'guest'; }
   private storageKey(base: string): string { return this.owner === 'guest' ? base : `${base}:${this.owner}`; }
   private ensureOwner(): void { if (this.owner !== this.currentOwner()) this.sessionChanged(); }
   private readonly storageChanged = (event: StorageEvent): void => {
@@ -50,17 +62,30 @@ export class LovedQuestionsService implements OnDestroy {
 
   private syncFromServer(): void {
     if (this.owner === 'guest' || !this.http) return;
-    const owner = this.owner;
-    const revision = this.changesSubject.value;
-    this.http.get<any>(`${environment.apiUrl}/customer_settings/`).subscribe({ next: res => {
-      if (owner !== this.currentOwner() || revision !== this.changesSubject.value) return;
+    const session = accountSessionKey();
+    this.syncPending = true;
+    this.syncSubscription = this.http.get<any>(`${environment.apiUrl}/customer_settings/`).subscribe({ next: res => {
+      if (session !== accountSessionKey()) return;
       const saved = res.settings?.loved_questions;
-      if (saved && typeof saved === 'object') {
+      const serverLikes = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+      const localOnlyLikes = Object.keys(this.meta).some(key => !Object.prototype.hasOwnProperty.call(serverLikes, key));
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
         this.meta = { ...saved, ...this.meta };
         this.set = new Set([...Object.keys(saved), ...this.set]);
-        this.persist();
       }
-    }, error: () => undefined });
+      // A like/unlike during the initial read must not erase server records or
+      // resurrect a question the learner just unliked.
+      const changed = this.pendingMutations.size > 0 || localOnlyLikes;
+      for (const [key, liked] of this.pendingMutations) {
+        if (!liked) { this.set.delete(key); delete this.meta[key]; }
+      }
+      this.pendingMutations.clear();
+      this.serverReady = true;
+      this.syncPending = false;
+      this.persist(changed);
+    }, error: () => {
+      if (session === accountSessionKey()) this.syncPending = false;
+    } });
   }
 
   private load(): void {
@@ -81,15 +106,16 @@ export class LovedQuestionsService implements OnDestroy {
     this.emitChanges();
   }
 
-  private persist(): void {
+  private persist(writeServer = true): void {
     try {
       localStorage.setItem(this.storageKey(LOVED_KEY), JSON.stringify(Array.from(this.set)));
       localStorage.setItem(this.storageKey(LOVED_META_KEY), JSON.stringify(this.meta));
     } catch { /* ignore */ }
     this.emitChanges();
-    if (this.owner !== 'guest' && this.http) this.http.post(`${environment.apiUrl}/customer_settings/`, {
+    if (writeServer && this.owner !== 'guest' && this.http && this.serverReady) this.http.post(`${environment.apiUrl}/customer_settings/`, {
       settings: { loved_questions: this.meta },
     }).subscribe({ error: () => undefined });
+    else if (writeServer && this.owner !== 'guest' && this.http && !this.syncPending) this.syncFromServer();
   }
 
   private emitChanges(): void {
@@ -121,22 +147,26 @@ export class LovedQuestionsService implements OnDestroy {
     if (existing !== undefined) {
       this.set.delete(existing);
       delete this.meta[existing];
+      this.pendingMutations.set(existing, false);
     } else {
       // Subject tables can reuse the same qid. Keep their likes separate,
       // while still reading older qid-only storage without losing saved data.
       const context = meta?.table || [meta?.level_tr, meta?.class_level, meta?.subject_tr].filter(Boolean).join('|');
       const s = context ? JSON.stringify([context, String(qid)]) : String(qid);
       this.set.add(s);
+      this.pendingMutations.set(s, true);
       if (meta && typeof meta === 'object') {
         this.meta[s] = { ...meta, qid };
-      }
+      } else this.meta[s] = { qid };
     }
     this.persist();
     return existing === undefined;
   }
 
   setMeta(qid: any, meta: any): void {
-    this.meta[this.matchingKey(qid, meta) ?? String(qid)] = { ...meta, qid };
+    const key = this.matchingKey(qid, meta) ?? String(qid);
+    this.meta[key] = { ...meta, qid };
+    this.pendingMutations.set(key, true);
     this.persist();
   }
 
@@ -159,6 +189,7 @@ export class LovedQuestionsService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.syncSubscription?.unsubscribe();
     window.removeEventListener('storage', this.storageChanged);
     window.removeEventListener('cheradip-session-changed', this.sessionChanged);
   }

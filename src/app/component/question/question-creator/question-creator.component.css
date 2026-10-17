@@ -787,6 +787,13 @@
   visibility: hidden;
 }
 
+/* Override the site's global !important font only inside the print/measure surfaces.
+   Keep KaTeX's own glyph faces and programming blocks untouched. */
+:host :is(.preview-sheet, .preview-measure-rail),
+:is(.preview-sheet, .preview-measure-rail) *:not(.katex):not(.katex *):not(pre):not(pre *):not(code):not(code *) {
+  font-family: 'Cheradip Paper', 'Cheradip Paper Bengali', sans-serif !important;
+}
+
 .preview-sheet {
   position: relative;
   box-sizing: border-box;
@@ -1619,6 +1626,7 @@
 
 /* Off-screen measurement (must match preview typography) */
 .preview-measure-rail {
+  font-family: 'Cheradip Paper', 'Cheradip Paper Bengali', sans-serif;
   position: absolute;
   left: -20000px;
   top: 0;

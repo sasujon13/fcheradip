@@ -6,6 +6,7 @@ import { catchError, finalize, map, shareReplay, switchMap, tap } from 'rxjs/ope
 import { environment } from 'src/environments/environment';
 import { SESSION_LOGIN_USE_STORED_RETURN } from './login-redirect.session';
 import { NtrcaUnlockedEiinsService } from './ntrca-unlocked-eiins.service';
+import { accountSessionKey } from './account-session-state';
 
 /** Remove once per session if present (old unlock stored Trx row id here). */
 const LEGACY_ACTIVE_TRX_LS = 'cheradipActiveTrxRowId';
@@ -34,6 +35,7 @@ export class TrxUnlockService {
   /** Last known ``customer.settings.balance`` from API (display + after unlock). */
   private coinBalance = 0;
   private balanceRequest$?: Observable<number>;
+  private balanceOwner = accountSessionKey();
 
   constructor(
     private http: HttpClient,
@@ -89,7 +91,17 @@ export class TrxUnlockService {
   }
 
   getCachedRemaining(): number {
+    this.ensureBalanceOwner();
     return this.coinBalance;
+  }
+
+  private ensureBalanceOwner(): void {
+    const owner = accountSessionKey();
+    if (owner === this.balanceOwner) return;
+    this.balanceOwner = owner;
+    this.balanceRequest$ = undefined;
+    this.coinBalance = 0;
+    this.restoreCoinBalance();
   }
 
   setCachedRemaining(n: number): void {
@@ -107,6 +119,7 @@ export class TrxUnlockService {
   }
 
   private setCoinBalance(n: number): void {
+    this.ensureBalanceOwner();
     const v = Number(n);
     this.coinBalance = Number.isFinite(v) && v >= 0 ? v : 0;
     if (!this.hasAppSession()) return;
@@ -142,6 +155,7 @@ export class TrxUnlockService {
 
   /** GET /customer_settings/ → ``settings.balance`` (Bearer). Single source of truth for coins. */
   fetchCoinBalance(): Observable<number> {
+    this.ensureBalanceOwner();
     if (!this.hasAppSession()) {
       this.clearCachedBalance();
       return of(0);
@@ -153,14 +167,17 @@ export class TrxUnlockService {
       /* ignore */
     }
     const previous = this.coinBalance;
-    const request$ = this.http.get<{ settings?: { balance?: number } }>(`${environment.apiUrl}/customer_settings/`).pipe(
+    const owner = accountSessionKey();
+    const request$: Observable<number> = this.http.get<{ settings?: { balance?: number } }>(`${environment.apiUrl}/customer_settings/`).pipe(
       map((res) => {
+        if (owner !== accountSessionKey()) return this.getCachedRemaining();
         const b = Number(res?.settings?.balance ?? 0);
         const n = Number.isFinite(b) && b >= 0 ? b : 0;
         this.setCoinBalance(n);
         return n;
       }),
       catchError((err: { status?: number }) => {
+        if (owner !== accountSessionKey()) return of(this.getCachedRemaining());
         if (err?.status === 401) {
           this.clearCachedBalance();
           return of(0);
@@ -168,7 +185,7 @@ export class TrxUnlockService {
         // Keep the last server-confirmed value on transient API/network failures.
         return of(this.hasAppSession() ? previous : 0);
       }),
-      finalize(() => { this.balanceRequest$ = undefined; }),
+      finalize(() => { if (this.balanceRequest$ === request$) this.balanceRequest$ = undefined; }),
       shareReplay(1)
     );
     this.balanceRequest$ = request$;

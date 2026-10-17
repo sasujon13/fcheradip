@@ -32,6 +32,10 @@ import {
   questionSaveDebitTotal,
 } from 'src/app/service/question-unlock.service';
 import { formatMaybeCProgramQuestionText } from '../../../shared/c-program-question-format';
+import { collectQuestionExportBlobs } from '../../../shared/question-export-download';
+import { QuestionExportFilesService } from '../../../shared/question-export-files.service';
+import { accountSessionKey } from '../../../service/account-session-state';
+import { savedQuestionEditPayload } from '../../../shared/created-question-edit';
 import {
   answerSheetParentQuestionSerialOneBased,
   attachExportMcqOptionsColumnsToQuestions,
@@ -507,6 +511,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     headerCreativePx: number;
     headerMcqPx: number;
   } | null = null;
+  private mcqLayoutPaginationProbe: {
+    innerH: number;
+    headerCreativePx: number;
+    headerMcqPx: number;
+  } | null = null;
   /** Full question `qid` order per set letter (saved in layout_settings). */
   persistedMcqOrderBySet: Partial<Record<(typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number], (string | number)[]>> =
     {};
@@ -671,7 +680,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly QUESTIONS_PADDING_MAX_PX = 100;
   private static readonly QUESTIONS_PADDING_DEFAULT_PX = 2;
   private static readonly PREVIEW_QUESTIONS_FONT_DEFAULT_PX = 8;
-  private static readonly PREVIEW_QUESTIONS_FONT_MIN_PX = 7;
+  private static readonly PREVIEW_QUESTIONS_FONT_MIN_PX = 8;
   /** Regular auto-fit: stop shrinking here (7px remains manual / stepper only). */
   private static readonly PREVIEW_QUESTIONS_FONT_AUTO_FIT_MIN_REGULAR_PX = 8;
   private static readonly PREVIEW_QUESTIONS_FONT_MAX_PX = 48;
@@ -705,7 +714,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private static readonly PREVIEW_LINE_HEIGHT_MAX = 2.2;
   /** Sheet (paper) header line-height in preview/PDF — default 1.25; clamped to {@link PREVIEW_LINE_HEIGHT_MIN} (1) … {@link PREVIEW_LINE_HEIGHT_MAX}. */
   private static readonly PREVIEW_HEADER_LINE_HEIGHT_DEFAULT = 1.25;
-  /** CQ and MCQ **question-body** line-height default 1.25; floor {@link PREVIEW_QUESTIONS_LINE_HEIGHT_MIN} (1). Auto-fit does not move these. */
+  /** CQ and MCQ question-body default; auto-fit expands line-height only after choosing the font/page budget. */
   private static readonly PREVIEW_QUESTIONS_LINE_HEIGHT_DEFAULT = 1.25;
   /**
    * Shave this many px from each sheet’s pack budget so Playwright PDF (slightly taller lines / breaks)
@@ -720,11 +729,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   private measureBlockHeightForPagination(el: HTMLElement, q?: { type?: unknown } | null): number {
     const box = el.getBoundingClientRect();
+    // Fractional viewport offsets can report an integer height as 29.000004px.
+    // Do not accumulate a whole phantom pixel per row when switching/scrolling.
+    const stableCeil = (value: number) => Math.ceil(Math.max(0, value) - 0.01);
     // Largest box metric so mixed text+image content is fully counted (margin is added by packing).
     let h = Math.max(
       Math.ceil(el.offsetHeight || 0),
       Math.ceil(el.scrollHeight || 0),
-      Math.ceil(box.height || 0)
+      stableCeil(box.height || 0)
     );
     // MCQ option grids can paint taller than the host box metrics in the measure rail.
     if (q && this.questionIsMcqType(q)) {
@@ -732,7 +744,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
       const opts = el.querySelector<HTMLElement>('.preview-q-options');
       if (opts) {
-        h = Math.max(h, Math.ceil(opts.getBoundingClientRect().bottom - hostTop + padBottom));
+        h = Math.max(h, stableCeil(opts.getBoundingClientRect().bottom - hostTop + padBottom));
       }
     }
     return h;
@@ -974,6 +986,67 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private lastFocusExportPagePlan: Partial<
     Record<'creative' | 'mcq', Record<string, unknown>[]>
   > = {};
+  /** In-memory only: never replay an old plan after content/settings change. */
+  private settledPreviews = new Map<string, {
+    signature: string; pages: PreviewPage[]; lead: boolean; merged: boolean;
+    header: number; mcqHeader: number;
+  }>();
+
+  private settledPreviewKey(): string {
+    return `${this.commonLayoutKind()}:${this.selectedMcqSetLetter ?? ''}`;
+  }
+
+  private settledPreviewSignature(): string {
+    const kind = this.commonLayoutKind();
+    return JSON.stringify([
+      this.questions, this.questionHeader, this.headerLineFontSizes,
+      this.headerEiin, this.headerInstitute, this.headerExamTypeKey, this.headerUseLegacyQuestionHeader,
+      this.paperSizeMmForKind(kind), this.marginTopForKind(kind), this.marginRightForKind(kind),
+      this.marginLeftForKind(kind), this.previewBottomMarginMmForKind(kind),
+      this.questionsPaddingForKind(kind), this.previewHeaderLineHeightForKind(kind),
+      kind === 'mcq' ? this.questionsGap : this.questionsGapCreative,
+      kind === 'mcq' ? this.previewQuestionsFontPxMcq : this.previewQuestionsFontPxCreative,
+      kind === 'mcq' ? this.previewQuestionsLineHeightMcq : this.previewQuestionsLineHeightCreative,
+      kind === 'mcq' ? this.layoutColumns : this.layoutColumnsCreative,
+      this.layoutColumnGapPx, this.showColumnDividerForKind(kind), this.pageSections, this.sectionGapPx,
+      this.optionsColumns, this.optionsColumnsManualOverride, this.previewOptionsLayoutByQid,
+      this.persistedMcqOrderBySet, this.mcqPreviewShuffleNonce,
+    ]);
+  }
+
+  private rememberSettledPreview(): void {
+    if (!this.paginatedPages.length || this.isLayoutPipelineBusy()) return;
+    const blocks = this.measureBlocks?.toArray() ?? [];
+    if (document.fonts.status !== 'loaded' || blocks.some(ref =>
+      Array.from(ref.nativeElement.querySelectorAll('img')).some(node => {
+        const img = node as HTMLImageElement;
+        return !img.complete || !img.naturalWidth;
+      }) || ref.nativeElement.querySelector('[data-q-latex-resolved="pending"]')
+    )) return;
+    const key = this.settledPreviewKey();
+    this.settledPreviews.delete(key);
+    this.settledPreviews.set(key, {
+      signature: this.settledPreviewSignature(), pages: this.paginatedPages,
+      lead: this.leadEmptyFirstPageActive, merged: this.mixedTypesSinglePageMergedHeader,
+      header: this.measuredHeaderHeightPx, mcqHeader: this.measuredMcqHeaderHeightPx,
+    });
+    if (this.settledPreviews.size > 8) this.settledPreviews.delete(this.settledPreviews.keys().next().value!);
+  }
+
+  private restoreSettledPreview(): boolean {
+    if (this.isLayoutPipelineBusy() || document.fonts.status !== 'loaded') return false;
+    const saved = this.settledPreviews.get(this.settledPreviewKey());
+    if (!saved || saved.signature !== this.settledPreviewSignature()) return false;
+    this.paginatedPages = saved.pages;
+    this.leadEmptyFirstPageActive = saved.lead;
+    this.mixedTypesSinglePageMergedHeader = saved.merged;
+    this.measuredHeaderHeightPx = saved.header;
+    this.measuredMcqHeaderHeightPx = saved.mcqHeader;
+    this.cacheFocusExportPagePlanFromPages(this.paginatedPages);
+    this.updatePreviewFitScale();
+    this.cdr.detectChanges();
+    return !this.previewContentClipsIntoBottomMargin();
+  }
   /**
    * While building split PDF header strings, force {@link headerVariantForPage} and skip aside
    * focus filtering so CQ/MCQ headers match the visible sheets regardless of slider focus.
@@ -1050,6 +1123,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Cleared in {@link maybeRunPostInitResetAndAutoFit} — same reset + auto-fit as the Reset button.
    */
   private incomingNavAutoFitPending = false;
+  editingSavedSetId: number | null = null;
+  editingSavedSetName = '';
+  private savedEditAutoFitPending = false;
   /**
    * Header fields chosen in /question Smart Question Creator modal (EIIN, exam, set).
    * Kept through first-visit {@link resetCreatorSettings} so MCQ set is not cleared before auto-save.
@@ -1075,7 +1151,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     private loadingService: LoadingService,
     private trxUnlock: TrxUnlockService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    public exportFiles: QuestionExportFilesService = new QuestionExportFilesService()
   ) {}
 
   ngOnInit(): void {
@@ -1086,6 +1163,30 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.trxUnlock.fetchCoinBalance().subscribe(() => this.cdr.markForCheck());
     }
     let restored = false;
+
+    const editId = new URLSearchParams(location.search).get('editSet');
+    if (editId && /^\d+$/.test(editId) && Number(editId) > 0) {
+      const owner = accountSessionKey();
+      this.apiService.getCreatedQuestionSet(Number(editId), true).pipe(take(1)).subscribe({
+        next: set => {
+          if (owner !== accountSessionKey()) return;
+          this.editingSavedSetId = set.id;
+          this.editingSavedSetName = set.name;
+          this.applyFullCreatorPayloadFromParsed(savedQuestionEditPayload(set), {trustSavedHeader: true});
+          this.creatorRestoredDraftOnce = true;
+          this.savedEditAutoFitPending = true;
+          this.creatorBootstrapPending = false;
+          this.finishCreatorInitAfterRestore();
+          this.cdr.markForCheck();
+        },
+        error: (error) => {
+          this.creatorBootstrapPending = false;
+          this.saveSuccessMessage = error?.error?.error || 'This saved question set could not be loaded. Return to Created Questions and try again.';
+          this.cdr.markForCheck();
+        },
+      });
+      return;
+    }
 
     const incomingNav = this.readIncomingNavigationFromQuestionList();
     if (incomingNav) {
@@ -1185,6 +1286,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    */
   private maybeRunPostInitResetAndAutoFit(): void {
     if ((this.questions?.length ?? 0) === 0) {
+      return;
+    }
+    if (this.savedEditAutoFitPending) {
+      this.savedEditAutoFitPending = false;
+      void this.fitSavedSetPreservingSettings();
       return;
     }
     if (this.smartCreatorSavePending) {
@@ -1319,8 +1425,31 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.schedulePersistCreatorStateToLocalStorage();
       await this.waitForLayoutIdle(90_000);
       await this.runForcedPreviewAutoFitOnly();
-    } catch {
+    } catch (error) {
       this.previewAutoFitForceOneLayoutChain = false;
+      this.saveSuccessMessage = error instanceof Error ? error.message : 'Automatic fitting could not finish. Please try again.';
+    } finally {
+      this.endAutoFitProgressSession();
+    }
+  }
+
+  /** Fit an editable saved copy without applying factory defaults or clearing
+   * manually selected option columns, institute identity, header text or sizes. */
+  private async fitSavedSetPreservingSettings(): Promise<void> {
+    if (this.autoFitProgressSessionActive) return;
+    this.beginAutoFitProgressSession();
+    try {
+      const deadline = Date.now() + 90_000;
+      while (this.questionQidsHydrationInFlight && Date.now() < deadline) {
+        await new Promise<void>(resolve => setTimeout(resolve, 40));
+      }
+      if (this.questionQidsHydrationInFlight || this.questionsLookLikeQidPlaceholders(this.questions)) {
+        throw new Error('Some saved questions could not be loaded. Please return to Created Questions and try Edit again.');
+      }
+      await this.waitForLayoutIdle(90_000);
+      await this.runForcedPreviewAutoFitOnly({preserveOptions: true});
+    } catch (error) {
+      this.saveSuccessMessage = error instanceof Error ? error.message : 'The saved questions could not finish fitting.';
     } finally {
       this.endAutoFitProgressSession();
     }
@@ -1356,12 +1485,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * When both CQ and MCQ exist, fits each kind in turn (background for the non-focused kind) so
    * save/export has both layouts; then restores the user's focus.
    */
-  private async runForcedPreviewAutoFitOnly(): Promise<void> {
+  private async runForcedPreviewAutoFitOnly(options?: {preserveOptions?: boolean}): Promise<void> {
+    const restoreFocus = this.previewKindFocus;
     try {
-      this.clearManualOptionsColumnsOverride();
+      if (!options?.preserveOptions) this.clearManualOptionsColumnsOverride();
       this.commonLayoutProgrammaticWrite = true;
       if (this.selectionHasBothHeaderTypes()) {
-        const restoreFocus = this.previewKindFocus;
         const order: Array<'creative' | 'mcq'> =
           restoreFocus === 'mcq' ? ['mcq', 'creative'] : ['creative', 'mcq'];
         for (const kind of order) {
@@ -1369,16 +1498,18 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           this.cdr.markForCheck();
           await this.runForcedPreviewAutoFitPassForCurrentFocus();
         }
-        this.previewKindFocus = restoreFocus;
-        this.cdr.markForCheck();
-        this.onPreviewLayoutChange({ suppressAutoFit: true });
-        await this.waitForLayoutIdle(90_000);
         return;
       }
       await this.runForcedPreviewAutoFitPassForCurrentFocus();
-    } catch {
+    } catch (error) {
       this.previewAutoFitForceOneLayoutChain = false;
+      throw error;
     } finally {
+      this.previewKindFocus = restoreFocus;
+      this.runHeaderTextareaSyncs();
+      this.syncHeaderFontSizesToLineCount();
+      await this.settleAutoFitTrial();
+      this.schedulePersistCreatorStateToLocalStorage();
       this.commonLayoutProgrammaticWrite = false;
       this.clearCommonLayoutTouchedFlags();
       this.previewAutoFitForceOneLayoutChain = false;
@@ -1386,23 +1517,110 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private async runForcedPreviewAutoFitPassForCurrentFocus(): Promise<void> {
-    this.previewAutoFitForceOneLayoutChain = true;
-    this.applyHardAutoFitBaselineMinimumsSync();
-    this.maybeBootstrapAutoFitOverlayProgress();
-    this.onPreviewLayoutChange({ suppressAutoFit: false });
-    this.autoFitDeferMcqGapUntilOptionsSync =
-      this.previewKindFocus === 'mcq' || this.selectionHasMcqType();
-    if (this.previewKindSliderVisible()) {
-      this.autoFitDeferMcqGapUntilOptionsSync = this.previewKindFocus === 'mcq';
-    }
+    const kind = this.commonLayoutKind();
+    const isCq = kind === 'creative';
+    this.previewAutoFitForceOneLayoutChain = false;
+    this.autoFitDeferMcqGapUntilOptionsSync = false;
     this.autoFitMcqGapNeedsPostOptionsPass = false;
-    await this.waitForLayoutIdle(90_000);
-    if (!this.previewKindSliderVisible() || this.previewKindFocus === 'mcq') {
-      await this.syncMcqOptionsLayoutAfterAutoFit();
+    this.resetAutoFitBaselineCalibration();
+    if (isCq) {
+      this.previewQuestionsFontPxCreative = 8;
+      this.questionsGapCreative = 0;
+      this.questionsPaddingCreative = QuestionCreatorComponent.QUESTIONS_PADDING_MIN_PX;
+    } else {
+      this.previewQuestionsFontPxMcq = 8;
+      this.questionsGap = 0;
+      this.questionsPaddingMcq = QuestionCreatorComponent.QUESTIONS_PADDING_MIN_PX;
+    }
+    this.syncGlobalPreviewQuestionsFontPxFromPerKind({ skipBumpHeaderTrackedLinesToQuestionBody: true });
+    this.ensureMcqTextareaSixUpperLines();
+    this.runHeaderTextareaSyncs();
+    this.syncHeaderFontSizesToLineCount();
+    await this.settleAutoFitTrial();
+    await document.fonts.ready;
+    await this.waitForMeasureRailImagesBeforeExport();
+    await this.settleAutoFitTrial(!isCq);
+
+    // Capture the minimum sheet count only after fonts, formulae, images and option wraps settle.
+    const pageBudget = this.paginatedPages.length;
+    if (!pageBudget || this.previewContentClipsIntoBottomMargin()) {
+      throw new Error('The questions cannot fit safely at 8px. Choose a larger paper size or more columns.');
+    }
+    const font = () => isCq ? this.previewQuestionsFontPxCreative : this.previewQuestionsFontPxMcq;
+    await this.maximizeAutoFitParameter(font, (value) => {
+      if (isCq) this.previewQuestionsFontPxCreative = value;
+      else this.previewQuestionsFontPxMcq = value;
+      this.syncGlobalPreviewQuestionsFontPxFromPerKind({ skipBumpHeaderTrackedLinesToQuestionBody: true });
+    }, 12, pageBudget, !isCq);
+
+    // Typography is now fixed. Use readable line spacing, padding, then question gaps to fill slack.
+    const lineHeight = () => isCq ? this.previewQuestionsLineHeightCreative : this.previewQuestionsLineHeightMcq;
+    await this.maximizeAutoFitParameter(() => Math.round(lineHeight() * 10), (value) => {
+      if (isCq) this.previewQuestionsLineHeightCreative = value / 10;
+      else this.previewQuestionsLineHeightMcq = value / 10;
+      this.syncGlobalPreviewQuestionsLineHeightFromPerKind();
+    }, Math.max(16, Math.round(lineHeight() * 10)), pageBudget);
+    await this.maximizeAutoFitParameter(
+      () => isCq ? this.questionsPaddingCreative : this.questionsPaddingMcq,
+      (value) => {
+        if (isCq) this.questionsPaddingCreative = value;
+        else this.questionsPaddingMcq = value;
+      }, 8, pageBudget
+    );
+    await this.maximizeAutoFitParameter(
+      () => isCq ? this.questionsGapCreative : this.questionsGap,
+      (value) => {
+        if (isCq) this.questionsGapCreative = value;
+        else this.questionsGap = value;
+      }, QuestionCreatorComponent.QUESTIONS_GAP_MAX_PX, pageBudget
+    );
+    this.cacheFocusExportPagePlanFromPages(this.paginatedPages);
+    this.schedulePersistCreatorStateToLocalStorage();
+    if (!isCq) {
       if (this.selectedMcqSetLetter != null && !this.mcqOrdersFrozen) {
         this.invalidateMcqSetOrders();
         await this.runMcqSetOrderResolutionWhenIdle();
       }
+    }
+  }
+
+  private async settleAutoFitTrial(remeasureOptions = false): Promise<void> {
+    this.previewAutoFitForceOneLayoutChain = false;
+    this.previewAutoFitSuppressNextLayoutRun = true;
+    this.scheduleLayout({ allowDuringExport: this.saveExportLayoutBusy });
+    await this.waitForLayoutIdle(90_000);
+    if (remeasureOptions) await this.syncMcqOptionsLayoutForExport();
+    // syncMcqOptionsLayoutForExport already paginates when the option grid changes.
+    // Do not unconditionally rebuild an unchanged paper a second time.
+    this.rememberSettledPreview();
+  }
+
+  /** Keep the last measured safe value; never accept an extra sheet or content in a margin. */
+  private async maximizeAutoFitParameter(
+    getValue: () => number,
+    setValue: (value: number) => void,
+    ceiling: number,
+    pageBudget: number,
+    remeasureOptions = false
+  ): Promise<void> {
+    let best = getValue();
+    let low = best + 1;
+    let high = ceiling;
+    try {
+      while (low <= high) {
+        const trial = Math.floor((low + high) / 2);
+        setValue(trial);
+        await this.settleAutoFitTrial(remeasureOptions);
+        if (this.paginatedPages.length > 0 && this.paginatedPages.length <= pageBudget && !this.previewContentClipsIntoBottomMargin()) {
+          best = trial;
+          low = trial + 1;
+        } else {
+          high = trial - 1;
+        }
+      }
+    } finally {
+      setValue(best);
+      await this.settleAutoFitTrial(remeasureOptions);
     }
   }
 
@@ -1441,6 +1659,14 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Wait until hidden measure-rail images finish loading (same URLs the PDF export will request). */
   private async waitForMeasureRailImagesBeforeExport(timeoutMs = 30_000): Promise<void> {
+    // Load the exact bundled faces before measuring, including on Linux/offline networks.
+    await Promise.all([
+      document.fonts.load('12px "Cheradip Paper"', 'Questions'),
+      document.fonts.load('700 12px "Cheradip Paper"', 'Questions'),
+      document.fonts.load('12px "Cheradip Paper Bengali"', 'প্রশ্ন'),
+      document.fonts.load('700 12px "Cheradip Paper Bengali"', 'প্রশ্ন'),
+    ]);
+    await document.fonts.ready;
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       await new Promise<void>((r) =>
@@ -1448,9 +1674,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       );
       const blocks = this.measureBlocks?.toArray() ?? [];
       let pending = false;
+      let failed = 0;
       for (const ref of blocks) {
         const host = ref?.nativeElement;
         if (!host) continue;
+        if (host.querySelector('span.q-rich-media-try-latex[data-q-latex-resolved="pending"]')) {
+          pending = true;
+        }
         for (const node of Array.from(host.querySelectorAll('img'))) {
           const img = node as HTMLImageElement;
           try {
@@ -1460,14 +1690,27 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           }
           if (!img.complete) {
             pending = true;
+          } else if (img.naturalWidth <= 0) {
+            // A captioned formula may still be resolving its SVG/raster fallback.
+            if (img.closest('span.q-rich-media-try-latex[data-q-latex-resolved="pending"]')) {
+              pending = true;
+            } else if (img.getAttribute('data-rich-sized') === '1') {
+              failed++;
+            } else {
+              pending = true;
+            }
           }
         }
+      }
+      if (failed) {
+        throw new Error(`${failed} question image(s) could not be loaded. Check the image links and try again.`);
       }
       if (!pending) {
         return;
       }
       await new Promise<void>((r) => setTimeout(r, 40));
     }
+    throw new Error('Question images did not finish loading before export. Check the image links and try again.');
   }
 
   /**
@@ -1482,17 +1725,22 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const restoreFocus = this.previewKindFocus;
     const order: Array<'creative' | 'mcq'> =
       restoreFocus === 'mcq' ? ['mcq', 'creative'] : ['creative', 'mcq'];
-    for (const kind of order) {
-      this.previewKindFocus = kind;
+    const headerFonts = [...this.headerLineFontSizes];
+    try {
+      for (const kind of order) {
+        this.previewKindFocus = kind;
+        this.cdr.detectChanges();
+        await this.waitForMeasureRailImagesBeforeExport();
+        if (!this.restoreSettledPreview()) await this.settleAutoFitTrial(kind === 'mcq');
+        this.assertPreviewFitsForExport();
+        this.cacheFocusExportPagePlanFromPages(this.paginatedPages);
+      }
+    } finally {
+      this.previewKindFocus = restoreFocus;
+      this.headerLineFontSizes = headerFonts;
       this.cdr.detectChanges();
-      this.scheduleLayout({ allowDuringExport: true });
-      await this.waitForLayoutIdle(90_000);
-      this.cacheFocusExportPagePlanFromPages(this.paginatedPages);
+      if (!this.restoreSettledPreview()) await this.settleAutoFitTrial(restoreFocus === 'mcq');
     }
-    this.previewKindFocus = restoreFocus;
-    this.cdr.detectChanges();
-    this.scheduleLayout({ allowDuringExport: true });
-    await this.waitForLayoutIdle(90_000);
   }
 
   private async prepareExportLayoutSnapshot(): Promise<void> {
@@ -1523,6 +1771,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           await this.cacheBothFocusExportPagePlans();
         }
       }
+    }
+    this.assertPreviewFitsForExport();
+  }
+
+  private assertPreviewFitsForExport(): void {
+    if (this.previewContentClipsIntoBottomMargin()) {
+      throw new Error('Current layout extends beyond the printable area. Adjust the settings or use Reset Setting / Auto Fit, then export again. Your selected values have not been reset.');
     }
   }
 
@@ -1565,6 +1820,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   /** Smart Question Creator: auto-fit, then let the server check package/coin access on save. */
   private async runAutoFitThenSave(): Promise<void> {
     await this.runForcedPreviewAutoFit();
+    // The fitting overlay finishes on a short completion animation. Smart
+    // Creator must not race the export guard while that session is still active.
+    while (this.autoFitProgressSessionActive) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    }
     this.save();
   }
 
@@ -1601,23 +1861,26 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** After the debounced EIIN subscription exists, run one lookup for the current field (e.g. default / post-reset). */
   private flushInitialEiinLookup(): void {
+    if (this.editingSavedSetId != null) return;
     const q = (this.headerEiin ?? '').trim();
     if (q) {
       this.eiinSearchSubject.next(q);
     }
   }
 
+  private onMeasureBlocksChanged(): void {
+    // Switching replaces the hidden rail's DOM, not the question content.
+    // The switch/export handlers restore a matching settled plan or measure once.
+    if (this.saveExportLayoutBusy || this.previewKindFocusSwitching) return;
+    this.markPreviewOptionsLayoutStale();
+    this.scheduleLayout();
+    this.scheduleMeasurePreviewOptionsLayouts();
+  }
+
   ngAfterViewInit(): void {
     const hadTrustedRestore = this.creatorTrustedHeaderRestored;
     setTimeout(() => this.loadingService.completeOne(), 0);
-    this.measureBlocks.changes.subscribe(() => {
-      if (this.saveExportLayoutBusy) {
-        return;
-      }
-      this.markPreviewOptionsLayoutStale();
-      this.scheduleLayout();
-      this.scheduleMeasurePreviewOptionsLayouts();
-    });
+    this.measureBlocks.changes.subscribe(() => this.onMeasureBlocksChanged());
     const stage = this.previewStage?.nativeElement;
     if (typeof ResizeObserver !== 'undefined' && stage) {
       this.previewStageResizeObserver = new ResizeObserver(() => this.updatePreviewFitScale());
@@ -1646,6 +1909,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   ngOnDestroy(): void {
+    this.settledPreviews.clear();
     this.clearResetAutoFitProgressTimer();
     this.autoFitProgressSessionActive = false;
     this.resetAutoFitOverlayVisible = false;
@@ -1951,6 +2215,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         Math.min(QuestionCreatorComponent.OPTIONS_COLUMNS_MAX, Math.floor(oc))
       );
     }
+    this.optionsColumnsManualOverride = parsed['optionsColumnsManualOverride'] === true;
+    const layouts = parsed['previewOptionsLayoutByQid'];
+    this.previewOptionsLayoutByQid = layouts && typeof layouts === 'object' && !Array.isArray(layouts)
+      ? Object.fromEntries(Object.entries(layouts).filter(([, value]) =>
+          value === '1row' || value === '2row' || value === '4row'
+        )) as Record<string, PreviewMcqOptionsLayout>
+      : {};
     const clampHdrLh = (n: number) =>
       QuestionCreatorComponent.clampPreviewLineHeight(
         n,
@@ -2047,7 +2318,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.previewKindFocus = pk;
     }
 
-    this.mcqPageOrientation = 'portrait';
+    if (mqo !== 'portrait' && mqo !== 'landscape') this.mcqPageOrientation = 'portrait';
     this.syncPageOrientationForQTypeFilter();
 
     const msl = parsed['mcqSetLetter'];
@@ -2246,12 +2517,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (!qText || qText.startsWith('— (')) {
         return true;
       }
-      // If question exists but options/answer are missing for MCQ, also consider it placeholder-ish.
-      const hasAnyOption =
-        (r as any).option_1 != null || (r as any).option_2 != null || (r as any).option_3 != null || (r as any).option_4 != null;
-      if (!hasAnyOption && typeof (r as any).type === 'string' && String((r as any).type).includes('বহুনির্বাচনি')) {
-        return true;
-      }
+      // Missing choices are incomplete source data, not evidence that the saved
+      // question text is a placeholder. Never discard real text on that basis.
       if (checked >= 6) break;
     }
     return checked === 0;
@@ -2590,7 +2857,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private afterQuestionsHydratedFromQids(): void {
     if (!this.headerUseLegacyQuestionHeader) {
       if (
-        this.questions.length > 0 &&
+        this.editingSavedSetId == null && this.questions.length > 0 &&
         !this.selectionHasBothHeaderTypes() &&
         this.paperSubjectMetaLinesEligible()
       ) {
@@ -2749,6 +3016,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Same as {@link exportFileNameBase} — persisted set name on create. */
   get createdQuestionSetName(): string {
+    if (this.editingSavedSetId != null && this.editingSavedSetName.trim()) return this.editingSavedSetName;
     return this.exportFileNameBase;
   }
 
@@ -3457,34 +3725,41 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.selectionHasCreativeType() && (!this.previewKindSliderVisible() || this.previewKindFocus === 'creative');
   }
 
-  setPreviewKindFocus(kind: 'creative' | 'mcq'): void {
+  async setPreviewKindFocus(kind: 'creative' | 'mcq'): Promise<void> {
+    if (this.autoFitProgressSessionActive || this.saveExportLayoutBusy || this.previewKindFocusSwitching) return;
     if (this.previewKindFocus === kind) {
       return;
     }
-    const from = this.previewKindFocus;
-    // If the destination kind was never manually edited, carry over the source kind's
-    // common controls so autofit defaults do not reappear after a user edit.
-    if (
-      from === 'creative' &&
-      kind === 'mcq' &&
-      this.commonLayoutTouchedCreative &&
-      !this.commonLayoutTouchedMcq
-    ) {
-      this.copyCommonLayoutBetweenKinds('creative', 'mcq');
-    } else if (
-      from === 'mcq' &&
-      kind === 'creative' &&
-      this.commonLayoutTouchedMcq &&
-      !this.commonLayoutTouchedCreative
-    ) {
-      this.copyCommonLayoutBetweenKinds('mcq', 'creative');
-    }
     this.previewKindFocusSwitching = true;
-    this.previewKindFocus = kind;
-    this.cdr.detectChanges();
-    this.previewKindFocusSwitching = false;
-    // Relayout only — never re-run autofit / factory defaults on a slider click.
-    this.onPreviewLayoutChange({ suppressAutoFit: true });
+    try {
+      await this.waitForLayoutIdle(90_000);
+      this.rememberSettledPreview();
+      const from = this.previewKindFocus;
+      // Keep the existing linked common-controls behavior after an actual user edit.
+      if (
+        from === 'creative' && kind === 'mcq' &&
+        this.commonLayoutTouchedCreative && !this.commonLayoutTouchedMcq
+      ) {
+        this.copyCommonLayoutBetweenKinds('creative', 'mcq');
+      } else if (
+        from === 'mcq' && kind === 'creative' &&
+        this.commonLayoutTouchedMcq && !this.commonLayoutTouchedCreative
+      ) {
+        this.copyCommonLayoutBetweenKinds('mcq', 'creative');
+      }
+      this.previewKindFocus = kind;
+      // A view switch is not a settings edit: do not reset fitting calibration,
+      // invalidate MCQ permutations, or regenerate an already fitted paper.
+      this.runHeaderTextareaSyncs();
+      this.syncHeaderFontSizesToLineCount();
+      this.cdr.detectChanges();
+      if (!this.restoreSettledPreview()) await this.settleAutoFitTrial(kind === 'mcq');
+      this.schedulePersistCreatorStateToLocalStorage();
+    } catch (error) {
+      this.saveSuccessMessage = error instanceof Error ? error.message : 'The preview could not finish loading.';
+    } finally {
+      this.previewKindFocusSwitching = false;
+    }
   }
 
   /**
@@ -5175,11 +5450,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Paginate a candidate full-question order using cached segment heights (no DOM / no preview update). */
   private probePaginatedPagesForQuestionOrder(fullQuestions: any[]): PreviewPage[] {
-    const ctx = this.lastLayoutPaginationProbe;
+    const ctx = this.mcqLayoutPaginationProbe ?? this.lastLayoutPaginationProbe;
     if (!ctx || this.layoutSegmentHeightByQid.size === 0) {
       return [];
     }
-    let ordered = this.orderQuestionsCreativeThenCompanionsThenMcq(fullQuestions);
+    const ordered = fullQuestions.filter((q) => this.questionIsMcqType(q));
     const segments = this.withCompanionTypeHeadings(
       buildPreviewLayoutMeasureRows(ordered, this.layoutSegmentSplitOpts())
     );
@@ -5190,14 +5465,23 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       const qid = seg['qid'] != null ? String(seg['qid']) : '';
       return this.layoutSegmentHeightByQid.get(qid) ?? 0;
     });
-    return this.splitIntoPages(
-      heights,
-      ctx.innerH,
-      ctx.headerCreativePx,
-      ctx.headerMcqPx,
-      this.pageSections,
-      segments
-    );
+    if (heights.some((height) => height <= 0)) return [];
+    const previousFocus = this.previewKindFocus;
+    const previousLead = this.leadEmptyFirstPageActive;
+    try {
+      this.previewKindFocus = 'mcq';
+      this.resolveLeadEmptyFirstPageActiveFromProbe(
+        heights, ctx.innerH, ctx.headerCreativePx, ctx.headerMcqPx, segments
+      );
+      const pages = this.splitIntoPages(
+        heights, ctx.innerH, ctx.headerCreativePx, ctx.headerMcqPx, this.pageSections, segments
+      );
+      this.applyLeadEmptyTreatFirstColumnAsLast(pages);
+      return pages;
+    } finally {
+      this.previewKindFocus = previousFocus;
+      this.leadEmptyFirstPageActive = previousLead;
+    }
   }
 
   /** Paginate a candidate full-question order using cached segment heights (no DOM). */
@@ -5240,26 +5524,40 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return previewSerialByIndex;
   }
 
-  /** Per-set export layout from persisted order — does not change preview or selected set letter. */
-  private buildPerSetLayoutForMcqExport(
+  /** Measure each frozen set at its actual MCQ geometry before exporting its column plan. */
+  private async buildPerSetLayoutForMcqExport(
     baseLayout: Record<string, unknown>,
     setLetter: (typeof QuestionCreatorComponent.MCQ_SET_LETTERS)[number]
-  ): Record<string, unknown> {
-    const qids = this.persistedMcqOrderBySet[setLetter];
-    const fullQuestions = qids?.length
-      ? this.reorderQuestionsFromQidList(qids)
-      : this.buildQuestionsOrderedForMcqSet(setLetter);
-    const measureRows = this.withCompanionTypeHeadings(
-      buildPreviewLayoutMeasureRows(fullQuestions, this.layoutSegmentSplitOpts())
-    );
-    const pages = this.probePaginatedPagesForQuestionOrder(fullQuestions);
-    return {
-      ...baseLayout,
-      mcqSetLetter: setLetter,
-      exportPreviewPagePlan: this.buildExportPreviewPagePlanForPages(pages),
-      previewSerialByIndex: this.buildPreviewSerialByIndexForMeasureRows(measureRows),
-      exportPreviewQuestionQids: measureRows.map((q) => q['qid']),
-    };
+  ): Promise<Record<string, unknown>> {
+    const previousFocus = this.previewKindFocus;
+    const previousSet = this.selectedMcqSetLetter;
+    const previousHeaderFonts = [...this.headerLineFontSizes];
+    try {
+      this.previewKindFocus = 'mcq';
+      this.selectedMcqSetLetter = setLetter;
+      this.runHeaderTextareaSyncs();
+      this.syncHeaderFontSizesToLineCount();
+      this.cdr.detectChanges();
+      await this.waitForMeasureRailImagesBeforeExport();
+      if (!this.restoreSettledPreview()) await this.settleAutoFitTrial(true);
+      const measured = this.buildLayoutSettingsForPersist();
+      this.assertPreviewFitsForExport();
+      return {
+        ...baseLayout,
+        mcqSetLetter: setLetter,
+        exportPreviewPagePlan: measured['exportPreviewPagePlan'],
+        previewSerialByIndex: measured['previewSerialByIndex'],
+        exportPreviewQuestionQids: measured['exportPreviewQuestionQids'],
+        previewOptionsLayoutByQid: { ...this.previewOptionsLayoutByQid },
+      };
+    } finally {
+      this.previewKindFocus = previousFocus;
+      this.selectedMcqSetLetter = previousSet;
+      this.headerLineFontSizes = previousHeaderFonts;
+      this.runHeaderTextareaSyncs();
+      this.cdr.detectChanges();
+      if (!this.restoreSettledPreview()) await this.settleAutoFitTrial(previousFocus === 'mcq');
+    }
   }
 
   /**
@@ -7026,38 +7324,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (a.length > n) {
       a.length = n;
     }
-    const editorLines = this.getHeaderEditorLinesRaw();
     for (let i = 0; i < a.length; i++) {
       const v = a[i];
-      let useDefault = typeof v !== 'number' || !Number.isFinite(v);
-      const line = i < editorLines.length ? (editorLines[i] ?? '') : '';
-      if (
-        !useDefault &&
-        this.selectionHasCreativeType() &&
-        !this.selectionHasMcqType() &&
-        this.parseCreativeSqCombinedDisplayParts(line) != null &&
-        v === QuestionCreatorComponent.HEADER_LINE3_FONT_DEFAULT_PX
-      ) {
-        /** Was treated like line-3 body (21px); creative combined সময়+পূর্ণমান default is now 14px. */
-        useDefault = true;
-      }
-      if (
-        !useDefault &&
-        this.mcqOnlyUsesSixLineTextareaBlock() &&
-        i === 3 &&
-        v === QuestionCreatorComponent.HEADER_CREATIVE_SQ_META_COMBINED_FONT_DEFAULT_PX
-      ) {
-        /** Stale 14px from creative-only rule or persist — MCQ-only line 4 is ICT @ 21px. */
-        useDefault = true;
-      }
-      if (
-        !useDefault &&
-        this.isHeaderLineBanglaDristobyoNotice(line) &&
-        Math.round(v) === QuestionCreatorComponent.HEADER_LINE_REST_FONT_DEFAULT_PX
-      ) {
-        /** Legacy default was 12px on notice rows — re-seed to 10px. */
-        useDefault = true;
-      }
+      // A valid size may be a deliberate manual edit, even when it equals a
+      // historical default. Only initialise absent/invalid slots; never migrate on export.
+      const useDefault = typeof v !== 'number' || !Number.isFinite(v);
       a[i] = this.clampHeaderLineFontPx(useDefault ? this.defaultHeaderFontPxForLineFromContent(i) : v);
     }
   }
@@ -7814,6 +8085,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.saveExportLayoutBusy) {
       return;
     }
+    this.settledPreviews.clear();
     // Caller passes `false` only when the next pagination should be allowed to auto-adjust (see JSDoc above).
     const suppress = options?.suppressAutoFit ?? true;
     this.markPreviewOptionsLayoutStale();
@@ -7838,6 +8110,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.autoFitMcqGapNeedsPostOptionsPass = false;
       if (
         suppress &&
+        !this.autoFitProgressSessionActive &&
         !this.saveExportLayoutBusy &&
         !this.mcqOrdersFrozen &&
         this.selectedMcqSetLetter != null &&
@@ -7857,6 +8130,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     this.schedulePersistCreatorStateToLocalStorage();
     if (
       suppress &&
+      !this.autoFitProgressSessionActive &&
       !this.saveExportLayoutBusy &&
       this.selectedMcqSetLetter != null &&
       !this.mcqOrdersFrozen &&
@@ -7977,6 +8251,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * @param pages Defaults to {@link paginatedPages}; pass candidate pages during measuring so MCQ/CQ counts match Auto-fit.
    */
   sheetPreviewKindKey(pageIndex: number, pages?: PreviewPage[]): 'creative' | 'mcq' | 'other' {
+    if (this.previewKindSliderVisible()) return this.previewKindFocus;
     const list = pages ?? this.paginatedPages;
     const page = list[pageIndex];
     if (!page?.items?.length) {
@@ -8105,7 +8380,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /**
-   * CQ ≥2 landscape sheets + 2+ columns: enable binding column on page 1.
+   * CQ booklet only: multiple sheets use the first left column as the final slot.
+   * MCQ always reads from the left beneath a full-width header.
    */
   private resolveLeadEmptyFirstPageActiveFromProbe(
     heights: number[],
@@ -8118,15 +8394,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (this.pageSections > 1) {
       return;
     }
-    if (!this.selectionHasCreativeType()) {
-      return;
-    }
-    if (Math.floor(this.layoutColumnsCreative) <= 1) {
-      return;
-    }
-    if (this.cqPageOrientation !== 'landscape') {
-      return;
-    }
+    const kind = this.commonLayoutKind();
+    if (kind === 'mcq') return;
+    const columns = kind === 'creative' ? this.layoutColumnsCreative : this.layoutColumns;
+    if (Math.floor(columns) <= 1) return;
 
     const probePages = this.splitIntoPages(
       heights,
@@ -8136,9 +8407,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.pageSections,
       questionList
     );
-    if (this.creativeSheetPageCount(probePages) < 2) {
-      return;
-    }
+    const count = probePages.filter((page) => page.items.some((item) =>
+      this.questionUsesCreativeSheet(item.q)
+    )).length;
+    if (count < 2) return;
     this.leadEmptyFirstPageActive = true;
   }
 
@@ -8147,14 +8419,17 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * Slot order becomes (0,1)…(0,C−1), (1,0)…(P−1,C−1), then (0,0) binding — empty or tail only.
    */
   private applyLeadEmptyTreatFirstColumnAsLast(pages: PreviewPage[]): void {
-    if (!this.leadEmptyFirstPageActive || this.pageSections > 1) {
+    if (this.commonLayoutKind() === 'mcq' || !this.leadEmptyFirstPageActive || this.pageSections > 1) {
       return;
     }
 
     let firstCq = -1;
     let lastCq = -1;
+    const kind = this.commonLayoutKind();
     for (let i = 0; i < pages.length; i++) {
-      if (this.sheetPreviewKindKey(i, pages) !== 'creative') {
+      if (!pages[i]!.items.some((item) =>
+        kind === 'mcq' ? this.questionIsMcqType(item.q) : this.questionUsesCreativeSheet(item.q)
+      )) {
         continue;
       }
       if (firstCq < 0) {
@@ -8166,7 +8441,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
 
-    const cols = Math.max(2, Math.floor(this.layoutColumnsCreative));
+    const cols = Math.max(2, Math.floor(kind === 'creative' ? this.layoutColumnsCreative : this.layoutColumns));
     const cqPageCount = lastCq - firstCq + 1;
     const slotCount = cqPageCount * cols;
 
@@ -8179,6 +8454,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     }
     while (stacks.length < slotCount) {
       stacks.push([]);
+    }
+    // The ending belongs on the first left column even when the last sheet is
+    // only partly filled (for example, three occupied columns across two sheets).
+    const lastOccupied = stacks.reduce((last, stack, index) => stack.length ? index : last, -1);
+    if (lastOccupied > 0 && lastOccupied < slotCount - 1) {
+      stacks[slotCount - 1] = stacks[lastOccupied]!;
+      stacks[lastOccupied] = [];
     }
 
     for (let pi = firstCq; pi <= lastCq; pi++) {
@@ -8292,6 +8574,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     return this.autoFitMixedKindPhase != null;
   }
 
+  private autoFitQuestionFontCeiling(kind: 'creative' | 'mcq'): number {
+    return 12;
+  }
+
   /** True when CQ font growth or CQ gap expansion may still run this session. */
   private autoFitCqKindWorkRemaining(candidatePages: PreviewPage[]): boolean {
     if (!this.selectionHasCreativeType() || !this.autoFitBaselineBudgetsCaptured) {
@@ -8301,7 +8587,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return true;
     }
     const H = QuestionCreatorComponent;
-    const maxQ = H.PREVIEW_QUESTIONS_FONT_MAX_PX;
+    const maxQ = this.autoFitQuestionFontCeiling('creative');
     if (
       !this.autoFitCqFontLockedThisRun &&
       this.autoFitCqGrowBlockedSeq !== this.previewLayoutChangeSeq &&
@@ -8535,8 +8821,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     );
     const eps = 1;
     for (const body of Array.from(sheets)) {
-      const bodyBottom = body.getBoundingClientRect().bottom;
-      if (!(bodyBottom > 0)) {
+      const bodyRect = body.getBoundingClientRect();
+      const bodyBottom = bodyRect.bottom;
+      if (!(bodyRect.height > 0)) {
         continue;
       }
       for (const node of Array.from(body.querySelectorAll('.preview-q'))) {
@@ -8633,7 +8920,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private maybeAutoFitMcqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
     if (!this.selectionHasMcqType() || !this.autoFitBaselineBudgetsCaptured) return false;
     const seq = this.previewLayoutChangeSeq;
-    const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
+    const maxQ = this.autoFitQuestionFontCeiling('mcq');
     const counts = this.countKindsInCandidatePages(candidatePages);
     const mcqOverflow = this.autoFitMcqSheetsOverBaselineBudget(candidatePages, counts);
     const clips = this.previewContentClipsIntoBottomMargin();
@@ -8681,7 +8968,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private maybeAutoFitCqQuestionFontPages(candidatePages: PreviewPage[]): boolean {
     if (!this.selectionHasCreativeType() || !this.autoFitBaselineBudgetsCaptured) return false;
     const seq = this.previewLayoutChangeSeq;
-    const maxQ = QuestionCreatorComponent.PREVIEW_QUESTIONS_FONT_MAX_PX;
+    const maxQ = this.autoFitQuestionFontCeiling('creative');
     const counts = this.countKindsInCandidatePages(candidatePages);
     const cqOverflow = this.autoFitCqSheetsOverBaselineBudget(candidatePages, counts);
     const clips = this.previewContentClipsIntoBottomMargin();
@@ -9286,16 +9573,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * (headers stay in the first question column as with landscape-first-col).
    */
   landscapeLeadEmptyFirstColumnForSheetPage(pageIndex: number): boolean {
+    if (this.sheetPreviewKindKey(pageIndex) === 'mcq') return false;
     if (pageIndex !== 0) {
       return false;
     }
     if (this.layoutColumnsForSheetPage(pageIndex) <= 1) {
-      return false;
-    }
-    if (!this.landscapeSheetPageForPreview(pageIndex)) {
-      return false;
-    }
-    if (this.creativeQuestionsAllFitOnOneSheetPage().ok) {
       return false;
     }
     return this.leadEmptyFirstPageActive;
@@ -9367,10 +9649,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * Multi-column sheet: header in first question column (not full width above).
-   * Portrait: when all CQ fit on one sheet. Landscape: all multi-column sheets (except lead-empty).
+   * Applies to portrait and landscape sheets; booklet starts put the header in column two instead.
    * When {@link landscapeLeadEmptyFirstColumnForSheetPage} applies, that column is the second grid column.
    */
   headerInFirstColumnLandscape(pageIndex: number, pages?: PreviewPage[]): boolean {
+    if (this.sheetPreviewKindKey(pageIndex) === 'mcq') return false;
     if (this.layoutColumnsForSheetPage(pageIndex) <= 1) {
       return false;
     }
@@ -9378,13 +9661,6 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       return false;
     }
     if (this.landscapeLeadEmptyFirstColumnForSheetPage(pageIndex)) {
-      return false;
-    }
-    const fit = this.creativeQuestionsAllFitOnOneSheetPage(pages);
-    if (fit.ok && fit.pageIndex === pageIndex) {
-      return true;
-    }
-    if (!this.landscapeSheetPageForPreview(pageIndex)) {
       return false;
     }
     return true;
@@ -9402,6 +9678,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     questionList: any[],
     pageInnerH: number
   ): boolean {
+    if (this.questionIsMcqType(questionList[startQ]) || this.commonLayoutKind() === 'mcq') return false;
     if (headerPx <= 0 || startQ > 0) {
       return false;
     }
@@ -9417,15 +9694,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (breakAtMixedBoundary && creativeCount > 0 && startQ >= creativeCount) {
       return false;
     }
-    if (this.landscapeSheetPageForPreview(sheetPageIndex) && !this.landscapeLeadEmptyFirstColumnForSheetPage(sheetPageIndex)) {
-      return true;
-    }
-    if (!this.selectionHasCreativeType()) {
-      return false;
-    }
-    const packEnd = breakAtMixedBoundary ? creativeCount : questionList.length;
-    const trial = this.packQuestionsColumnMajor(heights, questionList, 0, pageInnerH, cols, packEnd);
-    return trial.nextQ >= packEnd;
+    return true;
   }
 
   /** Grid: one empty track + N question tracks (content shifts right by one column on page 1). */
@@ -9450,6 +9719,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
    * question index on the page (do not use stale `paginatedPages`).
    */
   private layoutColumnsForPaginationPass(sheetPageIndex: number, startQuestionIndex: number): number {
+    if (this.previewKindSliderVisible()) {
+      return Math.max(1, Math.floor(this.previewKindFocus === 'mcq' ? this.layoutColumns : this.layoutColumnsCreative));
+    }
     let cols = 1;
     if (!this.paperSubjectMetaLinesEligible() || this.headerUseLegacyQuestionHeader) {
       cols = Math.max(1, Math.floor(this.layoutColumns));
@@ -9466,6 +9738,16 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       cols = Math.max(1, Math.floor(raw));
     }
     return cols;
+  }
+
+  /** Header wrapping must be measured at its real print width, not the whole
+   * rail when CQ puts it inside one column. MCQ always uses the whole width. */
+  measureHeaderPrintableWidthPx(secondaryMcq = false): number {
+    const kind = secondaryMcq ? 'mcq' : this.commonLayoutKind();
+    const inner = secondaryMcq ? this.contentInnerWidthPxForKind('mcq') : this.measureRailInnerWidthPx;
+    if (kind === 'mcq') return inner;
+    const columns = Math.max(1, Math.floor(this.layoutColumnsCreative));
+    return Math.max(1, (inner - this.layoutColumnGapPx * (columns - 1)) / columns);
   }
 
   /**
@@ -9532,7 +9814,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (parentIdx != null && parentIdx >= 0) {
       return this.columnMeasureWidthPxForQuestionIndex(parentIdx);
     }
-    return this.columnMeasureWidthPxForQuestionIndex(layoutIndex);
+    // Layout rows include individual CQ subparts and companion headings, so their
+    // index is not an index into the original questions list. Size the actual row.
+    const kind = this.questionIsMcqType(q) ? 'mcq' : 'creative';
+    const n = Math.max(1, Math.floor(kind === 'creative' ? this.layoutColumnsCreative : this.layoutColumns));
+    const width = this.contentInnerWidthPxForKind(kind);
+    return n <= 1 ? width : Math.max(80, (width - (n - 1) * this.layoutColumnGapPx) / n);
   }
 
   columnMeasureWidthPxForQuestionIndex(i: number): number {
@@ -10291,14 +10578,15 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       }
     }
     if (row.answerSheetContinuation) {
-      return Math.max(1, Math.round(this.questionsPadding / 2));
+      const padKind = this.questionIsMcqType(q ?? {}) ? 'mcq' : 'creative';
+      return Math.max(1, Math.round(this.questionsPaddingForKind(padKind) / 2));
     }
-    return this.questionIsCreativeType(q ?? {}) ? this.questionsGapCreative : this.questionsGap;
+    return this.questionIsMcqType(q ?? {}) ? this.questionsGap : this.questionsGapCreative;
   }
 
   /** CQ segment padding: one block pad top/bottom per merged PDF .q-item, not per segment. */
   private previewQuestionBlockPaddingPx(q: { type?: unknown }): { top: number; bottom: number } {
-    const padKind: 'creative' | 'mcq' = this.questionIsCreativeType(q) ? 'creative' : 'mcq';
+    const padKind: 'creative' | 'mcq' = this.questionIsMcqType(q) ? 'mcq' : 'creative';
     const p = this.questionsPaddingForKind(padKind);
     const row = q as {
       answerSheetContinuation?: boolean;
@@ -10334,7 +10622,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const g = this.questionBlockMarginBottomPx(q);
     const fz = this.clampPreviewQuestionFontPx(this.previewQuestionsFontPxForQuestion(q));
     const lh = this.previewQuestionsLineHeightForQuestion(q);
-    const optFz = Math.max(1, QuestionCreatorComponent.exportJround((fz * 13) / 14));
+    const optFz = Math.max(8, QuestionCreatorComponent.exportJround((fz * 13) / 14));
     const s = QuestionCreatorComponent.exportPlaywrightPreviewSpacingFromFontPx(fz);
     return {
       fontSize: `${fz}px`,
@@ -10495,7 +10783,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         }
         this.measuredHeaderHeightPx = headerCreativePx;
         this.measuredMcqHeaderHeightPx = headerMcqPx;
-        this.layoutSegmentHeightByQid.clear();
+        // Retain the other focus's measured heights for per-set MCQ order probes.
         for (let hi = 0; hi < pqNow.length; hi++) {
           const seg = pqNow[hi];
           const qid = seg?.qid != null ? String(seg.qid) : String(hi);
@@ -10506,6 +10794,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
           headerCreativePx,
           headerMcqPx,
         };
+        if (this.commonLayoutKind() === 'mcq') {
+          this.mcqLayoutPaginationProbe = { ...this.lastLayoutPaginationProbe };
+        }
 
         this.resolveMixedTypesSinglePageMergedHeaderFromProbe(
           heights,
@@ -10608,10 +10899,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /**
    * Layout uses a single inner width/height to measure blocks and paginate.
-   * When CQ/MCQ orientations differ, we must not over-estimate
-   * available space; otherwise some lines can overflow the bottom margin.
-   *
-   * Strategy: use the minimum printable inner W/H across the kinds present.
+   * The focused CQ/MCQ sheet uses its own paper geometry. Only the legacy
+   * combined view falls back to the smaller printable area across both kinds.
    */
   private effectiveInnerDimensionsForLayout(): { w: number; h: number } {
     const minW = (a: number, b: number) => (a < b ? a : b);
@@ -10635,6 +10924,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     // If selection is empty, fall back to current global printable area (legacy).
     if (!this.previewQuestions?.length) {
       return { w: this.contentInnerWidthPx, h: this.contentInnerHeightPx };
+    }
+    if (this.previewKindSliderVisible()) {
+      return dimsForKind(this.previewKindFocus);
     }
 
     // Determine which kinds are present (or could be present in mixed-header mode).
@@ -11144,15 +11436,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private previewQuestionsFontPxForQuestion(q: { type?: unknown } | null | undefined): number {
-    if (this.questionIsCreativeType(q ?? {})) return this.previewQuestionsFontPxCreative;
     if (this.questionIsMcqType(q ?? {})) return this.previewQuestionsFontPxMcq;
-    return this.previewQuestionsFontPx;
+    return this.previewQuestionsFontPxCreative;
   }
 
   private previewQuestionsLineHeightForQuestion(q: { type?: unknown } | null | undefined): number {
-    if (this.questionIsCreativeType(q ?? {})) return this.previewQuestionsLineHeightCreative;
     if (this.questionIsMcqType(q ?? {})) return this.previewQuestionsLineHeightMcq;
-    return this.previewQuestionsLineHeight;
+    return this.previewQuestionsLineHeightCreative;
   }
 
   private paginationInnerHeightPx(startQ: number, questionList: any[]): number {
@@ -11244,6 +11534,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Measurement rail container width so CQ vs MCQ blocks can use different column widths. */
   get measureRailInnerWidthPx(): number {
+    if (this.previewKindSliderVisible()) return this.contentInnerWidthPxForKind(this.previewKindFocus);
     if (this.paginatedPages.length === 0) {
       return this.contentInnerWidthPx;
     }
@@ -11602,6 +11893,11 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             .filter((n) => Number.isFinite(n) && n >= 0)
         : [];
     return {
+      creatorContext: {...this.context},
+      creatorQuestionHeader: this.questionHeader,
+      mixedCqSubtitleOverride: this.mixedCqSubtitleOverride,
+      mixedMcqSubtitleOverride: this.mixedMcqSubtitleOverride,
+      exportLayoutVersion: 1,
       pageSize: this.pageSize,
       pageSizeCreative: this.pageSizeCreative,
       pageSizeMcq: this.pageSizeMcq,
@@ -11711,29 +12007,43 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   ): Record<string, unknown> {
     const layoutRootKeys = [
       'pageSize',
+      'exportLayoutVersion',
+      'pageSizeCreative',
+      'pageSizeMcq',
       'pageOrientation',
       'cqPageOrientation',
       'mcqPageOrientation',
       'customPageWidthIn',
       'customPageHeightIn',
+      'customPageWidthInCreative',
+      'customPageHeightInCreative',
+      'customPageWidthInMcq',
+      'customPageHeightInMcq',
       'marginTop',
       'marginRight',
       'marginBottom',
       'marginLeft',
+      'marginTopCreative', 'marginRightCreative', 'marginBottomCreative', 'marginLeftCreative',
+      'marginTopMcq', 'marginRightMcq', 'marginBottomMcq', 'marginLeftMcq',
       'questionsPadding',
+      'questionsPaddingCreative', 'questionsPaddingMcq',
       'questionsGap',
       'questionsGapCreative',
       'previewQuestionsFontPx',
       'previewQuestionsFontPxCreative',
       'previewQuestionsFontPxMcq',
       'previewHeaderLineHeight',
+      'previewHeaderLineHeightCreative', 'previewHeaderLineHeightMcq',
+      'headerLineFontSizes',
       'previewQuestionsLineHeight',
       'previewQuestionsLineHeightCreative',
       'previewQuestionsLineHeightMcq',
       'layoutColumns',
       'layoutColumnsCreative',
       'layoutColumnGapPx',
+      'layoutColumnGapPxCreative', 'layoutColumnGapPxMcq',
       'showColumnDivider',
+      'showColumnDividerCreative', 'showColumnDividerMcq',
       'optionsColumns',
       'optionsColumnsManualOverride',
       'previewOptionsLayoutByQid',
@@ -11741,12 +12051,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       'exportPreviewQuestionQids',
       'exportPreviewPagePlan',
       'pageSections',
+      'pageSectionsCreative', 'pageSectionsMcq',
       'sectionGapPx',
+      'sectionGapPxCreative', 'sectionGapPxMcq',
     ] as const;
-    const out: Record<string, unknown> = { ...basePayload, ...extra, layout_settings: layout };
+    const snapshot = JSON.parse(JSON.stringify(layout)) as Record<string, unknown>;
+    // Per-file layout overrides must agree at both levels: versioned exports
+    // read the nested snapshot rather than the top-level convenience fields.
+    for (const key of layoutRootKeys) {
+      if (extra[key] !== undefined) snapshot[key] = JSON.parse(JSON.stringify(extra[key]));
+    }
+    const out: Record<string, unknown> = { ...basePayload, ...extra, layout_settings: snapshot };
     for (const k of layoutRootKeys) {
-      if (layout[k] !== undefined) {
-        out[k] = layout[k];
+      if (snapshot[k] !== undefined) {
+        out[k] = snapshot[k];
       }
     }
     return out;
@@ -12059,15 +12377,25 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private async doSaveAsync(format: ExportFormat): Promise<void> {
+    if (this.saving) return;
+    if (this.autoFitProgressSessionActive) {
+      this.saveSuccessMessage = 'Questions are still fitting. Please wait for fitting to finish before exporting.';
+      return;
+    }
+    const previousProgrammaticWrite = this.commonLayoutProgrammaticWrite;
+    this.commonLayoutProgrammaticWrite = true;
     this.saving = true;
     this.saveSuccessMessage = '';
     this.saveExportLayoutBusy = true;
     this.loadingService.beginPdfDocxExport(format);
     try {
       await this.runDoSaveExportFlowCore(format);
-    } catch {
-      this.saveSuccessMessage = 'Failed to prepare export. Please try again.';
+    } catch (error) {
+      this.saveSuccessMessage = error instanceof Error && /question image|current layout/i.test(error.message)
+        ? error.message
+        : 'Failed to prepare export. Please try again.';
     } finally {
+      this.commonLayoutProgrammaticWrite = previousProgrammaticWrite;
       this.saving = false;
       this.saveExportLayoutBusy = false;
       this.endExportLoadingOverlay();
@@ -12075,6 +12403,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private async runDoSaveExportFlowCore(format: ExportFormat): Promise<void> {
+    const exportOwner = accountSessionKey();
     const toRequest: ('pdf' | 'docx')[] = [];
     if (format === 'both' || format === 'pdf') toRequest.push('pdf');
     if (format === 'both' || format === 'docx') toRequest.push('docx');
@@ -12108,7 +12437,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     > = {};
     if (multiMcq) {
       for (const L of QuestionCreatorComponent.MCQ_SET_LETTERS) {
-        perSetLayout[L] = this.buildPerSetLayoutForMcqExport(layoutSettingsForCreate, L);
+        perSetLayout[L] = await this.buildPerSetLayoutForMcqExport(layoutSettingsForCreate, L);
       }
     }
 
@@ -12352,9 +12681,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       for (const fmt of toRequest) {
         const pagePlan = ls['exportPreviewPagePlan'];
         requests.push(
-          this.apiService.exportQuestions({
-            ...basePayload,
-            layout_settings: ls,
+          this.apiService.exportQuestions(this.mergeExportPayloadWithLayoutSettings(basePayload, ls, {
             ...(Array.isArray(pagePlan) && pagePlan.length > 0
               ? { exportPreviewPagePlan: pagePlan }
               : {}),
@@ -12366,7 +12693,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
             ...(pdfHeaderLineFontPxMcq.length ? { headerLineFontSizesPdfMcq: pdfHeaderLineFontPxMcq } : {}),
             filename: fname,
             format: fmt,
-          } as any)
+          }) as any)
         );
         downloadNames.push(fmt === 'pdf' ? `${fname}.pdf` : `${fname}.docx`);
       }
@@ -12395,12 +12722,32 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
 
     let blobs: Blob[];
     try {
-      blobs = await firstValueFrom(forkJoin(requests));
-    } catch {
-      this.saveSuccessMessage = 'Failed to generate files. Please try again.';
+      // Four-set Save can produce many files. Avoid launching all Chromium
+      // jobs at once and occupying every production worker with export jobs.
+      blobs = await collectQuestionExportBlobs(requests);
+    } catch (error) {
+      let detail = '';
+      const responseBody = (error as { error?: unknown })?.error;
+      if (responseBody instanceof Blob && responseBody.type.includes('json')) {
+        try {
+          const parsed = JSON.parse(await responseBody.text()) as { error?: string };
+          detail = typeof parsed.error === 'string' ? parsed.error : '';
+        } catch {
+          // The generic export error below remains useful for non-JSON responses.
+        }
+      } else if (responseBody && typeof responseBody === 'object') {
+        const parsed = responseBody as { error?: unknown };
+        detail = typeof parsed.error === 'string' ? parsed.error : '';
+      }
+      this.saveSuccessMessage = detail || 'Failed to generate files. Please try again.';
       return;
     }
 
+    // Validate all files before any charge. Multiple files are offered individually
+    // after Save; ZIP is optional, never a requirement for mobile learners.
+    if (!blobs.length || blobs.length !== downloadNames.length) throw new Error('Export files are incomplete.');
+
+    if (exportOwner !== accountSessionKey()) throw new Error('Your session changed. Please sign in and try Save again.');
     // Do not hand out generated files until the server has accepted the Teacher
     // Package allowance or the coin charge for this account and question mix.
     try {
@@ -12426,23 +12773,19 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       );
       this.applySaveCoinDebitFromResponse(created);
       this.commitExamSerialAfterSave();
-      for (let i = 0; i < blobs.length; i++) {
-        this.downloadBlob(blobs[i]!, downloadNames[i]!);
-        if (i < blobs.length - 1) {
-          await new Promise((r) => setTimeout(r, 500));
-        }
-      }
-      const listed = downloadNames.join(', ');
+      if (exportOwner !== accountSessionKey()) return;
+      await this.exportFiles.publishAndDownload(blobs, downloadNames, this.exportFileNameBase, exportOwner);
+      const listed = `${downloadNames.length} files ready; ZIP download sent to your browser`;
       const answerNote =
         this.selectionHasMcqType() || this.questions.length > 0
           ? ' Includes MCQ answer-key and answers/explanations sheets when applicable.'
           : '';
       const questionFileCount = exportTargets.length;
       this.saveSuccessMessage = splitExport
-        ? `Created and downloaded (${questionFileCount} question files × formats): ${listed}. Saved to Created Questions.${answerNote}`
+        ? `Created (${questionFileCount} question files × formats): ${listed}. Saved to Created Questions.${answerNote}`
         : multiMcq
-          ? `Created and downloaded (${questionFileCount} sets × formats): ${listed}. Saved to Created Questions.${answerNote}`
-          : `Created and downloaded: ${listed}. Saved to Created Questions.${answerNote}`;
+          ? `Created (${questionFileCount} sets × formats): ${listed}. Saved to Created Questions.${answerNote}`
+          : `Created: ${listed}. Saved to Created Questions.${answerNote}`;
       this.cdr.markForCheck();
       try {
         if (created?.id != null) {
