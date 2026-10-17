@@ -1,4 +1,5 @@
 import { QuestionExportFilesService } from './question-export-files.service';
+import { computed } from '@angular/core';
 
 describe('ready question files', () => {
   let service: QuestionExportFilesService;
@@ -25,6 +26,17 @@ describe('ready question files', () => {
     expect(service.files.length).toBe(1);
     localStorage.setItem('username', 'two');
     expect(service.files).toEqual([]);
+  });
+  it('can read files from a reactive template without writing signals on account changes', () => {
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('username', 'one');
+    localStorage.setItem('authToken', 'one-token');
+    expect(() => computed(() => service.files)()).not.toThrow();
+    service.publish([new Blob(['file'])], ['paper.pdf'], 'Exam');
+    expect(computed(() => service.files)().length).toBe(1);
+    localStorage.setItem('username', 'two');
+    expect(() => computed(() => service.files)()).not.toThrow();
+    expect(computed(() => service.files)()).toEqual([]);
   });
   it('writes every file into a fresh folder without replacing an older export', async () => {
     service.publish([new Blob(['pdf']), new Blob(['docx'])], ['paper.pdf', 'paper.docx'], 'Exam');

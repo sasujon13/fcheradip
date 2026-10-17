@@ -17,6 +17,7 @@ type FolderWindow = Window & {showDirectoryPicker?: (options: {mode: string}) =>
  * block the second and later files as they can with automatic multi-downloads. */
 @Injectable({providedIn: 'root'})
 export class QuestionExportFilesService {
+  private static readonly NO_FILES: ReadyQuestionFile[] = [];
   private ready = signal<ReadyQuestionFile[]>([]);
   private owner = '';
   bundleName = 'Questions';
@@ -30,15 +31,12 @@ export class QuestionExportFilesService {
   set message(value: string) { this.messageState.set(value); }
 
   get files(): ReadyQuestionFile[] {
-    const owner = accountSessionKey();
-    if (this.owner !== owner) {
-      this.ready.set([]);
-      this.owner = owner;
-      this.message = '';
-      this.zipDownloaded.set(false);
-      this.progress.set(null);
-    }
-    return this.ready();
+    // Templates are reactive read contexts. Writing any signal here throws
+    // NG0600 during production rendering and prevents later view/image hooks
+    // from running. Hide a different account's files without mutating state;
+    // publish/clear perform all actual signal updates outside rendering.
+    const files = this.ready();
+    return this.owner === accountSessionKey() ? files : QuestionExportFilesService.NO_FILES;
   }
   get folderSupported(): boolean {
     return window.isSecureContext && typeof (window as FolderWindow).showDirectoryPicker === 'function';

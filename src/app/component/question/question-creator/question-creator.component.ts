@@ -10701,6 +10701,8 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private runLayout(): void {
     this.layoutTimer = null;
     this.layoutPassInFlight = true;
+    let framesScheduled = false;
+    try {
     this.cdr.detectChanges();
 
     const { w: innerW, h: innerH } = this.effectiveInnerDimensionsForLayout();
@@ -10895,6 +10897,12 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         }
       });
     });
+    framesScheduled = true;
+    } finally {
+      // A synchronous rendering error (before the RAF's existing finally)
+      // must not leave the layout locked as busy for every later operation.
+      if (!framesScheduled) this.layoutPassInFlight = false;
+    }
   }
 
   /**

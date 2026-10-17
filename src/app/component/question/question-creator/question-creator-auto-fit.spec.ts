@@ -2,6 +2,13 @@ import { QuestionCreatorComponent } from './question-creator.component';
 import { of, throwError } from 'rxjs';
 
 describe('creator minimum-page automatic fitting', () => {
+  it('releases the busy latch if rendering fails before layout frames can start', () => {
+    const creator = Object.create(QuestionCreatorComponent.prototype) as any;
+    creator.cdr = { detectChanges: () => { throw new Error('Rendering failed'); } };
+    expect(() => creator.runLayout()).toThrowError('Rendering failed');
+    expect(creator.layoutPassInFlight).toBeFalse();
+    expect(creator.layoutTimer).toBeNull();
+  });
   const fitter = (pageCountAt: (font: number) => number) => {
     const creator = Object.create(QuestionCreatorComponent.prototype) as any;
     let value = 8;

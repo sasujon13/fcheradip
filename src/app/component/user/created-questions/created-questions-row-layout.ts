@@ -8,7 +8,9 @@ export class CreatedQuestionsRowLayout {
 
   constructor(private host: HTMLElement) {
     this.resizeObserver = new ResizeObserver(() => this.schedule());
-    this.resizeObserver.observe(host);
+    // Angular component hosts are inline by default; observe the block page so
+    // viewport resizing is reported even when the host has no content box.
+    this.resizeObserver.observe(host.querySelector('.created-questions-page') || host);
     this.mutationObserver = new MutationObserver(() => this.schedule());
     this.mutationObserver.observe(host, { childList: true, subtree: true, characterData: true });
     document.fonts?.ready.then(() => this.schedule());

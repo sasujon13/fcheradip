@@ -75,7 +75,7 @@ describe('saved-question responsive rows', () => {
     });
   }
 
-  it('waits for the shortest name to overflow, stays stable, and rechecks renamed/filtered names', () => {
+  it('waits for the shortest name to overflow, stays stable, and rechecks renamed/filtered names', async () => {
     const fixture = TestBed.createComponent(CreatedQuestionsComponent);
     spyOn(fixture.componentInstance, 'load');
     fixture.componentInstance.loading = false;
@@ -87,10 +87,17 @@ describe('saved-question responsive rows', () => {
     const host = fixture.nativeElement as HTMLElement;
     host.style.display = 'block';
     host.style.width = '900px';
+    host.style.minWidth = '900px';
     fixture.detectChanges();
     const layout = new CreatedQuestionsRowLayout(host);
     layout.refresh();
     const wrap = host.querySelector('.sets-table-wrap')!;
+    expect(wrap.classList.contains('sets-table-wrap--compact')).toBeFalse();
+    host.style.width = host.style.minWidth = '600px';
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    expect(wrap.classList.contains('sets-table-wrap--compact')).toBeTrue();
+    host.style.width = host.style.minWidth = '900px';
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     expect(wrap.classList.contains('sets-table-wrap--compact')).toBeFalse();
     fixture.componentInstance.sets[1].name = longName;
     fixture.detectChanges();
@@ -101,14 +108,7 @@ describe('saved-question responsive rows', () => {
     fixture.componentInstance.sets = [{ id: 3, name: 'Physics', questions: [] }] as any;
     fixture.detectChanges();
     layout.refresh();
-    expect(host.querySelector('.sets-table-wrap')!.classList.contains('sets-table-wrap--compact')).withContext(JSON.stringify({
-      width: host.querySelector('.sets-table-wrap')!.clientWidth,
-      hostStyle: host.style.cssText, hostWidth: host.clientWidth,
-      pageStyle: getComputedStyle(host.querySelector('.created-questions-page')!).cssText,
-      pageWidth: host.querySelector('.created-questions-page')!.clientWidth,
-      details: (host.querySelector('.sets-table-wrap') as HTMLElement).style.cssText,
-      names: [...host.querySelectorAll('.set-name-counter')].map(n => n.textContent),
-    })).toBeFalse();
+    expect(host.querySelector('.sets-table-wrap')!.classList.contains('sets-table-wrap--compact')).toBeFalse();
     layout.destroy();
     fixture.destroy();
   });
