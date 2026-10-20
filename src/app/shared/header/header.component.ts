@@ -65,6 +65,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  @HostListener('window:cheradip-wallet-updated', ['$event'])
+  updateWalletFromPurchase(event: Event): void {
+    const value = (event as CustomEvent<{owner: string; coins: number; referenceTaka: number}>).detail;
+    if (!accountSessionKey() || value?.owner !== (localStorage.getItem('username') || '') ||
+        !Number.isFinite(value.coins) || value.coins < 0) return;
+    this.trxUnlock.setCachedRemaining(value.coins);
+    this.packageStatus = {...(this.packageStatus || {}), wallet: {...(this.packageStatus?.wallet || {}), availableTaka: value.referenceTaka}};
+    this.loadPackageStatus();
+    this.cdr.markForCheck();
+  }
+
   isDropdownOpen = false;
   toggleDropdown() {
     this.profilePictureMenuOpen = false;
@@ -200,6 +211,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   profileBadge = 'Star';
   profilePictureMenuOpen = false;
   scraperStaff = false;
+  commerceStaff = false;
   private scraperAccessVersion = 0;
   profilePictureBusy = false;
   get studentStudyMode(): boolean {
@@ -450,6 +462,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private refreshScraperAccess(): void {
     const version = ++this.scraperAccessVersion;
     this.scraperStaff = false;
+    this.commerceStaff = false;
+    const session = accountSessionKey();
+    this.apiService.commerceAccess().subscribe({
+      next: value => {
+        if (version === this.scraperAccessVersion && session === accountSessionKey()) {
+          this.commerceStaff = !!value.allowed;
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => { if (version === this.scraperAccessVersion) this.commerceStaff = false; },
+    });
     this.apiService.scraperAccess().subscribe({
       next: value => {
         if (version === this.scraperAccessVersion) {

@@ -190,7 +190,7 @@ export class ApiService {
 
   /** Districts from Location table by country and division. */
   getDistrictsByCountry(countryCode: string, division: string): Observable<string[]> {
-    if (!countryCode || !division) return of([]);
+    if (!countryCode) return of([]);
     return this.http.get<string[]>(`${this.baseUrl}/locations/districts/`, {
       params: { country_code: countryCode, division }
     });
@@ -198,7 +198,7 @@ export class ApiService {
 
   /** Thanas from Location table by country, division, district. */
   getThanasByCountry(countryCode: string, division: string, district: string): Observable<string[]> {
-    if (!countryCode || !division || !district) return of([]);
+    if (!countryCode || !district) return of([]);
     return this.http.get<string[]>(`${this.baseUrl}/locations/thanas/`, {
       params: { country_code: countryCode, division, district }
     });
@@ -585,6 +585,9 @@ export class ApiService {
   /** Check whether the signed-in user may open the staff scraping workspace. */
   scraperAccess(): Observable<{ allowed: boolean; staff: boolean }> {
     return this.http.get<{ allowed: boolean; staff: boolean }>(`${this.baseUrl}/scraper/institutes/access/`);
+  }
+  commerceAccess(): Observable<{ allowed: boolean }> {
+    return this.http.get<{ allowed: boolean }>(`${this.baseUrl}/ecommerce/admin/access/`);
   }
 
   instituteScrapeStatus(): Observable<{ localInstitutes: number; lastPage: number | null; lastSize: number | null; sourceTotal: number | null; lastProcessedAt: string | null }> {

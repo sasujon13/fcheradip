@@ -1011,6 +1011,30 @@ textarea:focus-visible {
   padding: 24px;
 }
 
+.checkout-card label, .extra-filters label, .product-reviews label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: #235b59;
+  font-size: .85rem;
+}
+.extra-filters { display: grid; gap: 12px; margin: 16px 0; }
+.extra-filters input, .extra-filters select { width: 100%; min-width: 0; padding: 8px; border: 1px solid #d4e5e3; border-radius: 7px; }
+.extra-filters input[type=checkbox] { width: auto; }
+.checkout-quote { padding: 12px; background: #f0f9f7; border-radius: 10px; }
+.checkout-quote > div { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0; }
+.gallery-thumbnails { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
+.gallery-thumbnails button { width: 64px; height: 64px; border: 1px solid #bfd7d3; border-radius: 8px; padding: 3px; background: white; }
+.gallery-thumbnails button[aria-pressed=true] { border: 2px solid teal; }
+.gallery-thumbnails img { width: 100%; height: 100%; object-fit: contain; }
+.dialog-gallery { min-width: 0; }
+.product-specs { width: 100%; margin: 16px 0; border-collapse: collapse; }
+.product-specs th, .product-specs td { padding: 8px; text-align: left; border-bottom: 1px solid #d4e5e3; overflow-wrap: anywhere; }
+.product-reviews { margin-top: 18px; }
+.product-reviews article { border-top: 1px solid #d4e5e3; padding: 12px 0; }
+.product-reviews form { display: grid; gap: 10px; }
+.return-policy { font-size: .85rem; overflow-wrap: anywhere; }
 .checkout-card h2 {
   margin: 0 0 5px;
   font-size: 20px;
@@ -1038,8 +1062,10 @@ textarea:focus-visible {
 
 .form-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
+.form-row > label { flex: 1 1 140px; min-width: 0; }
 
 .checkout-total {
   display: flex;

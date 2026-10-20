@@ -56,6 +56,8 @@
         <span class="commerce-cart-icon"><i class="fa fa-shopping-cart" aria-hidden="true"></i>
           <span class="commerce-cart-count" aria-live="polite" aria-atomic="true">{{ commerceCartCount }}</span>
         </span> Cart</a></li>
+      <li class="menu_item" *ngIf="commerceStaff"><a [routerLink]="['/ecommerce/manage']" routerLinkActive="manage"
+          data-ui-note="Staff-only business workspace: products, stock, orders, payments, and CSV uploads."><i class="fa fa-briefcase" aria-hidden="true"></i> Manage</a></li>
     </ul>
 
     <div class="header-right-group">
@@ -193,7 +195,8 @@
      'border-radius': loginStatus ? '7px' : '0'
    }">
           <span aria-hidden="true">{{ null | coinEmoji }}</span>
-          <b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins
+          <ng-container *ngIf="!showWalletAsTaka"><b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins</ng-container>
+          <ng-container *ngIf="showWalletAsTaka"><b>৳{{ headerWalletTaka | number:'1.2-2' }}</b></ng-container>
         </p>
         <div class="hover-message-box" (pointerenter)="trxHelp.enterBox()" (pointerleave)="trxHelp.leaveBox()"
           [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"

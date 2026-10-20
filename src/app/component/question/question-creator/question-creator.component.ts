@@ -36,6 +36,7 @@ import { collectQuestionExportBlobs } from '../../../shared/question-export-down
 import { QuestionExportFilesService } from '../../../shared/question-export-files.service';
 import { accountSessionKey } from '../../../service/account-session-state';
 import { savedQuestionEditPayload } from '../../../shared/created-question-edit';
+import { applyQuestionRichImgSizing } from '../../../shared/question-rich-img.sizing';
 import {
   answerSheetParentQuestionSerialOneBased,
   attachExportMcqOptionsColumnsToQuestions,
@@ -738,6 +739,13 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       Math.ceil(el.scrollHeight || 0),
       stableCeil(box.height || 0)
     );
+    // CQ text, formulae and figures can paint below a short wrapper too, not
+    // only MCQ option grids. Count their full height before assigning columns.
+    for (const child of Array.from(el.querySelectorAll?.(
+      '.preview-q-content, .preview-q-text, .preview-q-subpart, img, svg, .katex-display, pre, table'
+    ) ?? [])) {
+      h = Math.max(h, stableCeil(child.getBoundingClientRect().bottom - box.top));
+    }
     // MCQ option grids can paint taller than the host box metrics in the measure rail.
     if (q && this.questionIsMcqType(q)) {
       const hostTop = box.top;
@@ -1456,6 +1464,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private beginAutoFitProgressSession(): void {
+    this.onMagnifierLeave();
     this.autoFitProgressSessionActive = true;
     this.resetAutoFitOverlayVisible = true;
     this.resetAutoFitOverlayPercent = 10;
@@ -1587,6 +1596,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
   private async settleAutoFitTrial(remeasureOptions = false): Promise<void> {
     this.previewAutoFitForceOneLayoutChain = false;
     this.previewAutoFitSuppressNextLayoutRun = true;
+    // A font/focus change can recreate image nodes. Each trial must measure the
+    // resolved image at its current font cap, not a zero-height placeholder.
+    this.cdr.detectChanges();
+    await this.waitForMeasureRailImagesBeforeExport();
     this.scheduleLayout({ allowDuringExport: this.saveExportLayoutBusy });
     await this.waitForLayoutIdle(90_000);
     if (remeasureOptions) await this.syncMcqOptionsLayoutForExport();
@@ -3753,6 +3766,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       this.runHeaderTextareaSyncs();
       this.syncHeaderFontSizesToLineCount();
       this.cdr.detectChanges();
+      await this.waitForMeasureRailImagesBeforeExport();
       if (!this.restoreSettledPreview()) await this.settleAutoFitTrial(kind === 'mcq');
       this.schedulePersistCreatorStateToLocalStorage();
     } catch (error) {
@@ -4978,8 +4992,10 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     if (!raw) return '';
     const prepared = formatMaybeCProgramQuestionText(raw);
     const type = (q?.type ?? '').toString().trim();
-    if (type !== 'সৃজনশীল প্রশ্ন') return prepared;
+    if (!this.questionIsCreativeType(q)) return prepared;
     const withNewlines = prepared
+      .replace(/\(\s*([কখগঘ])\s*\)/g, '($1)')
+      .replace(/(^|[\s।:;?!>])([কখগঘ])\s*\)/g, '$1($2)')
       .replace(/([^\n])\s*(ক\.|খ\.|গ\.|ঘ\.)/g, '$1\n$2')
       .replace(/\n{2,}/g, '\n');
     const dottedToParen = withNewlines
@@ -5032,7 +5048,7 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
     const full = this.getQuestionDisplayText(q);
     if (!full) return { intro: '', parts: [] };
     const type = (q?.type ?? '').toString().trim();
-    if (type !== 'সৃজনশীল প্রশ্ন') return { intro: full, parts: [] };
+    if (!this.questionIsCreativeType(q)) return { intro: full, parts: [] };
     const byMarkers = this.parseCreativeStructureFromParenMarkers(full);
     if (byMarkers) return byMarkers;
     const lines = full
@@ -8826,7 +8842,9 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
       if (!(bodyRect.height > 0)) {
         continue;
       }
-      for (const node of Array.from(body.querySelectorAll('.preview-q'))) {
+      for (const node of Array.from(body.querySelectorAll(
+        '.preview-q, .preview-q-content, .preview-q-text, .preview-q-subpart, .preview-q-options, img, svg, .katex-display, pre, table'
+      ))) {
         const el = node as HTMLElement;
         if (el.getBoundingClientRect().bottom > bodyBottom + eps) {
           return true;
@@ -10972,11 +10990,20 @@ export class QuestionCreatorComponent implements OnInit, AfterViewInit, OnDestro
         } catch {
           // Ignore assignment errors on older engines.
         }
-        if (img.complete) continue;
+        if (img.complete && img.naturalWidth > 0) {
+          // Font changes resize images asynchronously in the shared directive.
+          // Apply the same sizing synchronously before reading block heights.
+          applyQuestionRichImgSizing(img);
+          continue;
+        }
+        // A deferred image with data-q-img-src has complete=true but no src
+        // yet. Listen now so its later SVG/PNG assignment also repaginates.
+        if (img.complete && img.getAttribute('src') && !img.closest('[data-q-latex-resolved="pending"]')) continue;
         pending = true;
         if (this.pendingMeasureImageListeners.has(img)) continue;
         this.pendingMeasureImageListeners.add(img);
         const rerun = () => {
+          if (img.naturalWidth > 0) applyQuestionRichImgSizing(img);
           if (!this.saveExportLayoutBusy) {
             this.scheduleLayout();
           }

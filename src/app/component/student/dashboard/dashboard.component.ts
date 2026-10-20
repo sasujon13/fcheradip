@@ -9,6 +9,7 @@ import { Router } from '@angular/router';
 import { TrxUnlockService } from '../../../service/trx-unlock.service';
 import { packageQuestionProgress } from '../../../shared/package-question-progress';
 import { packageRenewalNote } from '../../../shared/package-renewal-note';
+import { LiveClass, nextClassTime } from '../../../service/live-class';
 
 @Component({
     selector: 'app-dashboard',
@@ -20,6 +21,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   readonly questionProgress = packageQuestionProgress;
   readonly renewalNote = packageRenewalNote;
   errorMessage = '';
+  nextLiveClass: LiveClass | null = null;
+  liveClassLoading = true;
+  liveClassUnavailable = false;
+  get nextClassTime() { return nextClassTime(this.nextLiveClass, this.liveClassLoading, this.liveClassUnavailable); }
   stats: any = {
     examsCompleted: 0,
     averageScore: 0,
@@ -92,6 +97,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   loadDashboardData(): void {
+    this.studentService.getLiveClasses(1).subscribe({
+      next: data => { this.nextLiveClass = data.nextClass; this.liveClassLoading = false; this.liveClassUnavailable = false; },
+      error: () => { this.liveClassLoading = false; this.liveClassUnavailable = true; },
+    });
     this.errorMessage = '';
     this.studentService.syncLocalExamResults().pipe(
       catchError(() => of(null)),

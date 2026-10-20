@@ -15,6 +15,22 @@
       "X-Forwarded-Proto": "https"
     }
   },
+  "/admin": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true,
+    "headers": {
+      "X-Forwarded-Proto": "https"
+    }
+  },
+  "/static": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true,
+    "headers": {
+      "X-Forwarded-Proto": "https"
+    }
+  },
   "/media": {
     "target": "http://127.0.0.1:8000",
     "secure": false,

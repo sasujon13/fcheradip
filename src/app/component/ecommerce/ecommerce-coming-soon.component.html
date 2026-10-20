@@ -15,7 +15,7 @@
 
   <ng-container *ngIf="activeView === 'shop'">
     <section class="market-intro">
-      <div class="intro-copy"><h1>প্রায় পাইকারি দামে ১০০% ক্যাশ-অন-ডেলিভারিতে খুচরা পণ্য নিন<br><em>পছন্দ হলে রাখুন না হলে ডেলিভারি ম্যানের হাতেই ফেরত দিন</em></h1>
+      <div class="intro-copy"><h1>প্রায় পাইকারি দামে ১০০% ক্যাশ-অন-ডেলিভারিতে পণ্য ক্রয়ের সুযোগ নিন<br><em>পছন্দ হলে রাখুন না হলে ডেলিভারি ম্যানের হাতেই ফেরত দিন</em></h1>
         <!-- <p>Explore fashion, technology, home and more. Find your favourites, all in one place.</p> -->
         <!-- <div class="intro-footnote"><i class="fa fa-th-large" aria-hidden="true"></i>{{ categories.length }} departments to explore <span>·</span> One Cheradip wallet</div> -->
       </div>
@@ -36,6 +36,13 @@
           <button type="button" *ngFor="let category of visibleCategories" [class.active]="selectedCategory === category.slug" [attr.aria-pressed]="selectedCategory === category.slug" (click)="chooseCategory(category.slug)"><i class="fa" [ngClass]="categoryIcon(category.name)" aria-hidden="true"></i><span>{{ category.name }}</span><small>{{ category.product_count }}</small></button>
           <p class="category-empty" *ngIf="!visibleCategories.length && categorySearch">No matching categories.</p>
         </nav>
+        <div class="extra-filters">
+          <label>Brand<select [(ngModel)]="selectedBrand" (change)="loadProducts()"><option value="">All brands</option><option *ngFor="let brand of brands" [value]="brand.slug">{{ brand.name }}</option></select></label>
+          <label>Minimum price (৳)<input type="number" min="0" [(ngModel)]="minPrice"></label>
+          <label>Maximum price (৳)<input type="number" min="0" [(ngModel)]="maxPrice"></label>
+          <label><input type="checkbox" [(ngModel)]="inStockOnly"> In stock only</label>
+          <button class="ghost" type="button" (click)="loadProducts()">Apply filters</button>
+        </div>
         <button class="reset-filters" type="button" (click)="resetCatalog()"><i class="fa fa-undo" aria-hidden="true"></i> Reset filters</button>
       </aside>
       <div class="catalog-content" [attr.aria-busy]="catalogLoading">
@@ -81,19 +88,27 @@
   </ng-container>
 
   <div class="product-modal" *ngIf="selectedProduct" (click)="closeProduct()" role="presentation">
-    <article class="product-dialog" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title" (click)="$event.stopPropagation()">
+    <article class="product-dialog" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
       <button class="dialog-close" type="button" (click)="closeProduct()" aria-label="Close product details">×</button>
-      <div class="dialog-image"><img [src]="selectedProduct.image_url || selectedProduct.images[0]?.url || 'assets/images/cheradip.svg'" [alt]="selectedProduct.name"></div>
+      <div class="dialog-gallery"><div class="dialog-image"><img [src]="activeImage" [alt]="selectedProduct.name"></div>
+        <div class="gallery-thumbnails"><button type="button" *ngFor="let image of selectedProduct.images" (click)="activeImage = image.url" [attr.aria-label]="image.alt_text || 'View product image'" [attr.aria-pressed]="activeImage === image.url"><img [src]="image.url" [alt]="image.alt_text || selectedProduct.name" loading="lazy"></button></div>
+      </div>
       <div class="dialog-body">
         <p class="eyebrow">{{ selectedProduct.category_name }}<span *ngIf="selectedProduct.brand_name"> · {{ selectedProduct.brand_name }}</span></p>
         <h2 id="product-dialog-title">{{ selectedProduct.name }}</h2>
         <p>{{ selectedProduct.description || selectedProduct.short_description }}</p>
+        <p class="shipping-note">Delivery is calculated at checkout from parcel weight and destination. Fixed product fees, when set: Dhaka {{ selectedProduct.delivery_dhaka_charge == null ? 'weight-based' : '৳' + selectedProduct.delivery_dhaka_charge }}, outside Dhaka {{ selectedProduct.delivery_outside_dhaka_charge == null ? 'weight-based' : '৳' + selectedProduct.delivery_outside_dhaka_charge }}. COD: {{ selectedProduct.cod_percent ?? policy.cod_percent }}% of discounted product prices only.</p>
         <label for="variant-choice">Choose an option</label>
-        <select id="variant-choice" [(ngModel)]="selectedVariantId">
+        <select id="variant-choice" [(ngModel)]="selectedVariantId" (change)="selectVariantImage()">
           <option *ngFor="let variant of selectedProduct.variants" [ngValue]="variant.id" [disabled]="!variant.is_active || variant.stock < 1">{{ variant.title }} · ৳{{ variant.price }} · {{ variant.stock > 0 ? variant.stock + ' available' : 'out of stock' }}</option>
         </select>
         <div class="price-row" *ngIf="selectedVariant as variant"><strong>৳{{ variant.price | number:'1.0-2' }}</strong><del *ngIf="variant.compare_at_price">৳{{ variant.compare_at_price | number:'1.0-2' }}</del></div>
         <button class="primary" [disabled]="!selectedVariant || selectedVariant.stock < 1" (click)="addSelectedVariantToCart()">Add selected option to cart</button>
+        <a [routerLink]="['/ecommerce/product', selectedProduct.slug]">Product link</a>
+        <table class="product-specs" *ngIf="selectedProduct.attributes"><tr *ngFor="let spec of selectedProduct.attributes | keyvalue"><th>{{ spec.key }}</th><td>{{ spec.value }}</td></tr></table>
+        <section class="product-reviews"><h3>Customer reviews</h3><p *ngIf="!selectedProduct.approved_reviews?.length">No approved reviews yet.</p><article *ngFor="let item of selectedProduct.approved_reviews"><strong>{{ item.customer_name }} · {{ item.rating }}/5</strong><h4>{{ item.title }}</h4><p>{{ item.body }}</p></article>
+          <form *ngIf="loginStatus" (ngSubmit)="submitReview()"><h4>Review your completed purchase</h4><label>Rating<select name="reviewRating" [(ngModel)]="review.rating"><option *ngFor="let rating of [5,4,3,2,1]" [ngValue]="rating">{{ rating }}/5</option></select></label><label>Title<input name="reviewTitle" maxlength="200" [(ngModel)]="review.title"></label><label>Review<textarea name="reviewBody" maxlength="2000" [(ngModel)]="review.body" required></textarea></label><button class="ghost" type="submit">Submit for approval</button></form>
+        </section>
       </div>
     </article>
   </div>
@@ -113,25 +128,36 @@
       </div>
       <form class="checkout-card" (ngSubmit)="placeOrder()">
         <h2>Delivery details</h2>
-        <input required [(ngModel)]="checkout.customer_name" name="customer_name" placeholder="Full name">
-        <div class="form-row"><input required type="email" [(ngModel)]="checkout.email" name="email" placeholder="Email"><input required [(ngModel)]="checkout.phone" name="phone" placeholder="Phone"></div>
-        <textarea required [(ngModel)]="checkout.address" name="address" placeholder="Street address"></textarea>
-        <div class="form-row"><input required [(ngModel)]="checkout.city" name="city" placeholder="City"><input [(ngModel)]="checkout.district" name="district" placeholder="District"><input [(ngModel)]="checkout.postal_code" name="postal" placeholder="Post code"></div>
-        <select [(ngModel)]="checkout.payment_method" name="payment_method"><option *ngIf="loginStatus" value="wallet">Cheradip Wallet · ৳{{ walletTaka | number:'1.2-2' }}</option><option value="cod">Cash on delivery</option><option value="bkash">bKash</option><option value="nagad">Nagad</option><option value="bank">Bank transfer</option></select>
+        <p class="shipping-note">Account details are filled when available. You can edit every field for this order without changing your profile.</p>
+        <label>Recipient name<input required maxlength="200" [(ngModel)]="checkout.customer_name" name="customer_name" autocomplete="name"></label>
+        <div class="form-row"><label>Email<input required type="email" maxlength="254" [(ngModel)]="checkout.email" name="email" autocomplete="email"></label><label>Contact number<input required type="tel" maxlength="40" [(ngModel)]="checkout.phone" name="phone" autocomplete="tel"></label></div>
+        <label>Alternate contact number (optional)<input type="tel" maxlength="40" [(ngModel)]="checkout.phone_alternate" name="phone_alternate"></label>
+        <div class="form-row"><label>Country code<input required maxlength="2" [(ngModel)]="checkout.country_code" name="country_code" (ngModelChange)="requestQuote()" aria-describedby="delivery-country-note"></label><label>Division<input list="delivery-divisions" [(ngModel)]="checkout.division" name="division" (change)="divisionChanged()"></label></div>
+        <small id="delivery-country-note">Physical delivery currently serves Bangladesh (BD).</small>
+        <div class="form-row"><label>District<input required list="delivery-districts" [(ngModel)]="checkout.district" name="district" (ngModelChange)="requestQuote()" (change)="districtChanged()"></label><label>Thana / Upazila<input required list="delivery-thanas" [(ngModel)]="checkout.thana" name="thana" (ngModelChange)="requestQuote()"></label></div>
+        <datalist id="delivery-divisions"><option *ngFor="let name of divisions" [value]="name"></option></datalist><datalist id="delivery-districts"><option *ngFor="let name of districts" [value]="name"></option></datalist><datalist id="delivery-thanas"><option *ngFor="let name of thanas" [value]="name"></option></datalist>
+        <label>Zone / Union / Area<input maxlength="150" [(ngModel)]="checkout.zone" name="zone"></label>
+        <label>Street / Village / House address<textarea required maxlength="1000" [(ngModel)]="checkout.address" name="address" autocomplete="street-address"></textarea></label>
+        <div class="form-row"><label>City / Town<input maxlength="100" [(ngModel)]="checkout.city" name="city"></label><label>Post code<input maxlength="20" [(ngModel)]="checkout.postal_code" name="postal" autocomplete="postal-code"></label></div>
+        <select [(ngModel)]="checkout.payment_method" name="payment_method" (ngModelChange)="requestQuote()"><option *ngIf="loginStatus" value="wallet">Cheradip Wallet · ৳{{ walletTaka | number:'1.2-2' }}</option><option value="cod">Cash on delivery</option><option value="bkash">bKash</option><option value="nagad">Nagad</option><option value="bank">Bank transfer</option></select>
         <small class="wallet-note" *ngIf="checkout.payment_method === 'wallet'">
           100 coins = ৳1. Reference balance ৳{{ referenceBalanceTaka | number:'1.2-2' }} will be used first; the full purchase price is deducted from Main Wallet.
         </small>
-        <input *ngIf="checkout.payment_method !== 'cod' && checkout.payment_method !== 'wallet'" [(ngModel)]="checkout.transaction_id" name="transaction_id" placeholder="Transaction ID">
-        <input [(ngModel)]="checkout.coupon_code" name="coupon_code" placeholder="Coupon code (optional)">
+        <label *ngIf="checkout.payment_method !== 'cod' && checkout.payment_method !== 'wallet'">Payment transaction ID<input required maxlength="160" [(ngModel)]="checkout.transaction_id" name="transaction_id"></label>
+        <label>Coupon code (optional)<input [(ngModel)]="checkout.coupon_code" name="coupon_code" (ngModelChange)="requestQuote()" maxlength="80"></label>
         <textarea [(ngModel)]="checkout.customer_note" name="note" placeholder="Order note (optional)"></textarea>
-        <div class="checkout-total"><span>Subtotal</span><strong>৳{{ cart?.subtotal | number:'1.0-2' }}</strong></div>
-        <small class="shipping-note">Delivery is calculated securely by Cheradip: ৳80, or free for physical-product orders of ৳3,000 and above.</small>
-        <button class="primary" type="submit" [disabled]="loading">{{ loading ? 'Placing order…' : 'Place order' }}</button>
+        <div class="checkout-total" *ngIf="!quote"><span>Subtotal (before delivery)</span><strong>৳{{ cart?.subtotal | number:'1.2-2' }}</strong></div>
+        <div class="checkout-quote" aria-live="polite"><p *ngIf="quoteLoading">Calculating your final total…</p><p *ngIf="quoteError" role="alert">{{ quoteError }}</p><p *ngIf="!quote && !quoteLoading && !quoteError">Select a district to calculate delivery.</p><ng-container *ngIf="quote"><div><span>Subtotal</span><b>৳{{ quote.subtotal | number:'1.2-2' }}</b></div><div><span>Discount</span><b>−৳{{ quote.discount_total | number:'1.2-2' }}</b></div><div><span>Courier / Delivery</span><b>৳{{ quote.shipping_total | number:'1.2-2' }}</b></div><div><span>Cash on delivery (COD)</span><b>৳{{ quote.cod_total | number:'1.2-2' }}</b></div><div class="checkout-total"><span>Total payable</span><strong>৳{{ quote.grand_total | number:'1.2-2' }}</strong></div></ng-container></div>
+        <p class="shipping-note" *ngIf="quote?.delivery_details?.weight_grams">Delivery area: {{ quote.delivery_details.zone === 'dhaka' ? 'Dhaka' : quote.delivery_details.zone === 'suburbs' ? 'Dhaka suburbs' : 'Outside Dhaka' }} · Known parcel weight: {{ quote.delivery_details.weight_grams }} g. <ng-container *ngIf="quote.delivery_details.minimum != null">Eligible fee range: ৳{{ quote.delivery_details.minimum }}–৳{{ quote.delivery_details.maximum }}.</ng-container></p>
+        <p class="shipping-note" role="status" *ngIf="quote?.delivery_details?.fallback">Some product weights are unavailable. This quote uses the fallback delivery fee; contact us to confirm delivery for heavy or bulky items.</p>
+        <small class="shipping-note">Delivery uses total item weight × quantity and the midpoint between the lowest and highest eligible courier base fees, once per order. Product-specific fixed fees may apply. Missing weights use the fallback fee: Dhaka ৳{{ policy.dhaka_charge }}, outside Dhaka ৳{{ policy.outside_dhaka_charge }}. Default COD: {{ policy.cod_percent }}% of discounted product prices only, excluding delivery. Digital-only orders have no courier charge.</small>
+        <details class="return-policy"><summary>Delivery &amp; return policy</summary><p>{{ policy.return_policy }}</p><a *ngIf="policy.support_phone" [href]="'tel:' + policy.support_phone">{{ policy.support_phone }}</a></details>
+        <button class="primary" type="submit" [disabled]="loading || quoteLoading || !quote">{{ loading ? 'Placing order…' : 'Place order' }}</button>
       </form>
     </div>
     <ng-template #emptyCart><div class="empty-state"><img class="empty-cart-image" src="assets/images/fish.png" alt="Empty shopping cart"><h2>Your cart is empty</h2><p>Add products or books to see them here.</p><button class="primary" type="button" (click)="setView('shop')">Browse products</button></div></ng-template>
     </ng-container>
-    <div class="order-success" *ngIf="completedOrder"><h2>Order ID: {{ completedOrder.number }}</h2><p>Status: Pending — administration will mark it Order Completed after approval.</p><ng-container *ngIf="!loginStatus"><p>Save your private tracking token:</p><code>{{ completedOrder.tracking_token }}</code></ng-container><button type="button" class="ghost" (click)="setView('track')">Track this order</button></div>
+    <div class="order-success" *ngIf="completedOrder"><h2>Order ID: {{ completedOrder.number }}</h2><p>Status: Pending — administration will mark it Order Completed after approval.</p><p>A private receipt is queued for email. Download a copy now for reliable tracking.</p><ng-container *ngIf="!loginStatus"><p>Save your private tracking token:</p><code>{{ completedOrder.tracking_token }}</code></ng-container><button type="button" class="ghost" (click)="downloadReceipt(completedOrder)">Download receipt</button><button type="button" class="ghost" (click)="setView('track')">Track this order</button></div>
   </section>
 
   <section class="workspace narrow" *ngIf="activeView === 'track'">

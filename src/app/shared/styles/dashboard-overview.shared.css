@@ -775,6 +775,7 @@
 .action-card--tutor { --action-accent: #5068d6; --action-soft: #eef0ff; --action-border: #d2d9fc; }
 .action-card--profile { --action-accent: #d16935; --action-soft: #fff0e5; --action-border: #f6d7c2; }
 .action-card--live { --action-accent: #d44f58; --action-soft: #ffedf0; --action-border: #f5c8ce; }
+.action-card--class { --action-accent: #008e86; --action-soft: #e6f8f3; --action-border: #a8ded1; }
 .action-card--practice { --action-accent: #3971d2; --action-soft: #ebf2ff; --action-border: #cbdcfb; }
 .action-card--achievements { --action-accent: #7860ce; --action-soft: #f2edff; --action-border: #ded1fc; }
 .action-card--leaderboard { --action-accent: #168f82; --action-soft: #e6f7f3; --action-border: #b6e1d9; }

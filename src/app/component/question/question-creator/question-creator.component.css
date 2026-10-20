@@ -739,6 +739,23 @@
 }
 
 /* Clips layout to scaled size so 1:1 paper width does not force horizontal scroll */
+.preview-live-stage--fitting .preview-scale-clip {
+  /* Keep layout boxes measurable, but never present an unsafe trial as the
+     paper that will be exported. The finished, validated pages replace it. */
+  visibility: hidden;
+}
+.preview-fitting-notice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: #006666;
+  text-align: center;
+  font-size: 15px;
+}
 .preview-scale-clip {
   position: relative;
   margin: 0 auto;

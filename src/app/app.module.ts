@@ -28,6 +28,7 @@ import { BalancedActionCardsDirective } from './shared/balanced-action-cards.dir
 import { OrderByPipe } from './shared/orderBy.pipe';
 import { hDirective } from './shared/hfilter.directive';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { A11yModule } from '@angular/cdk/a11y';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { LoginComponent } from './component/user/login/login.component';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
@@ -195,7 +196,7 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
     schemas: [CUSTOM_ELEMENTS_SCHEMA], imports: [BrowserModule, QuestionExportFilesComponent,
         CommonModule,
         AppRoutingModule,
-        FormsModule,
+        FormsModule, A11yModule,
         ReactiveFormsModule,
         BrowserAnimationsModule,
         MatSnackBarModule,

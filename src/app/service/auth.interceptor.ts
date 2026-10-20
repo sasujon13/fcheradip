@@ -30,14 +30,16 @@ export class AuthInterceptor implements HttpInterceptor {
     }
     let sentAuth = false;
     if (isApi) request = request.clone({ withCredentials: true });
-    if (token && isApi) {
+    const sharedCookieProbe = /\/session\/\?cookie_only=1(?:&|$)/.test(request.url);
+    if (token && isApi && !sharedCookieProbe) {
       sentAuth = true;
       request = request.clone({
         setHeaders: { Authorization: `Bearer ${token}` },
       });
     }
     const scraperRequest = request.url.includes('/scraper/') || request.url.includes('/run_scraper');
-    if (isApi && scraperRequest && !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(request.method) &&
+    const commerceManagementRequest = request.url.includes('/ecommerce/admin/');
+    if (isApi && (scraperRequest || commerceManagementRequest) && !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(request.method) &&
         !request.headers.has('X-CSRFToken')) {
       const csrfToken = this.cookieValue('csrftoken');
       if (csrfToken) request = request.clone({ setHeaders: { 'X-CSRFToken': csrfToken } });

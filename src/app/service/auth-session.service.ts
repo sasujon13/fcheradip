@@ -29,7 +29,9 @@ export class AuthSessionService implements OnDestroy {
 
   clearStoredSession(revoke = true): void {
     if (revoke && /^(?:[a-z]+\.)?cheradip\.com$/.test(location.hostname)) {
-      void fetch(`${environment.apiUrl}/session/`, { method: 'POST', credentials: 'include', keepalive: true }).catch(() => undefined);
+      const token = localStorage.getItem('authToken');
+      void fetch(`${environment.apiUrl}/session/`, { method: 'POST', credentials: 'include', keepalive: true,
+        headers: token ? {Authorization: `Bearer ${token}`} : {} }).catch(() => undefined);
     }
     [
       'isLoggedIn',
@@ -51,11 +53,17 @@ export class AuthSessionService implements OnDestroy {
   }
 
   async restoreSharedSession(): Promise<void> {
-    if (this.hasStoredSession() || !/^(?:[a-z]+\.)?cheradip\.com$/.test(location.hostname)) return;
+    if (!/^(?:[a-z]+\.)?cheradip\.com$/.test(location.hostname)) return;
+    const startingToken = localStorage.getItem('authToken');
     try {
-      const session = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/session/`, { withCredentials: true }).pipe(timeout(4000)));
-      if (this.hasStoredSession()) return; // a manual login may have completed meanwhile
-      if (!session?.loggedIn || !session.authToken) return;
+      const session = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/session/?cookie_only=1`, { withCredentials: true }).pipe(timeout(4000)));
+      if (localStorage.getItem('authToken') !== startingToken) return; // a manual login completed meanwhile
+      if (!session?.loggedIn || !session.authToken) {
+        if (session?.sharedSessionPresent) this.clearStoredSession(false);
+        return;
+      }
+      if (session.authToken === startingToken && this.hasStoredSession()) return;
+      this.clearStoredSession(false);
       for (const key of ['authToken', 'username', 'fullName', 'acctype']) localStorage.setItem(key, session[key] || '');
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('loginStatus', 'true');
@@ -84,7 +92,8 @@ export class AuthSessionService implements OnDestroy {
   }
 
   /** Lightweight Bearer check against customer_settings (server keeps one token per user). */
-  probeSession(): void {
+  async probeSession(): Promise<void> {
+    await this.restoreSharedSession();
     if (!this.hasStoredSession() || this.invalidating) {
       return;
     }

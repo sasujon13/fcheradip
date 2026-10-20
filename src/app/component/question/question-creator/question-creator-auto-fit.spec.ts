@@ -2,6 +2,97 @@ import { QuestionCreatorComponent } from './question-creator.component';
 import { of, throwError } from 'rxjs';
 
 describe('creator minimum-page automatic fitting', () => {
+  for (const type of ['সৃজনশীল', 'সৃজনশীল প্রশ্ন']) {
+    it(`packs the ${type} stem and four parts independently across columns`, () => {
+      const creator = Object.create(QuestionCreatorComponent.prototype) as any;
+      const q = { qid: 'cq', type, question: 'Stem (ক) Part A (খ) Part B (গ) Part C (ঘ) Part D' };
+      const rows = creator.expandQuestionsIntoLayoutSegments([q]);
+      expect(rows.length).toBe(5);
+      expect(rows.map((r: any) => r.answerSheetSegmentKind)).toEqual(['intro', 'part', 'part', 'part', 'part']);
+      expect(rows.slice(1).map((r: any) => r.answerSheetPartIndex)).toEqual([0, 1, 2, 3]);
+      creator.questionBlockMarginBottomPx = () => 0;
+      const packed = creator.packQuestionsColumnMajor([40, 20, 20, 20, 20], rows, 0, 80, 2);
+      expect(packed.columnStacks.map((c: any[]) => c.map(it => it.index))).toEqual([[0, 1, 2], [3, 4]]);
+      expect(packed.nextQ).toBe(5);
+      expect(packed.pageHasOversized).toBeFalse();
+    });
+  }
+  it('recognizes imported CQ markers with missing parentheses or internal spaces', () => {
+    const creator = Object.create(QuestionCreatorComponent.prototype) as any;
+    const rows = creator.expandQuestionsIntoLayoutSegments([{
+      type: 'সৃজনশীল', question: 'Stem। ক) A (খ) B ( গ) C ( ঘ ) D',
+    }]);
+    expect(rows.length).toBe(5);
+    expect(rows.slice(1).map((r: any) => r.question)).toEqual(['(ক) A', '(খ) B', '(গ) C', '(ঘ) D']);
+  });
+  it('counts CQ child content that extends beyond its wrapper height', () => {
+    const creator = Object.create(QuestionCreatorComponent.prototype) as any;
+    const element = {
+      offsetHeight: 20, scrollHeight: 20,
+      getBoundingClientRect: () => ({ top: 100, height: 20 }),
+      querySelectorAll: () => [{ getBoundingClientRect: () => ({ bottom: 155 }) }],
+    };
+    expect(creator.measureBlockHeightForPagination(element)).toBe(55);
+  });
+  it('rejects a clipped CQ descendant even if the question wrapper fits', () => {
+    const creator = Object.create(QuestionCreatorComponent.prototype) as any;
+    creator.previewStage = { nativeElement: { querySelectorAll: () => [{
+      getBoundingClientRect: () => ({ height: 100, bottom: 200 }),
+      querySelectorAll: () => [
+        { getBoundingClientRect: () => ({ bottom: 190 }) },
+        { getBoundingClientRect: () => ({ bottom: 220 }) },
+      ],
+    }] } };
+    expect(creator.previewContentClipsIntoBottomMargin()).toBeTrue();
+  });
+  it('waits for recreated image nodes before scheduling each fitting trial', async () => {
+    const creator = Object.create(QuestionCreatorComponent.prototype) as any;
+    let release!: () => void;
+    creator.cdr = { detectChanges: () => {} };
+    creator.waitForMeasureRailImagesBeforeExport = () => new Promise<void>(resolve => { release = resolve; });
+    creator.scheduleLayout = jasmine.createSpy('measure');
+    creator.waitForLayoutIdle = async () => {};
+    creator.rememberSettledPreview = () => {};
+    const fitting = creator.settleAutoFitTrial();
+    expect(creator.scheduleLayout).not.toHaveBeenCalled();
+    release();
+    await fitting;
+    expect(creator.scheduleLayout).toHaveBeenCalledTimes(1);
+  });
+
+  for (const deferred of [true, false]) {
+    it(`sizes ${deferred ? 'deferred' : 'cached'} images before measuring their heights`, () => {
+      const creator = Object.create(QuestionCreatorComponent.prototype) as any;
+      creator.pendingMeasureImageListeners = new WeakSet();
+      creator.scheduleLayout = jasmine.createSpy('relayout');
+      const host = document.createElement('div');
+      host.className = 'preview-q-content';
+      host.style.width = '500px';
+      const image = document.createElement('img');
+      image.className = 'q-rich-img';
+      image.style.fontSize = '10px';
+      image.setAttribute('data-q-img-src', '/example.png');
+      let loaded = !deferred;
+      Object.defineProperties(image, {
+        complete: { get: () => true },
+        naturalWidth: { get: () => loaded ? 488 : 0 },
+        naturalHeight: { get: () => loaded ? 200 : 0 },
+      });
+      host.appendChild(image);
+      document.body.appendChild(host);
+      try {
+        expect(creator.scheduleLayoutForPendingMeasureImages([{ nativeElement: host }])).toBe(deferred);
+        if (deferred) {
+          loaded = true;
+          image.dispatchEvent(new Event('load'));
+          expect(creator.scheduleLayout).toHaveBeenCalledTimes(1);
+        }
+        expect(image.style.width).toBe('300px');
+        expect(image.style.height).toBe('123px');
+      } finally { host.remove(); }
+    });
+  }
+
   it('releases the busy latch if rendering fails before layout frames can start', () => {
     const creator = Object.create(QuestionCreatorComponent.prototype) as any;
     creator.cdr = { detectChanges: () => { throw new Error('Rendering failed'); } };
@@ -299,6 +390,7 @@ describe('creator minimum-page automatic fitting', () => {
     creator.previewContentClipsIntoBottomMargin = () => false;
     creator.updatePreviewFitScale = () => {};
     creator.cacheFocusExportPagePlanFromPages = () => {};
+    creator.waitForMeasureRailImagesBeforeExport = async () => {};
     creator.commonLayoutKind = () => creator.previewKindFocus;
     creator.paginatedPages = [{items: [{index: 0, q: creator.questions[0]}]}];
     return creator;

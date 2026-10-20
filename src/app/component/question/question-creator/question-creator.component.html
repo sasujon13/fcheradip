@@ -1103,11 +1103,17 @@
       </div>
       <div
         class="preview-live-stage"
+          [class.preview-live-stage--fitting]="autoFitBlockingOverlayVisible"
+          [attr.aria-busy]="autoFitBlockingOverlayVisible"
         #previewStage
         [style.minHeight.px]="previewStackHeightPx * previewFitScale + 32"
         (mouseleave)="onMagnifierLeave()"
         (mousemove)="onPreviewStageMouseMove($event)"
       >
+          <div *ngIf="autoFitBlockingOverlayVisible" class="preview-fitting-notice" role="status">
+            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+            Fitting a print-safe preview… {{ resetAutoFitOverlayPercent }}%
+          </div>
         <div
           class="preview-scale-clip"
           [style.width.px]="previewPaperWidthPxMax * previewFitScale"

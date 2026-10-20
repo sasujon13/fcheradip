@@ -1,0 +1,17 @@
+<main class="class-page">
+  <header class="class-hero"><div><span class="eyebrow">LEARN TOGETHER</span><h1>Live Class</h1><p>Find your next lesson and join using the teacher’s scheduled meeting link.</p></div><i class="fa fa-video" aria-hidden="true"></i></header>
+  <div class="class-toolbar"><label><i class="fa fa-search" aria-hidden="true"></i><input [(ngModel)]="search" aria-label="Search live classes" placeholder="Search subject, topic, level or teacher"></label><button type="button" (click)="load()" [disabled]="loading"><i class="fa fa-refresh" aria-hidden="true"></i> Refresh</button></div>
+  <p class="time-note"><i class="fa fa-clock" aria-hidden="true"></i> All times shown in Bangladesh time (Asia/Dhaka).</p>
+  <p class="state" role="status" *ngIf="loading">Loading class schedule…</p>
+  <p class="error" role="alert" *ngIf="error">{{ error }}</p>
+  <section class="class-grid" aria-label="Scheduled live classes" *ngIf="!loading && !error">
+    <article *ngFor="let item of visibleClasses" class="class-card">
+      <div class="card-top"><span class="class-status" [class.is-live]="isLive(item)">{{ isLive(item) ? 'Live now' : 'Upcoming' }}</span><span>{{ item.level }}</span></div>
+      <h2>{{ item.title }}</h2><p class="class-subject" *ngIf="item.subject || item.topic">{{ item.subject }}<span *ngIf="item.subject && item.topic"> · </span>{{ item.topic }}</p>
+      <p class="class-time"><i class="fa fa-calendar" aria-hidden="true"></i><strong>{{ item.starts_at | date:'dd-MMM h:mm a':'+0600' }}</strong><span>Ends {{ item.ends_at | date:'dd-MMM h:mm a':'+0600' }}</span></p>
+      <p class="teacher" *ngIf="item.teacher_name"><i class="fa fa-user" aria-hidden="true"></i>{{ item.teacher_name }}</p><p class="description" *ngIf="item.description">{{ item.description }}</p>
+      <a [href]="item.join_url" target="_blank" rel="noopener noreferrer" class="join-class" data-ui-note="Open the scheduled class using the teacher’s meeting link in a new tab."><i class="fa fa-video" aria-hidden="true"></i> Join Class <i class="fa fa-external-link" aria-hidden="true"></i></a>
+    </article>
+  </section>
+  <div class="empty" *ngIf="!loading && !error && !visibleClasses.length"><i class="fa fa-calendar" aria-hidden="true"></i><h2>{{ classes.length ? 'No matching classes' : 'No live classes scheduled yet' }}</h2><p>{{ classes.length ? 'Try a different subject, topic or teacher.' : 'Published classes will appear here as soon as the administrator adds a schedule.' }}</p><a routerLink="/dashboard">Back to dashboard</a></div>
+</main>

@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { Observable, of, timeout } from 'rxjs';
+import { LiveClassSchedule } from './live-class';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
@@ -28,6 +29,10 @@ export class StudentService {
 
   getStudentStats(): Observable<any> {
     return this.http.get(`${this.baseUrl}/student/stats/`);
+  }
+
+  getLiveClasses(limit = 100): Observable<LiveClassSchedule> {
+    return this.http.get<LiveClassSchedule>(`${this.baseUrl}/live-classes/`, {params: {limit}}).pipe(timeout(10000));
   }
 
   saveExamResult(result: {

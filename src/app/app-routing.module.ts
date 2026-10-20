@@ -62,6 +62,7 @@ import { AicodingagentHomeComponent } from './component/aicodingagent/aicodingag
 import { CheradipManualComponent } from './component/cheradip/cheradip-manual.component';
 import { CheradipSupportComponent } from './component/cheradip/cheradip-support.component';
 import { EcommerceComingSoonComponent } from './component/ecommerce/ecommerce-coming-soon.component';
+import { CommerceManagementGuard } from './service/commerce-management.service';
 import { AiServicesLandingComponent } from './component/ai-services/ai-services-landing.component';
 import {
   StudentSectionDashboardGuard,
@@ -144,8 +145,10 @@ const routes: Routes = [
   /** Previously published alias—must remain active. */
   { path: 'cheradip', component: CheradipManualComponent, pathMatch: 'full' },
   { path: 'cheradip/', component: CheradipManualComponent, pathMatch: 'full' },
-  /** Reserved storefront route served at ecommerce.cheradip.com until phase two is approved. */
-  { path: 'ecommerce', component: EcommerceComingSoonComponent, pathMatch: 'full' },
+  { path: 'ecommerce/manage', canActivate: [CommerceManagementGuard], loadComponent: () => import('./component/ecommerce/manage/commerce-manage.component').then(m => m.CommerceManageComponent) },
+  /** Storefront and subdomain entry point. */
+   { path: 'ecommerce/product/:slug', component: EcommerceComingSoonComponent },
+   { path: 'ecommerce', component: EcommerceComingSoonComponent, pathMatch: 'full' },
   { path: 'ecommerce/', component: EcommerceComingSoonComponent, pathMatch: 'full' },
   /** Curriculum-aware AI Tutor; tutor.cheradip.com renders this route internally. */
   { path: 'tutor', component: AiltPageComponent, pathMatch: 'full', data: { page: 'index', folder: 'tutor', title: 'AI Tutor — Cheradip' } },
@@ -214,6 +217,7 @@ const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent, canActivate: [StudentSectionDashboardGuard] },
       { path: 'liveexam', component: RegularexamComponent, data: { examMode: 'live' } },
+      { path: 'live-class', loadComponent: () => import('./component/student/live-class/live-class.component').then(m => m.LiveClassComponent) },
       { path: 'regularexam', component: RegularexamComponent },
       { path: 'exam-set/:id', component: ExamSetSessionComponent },
       { path: 'archive', component: RegularexamComponent, data: { examMode: 'practice' } },

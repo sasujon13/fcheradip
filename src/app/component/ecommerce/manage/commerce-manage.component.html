@@ -1,0 +1,193 @@
+<main class="business-shell" *ngIf="access.allowed; else accessLoading">
+  <header class="business-heading">
+    <div><p class="eyebrow">CHERADIP MARKETPLACE</p><h1>Business Manager</h1><p>Your products, customers, and daily business — in one workspace.</p></div>
+    <a routerLink="/ecommerce" class="button button-light"><i class="fa fa-external-link" aria-hidden="true"></i> View shop</a>
+  </header>
+
+  <div class="business-layout">
+    <aside class="business-sidebar" aria-label="Business navigation">
+      <button *ngFor="let item of visibleSections" type="button" [class.selected]="section.key === item.key" [attr.aria-current]="section.key === item.key ? 'page' : null" (click)="select(item)" [attr.title]="item.description">
+        <i class="fa" [ngClass]="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span>
+      </button>
+      <a href="/admin/?db=ecommerce" target="_blank" rel="noopener"><i class="fa fa-cog" aria-hidden="true"></i> Django administration <i class="fa fa-external-link" aria-hidden="true"></i></a>
+    </aside>
+
+    <section class="business-content" [attr.aria-busy]="loading">
+      <div class="section-heading"><div><h2>{{ section.label }}</h2><p>{{ section.description }}</p></div>
+        <button class="button button-light" type="button" (click)="load()" [disabled]="loading || busy" title="Refresh this section"><i class="fa fa-refresh" aria-hidden="true"></i><span>Refresh</span></button>
+      </div>
+      <div class="notice notice-error" role="alert" *ngIf="error && !editor && !detail && !pendingAction">{{ error }}</div>
+      <p class="notice" *ngIf="visibleSections.length === 0">Your account is staff, but has no commerce permissions yet. Ask an administrator to assign the required eCommerce permissions in Django.</p>
+      <div class="loading" role="status" *ngIf="loading"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Loading {{ section.label.toLowerCase() }}…</div>
+
+      <ng-container *ngIf="section.key === 'overview'">
+        <div class="metrics" *ngIf="!loading && can('order', 'view')">
+          <article><i class="fa fa-money" aria-hidden="true"></i><span>Paid order value</span><strong>৳{{ stats.revenue || 0 | number:'1.2-2' }}</strong></article>
+          <article><i class="fa fa-shopping-cart" aria-hidden="true"></i><span>Pending orders</span><strong>{{ stats.pending_orders || 0 }}</strong></article>
+          <article><i class="fa fa-credit-card" aria-hidden="true"></i><span>Payments to review</span><strong>{{ stats.pending_payments || 0 }}</strong></article>
+          <article><i class="fa fa-cubes" aria-hidden="true"></i><span>Low-stock variants</span><strong>{{ stats.low_stock || 0 }}</strong></article>
+          <article><i class="fa fa-shopping-bag" aria-hidden="true"></i><span>Active / total products</span><strong>{{ stats.active_products || 0 }} / {{ stats.products || 0 }}</strong></article>
+          <article><i class="fa fa-book" aria-hidden="true"></i><span>Published books</span><strong>{{ stats.published_books || 0 }}</strong></article>
+        </div>
+        <div class="quick-links">
+          <button class="quick-link" *ngFor="let item of visibleSections.slice(1, 7)" (click)="select(item)"><i class="fa" [ngClass]="item.icon" aria-hidden="true"></i><b>{{ item.label }}</b><span>{{ item.description }}</span><i class="fa fa-arrow-right" aria-hidden="true"></i></button>
+        </div>
+        <section class="advanced-tools"><h3>More business tools</h3><p>Open the existing Django tools for advanced administration. Your staff permissions still apply.</p>
+          <div class="tool-links">
+            <a href="/admin/ecommerce/book/" target="_blank" rel="noopener"><i class="fa fa-book" aria-hidden="true"></i> Books, ebooks &amp; covers</a>
+            <a href="/admin/ecommerce/bookbuildjob/" target="_blank" rel="noopener"><i class="fa fa-file-text-o" aria-hidden="true"></i> Question-based book builds</a>
+            <a href="/admin/cheradip/customer/" target="_blank" rel="noopener"><i class="fa fa-users" aria-hidden="true"></i> Customers &amp; staff permissions</a>
+            <a href="/admin/ecommerce/inventorymovement/" target="_blank" rel="noopener"><i class="fa fa-history" aria-hidden="true"></i> Stock movement history</a>
+            <a href="/admin/manual/" target="_blank" rel="noopener"><i class="fa fa-question-circle" aria-hidden="true"></i> Administrative manual</a>
+          </div>
+        </section>
+      </ng-container>
+
+      <ng-container *ngIf="section.key !== 'overview'">
+        <section class="advanced-tools" *ngIf="section.key === 'books'"><h3>Book publishing &amp; sales</h3><p>Use the existing book editor for uploaded ebooks, hard copies, smart covers, question-set books, pricing, and digital files. Product and book purchases share the same Orders and Payments sections.</p><div class="tool-links"><a href="/admin/ecommerce/book/" target="_blank" rel="noopener">Manage books</a><a href="/admin/ecommerce/book/add/" target="_blank" rel="noopener" *ngIf="can('book','add')">Add book</a><a href="/admin/ecommerce/bookbuildjob/" target="_blank" rel="noopener">Book build jobs</a><a routerLink="/books" target="_blank">View book store</a></div></section>
+        <div class="import-panel" *ngIf="section.key === 'imports' && canImport">
+          <div><h3>Upload your product catalog</h3><p>Use the sample columns. Existing SKU matches may be updated by the importer, so review your file before importing.</p><button class="button button-light" type="button" (click)="sampleCsv()"><i class="fa fa-download" aria-hidden="true"></i> Download sample CSV</button></div>
+          <form (ngSubmit)="importCsv(true)"><label class="upload-area"><i class="fa fa-cloud-upload" aria-hidden="true"></i><span>Choose CSV file (up to 10 MB)</span><input type="file" accept=".csv,text/csv" (change)="csvFile = $any($event.target).files[0] || null; importResult = null" [disabled]="busy" required></label><button class="button" type="submit" [disabled]="!csvFile || busy">Preview import</button><button class="button" type="button" *ngIf="importResult?.preview && !importResult.failed" [disabled]="busy" (click)="importCsv()">Confirm import</button></form>
+          <p role="status" *ngIf="importProgress">{{ importProgress }}</p>
+          <div class="import-result" *ngIf="importResult"><strong>{{ importResult.preview ? 'PREVIEW — no changes saved' : label(importResult.status) }}</strong><span>{{ importResult.created }} new · {{ importResult.updated }} updates · {{ importResult.failed }} failed</span><pre *ngIf="importResult.errors?.length">{{ importResult.errors | json }}</pre></div>
+        </div>
+
+        <div class="list-toolbar" *ngIf="can(section.model, 'view') && section.key !== 'books'">
+          <form (ngSubmit)="load(true)" class="search-form"><label><i class="fa fa-search" aria-hidden="true"></i><input name="business-search" [(ngModel)]="search" aria-label="Search business records" placeholder="Search names, SKU or order number"></label>
+            <select name="status-filter" [(ngModel)]="filter" aria-label="Filter status" *ngIf="['products','orders','payments'].includes(section.key)"><option value="">All statuses</option><option *ngFor="let value of section.key === 'products' ? ['draft','active','archived'] : section.key === 'payments' ? ['pending','confirmed','failed','refunded'] : orderStatuses" [value]="value">{{ label(value) }}</option></select>
+            <button class="button" type="submit" [disabled]="loading">Search</button>
+          </form>
+          <button *ngIf="section.key === 'products' && canAddProduct" class="button" type="button" (click)="editProduct()"><i class="fa fa-plus" aria-hidden="true"></i> Add product</button>
+          <button *ngIf="['categories','brands','coupons','shipments'].includes(section.key) && can(section.model, 'add')" class="button" type="button" (click)="editRecord()"><i class="fa fa-plus" aria-hidden="true"></i> Add {{ section.key === 'categories' ? 'category' : section.key === 'brands' ? 'brand' : section.key === 'coupons' ? 'discount' : 'shipment' }}</button>
+        </div>
+
+        <div class="record-list" *ngIf="!loading && records.length">
+          <p *ngIf="section.key === 'delivery-settings'">Default COD: {{ records[0]?.cod_percent }}%. These defaults apply to products without custom charges.</p>
+          <article class="record" *ngFor="let row of records">
+            <ng-container [ngSwitch]="section.key">
+              <ng-container *ngSwitchCase="'products'">
+                <img class="record-photo" *ngIf="row.images?.[0]?.url; else productPlaceholder" [src]="row.images[0].url" [alt]="row.name" loading="lazy">
+                <ng-template #productPlaceholder><span class="record-icon"><i class="fa fa-picture-o" aria-hidden="true"></i></span></ng-template>
+                <div class="record-main"><h3>{{ row.name }}</h3><p>{{ row.category_name }} · {{ row.variants?.length || 0 }} variants</p><span class="pill" [class.pill-active]="row.status === 'active'">{{ label(row.status) }}</span><span *ngIf="row.is_sample" class="pill">Sample</span></div>
+                <div class="record-actions"><button class="button button-light" (click)="editProduct(row)" [disabled]="!canEditProduct"><i class="fa fa-pencil" aria-hidden="true"></i> Edit</button><button class="icon-button" (click)="requestArchive(row)" [disabled]="!can('product','change') || row.status === 'archived'" title="Archive product"><i class="fa fa-archive" aria-hidden="true"></i></button></div>
+              </ng-container>
+              <ng-container *ngSwitchCase="'orders'"><span class="record-icon"><i class="fa fa-shopping-cart" aria-hidden="true"></i></span><div class="record-main"><h3>{{ row.number }}</h3><p>{{ row.customer_name }} · {{ row.created_at | date:'mediumDate' }}</p><span class="pill">{{ label(row.status) }}</span><span class="pill" [class.pill-active]="row.payment_status === 'paid'">{{ label(row.payment_status) }}</span></div><strong class="amount">৳{{ row.grand_total | number:'1.2-2' }}</strong><button class="button button-light" (click)="detail = row">Details &amp; actions</button></ng-container>
+              <ng-container *ngSwitchCase="'payments'"><span class="record-icon"><i class="fa fa-credit-card" aria-hidden="true"></i></span><div class="record-main"><h3>{{ label(row.method) }} · Order #{{ row.order }}</h3><p>{{ row.transaction_id || 'No transaction ID' }} · {{ row.created_at | date:'mediumDate' }}</p><span class="pill">{{ label(row.status) }}</span></div><strong class="amount">৳{{ row.amount | number:'1.2-2' }}</strong><button class="button button-light" (click)="detail = row">Review</button></ng-container>
+              <ng-container *ngSwitchCase="'inventory'"><span class="record-icon"><i class="fa fa-cube" aria-hidden="true"></i></span><div class="record-main"><h3>{{ row.sku }}</h3><p>{{ row.title }} · Product #{{ row.product }}</p><span class="pill" [class.pill-warning]="row.stock <= row.low_stock_threshold">{{ row.stock }} in stock · alert at {{ row.low_stock_threshold }}</span></div><button class="button button-light" (click)="adjustStock(row)" [disabled]="!canAdjustStock">Adjust stock</button></ng-container>
+              <ng-container *ngSwitchCase="'reviews'"><span class="record-icon"><i class="fa fa-star" aria-hidden="true"></i></span><div class="record-main"><h3>{{ row.title || 'Review' }} · {{ row.rating }}/5</h3><p>{{ row.customer_name }} · Product #{{ row.product }}</p><p class="review-text">{{ row.body }}</p><span class="pill">{{ row.is_approved ? 'Published' : 'Hidden' }}</span></div><button class="button button-light" [disabled]="!can('review','change')" (click)="requestUpdate('reviews', row.id, {is_approved: !row.is_approved}, row.is_approved ? 'Hide review?' : 'Publish review?', 'This changes visibility only. The customer’s review will not be rewritten.')">{{ row.is_approved ? 'Hide' : 'Approve' }}</button></ng-container>
+              <ng-container *ngSwitchCase="'notifications'"><span class="record-icon"><i class="fa fa-bell" aria-hidden="true"></i></span><div class="record-main"><h3>{{ row.title }}</h3><p>{{ row.message }}</p><small>{{ row.created_at | date:'medium' }} · {{ row.is_read ? 'Reviewed' : 'Unread' }}</small></div><button class="button button-light" [disabled]="row.is_read || !can('commercenotification','change')" (click)="requestUpdate('notifications', row.id, {is_read: true}, 'Mark reviewed?', row.title)">Mark read</button></ng-container>
+              <ng-container *ngSwitchCase="'imports'"><span class="record-icon"><i class="fa fa-file-text-o" aria-hidden="true"></i></span><div class="record-main"><h3>{{ row.filename || 'CSV import #' + row.id }}</h3><p>{{ row.created_count }} created · {{ row.updated_count }} updated · {{ row.failed_count }} failed</p><span class="pill">{{ label(row.status) }}</span><small>{{ row.created_at | date:'medium' }}</small></div><button class="button button-light" (click)="detail = row">View report</button></ng-container>
+              <ng-container *ngSwitchCase="'delivery-settings'"><div class="record-main"><h3>Courier charges &amp; store policy</h3><p>Weight-based delivery · Missing-weight fallback: Dhaka ৳{{ row.dhaka_charge }}, outside Dhaka ৳{{ row.outside_dhaka_charge }}</p><p>{{ row.return_policy }}</p></div><button class="button button-light" (click)="editRecord(row)" [disabled]="!can(section.model, 'change')">Edit settings</button></ng-container>
+              <ng-container *ngSwitchDefault><span class="record-icon"><i class="fa" [ngClass]="section.icon" aria-hidden="true"></i></span><div class="record-main"><h3>{{ row.name || row.code || row.tracking_number || 'Shipment #' + row.id }}</h3><p>{{ row.description || row.carrier || (row.discount_type ? label(row.discount_type) + ': ' + row.value : row.slug) }}</p><span class="pill">{{ section.key === 'shipments' ? label(row.status) : row.is_active ? 'Active' : 'Inactive' }}</span></div><button class="button button-light" (click)="editRecord(row)" [disabled]="!can(section.model, 'change')"><i class="fa fa-pencil" aria-hidden="true"></i> Edit</button></ng-container>
+            </ng-container>
+          </article>
+        </div>
+        <div class="empty-state" *ngIf="!loading && !records.length && can(section.model, 'view') && section.key !== 'books'"><i class="fa" [ngClass]="section.icon" aria-hidden="true"></i><h3>No {{ section.label.toLowerCase() }} found</h3><p>Try another search or add your first record using the available tools.</p></div>
+        <nav class="pagination" aria-label="Business records pages" *ngIf="count > pageSize && !loading"><span>{{ offset + 1 }}–{{ pageEnd }} of {{ count }}</span><button class="button button-light" (click)="page(-1)" [disabled]="offset === 0">Previous</button><button class="button button-light" (click)="page(1)" [disabled]="pageEnd >= count">Next</button></nav>
+      </ng-container>
+    </section>
+  </div>
+</main>
+<ng-template #accessLoading><main class="business-shell"><p class="loading" role="status">{{ error || 'Checking staff access…' }}</p></main></ng-template>
+
+<div class="modal-backdrop" *ngIf="editor" (click)="!busy && closeEditor()">
+  <section class="business-dialog" role="dialog" aria-modal="true" aria-labelledby="editor-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+    <header><div><p class="eyebrow">BUSINESS MANAGER</p><h2 id="editor-title">{{ productForm ? (editor.id ? 'Edit product' : 'Add product') : editorKind === 'stock' ? 'Adjust stock: ' + editor.sku : (editor.id ? 'Edit ' : 'Add ') + editorKind }}</h2></div><button type="button" class="icon-button" (click)="closeEditor()" [disabled]="busy" aria-label="Close editor"><i class="fa fa-times" aria-hidden="true"></i></button></header>
+    <form #businessForm="ngForm" (ngSubmit)="businessForm.valid && saveEditor()">
+      <div class="notice notice-error" role="alert" *ngIf="error">{{ error }}</div>
+      <fieldset [disabled]="busy">
+        <ng-container *ngIf="productForm; else otherEditor">
+          <div class="form-grid"><label class="wide">Product name<input name="product-name" [(ngModel)]="editor.name" (blur)="suggestSlug()" maxlength="255" required cdkFocusInitial></label><label>URL name<input name="product-slug" [(ngModel)]="editor.slug" pattern="[-a-zA-Z0-9_]+" required><small>Unique English letters, numbers, hyphens.</small></label><label>Category<select name="product-category" [(ngModel)]="editor.category" required><option value="" disabled>Choose category</option><option *ngFor="let category of categories" [ngValue]="category.id">{{ category.name }}</option></select></label>
+            <label>Brand<select name="product-brand" [(ngModel)]="editor.brand"><option [ngValue]="null">No brand</option><option *ngFor="let brand of brands" [ngValue]="brand.id">{{ brand.name }}</option></select></label><label>Product type<select name="product-type" [(ngModel)]="editor.product_type"><option value="physical">Physical</option><option value="digital">Digital</option><option value="service">Service</option></select></label><label>Status<select name="product-status" [(ngModel)]="editor.status"><option value="draft">Draft — hidden from shop</option><option value="active">Active — visible in shop</option><option value="archived">Archived</option></select></label><label class="check-label"><input name="product-featured" type="checkbox" [(ngModel)]="editor.featured"> Featured product</label>
+            <label class="wide">Short description<input name="product-short" [(ngModel)]="editor.short_description" maxlength="500"></label><label class="wide">Full description<textarea name="product-description" [(ngModel)]="editor.description" rows="4"></textarea></label><label class="wide">Tags<input name="product-tags" [(ngModel)]="editor.tags" placeholder="Example: clothing, cotton, summer"></label>
+          </div>
+          <section class="editor-section"><div class="section-heading"><div><h3>Variants, pricing &amp; stock</h3><p>Use one variant for a simple product, or add sizes, colors, and models.</p></div><button type="button" class="button button-light" [disabled]="!can('productvariant','add')" (click)="editor.variants.push(newVariant())">Add variant</button></div>
+            <div class="variant-editor" *ngFor="let variant of editor.variants; let i = index">
+              <div class="form-grid">
+                <label>Variant title<input [name]="'title-'+i" [(ngModel)]="variant.title" maxlength="255" required></label>
+                <label>Unique SKU<input [name]="'sku-'+i" [(ngModel)]="variant.sku" maxlength="120" required></label>
+                <label>Price (Tk)<input type="number" min="0" step="0.01" [name]="'price-'+i" [(ngModel)]="variant.price" required></label>
+                <label>Compare-at price (Tk)<input type="number" min="0" step="0.01" [name]="'compare-'+i" [(ngModel)]="variant.compare_at_price"></label>
+                <label>Source / cost price (Tk)<input type="number" min="0" step="0.01" [name]="'cost-'+i" [(ngModel)]="variant.cost_price"></label>
+                <label>Stock<input type="number" min="0" step="1" [name]="'stock-'+i" [(ngModel)]="variant.stock" required></label>
+                <ng-container *ngFor="let n of [1,2,3]">
+                  <label>Option {{ n }} name<input [name]="'option-name-'+n+'-'+i" [(ngModel)]="variant['option'+n+'_name']" maxlength="100" placeholder="Size / Color / Model"></label>
+                  <label>Option {{ n }} value<input [name]="'option-value-'+n+'-'+i" [(ngModel)]="variant['option'+n+'_value']" maxlength="160" placeholder="Medium / Blue"></label>
+                </ng-container>
+                <label>Barcode<input [name]="'barcode-'+i" [(ngModel)]="variant.barcode" maxlength="120"></label>
+                <label>Low-stock alert<input type="number" min="0" step="1" [name]="'threshold-'+i" [(ngModel)]="variant.low_stock_threshold"></label>
+                <label>Weight (grams)<input type="number" min="0" step="1" [name]="'weight-'+i" [(ngModel)]="variant.weight_grams"></label>
+                <label class="check-label"><input type="checkbox" [name]="'active-'+i" [(ngModel)]="variant.is_active"> Available for sale</label>
+                <label class="check-label"><input type="checkbox" [name]="'shipping-'+i" [(ngModel)]="variant.requires_shipping"> Requires shipping</label>
+                <label class="check-label"><input type="checkbox" [name]="'backorder-'+i" [(ngModel)]="variant.allow_backorder"> Allow orders when out of stock</label>
+              </div>
+              <details class="pricing-calculator">
+                <summary><i class="fa fa-calculator" aria-hidden="true"></i> Listing price calculator</summary>
+                <label class="check-label"><input type="checkbox" [name]="'default-costs-'+i" [(ngModel)]="variant._use_default_costs" (ngModelChange)="$event && resetPricingDefaults(variant)"> Use central cost defaults (only sourcing price is required)</label>
+                <p>Private planning estimates. Courier budget is recalculated from weight on Calculate. Missing weight uses an explicitly labelled 1kg planning assumption. Checkout never claims that assumption is a measured weight.</p>
+                <div class="form-grid"><label *ngFor="let field of pricingFields">{{ field.label }}<input type="number" min="0" step="0.01" [name]="'pricing-'+field.key+'-'+i" [(ngModel)]="variant.pricing_inputs[field.key]" [readOnly]="variant._use_default_costs"></label></div>
+                <p>All-cost markup: 20% through ৳100; 19% for ৳100.01–200; decrease one percentage point per ৳100 to 10% above ৳1,000. Whole-cost bands can cause a small price drop at a boundary. Review before publishing.</p>
+                <p>Initial estimates: ads ৳275 per acquired sale (one item/order), packaging materials ৳11, return reserve ৳48.75, other costs ৳0. These are planning allowances, not national averages or guaranteed actual costs. Central defaults can be edited in Delivery &amp; policy; uncheck defaults for product-specific costs.</p>
+                <button type="button" class="button button-light" [disabled]="pricingLoading.has(variant) || !can('productvariant','view')" (click)="calculatePricing(variant)">{{ pricingLoading.has(variant) ? 'Calculating…' : 'Calculate suggested price' }}</button>
+                <p class="notice notice-error" role="alert" *ngIf="pricingErrors.get(variant)">{{ pricingErrors.get(variant) }}</p>
+                <div class="pricing-result" *ngIf="pricingReady(variant)">
+                  <p *ngIf="pricingPreviews.get(variant)?.result.estimated_weight">Weight is missing: this price estimate assumes 1kg. Set the actual item weight before shipping.</p>
+                  <dl><div><dt>Delivery subsidy</dt><dd>৳{{ pricingPreviews.get(variant)?.result.delivery_subsidy }}</dd></div><div><dt>Total costs</dt><dd>৳{{ pricingPreviews.get(variant)?.result.total_cost }}</dd></div><div><dt>Markup</dt><dd>{{ pricingPreviews.get(variant)?.result.markup_percent }}%</dd></div><div><dt>Estimated profit before unbudgeted costs</dt><dd>৳{{ pricingPreviews.get(variant)?.result.profit_amount }}</dd></div><div><dt>Suggested selling price</dt><dd>৳{{ pricingPreviews.get(variant)?.result.suggested_price }}</dd></div></dl>
+                  <button class="button" type="button" (click)="applyPricing(variant)">Apply price to draft</button>
+                </div>
+                <small>Changes to costs do not automatically change prices. Calculate again after editing costs. Customer COD is charged separately at checkout; do not count that income twice. Discounts and unexpected costs can reduce profit.</small>
+              </details>
+              <button type="button" class="text-button" *ngIf="editor.variants.length > 1 && variant.is_active" (click)="removeVariant(i)">{{ variant.id ? 'Deactivate variant' : 'Remove variant' }}</button>
+            </div>
+          </section>
+          <section class="editor-section"><div class="section-heading"><div><h3>Specifications</h3><p>Add details such as material, dimensions, warranty, or compatibility.</p></div><button type="button" class="button button-light" (click)="editor.specs.push({name:'',value:''})">Add detail</button></div><div class="form-grid" *ngFor="let spec of editor.specs; let i = index"><label>Detail name<input [name]="'spec-name-'+i" [(ngModel)]="spec.name" placeholder="Example: Warranty"></label><label>Value<input [name]="'spec-value-'+i" [(ngModel)]="spec.value" placeholder="Example: 1 year"></label></div><div class="form-grid"><label>Search engine title<input name="seo-title" [(ngModel)]="editor.seo_title" maxlength="255"></label><label>Search engine description<input name="seo-description" [(ngModel)]="editor.seo_description" maxlength="500"></label></div></section>
+          <section class="editor-section"><h3>Product photos</h3><p>The first photo is the main catalog image. Upload JPG, PNG, or WebP, up to 5 MB.</p><label class="upload-area" *ngIf="can('productimage','add')"><i class="fa fa-camera" aria-hidden="true"></i><span>Upload product photo</span><input type="file" accept="image/jpeg,image/png,image/webp" (change)="uploadImage($event)"></label>
+            <div class="image-editors"><figure *ngFor="let image of editor.images; let i = index"><img [src]="image.url" alt="Product photo"><label>Photo description<input [name]="'alt-'+i" [(ngModel)]="image.alt_text" maxlength="255" [readonly]="image.id && !can('productimage','change')"></label><button type="button" class="text-button" (click)="editor.images.splice(i,1)" [disabled]="image.id && !can('productimage','delete')">Remove</button></figure></div>
+          </section>
+        </ng-container>
+        <section class="editor-section" *ngIf="productForm">
+          <div class="section-heading"><div><h3>Delivery and COD charges</h3><p>Leave a field empty to inherit the central default. Enter 0 to waive that charge. Central updates do not overwrite custom charges.</p></div><button class="button button-light" type="button" (click)="editor.delivery_dhaka_charge = null; editor.delivery_outside_dhaka_charge = null; editor.cod_percent = null">Use defaults for all charges</button></div>
+          <div class="form-grid"><label>Dhaka district delivery (Tk)<input type="number" min="0" step="0.01" name="delivery-dhaka" [(ngModel)]="editor.delivery_dhaka_charge" placeholder="Inherit central default"></label><label>Outside Dhaka delivery (Tk)<input type="number" min="0" step="0.01" name="delivery-outside" [(ngModel)]="editor.delivery_outside_dhaka_charge" placeholder="Inherit central default"></label><label>COD charge (%)<input type="number" min="0" max="100" step="0.01" name="cod-percent" [(ngModel)]="editor.cod_percent" placeholder="Inherit central default"></label></div>
+          <p>Default delivery uses total item weight × quantity and the midpoint of the lowest/highest eligible courier base fares. Fixed product fees remain exceptions. Missing weights use the labelled flat-fee fallback. COD applies to discounted product prices only, not delivery; no COD charge for prepaid/wallet purchases.</p>
+        </section>
+        <ng-template #otherEditor>
+          <section class="editor-section" *ngIf="editorKind === 'delivery-settings'">
+            <h3>Default listing costs (Tk per sold item)</h3><p>Editable planning estimates, not guaranteed national averages. Changes affect future calculations, not existing selling prices or accepted orders.</p>
+            <div class="form-grid"><label *ngFor="let key of sharedCostFields">{{ label(key) }}<input type="number" min="0" step="0.01" [name]="'default-'+key" [(ngModel)]="editor.cost_defaults[key]" required></label></div>
+            <h3>Courier weight-rate profiles</h3><p>Default route assumption: Dhaka metro pickup, regular home delivery. Base fares exclude provider-specific tax, COD and special handling. Outside rates include metro and Thana/Union alternatives; confirm exact coverage before dispatch. Check negotiated prices, size limits and fragile-item costs. Sundarban's item tariffs are not treated as generic weight rates.</p>
+            <button class="button button-light" type="button" (click)="addCourierProfile()" [disabled]="!editor.courier_profiles?.length">Add courier profile</button>
+            <details class="pricing-calculator" *ngFor="let profile of editor.courier_profiles; let p = index">
+              <summary>{{ profile.name }}</summary>
+              <div class="form-grid"><label>Courier name<input [name]="'courier-name-'+p" [(ngModel)]="profile.name" required></label><label>Source URL<input type="url" [name]="'courier-source-'+p" [(ngModel)]="profile.source_url" required></label><label>Reviewed date<input type="date" [name]="'courier-date-'+p" [(ngModel)]="profile.reviewed_on"></label></div>
+              <ng-container *ngFor="let zone of courierZones"><section *ngIf="profile.zones[zone] as rule"><h4>{{ label(zone) }}</h4>
+                <div class="form-grid" *ngFor="let band of rule.bands; let b = index"><label>Up to weight (grams)<input type="number" min="1" step="1" [name]="'band-weight-'+p+'-'+zone+'-'+b" [(ngModel)]="band.up_to_grams" required></label><label>Base charge (Tk)<input type="number" min="0" step="0.01" [name]="'band-charge-'+p+'-'+zone+'-'+b" [(ngModel)]="band.charge" required></label><button type="button" class="text-button" *ngIf="rule.bands.length > 1" (click)="rule.bands.splice(b,1)">Remove band</button></div>
+                <button type="button" class="button button-light" (click)="addWeightBand(rule)">Add weight band</button>
+                <div class="form-grid"><label>Each additional started kg after last band (Tk)<input type="number" min="0" step="0.01" [name]="'extra-'+p+'-'+zone" [(ngModel)]="rule.extra_per_kg" required></label><label>Maximum auto-quoted weight (grams)<input type="number" min="1" step="1" [name]="'max-'+p+'-'+zone" [(ngModel)]="rule.max_weight_grams" required></label></div>
+              </section></ng-container>
+              <button class="text-button" type="button" *ngIf="editor.courier_profiles.length > 1" (click)="editor.courier_profiles.splice(p,1)">Remove courier profile</button>
+            </details>
+            <details class="pricing-calculator" *ngIf="pricingResearch"><summary>Research and estimate notes · {{ pricingResearch.reviewed_on }}</summary><p>{{ pricingResearch.ads }}</p><p>{{ pricingResearch.packaging }}</p><p>{{ pricingResearch.returns }}</p><p>{{ pricingResearch.excluded }}</p><p *ngFor="let url of pricingResearch.sources"><a [href]="url" target="_blank" rel="noopener">{{ url }}</a></p></details>
+          </section>
+          <div class="form-grid" *ngIf="editorKind === 'stock'; else genericFields"><p class="wide">Current stock: <b>{{ editor.stock }}</b>. Enter a positive number to add stock or a negative number to remove it.</p><label>Adjustment<input type="number" step="1" name="stock-change" [(ngModel)]="editor.quantity" required cdkFocusInitial></label><label>Reason / reference<input name="stock-note" [(ngModel)]="editor.note" maxlength="500" required></label></div>
+          <ng-template #genericFields><div class="form-grid"><label *ngFor="let field of fields" [class.wide]="field.type === 'textarea'" [class.check-label]="field.type === 'checkbox'">{{ field.label }}<ng-container [ngSwitch]="field.type"><textarea *ngSwitchCase="'textarea'" [name]="field.key" [(ngModel)]="editor[field.key]" rows="3"></textarea><select *ngSwitchCase="'select'" [name]="field.key" [(ngModel)]="editor[field.key]" [required]="!!field.required"><option *ngFor="let option of field.options" [ngValue]="option.value">{{ option.label }}</option></select><input *ngSwitchCase="'checkbox'" type="checkbox" [name]="field.key" [(ngModel)]="editor[field.key]"><input *ngSwitchDefault [type]="field.type || 'text'" [name]="field.key" [(ngModel)]="editor[field.key]" [required]="!!field.required" [step]="field.type === 'number' ? 'any' : null"></ng-container></label></div></ng-template>
+        </ng-template>
+      </fieldset>
+      <footer><button class="button button-light" type="button" (click)="closeEditor()" [disabled]="busy">Cancel</button><button class="button" type="submit" [disabled]="busy || businessForm.invalid || (productForm && !editor.variants.length)"><i class="fa" [ngClass]="busy ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i> {{ busy ? 'Saving…' : 'Save changes' }}</button></footer>
+    </form>
+  </section>
+</div>
+
+<div class="modal-backdrop" *ngIf="detail && !pendingAction" (click)="closeEditor()"><section class="business-dialog" role="dialog" aria-modal="true" aria-labelledby="detail-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+  <header><div><p class="eyebrow">{{ section.label }}</p><h2 id="detail-title">{{ detail.number || 'Record #' + detail.id }}</h2></div><button class="icon-button" type="button" (click)="closeEditor()" aria-label="Close details" cdkFocusInitial><i class="fa fa-times" aria-hidden="true"></i></button></header>
+  <div class="dialog-body"><p class="notice notice-error" role="alert" *ngIf="error">{{ error }}</p>
+    <ng-container *ngIf="section.key === 'orders'"><div class="detail-summary"><span>Order ID <b>{{ detail.number }}</b></span><span>Database ID <b>{{ detail.id }}</b></span><span>Customer <b>{{ detail.customer_name }}</b></span><span>Phone <b>{{ detail.phone }}</b></span><span>Email <b>{{ detail.email }}</b></span><span>Total <b>৳{{ detail.grand_total | number:'1.2-2' }}</b></span><span>Status <b>{{ label(detail.status) }}</b></span><span>Payment <b>{{ label(detail.payment_status) }}</b></span></div><h3>Delivery address</h3><pre>{{ detail.shipping_address | json }}</pre><h3>Items</h3><div class="detail-line" *ngFor="let item of detail.items"><span>{{ item.product_name }} · {{ item.variant_title }} · {{ item.sku }}</span><b>{{ item.quantity }} × ৳{{ item.unit_price }}</b></div>
+      <h3>Payments</h3><div class="detail-line" *ngFor="let payment of detail.payments"><span>{{ label(payment.method) }} · {{ payment.transaction_id || 'No transaction ID' }}</span><b>৳{{ payment.amount }} · {{ label(payment.status) }}</b></div>
+      <h3>Order timeline</h3><div class="detail-line" *ngFor="let event of detail.history"><span>{{ label(event.status) }} · {{ event.note }}</span><small>{{ event.created_at | date:'medium' }}</small></div>
+      <form class="order-actions" *ngIf="can('order','change')" (ngSubmit)="requestUpdate('orders', detail.number, {status: detail.nextStatus, note: detail.staffNote || '', admin_note: detail.admin_note || ''}, 'Change order status?', detail.number + ' → ' + label(detail.nextStatus) + '. Cancellation/refund rules may affect stock and the customer wallet.')"><label>New status<select name="next-order-status" [(ngModel)]="detail.nextStatus" required><option [ngValue]="undefined" disabled>Choose status</option><option *ngFor="let value of orderStatuses" [value]="value">{{ label(value) }}</option></select></label><label>Customer timeline note<input name="order-note" [(ngModel)]="detail.staffNote" maxlength="500"></label><label>Private admin note<textarea name="admin-note" [(ngModel)]="detail.admin_note" rows="2"></textarea></label><button class="button" type="submit">Review change</button></form>
+    </ng-container>
+    <ng-container *ngIf="section.key === 'payments'"><div class="detail-summary"><span>Payment ID <b>{{ detail.id }}</b></span><span>Order database ID <b>{{ detail.order }}</b></span><span>Method <b>{{ label(detail.method) }}</b></span><span>Amount <b>৳{{ detail.amount }}</b></span><span>Transaction ID <b>{{ detail.transaction_id || 'None' }}</b></span><span>Payer phone <b>{{ detail.payer_phone || 'None' }}</b></span><span>Status <b>{{ label(detail.status) }}</b></span></div><p>Check payment against your actual account before confirming. Wallet payment and refund rules are enforced by the server.</p><div class="button-row" *ngIf="can('payment','change')"><button *ngFor="let value of detail.status === 'pending' ? ['confirmed','failed'] : detail.status === 'confirmed' ? ['refunded'] : []" class="button" (click)="requestUpdate('payments', detail.id, {status: value}, 'Update payment?', 'Payment #' + detail.id + ' · ৳' + detail.amount + ' → ' + label(value) + '. This may update the order and wallet.')">{{ label(value) }}</button></div></ng-container>
+    <ng-container *ngIf="section.key === 'imports'"><div class="detail-summary"><span>Total rows <b>{{ detail.total_rows }}</b></span><span>Created <b>{{ detail.created_count }}</b></span><span>Updated <b>{{ detail.updated_count }}</b></span><span>Failed <b>{{ detail.failed_count }}</b></span></div><h3>Row errors</h3><pre>{{ detail.errors | json }}</pre></ng-container>
+  </div>
+</section></div>
+
+<div class="modal-backdrop" *ngIf="pendingAction"><section class="business-dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true"><header><h2 id="confirm-title">{{ pendingAction.title }}</h2></header><div class="dialog-body"><p>{{ pendingAction.message }}</p><p class="notice notice-error" role="alert" *ngIf="error">{{ error }}</p></div><footer><button class="button button-light" type="button" [disabled]="busy" (click)="pendingAction = null; error = ''" cdkFocusInitial>Cancel</button><button class="button" type="button" [disabled]="busy" (click)="confirmAction()">{{ busy ? 'Updating…' : 'Confirm' }}</button></footer></section></div>

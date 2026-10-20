@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -31,7 +31,7 @@ describe('One shared marketplace cart', () => {
       declarations: [EcommerceComingSoonComponent],
       providers: [
         { provide: ActivatedRoute, useValue: route }, { provide: Router, useValue: router },
-        { provide: ApiService, useValue: { getCommerceHistory: () => of({}) } },
+        { provide: ApiService, useValue: { getCommerceHistory: () => of({}), getDivisionsByCountry: () => of([]), getDistrictsByCountry: () => of([]), getThanasByCountry: () => of([]) } },
         { provide: AuthSessionService, useValue: {} }, { provide: MatSnackBar, useValue: {} },
       ],
     }).compileComponents();
@@ -40,6 +40,7 @@ describe('One shared marketplace cart', () => {
   });
 
   afterEach(() => {
+    http.match(req => req.url.endsWith('/store-policy/') || req.url.endsWith('/checkout/profile/') || req.url.endsWith('/brands/')).forEach(req => req.flush(req.request.url.endsWith('/brands/') ? [] : {}));
     fixture.destroy(); http.verify();
     if (originalToken === null) localStorage.removeItem('cheradipEcommerceCart');
     else localStorage.setItem('cheradipEcommerceCart', originalToken);
@@ -106,6 +107,28 @@ describe('One shared marketplace cart', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/cart'], { queryParams: { from: 'ecommerce' }, replaceUrl: true });
     expect(localStorage.getItem('cheradipEcommerceCart')).toBe('test-cart');
   });
+
+  it('recalculates delivery when the destination thana changes and shows area with weight', fakeAsync(() => {
+    fixture.detectChanges();
+    cartRequest().flush({token:'test-cart',subtotal:500,items:[{id:1,variant_id:2,quantity:1,product_name:'Parcel',unit_price:'500',line_total:500}]});
+    fixture.detectChanges(); tick();
+    const component = fixture.componentInstance;
+    component.checkout.district = 'Dhaka'; component.checkout.thana = 'Dhanmondi';
+    component.requestQuote(); tick(301);
+    const metro = http.expectOne(req => req.url.endsWith('/checkout/quote/'));
+    expect(metro.request.body.shipping_address).toEqual(jasmine.objectContaining({district:'Dhaka',thana:'Dhanmondi'}));
+    metro.flush({subtotal:500,discount_total:0,shipping_total:75,cod_total:5,grand_total:580,delivery_details:{zone:'dhaka',weight_grams:1000,minimum:'70',maximum:'80'}});
+    fixture.detectChanges();
+    const thana = fixture.nativeElement.querySelector('input[name="thana"]') as HTMLInputElement;
+    thana.value = 'Savar'; thana.dispatchEvent(new Event('input')); fixture.detectChanges(); tick(301);
+    const suburb = http.expectOne(req => req.url.endsWith('/checkout/quote/'));
+    expect(suburb.request.body.shipping_address.thana).toBe('Savar');
+    expect(component.quote).toBeNull();
+    suburb.flush({subtotal:500,discount_total:0,shipping_total:100,cod_total:5,grand_total:605,delivery_details:{zone:'suburbs',weight_grams:1000,minimum:'100',maximum:'100'}});
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Delivery area: Dhaka suburbs');
+    expect(fixture.nativeElement.textContent).toContain('Known parcel weight: 1000 g');
+  }));
 
   it('keeps a saved cart on network failure and retries it instead of showing empty', () => {
     fixture.detectChanges();

@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import { TrxUnlockService } from '../../../service/trx-unlock.service';
 import { packageQuestionProgress } from '../../../shared/package-question-progress';
 import { packageRenewalNote } from '../../../shared/package-renewal-note';
+import { LiveClass, nextClassTime } from '../../../service/live-class';
 
 /**
  * Top-level `/dashboard` route — copied from student dashboard for independent edits.
@@ -22,6 +23,10 @@ export class HomeDashboardComponent implements OnInit, AfterViewInit {
   readonly questionProgress = packageQuestionProgress;
   readonly renewalNote = packageRenewalNote;
   packageStatus: any = null;
+  nextLiveClass: LiveClass | null = null;
+  liveClassLoading = true;
+  liveClassUnavailable = false;
+  get nextClassTime() { return nextClassTime(this.nextLiveClass, this.liveClassLoading, this.liveClassUnavailable); }
   renewingPlanCode = '';
   stats: any = {
     examsCompleted: 0,
@@ -51,6 +56,10 @@ export class HomeDashboardComponent implements OnInit, AfterViewInit {
   }
 
   loadDashboardData(): void {
+    this.studentService.getLiveClasses(1).subscribe({
+      next: data => { this.nextLiveClass = data.nextClass; this.liveClassLoading = false; this.liveClassUnavailable = false; },
+      error: () => { this.liveClassLoading = false; this.liveClassUnavailable = true; },
+    });
     this.studentService.getStudentStats().subscribe((data: any) => {
       this.stats = data;
     });
