@@ -12,6 +12,7 @@ import { TrxUnlockService } from 'src/app/service/trx-unlock.service';
 import { ApiService, InstituteRefreshStatus } from 'src/app/service/api.service';
 import { slugForUrlDisplay } from 'src/app/url-serializer';
 import { chooseStaffName } from './staff-name.util';
+import { localContact } from '../../../shared/phone-display.pipe';
 
 interface InstituteStaffMember {
   name: string;
@@ -664,6 +665,7 @@ export class CollegeThemeComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   copyToClipboard(text: string, event?: Event): void {
+    text=localContact(text);
     if (event) event.preventDefault();
     if (!text || typeof text !== 'string') return;
     const t = text.trim();

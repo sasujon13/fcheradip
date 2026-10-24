@@ -82,12 +82,12 @@
       <h2 class="ct-section-title">Contact &amp; Registration</h2>
       <table class="ct-table">
         <tbody>
-          <tr *ngIf="data?.mobile"><th>Mobile</th><td><span class="ct-copy" (click)="copyToClipboard(data.mobile)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(data.mobile)" (keydown.space)="copyToClipboard(data.mobile); $event.preventDefault()">{{ data.mobile }}</span></td></tr>
-          <tr *ngIf="data?.mobileAlternate"><th>Alternate Mobile</th><td><span class="ct-copy" (click)="copyToClipboard(data.mobileAlternate)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(data.mobileAlternate)" (keydown.space)="copyToClipboard(data.mobileAlternate); $event.preventDefault()">{{ data.mobileAlternate }}</span></td></tr>
+          <tr *ngIf="data?.mobile"><th>Mobile</th><td><span class="ct-copy" (click)="copyToClipboard(data.mobile)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(data.mobile)" (keydown.space)="copyToClipboard(data.mobile); $event.preventDefault()">{{ data.mobile | localContact }}</span></td></tr>
+          <tr *ngIf="data?.mobileAlternate"><th>Alternate Mobile</th><td><span class="ct-copy" (click)="copyToClipboard(data.mobileAlternate)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(data.mobileAlternate)" (keydown.space)="copyToClipboard(data.mobileAlternate); $event.preventDefault()">{{ data.mobileAlternate | localContact }}</span></td></tr>
           <tr *ngIf="data?.email"><th>Email</th><td><a [href]="'mailto:' + data.email" class="ct-link ct-copy" (click)="copyToClipboard(data.email, $event)" role="button">{{ data.email }}</a></td></tr>
-          <tr *ngIf="sourceDetails?.telephone"><th>Telephone</th><td>{{ sourceDetails.telephone }}</td></tr>
+          <tr *ngIf="sourceDetails?.telephone"><th>Telephone</th><td>{{ sourceDetails.telephone | localContact }}</td></tr>
           <tr *ngIf="sourceDetails?.webSite"><th>Website</th><td><a *ngIf="sourceWebsiteUrl; else websiteText" class="ct-link" [href]="sourceWebsiteUrl" target="_blank" rel="noopener noreferrer">{{ sourceDetails.webSite }}</a><ng-template #websiteText>{{ sourceDetails.webSite }}</ng-template></td></tr>
-          <tr *ngIf="contactList.length"><th>Other Contacts</th><td><span *ngFor="let item of contactList; let i = index"><span class="ct-copy" (click)="copyToClipboard(item)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(item)" (keydown.space)="copyToClipboard(item); $event.preventDefault()">{{ item }}</span>{{ i < contactList.length - 1 ? ', ' : '' }}</span></td></tr>
+          <tr *ngIf="contactList.length"><th>Other Contacts</th><td><span *ngFor="let item of contactList; let i = index"><span class="ct-copy" (click)="copyToClipboard(item)" role="button" tabindex="0" (keydown.enter)="copyToClipboard(item)" (keydown.space)="copyToClipboard(item); $event.preventDefault()">{{ item | localContact }}</span>{{ i < contactList.length - 1 ? ', ' : '' }}</span></td></tr>
         </tbody>
       </table>
       <p *ngIf="copyFeedback" class="ct-copy-feedback" aria-live="polite">Copied to clipboard</p>
@@ -167,7 +167,7 @@
                 <div *ngIf="teacher.district"><dt>Home District</dt><dd>{{ teacher.district }}</dd></div>
               </dl>
               <div class="ct-teacher-contact" *ngIf="teacher.mobile || teacher.email">
-                <a *ngIf="teacher.mobile" [href]="'tel:' + teacher.mobile"><i class="fa fa-phone" aria-hidden="true"></i>{{ teacher.mobile }}</a>
+                <a *ngIf="teacher.mobile" [href]="'tel:' + (teacher.mobile | localContact)"><i class="fa fa-phone" aria-hidden="true"></i>{{ teacher.mobile | localContact }}</a>
                 <a *ngIf="teacher.email" [href]="'mailto:' + teacher.email"><i class="fa fa-envelope" aria-hidden="true"></i>{{ teacher.email }}</a>
               </div>
             </article>

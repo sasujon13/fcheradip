@@ -3,6 +3,7 @@ import { QuestionExportFilesComponent } from './shared/question-export-files.com
 import { AuthSessionService } from './service/auth-session.service';
 import { BrowserModule } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
+import { PhoneDisplayPipe } from './shared/phone-display.pipe';
 
 import { UrlSerializer } from '@angular/router';
 import { ParenthesisSafeUrlSerializer } from './url-serializer';
@@ -194,7 +195,7 @@ import { BadgeProfileComponent } from './shared/badge-profile/badge-profile.comp
     ],
     bootstrap: [AppComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA], imports: [BrowserModule, QuestionExportFilesComponent,
-        CommonModule,
+        CommonModule,PhoneDisplayPipe,
         AppRoutingModule,
         FormsModule, A11yModule,
         ReactiveFormsModule,

@@ -8,19 +8,29 @@ import { ApiService } from '../../service/api.service';
 import { AuthSessionService } from '../../service/auth-session.service';
 import { getDashboardRouterLinkSegments } from '../../service/dashboard-route.util';
 import { productImageMagnifier } from './product-image-magnifier';
+import { localContact } from '../../shared/phone-display.pipe';
 
 interface Category { id: number; name: string; slug: string; product_count: number; }
 interface Product {
   id: number; name: string; slug: string; short_description: string; category_name: string;
-  price: string; compare_at_price?: string | null; stock: number; image_url: string;
-  default_variant_id: number; featured: boolean; is_sample: boolean;
+  price: string | null; compare_at_price?: string | null; stock: number; image_url: string;
+  default_variant_id: number | null; featured: boolean; is_sample: boolean;
+  allow_backorder?: boolean;
+  stock_confirmation_required?: boolean;
+  quantity_unspecified?: boolean;
+  discount_percent?: number;
 }
 interface ProductVariant {
   id: number; title: string; sku: string; price: string; compare_at_price?: string | null;
   stock: number; is_active: boolean; option1_name?: string; option1_value?: string;
+  allow_backorder?: boolean;
+  stock_confirmation_required?: boolean;
+  quantity_unspecified?: boolean;
+  discount_percent?: number;
   option2_name?: string; option2_value?: string; option3_name?: string; option3_value?: string;
 }
 interface ProductDetail extends Product {
+  fulfilment_mode?: 'standard' | 'staff_confirmed_supplier_pilot' | 'manual_supplier_catalogue';
   delivery_dhaka_charge?: string | null;
   delivery_outside_dhaka_charge?: string | null;
   cod_percent?: string | null;
@@ -29,7 +39,7 @@ interface ProductDetail extends Product {
   attributes?: Record<string, any>;
   approved_reviews?: Array<{customer_name: string; rating: number; title: string; body: string}>;
 }
-interface CartItem { id: number; variant_id: number; quantity: number; product_name: string; variant_title: string; sku: string; unit_price: string; image_url: string; line_total: number; }
+interface CartItem { id: number; variant_id: number; quantity: number; product_name: string; variant_title: string; sku: string; unit_price: string; image_url: string; line_total: number; stock_confirmation_required?: boolean; quantity_unspecified?: boolean; }
 interface Cart { token: string; items: CartItem[]; subtotal: number; }
 
 @Component({
@@ -116,6 +126,20 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   quoteLoading = false;
   quoteError = '';
   activeImage = '';
+  readonly failedProductImages = new Set<string>();
+
+  hasProductPhoto(url: string | null | undefined): boolean {
+    return !!url && !this.failedProductImages.has(url)
+      && !/(?:^|\/)assets\/(?:images\/cheradip\.svg|cheradip\/cheradip-avatar\.png)(?:[?#]|$)/i.test(url);
+  }
+
+  productPhotoFailed(url: string): void {
+    if (url) this.failedProductImages.add(url);
+    this.hideProductMagnifier();
+  }
+  galleryPaused = false;
+  galleryHover = false;
+  private galleryTimer?: ReturnType<typeof setInterval>;
   review = {rating: 5, title: '', body: ''};
   paymentRetryOrder: any = null;
   private quoteVersion = 0;
@@ -218,7 +242,10 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.http.get<any>(`${this.api}/checkout/profile/`).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({next: data => {
       if (version !== this.accountVersion) return;
       for (const key of Object.keys(data)) {
-        if (key in this.checkout && (this.checkout as any)[key] === (original as any)[key]) (this.checkout as any)[key] = data[key] || '';
+        if (key === 'country_code' || key === 'city' || key === 'postal_code') continue;
+        if (key in this.checkout && (this.checkout as any)[key] === (original as any)[key]) {
+          (this.checkout as any)[key] = key === 'phone' || key === 'phone_alternate' ? localContact(data[key],data.country_code || 'BD') : data[key] || '';
+        }
       }
       this.loadAddressDistricts(); this.loadAddressThanas(); this.requestQuote();
     }, error: () => {}});
@@ -241,8 +268,8 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   districtChanged(): void { this.checkout.thana = ''; this.loadAddressThanas(); this.requestQuote(); }
   private shippingAddress() {
     const c = this.checkout;
-    return {country_code: c.country_code || 'BD', division: c.division, district: c.district,
-      thana: c.thana, zone: c.zone, address: c.address, city: c.city, postal_code: c.postal_code};
+    return {country_code:'BD', division: c.division, district: c.district,
+      thana: c.thana, zone: c.zone, address: c.address};
   }
   requestQuote(): void {
     this.quote = null; this.quoteError = '';
@@ -276,7 +303,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
         this.profileBadge = value?.profile?.badge || 'None';
         this.walletTaka = Number(value?.wallet?.balanceTaka || 0);
         this.referenceBalanceTaka = Number(value?.wallet?.referenceBalanceTaka || 0);
-        if (this.checkout.payment_method === 'cod') { this.checkout.payment_method = 'wallet'; this.requestQuote(); }
+        if (this.checkout.payment_method === 'cod' && !this.cartNeedsConfirmation) { this.checkout.payment_method = 'wallet'; this.requestQuote(); }
       },
       error: () => {},
     });
@@ -284,7 +311,10 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   loadCategories(): void {
     this.http.get<Category[]>(`${this.api}/categories/`).subscribe({
-      next: data => this.categories = data,
+      // Keep empty supplier taxonomy in administration, not in customer filters
+      // or the featured-collection cards. Preserve responses without counts.
+      next: data => this.categories = data.filter(category =>
+        category.product_count == null || Number(category.product_count) > 0),
       error: err => this.showError(err, 'Could not load categories.'),
     });
   }
@@ -404,6 +434,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopGallery();
     ++this.catalogGeneration;
     this.catalogRequest?.unsubscribe();
     this.catalogObserver?.disconnect();
@@ -442,10 +473,12 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   discountPercent(product: Product): number {
+    if (product.price == null) return 0;
     const original = Number(product.compare_at_price);
     const price = Number(product.price);
     if (!Number.isFinite(original) || !Number.isFinite(price) || original <= price || price < 0) return 0;
-    return Math.round((1 - price / original) * 100);
+    // Never round up the advertised percentage beyond the actual saving.
+    return Math.floor(((original - price) * 100 / original) + 1e-9);
   }
 
   categoryIcon(name: string): string {
@@ -474,6 +507,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
           || detail.variants.find(variant => variant.is_active && variant.stock > 0) || detail.variants[0] || null;
         this.selectedVariantId = preferred?.id || null;
         this.selectVariantImage();
+        this.startGallery();
         if (!this.route.snapshot.paramMap?.get('slug')) void this.router.navigate([], {queryParams: {product: detail.slug}, queryParamsHandling: 'merge', replaceUrl: true});
       },
       error: err => this.showError(err, 'Could not load product details.'),
@@ -481,6 +515,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   closeProduct(): void {
+    this.stopGallery();
     ++this.productVersion; this.selectedProduct = null; this.selectedVariantId = null;
     this.lastProductTrigger?.focus();
     if (!this.route.snapshot.paramMap?.get('slug')) void this.router.navigate([], {queryParams: {product: null}, queryParamsHandling: 'merge', replaceUrl: true});
@@ -489,9 +524,27 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape') closeDialog(): void { if (this.selectedProduct) this.closeProduct(); this.filtersOpen = false; }
   selectVariantImage(): void {
-    this.activeImage = this.selectedProduct?.images.find(i => i.variant_id === this.selectedVariantId)?.url
-      || this.selectedProduct?.images[0]?.url || 'assets/images/cheradip.svg';
+    this.activeImage = this.galleryImages.find(i => i.variant_id === this.selectedVariantId)?.url
+      || this.galleryImages[0]?.url || '';
   }
+  startGallery(): void {
+    this.stopGallery(); this.galleryPaused = false; this.galleryHover = false;
+    if (this.galleryImages.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.galleryTimer = setInterval(() => {
+      if (!this.galleryPaused && !this.galleryHover && !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.moveGallery(1);
+    }, 5000);
+  }
+  stopGallery(): void { if (this.galleryTimer) clearInterval(this.galleryTimer); this.galleryTimer = undefined; }
+  get galleryImages() {
+    const urls = new Set<string>();
+    return (this.selectedProduct?.images || []).filter(i => !i.variant_id || i.variant_id === this.selectedVariantId)
+      .filter(i => this.hasProductPhoto(i.url) && !urls.has(i.url) && !!urls.add(i.url));
+  }
+  moveGallery(step: number): void {
+    const images = this.galleryImages;
+    if (images.length) this.activeImage = images[(Math.max(0, images.findIndex(i => i.url === this.activeImage)) + step + images.length) % images.length].url;
+  }
+  chooseGalleryImage(url: string): void { this.activeImage = url; this.galleryPaused = true; }
 
   submitReview(): void {
     if (!this.selectedProduct) return;
@@ -555,13 +608,13 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   addToCart(product: Product): void {
-    if (!product.default_variant_id || product.stock < 1) return;
+    if (!product.default_variant_id || (product.stock < 1 && !product.allow_backorder)) return;
     this.addVariantToCart(product.default_variant_id, product.name);
   }
 
   addSelectedVariantToCart(): void {
     const variant = this.selectedVariant;
-    if (!variant || variant.stock < 1 || !this.selectedProduct) return;
+    if (!variant || (variant.stock < 1 && !variant.allow_backorder) || !this.selectedProduct) return;
     this.addVariantToCart(variant.id, this.selectedProduct.name);
     this.closeProduct();
   }
@@ -590,6 +643,10 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   placeOrder(): void {
     if (!this.cart?.items?.length || this.loading) return;
+    if (this.cartNeedsConfirmation && this.checkout.payment_method !== 'cod') {
+      this.checkout.payment_method='cod'; this.requestQuote();
+      this.notify('This order requires stock confirmation. No advance payment or wallet deduction is allowed.',true); return;
+    }
     if (!this.quote || this.quoteLoading) { this.notify('Select your district and review the final total before ordering.', true); return; }
     this.clearFeedback();
     const walletOwner = localStorage.getItem('username') || '';
@@ -616,7 +673,10 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
         const balanceNote = referenceUsed > 0
           ? ` ৳${referenceUsed.toFixed(2)} was used from your reference balance first.`
           : '';
-        this.message = `Order ID ${order.number} is Pending until administration marks it Order Completed.${balanceNote}`;
+        this.message = order.stock_confirmation_pending
+          ? `Order ID ${order.number} is pending supplier stock and delivery confirmation. Do not pay yet; no wallet balance was deducted.`
+          : order.status === 'confirmed' ? `Order ID ${order.number} is confirmed. Delivery is subject to supplier fulfilment; we will contact you if an item cannot be supplied.${balanceNote}`
+          : `Order ID ${order.number} is Pending until administration marks it Order Completed.${balanceNote}`;
       },
       error: err => { this.loading = false; this.showError(err, 'Could not place the order.'); this.requestQuote(); },
     });
@@ -724,13 +784,25 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   get cartCount(): number { return (this.cart?.items || []).reduce((sum, item) => sum + item.quantity, 0); }
+  get showVariantChoice(): boolean {
+    const variants=this.selectedProduct?.variants || [];
+    return variants.length>1 || (variants.length===1 && !['','default'].includes((variants[0].title || '').trim().toLowerCase()));
+  }
   private rememberCart(cart: Cart): void {
     this.cart = cart;
+    if (this.cartNeedsConfirmation) this.checkout.payment_method='cod';
     if (cart.token) localStorage.setItem('cheradipEcommerceCart', cart.token);
     else localStorage.removeItem('cheradipEcommerceCart');
     localStorage.setItem('cheradipEcommerceCartOwner', this.loginStatus ? (localStorage.getItem('username') || '') : '');
     window.dispatchEvent(new CustomEvent<number>('cheradip-ecommerce-cart-count', { detail: this.cartCount }));
     this.requestQuote();
+  }
+
+  get cartNeedsConfirmation(): boolean {
+    return !!this.cart?.items?.some(item=>item.stock_confirmation_required);
+  }
+  get cartQuantityUnspecified(): boolean {
+    return !!this.cart?.items?.some(item=>item.quantity_unspecified);
   }
   private clearFeedback(): void { this.message = ''; this.error = ''; }
   private errorText(error: HttpErrorResponse, fallback: string): string {

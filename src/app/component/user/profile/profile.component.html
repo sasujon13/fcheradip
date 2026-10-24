@@ -140,7 +140,7 @@
     <div class="form-group">
       <span class="label-colon"><label for="mobileDisplay">Mobile No</label><span class="colon">:</span></span>
       <div class="form-field form-field-with-edit">
-        <span class="readonly-value" id="mobileDisplay">{{ displayUsername || authForm.get('username')?.value }}</span>
+        <span class="readonly-value" id="mobileDisplay">{{ (displayUsername || authForm.get('username')?.value) | localContact:authForm.get('countryCode')?.value }}</span>
         <a [routerLink]="['/mobile']" class="edit-icon-link" title="Change mobile number" aria-label="Edit mobile">
           <i class="fa fa-pencil"></i>
         </a>

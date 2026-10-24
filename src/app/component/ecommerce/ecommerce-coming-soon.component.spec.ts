@@ -2,6 +2,7 @@ import { EcommerceComingSoonComponent } from './ecommerce-coming-soon.component'
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { HttpClient } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { of } from 'rxjs';
 
 describe('Marketplace browsing controls', () => {
   let component: EcommerceComingSoonComponent;
@@ -19,10 +20,86 @@ describe('Marketplace browsing controls', () => {
     expect(component.categories.length).toBe(2);
   });
 
+  it('hides only a single default variant, preserving named or multiple options',()=>{
+    component.selectedProduct={variants:[{id:1,title:'Default'}]} as any;
+    expect(component.showVariantChoice).toBeFalse();
+    component.selectedProduct={variants:[{id:1,title:'Red / Large'}]} as any;
+    expect(component.showVariantChoice).toBeTrue();
+    component.selectedProduct={variants:[{id:1,title:'Default'},{id:2,title:'Blue'}]} as any;
+    expect(component.showVariantChoice).toBeTrue();
+  });
+
+  it('uses local editable contact numbers and omits removed address fields',()=>{
+    const http={get:()=>of({phone:'1722710298',phone_alternate:'1822710298',country_code:'+880',
+      city:'Old city',postal_code:'5200',district:'Dinajpur',address:'Sadar'})};
+    const c=new EcommerceComingSoonComponent(http as any,null as any,null as any,null as any,null as any,null as any);
+    spyOnProperty(c,'loginStatus','get').and.returnValue(true);spyOn(c,'loadAddressDistricts');spyOn(c,'loadAddressThanas');spyOn(c,'requestQuote');
+    c.loadCheckoutProfile();expect(c.checkout.phone).toBe('01722710298');
+    expect(c.checkout.phone_alternate).toBe('01822710298');
+    const address=(c as any).shippingAddress();expect(address.country_code).toBe('BD');
+    expect(address.district).toBe('Dinajpur');expect(address.city).toBeUndefined();expect(address.postal_code).toBeUndefined();
+  });
+
+  it('chooses unpaid COD before quoting a confirmation-only cart', () => {
+    const quote=spyOn(component,'requestQuote');
+    component.checkout.payment_method='wallet';
+    (component as any).rememberCart({token:'synthetic',items:[{stock_confirmation_required:true,quantity:1}]} as any);
+    expect(component.cartNeedsConfirmation).toBeTrue();
+    expect(component.checkout.payment_method).toBe('cod');
+    expect(quote).toHaveBeenCalledTimes(1);
+    localStorage.removeItem('cheradipEcommerceCart');
+  });
+
+  it('keeps the chosen payment method for available products with unspecified quantity', () => {
+    spyOn(component,'requestQuote');
+    component.checkout.payment_method='wallet';
+    (component as any).rememberCart({token:'synthetic',items:[{stock_confirmation_required:false,quantity_unspecified:true,quantity:1}]} as any);
+    expect(component.cartQuantityUnspecified).toBeTrue();
+    expect(component.cartNeedsConfirmation).toBeFalse();
+    expect(component.checkout.payment_method).toBe('wallet');
+    localStorage.removeItem('cheradipEcommerceCart');
+  });
+
+  it('does not submit an advance-payment request for a confirmation cart', () => {
+    const quote=spyOn(component,'requestQuote');
+    spyOn(component as any,'notify');
+    component.cart={token:'synthetic',items:[{stock_confirmation_required:true}]} as any;
+    component.checkout.payment_method='bank';component.quote={grand_total:'200'} as any;
+    component.placeOrder();
+    expect(component.checkout.payment_method).toBe('cod');expect(quote).toHaveBeenCalled();
+    expect(component.loading).toBeFalse();
+  });
+
+  it('never represents company artwork or a missing/broken image as a product photo', () => {
+    expect(component.hasProductPhoto('')).toBeFalse();
+    expect(component.hasProductPhoto('assets/images/cheradip.svg')).toBeFalse();
+    expect(component.hasProductPhoto('https://cheradip.com/assets/cheradip/cheradip-avatar.png')).toBeFalse();
+    const url = 'https://supplier.example/product-original.jpg';
+    expect(component.hasProductPhoto(url)).toBeTrue();
+    component.productPhotoFailed(url);
+    expect(component.hasProductPhoto(url)).toBeFalse();
+  });
+
+  it('does not fall back to another colour or the logo when a selected variant has no photo', () => {
+    component.selectedVariantId = 2;
+    component.selectedProduct = {images: [{id: 1, variant_id: 1, url: 'https://supplier.example/red.jpg', alt_text: 'Red'}]} as any;
+    component.selectVariantImage();
+    expect(component.activeImage).toBe('');
+  });
+
   it('shows all departments for an empty search and none for no match', () => {
     expect(component.visibleCategories.length).toBe(2);
     component.categorySearch = 'no such department';
     expect(component.visibleCategories).toEqual([]);
+  });
+  it('hides explicitly empty collections from customer browsing without changing the source response', () => {
+    const data = [{id:1,name:'Empty',slug:'empty',product_count:0},
+      {id:2,name:'Available',slug:'available',product_count:2}];
+    const http = {get: jasmine.createSpy('get').and.returnValue(of(data))};
+    const c = new EcommerceComingSoonComponent(http as any,null as any,null as any,null as any,null as any,null as any);
+    c.loadCategories();
+    expect(c.categories.map(x=>x.slug)).toEqual(['available']);
+    expect(data.length).toBe(2);
   });
 
   it('shows the selected category name', () => {
@@ -57,6 +134,7 @@ describe('Marketplace browsing controls', () => {
   it('calculates savings only from valid comparison prices', () => {
     const product = { price: '80', compare_at_price: '100' } as any;
     expect(component.discountPercent(product)).toBe(20);
+    expect(component.discountPercent({price:'7',compare_at_price:'8'} as any)).toBe(12);
     expect(component.discountPercent({ ...product, compare_at_price: null })).toBe(0);
     expect(component.discountPercent({ ...product, compare_at_price: '50' })).toBe(0);
     expect(component.discountPercent({ ...product, price: 'invalid' })).toBe(0);
@@ -67,6 +145,24 @@ describe('Marketplace browsing controls', () => {
     component.cart = { token: 'test-only', items: [{ quantity: 2 }, { quantity: 3 }], subtotal: 100 } as any;
     expect(component.cartCount).toBe(5);
   });
+
+  it('slides relevant photos without showing another variant and honours manual pause', fakeAsync(() => {
+    component.selectedVariantId = 1;
+    component.selectedProduct = {images:[{url:'one'},{url:'two',variant_id:1},{url:'other',variant_id:2},{url:'one'}]} as any;
+    component.activeImage='one';
+    spyOn(window,'matchMedia').and.returnValue({matches:false} as MediaQueryList);
+    expect(component.galleryImages.map(i=>i.url)).toEqual(['one','two']);
+    component.startGallery();tick(5000);expect(component.activeImage).toBe('two');
+    component.galleryHover=true;tick(5000);expect(component.activeImage).toBe('two');
+    component.galleryHover=false;component.chooseGalleryImage('one');tick(5000);expect(component.activeImage).toBe('one');
+    component.stopGallery();tick(5000);expect(component.activeImage).toBe('one');
+  }));
+
+  it('does not start automatic slides for reduced motion', fakeAsync(() => {
+    component.selectedProduct={images:[{url:'one'},{url:'two'}]} as any;component.activeImage='one';
+    spyOn(window,'matchMedia').and.returnValue({matches:true} as MediaQueryList);
+    component.startGallery();tick(10000);expect(component.activeImage).toBe('one');
+  }));
 
   it('does not activate hover magnification for touch input', () => {
     component.magnifiedProductId = 1;
@@ -93,6 +189,7 @@ describe('Marketplace progressive loading', () => {
     spyOn<any>(component, 'nearCatalogEnd').and.returnValue(false);
   });
   afterEach(() => { component.ngOnDestroy(); http.verify(); });
+
 
   it('shows 24 first, builds to 120 sequentially, then holds 12 in reserve', fakeAsync(() => {
     component.loadProducts();

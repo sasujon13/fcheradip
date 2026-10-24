@@ -7,13 +7,15 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom, timeout } from 'rxjs';
 import { CommerceAccess, CommerceManagementService } from '../../../service/commerce-management.service';
 import { environment } from '../../../../environments/environment';
+import { SuppliersComponent } from './suppliers/suppliers.component';
+import { PricingRulesComponent } from './pricing-rules.component';
 
 interface Section { key: string; label: string; icon: string; model: string; endpoint: string; description: string; }
 interface Field { key: string; label: string; type?: string; required?: boolean; options?: {value: any; label: string}[]; }
 
 @Component({
   selector: 'app-commerce-manage', standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, A11yModule],
+  imports: [CommonModule, FormsModule, RouterModule, A11yModule, SuppliersComponent,PricingRulesComponent],
   templateUrl: './commerce-manage.component.html', styleUrls: ['./commerce-manage.component.css'],
 })
 export class CommerceManageComponent implements OnInit, OnDestroy {
@@ -28,14 +30,16 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   pricingDefaultDelivery = 80;
   readonly courierZones = ['dhaka','suburbs','outside'];
   readonly sharedCostFields = ['ads_cost','packaging_cost','returns_allowance','other_costs'];
-  pricingDefaults: any = {supplier_delivery_max:160, customer_delivery_charge:75, ads_cost:275, packaging_cost:11, returns_allowance:48.75, other_costs:0};
+  pricingDefaults: any = {supplier_delivery_max:160, customer_delivery_charge:75, ads_cost:20, packaging_cost:11, returns_allowance:48.75, other_costs:0};
   pricingResearch: any = null;
   pricingPreviews = new Map<any, {fingerprint: string; result: any}>();
   pricingLoading = new Set<any>();
   pricingErrors = new Map<any, string>();
   readonly sections: Section[] = [
     {key: 'overview', label: 'Overview', icon: 'fa-line-chart', model: 'order', endpoint: 'dashboard', description: 'Sales, pending work, stock alerts, and business shortcuts.'},
+    {key: 'suppliers', label: 'Suppliers', icon: 'fa-truck', model: 'supplier', endpoint: 'suppliers', description: 'Private sourcing, exact matches, market evidence, blacklist review and selective draft imports.'},
     {key: 'products', label: 'Products', icon: 'fa-shopping-bag', model: 'product', endpoint: 'products', description: 'Create products, upload photos, set prices, manage variants, and publish your catalog.'},
+    {key:'pricing',label:'Pricing rules',icon:'fa-percent',model:'deliverysettings',endpoint:'',description:'Edit central profit bands and automatic sale discount; preview and apply generated supplier prices safely.'},
     {key: 'orders', label: 'Orders', icon: 'fa-shopping-cart', model: 'order', endpoint: 'orders', description: 'Review purchases and update fulfillment using the existing order rules.'},
     {key: 'payments', label: 'Payments', icon: 'fa-credit-card', model: 'payment', endpoint: 'payments', description: 'Review payment details before confirming or updating a payment.'},
     {key: 'inventory', label: 'Inventory', icon: 'fa-cubes', model: 'productvariant', endpoint: 'variants', description: 'Search SKUs, check available stock, and record stock adjustments.'},
@@ -51,9 +55,10 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   ];
   readonly orderStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned', 'refunded'];
   access: CommerceAccess = {allowed: false, permissions: {}};
-  section = this.sections[0];
+  section = this.sections.find(s => s.key === 'overview')!;
   records: any[] = [];
   stats: any = {};
+  showContribution = false;
   categories: any[] = [];
   brands: any[] = [];
   loading = true;
@@ -131,7 +136,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
           const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/dashboard/`));
           if (version === this.generation && !this.destroyed) this.stats = value;
         }
-      } else if (this.can(this.section.model, 'view') && this.section.key !== 'books') {
+      } else if (this.can(this.section.model, 'view') && !['books','suppliers','pricing'].includes(this.section.key)) {
         const data = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/${this.section.endpoint}/`, {
           params: {limit: this.pageSize, offset: this.offset, search: this.search, ...(this.filter ? {status: this.filter} : {})},
         }));
@@ -286,6 +291,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     return {name: e.name, slug: e.slug, category: Number(e.category), brand: e.brand ? Number(e.brand) : null,
       short_description: e.short_description, description: e.description, status: e.status,
       product_type: e.product_type, tags: e.tags, featured: e.featured,
+      supplier_delivery_rates: e.supplier_delivery_rates || {},
       seo_title: e.seo_title || '', seo_description: e.seo_description || '',
       delivery_dhaka_charge: e.delivery_dhaka_charge === '' || e.delivery_dhaka_charge == null ? null : e.delivery_dhaka_charge,
       delivery_outside_dhaka_charge: e.delivery_outside_dhaka_charge === '' || e.delivery_outside_dhaka_charge == null ? null : e.delivery_outside_dhaka_charge,
@@ -308,6 +314,19 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     };
   }
 
+  addSupplierDeliveryBand(area: 'dhaka' | 'outside') {
+    const rates = this.editor.supplier_delivery_rates ||= {};
+    const bands = rates[area] ||= [];
+    if (bands.length < 30) bands.push({up_to_grams: (bands[bands.length - 1]?.up_to_grams || 0) + 1000, charge: 0});
+  }
+  removeSupplierDeliveryBand(area: string, index: number) {
+    const rates = this.editor.supplier_delivery_rates;
+    rates[area].splice(index, 1);
+    if (!rates[area].length) delete rates[area];
+    if (!rates.dhaka && !rates.outside) this.editor.supplier_delivery_rates = {};
+  }
+  deleteShipmentGroup() { delete this.editor.supplier_delivery_rates.shipment_group; }
+
   editRecord(row?: any) {
     const kind = this.section.key;
     this.editorKind = kind; this.error = '';
@@ -319,6 +338,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
       {key: 'dhaka_charge', label: 'Missing-weight fallback: Dhaka district (Tk)', type: 'number', required: true},
       {key: 'outside_dhaka_charge', label: 'Missing-weight fallback: outside Dhaka (Tk)', type: 'number', required: true},
       {key: 'cod_percent', label: 'Default COD charge (%)', type: 'number', required: true},
+      {key: 'delivery_subsidy_enabled', label: 'Include delivery subsidy in new price suggestions (off by default)', type: 'checkbox'},
       {key: 'unpaid_reservation_hours', label: 'Unpaid order reservation (hours)', type: 'number', required: true},
       {key: 'support_phone', label: 'Support contact number'}, {key: 'return_policy', label: 'Delivery & return policy', type: 'textarea'},
     ] : kind === 'categories' ? [name, slug, {key: 'description', label: 'Description', type: 'textarea'},
@@ -379,6 +399,12 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     this.pendingAction = {title: 'Archive product?', message: `${row.name} will be hidden from the shop. Existing orders are kept.`, run: async () => {
       await firstValueFrom(this.service.http.post(`${this.service.url}/products/${row.id}/archive/`, {}));
       this.notify('Product archived.'); await this.load();
+    }};
+  }
+  requestDelete(row: any) {
+    this.pendingAction = {title: 'Permanently delete product?', message: `${row.name}, its photos and variants will be removed. This cannot be undone here. Products with order history are protected; archive those instead.`, run: async () => {
+      await firstValueFrom(this.service.http.delete(`${this.service.url}/products/${row.id}/`));
+      this.notify('Product permanently deleted.'); await this.load();
     }};
   }
   async confirmAction() {
