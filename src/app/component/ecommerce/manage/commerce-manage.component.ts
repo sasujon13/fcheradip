@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { A11yModule } from '@angular/cdk/a11y';
 import { Router, RouterModule } from '@angular/router';
@@ -58,6 +58,9 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   section = this.sections.find(s => s.key === 'overview')!;
   records: any[] = [];
   stats: any = {};
+  activity: any[] = [];
+  unreadActivity = 0;
+  private activityTimer?: ReturnType<typeof setInterval>;
   showContribution = false;
   categories: any[] = [];
   brands: any[] = [];
@@ -84,7 +87,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   private accessVersion = 0;
 
   constructor(public service: CommerceManagementService, private router: Router, private snack: MatSnackBar,
-    private changeDetector?: ChangeDetectorRef) {}
+    private changeDetector?: ChangeDetectorRef, private ngZone?: NgZone) {}
 
   get visibleSections() { return this.sections.filter(s => this.can(s.model, 'view') || (s.key === 'imports' && this.canImport)); }
   get canImport() { return this.can('product', 'add') && this.can('product', 'change'); }
@@ -106,6 +109,10 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
       const requested = this.router.parseUrl(this.router.url).queryParams['section'];
       this.section = this.visibleSections.find(s => s.key === requested) || this.visibleSections[0] || this.sections[0];
       await Promise.all([this.load(), this.lookups()]);
+      await this.loadActivity();
+      this.ngZone?.runOutsideAngular(() => {
+        this.activityTimer = setInterval(() => this.ngZone?.run(() => { void this.loadActivity(); }), 60000);
+      });
     } catch (err) { this.showError(err); }
     finally { this.loading = false; }
   }
@@ -117,7 +124,40 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     void this.router.navigate(['/ecommerce']);
   }
   @HostListener('document:keydown.escape') closeOnEscape() { if (!this.busy) this.closeEditor(); }
-  ngOnDestroy() { this.destroyed = true; ++this.generation; ++this.accessVersion; }
+  ngOnDestroy() { this.destroyed = true; ++this.generation; ++this.accessVersion; if (this.activityTimer) clearInterval(this.activityTimer); }
+
+  async loadActivity() {
+    if (!this.can('commercenotification', 'view') || this.destroyed) return;
+    try {
+      const [data, unread] = await Promise.all([
+        firstValueFrom(this.service.http.get<any>(`${this.service.url}/notifications/`, {params: {limit: 6, offset: 0}})),
+        firstValueFrom(this.service.http.get<any>(`${this.service.url}/notifications/`, {params: {limit: 1, unread: 'true'}})),
+      ]);
+      if (!this.destroyed) {
+        this.activity = Array.isArray(data) ? data.slice(0, 6) : data.results || [];
+        this.unreadActivity = Number(unread.count || 0);
+      }
+    } catch { /* Alerts remain available in Notifications if this preview fails. */ }
+  }
+
+  async reviewActivity(row: any) {
+    if (!this.can('commercenotification', 'change') || row.is_read) return;
+    try {
+      await firstValueFrom(this.service.http.patch(`${this.service.url}/notifications/${row.id}/`, {is_read: true}));
+      row.is_read = true;
+      this.unreadActivity = Math.max(0, this.unreadActivity - 1);
+    } catch (err) { this.showError(err); }
+  }
+
+  async openActivity(row: any) {
+    if (row.link?.startsWith('/ecommerce/manage?section=')) {
+      const key = new URL(row.link, window.location.origin).searchParams.get('section');
+      const target = this.visibleSections.find(item => item.key === key);
+      if (target) await this.select(target);
+    } else if (row.link?.startsWith('/')) {
+      window.location.assign(row.link);
+    }
+  }
 
   async select(section: Section) {
     if (!this.visibleSections.includes(section)) return;

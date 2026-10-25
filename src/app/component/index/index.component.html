@@ -10,7 +10,18 @@
         Cheradip ফ্রন্টএন্ড ও ব্যাকএন্ড একসাথে — পরীক্ষা, প্রশ্ন, ইনস্টিটিউট, কেনাকাটা ও প্রোফাইল।
       </p>
     </div>
+    <ng-template #productTile let-product>
+      <a [href]="productHref(product)" class="home-tile home-tile--product">
+        <span class="home-tile__icon" aria-hidden="true">{{ product.icon }}</span>
+        <span class="home-tile__label">{{ product.name }}</span>
+        <span class="home-tile__hint">{{ product.description }}</span>
+        <span class="home-tile__domain">{{ product.url.replace('https://', '') }}</span>
+        <span *ngIf="product.status" class="home-tile__status">{{ product.status }}</span>
+      </a>
+    </ng-template>
     <div class="home-card-grid">
+      <ng-container *ngIf="ecommerceSite as product" [ngTemplateOutlet]="productTile"
+        [ngTemplateOutletContext]="{ $implicit: product }"></ng-container>
       <a routerLink="/ntrca" class="home-tile">
         <span class="home-tile__icon" aria-hidden="true">🎓</span>
         <span class="home-tile__label">NTRCA</span>
@@ -46,13 +57,8 @@
         <span class="home-tile__label">ইউজার ম্যানুয়াল</span>
         <span class="home-tile__hint">AI টিউটর ও অ্যাপ গাইড</span>
       </a>
-      <a *ngFor="let product of productSites" [href]="productHref(product)" class="home-tile home-tile--product">
-        <span class="home-tile__icon" aria-hidden="true">{{ product.icon }}</span>
-        <span class="home-tile__label">{{ product.name }}</span>
-        <span class="home-tile__hint">{{ product.description }}</span>
-        <span class="home-tile__domain">{{ product.url.replace('https://', '') }}</span>
-        <span *ngIf="product.status" class="home-tile__status">{{ product.status }}</span>
-      </a>
+      <ng-container *ngFor="let product of remainingProductSites" [ngTemplateOutlet]="productTile"
+        [ngTemplateOutletContext]="{ $implicit: product }"></ng-container>
     </div>
     <div class="home-card-grid home-card-grid--student">
       <a [routerLink]="studentZoneLink" class="home-tile home-tile--wide">

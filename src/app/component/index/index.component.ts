@@ -16,6 +16,8 @@ import { LoadingService } from 'src/app/service/loading.service';
 })
 export class IndexComponent implements OnInit {
   readonly productSites = CHERADIP_PRODUCT_SITES;
+  readonly ecommerceSite = this.productSites.find(product => product.id === 'ecommerce');
+  readonly remainingProductSites = this.productSites.filter(product => product.id !== 'ecommerce');
   studentZoneLink = '/auth';
 
   productUrl(id: CheradipProductSite['id']): string {

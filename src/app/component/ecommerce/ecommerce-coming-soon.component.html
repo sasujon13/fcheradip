@@ -1,185 +1,580 @@
 <main class="commerce-shell">
   <form *ngIf="activeView === 'shop'" class="commerce-search" (ngSubmit)="loadProducts(1)">
-    <label class="search-category"><i class="fa fa-th-large" aria-hidden="true"></i><select [(ngModel)]="selectedCategory" (change)="chooseCategory(selectedCategory)" name="category" aria-label="Product category" data-ui-note="Choose a department to show its products. You can also search within that department.">
-      <option value="">All categories</option>
-      <option *ngFor="let category of categories" [value]="category.slug">{{ category.name }} ({{ category.product_count }})</option>
-    </select></label>
-    <label class="search-query"><i class="fa fa-search" aria-hidden="true"></i><input [(ngModel)]="search" name="search" placeholder="What are you looking for?" aria-label="Search products, brands or SKU">
-      <button *ngIf="search" class="clear-search" type="button" (click)="search = ''; loadProducts(1)" aria-label="Clear product search"><i class="fa fa-times" aria-hidden="true"></i></button>
+    <label class="search-category"><i class="fa fa-th-large" aria-hidden="true"></i><select
+        [(ngModel)]="selectedCategory" (change)="chooseCategory(selectedCategory)" name="category"
+        aria-label="Product category"
+        data-ui-note="Choose a department to show its products. You can also search within that department.">
+        <option value="">All categories</option>
+        <option *ngFor="let category of categories" [value]="category.slug">{{ category.name }} ({{
+          category.product_count }})</option>
+      </select></label>
+    <label class="search-query"><i class="fa fa-search" aria-hidden="true"></i><input [(ngModel)]="search" name="search"
+        placeholder="What are you looking for?" aria-label="Search products, brands or SKU">
+      <button *ngIf="search" class="clear-search" type="button" (click)="search = ''; loadProducts(1)"
+        aria-label="Clear product search"><i class="fa fa-times" aria-hidden="true"></i></button>
     </label>
-    <button class="search-submit" type="submit" data-ui-note="Search products by name, brand or SKU within the selected department."><i class="fa fa-search" aria-hidden="true"></i><span>Search</span></button>
+    <button class="search-submit" type="submit"
+      data-ui-note="Search products by name, brand or SKU within the selected department."><i class="fa fa-search"
+        aria-hidden="true"></i><span>Search</span></button>
   </form>
 
-  <div class="feedback success" role="status" *ngIf="message"><i class="fa fa-check-circle" aria-hidden="true"></i>{{ message }}</div>
-  <div class="feedback error" role="alert" *ngIf="error"><i class="fa fa-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>
+  <div class="feedback success" role="status" *ngIf="message"><i class="fa fa-check-circle" aria-hidden="true"></i>{{
+    message }}</div>
+  <div class="feedback error" role="alert" *ngIf="error"><i class="fa fa-exclamation-circle" aria-hidden="true"></i>{{
+    error }}</div>
 
   <ng-container *ngIf="activeView === 'shop'">
-    <section class="market-intro">
-      <div class="intro-copy"><h1>প্রায় পাইকারি দামে ১০০% ক্যাশ-অন-ডেলিভারিতে পণ্য ক্রয়ের সুযোগ নিন<br><em>পছন্দ হলে রাখুন না হলে ডেলিভারি ম্যানের হাতেই ফেরত দিন</em></h1>
-        <!-- <p>Explore fashion, technology, home and more. Find your favourites, all in one place.</p> -->
-        <!-- <div class="intro-footnote"><i class="fa fa-th-large" aria-hidden="true"></i>{{ categories.length }} departments to explore <span>·</span> One Cheradip wallet</div> -->
-      </div>
-      <div class="intro-collections" *ngIf="categories.length">
-        <p class="eyebrow">A little inspiration</p>
-        <button *ngFor="let category of categories | slice:0:3" type="button" (click)="chooseCategory(category.slug)">
-          <span class="collection-icon"><i class="fa" [ngClass]="categoryIcon(category.name)" aria-hidden="true"></i></span>
-          <span><strong>{{ category.name }}</strong><small>{{ category.product_count }} products to discover</small></span><i class="fa fa-arrow-right" aria-hidden="true"></i>
-        </button>
-      </div>
-    </section>
     <div class="catalog-layout">
-      <aside class="catalog-filters" [class.filters-open]="filtersOpen" id="marketplace-filters" aria-label="Product filters">
-        <div class="filter-heading"><h2><i class="fa fa-sliders" aria-hidden="true"></i> Departments</h2><button class="filter-close" type="button" (click)="filtersOpen = false" aria-label="Close product filters"><i class="fa fa-times" aria-hidden="true"></i></button></div>
-        <label class="category-search"><i class="fa fa-search" aria-hidden="true"></i><input [(ngModel)]="categorySearch" placeholder="Find a category" aria-label="Find a category"></label>
+      <aside #catalogFilters class="catalog-filters" [class.filters-open]="filtersOpen" id="marketplace-filters"
+        aria-label="Product filters" tabindex="0">
+        <div class="filter-heading">
+          <h2><i class="fa fa-sliders" aria-hidden="true"></i> Departments</h2><button class="filter-close"
+            type="button" (click)="filtersOpen = false" aria-label="Close product filters"><i class="fa fa-times"
+              aria-hidden="true"></i></button>
+        </div>
+        <label class="category-search"><i class="fa fa-search" aria-hidden="true"></i><input
+            [(ngModel)]="categorySearch" placeholder="Find a category" aria-label="Find a category"></label>
+        <p class="category-empty" role="status" *ngIf="categoriesLoading">Loading categories…</p>
+        <button class="ghost" type="button" *ngIf="categoriesLoadFailed" (click)="loadCategories()">Retry
+          categories</button>
         <nav class="category-list" aria-label="Product categories">
-          <button type="button" [class.active]="!selectedCategory" [attr.aria-pressed]="!selectedCategory" (click)="chooseCategory('')"><i class="fa fa-th-large" aria-hidden="true"></i><span>All products</span></button>
-          <button type="button" *ngFor="let category of visibleCategories" [class.active]="selectedCategory === category.slug" [attr.aria-pressed]="selectedCategory === category.slug" (click)="chooseCategory(category.slug)"><i class="fa" [ngClass]="categoryIcon(category.name)" aria-hidden="true"></i><span>{{ category.name }}</span><small>{{ category.product_count }}</small></button>
+          <button type="button" [class.active]="!selectedCategory" [attr.aria-pressed]="!selectedCategory"
+            (click)="chooseCategory('')"><i class="fa fa-th-large" aria-hidden="true"></i><span>All
+              products</span></button>
+          <button type="button" *ngFor="let category of visibleCategories; trackBy: trackCategory"
+            [style.padding-left.px]="14 + (category.depth || 0) * 14" [class.category-parent]="!category.parent_id"
+            [class.active]="selectedCategory === category.slug" [attr.aria-pressed]="selectedCategory === category.slug"
+            [attr.aria-expanded]="category.hasChildren ? (categorySearch.trim() ? true : expandedCategories.has(category.id)) : null"
+            (click)="selectCategoryNode(category)"><i class="fa" [ngClass]="categoryIcon(category.name)"
+              aria-hidden="true"></i><span>{{ category.name }}</span><small>{{ category.product_count }}</small><i
+              *ngIf="category.hasChildren" class="fa category-chevron"
+              [class.fa-angle-down]="categorySearch.trim() || expandedCategories.has(category.id)"
+              [class.fa-angle-right]="!categorySearch.trim() && !expandedCategories.has(category.id)"
+              aria-hidden="true"></i></button>
           <p class="category-empty" *ngIf="!visibleCategories.length && categorySearch">No matching categories.</p>
         </nav>
         <div class="extra-filters">
-          <label>Brand<select [(ngModel)]="selectedBrand" (change)="loadProducts()"><option value="">All brands</option><option *ngFor="let brand of brands" [value]="brand.slug">{{ brand.name }}</option></select></label>
-          <label>Minimum price (৳)<input type="number" min="0" [(ngModel)]="minPrice"></label>
-          <label>Maximum price (৳)<input type="number" min="0" [(ngModel)]="maxPrice"></label>
-          <label><input type="checkbox" [(ngModel)]="inStockOnly"> In stock only</label>
+          <label>Brand<select [(ngModel)]="selectedBrand" (change)="loadProducts()">
+              <option value="">All brands</option>
+              <option *ngFor="let brand of brands" [value]="brand.slug">{{ brand.name }}</option>
+            </select></label>
+          <fieldset class="price-filter" [disabled]="priceRangeLoading || priceRangeError || !priceRangeMax">
+            <legend>Price range</legend>
+            <p class="price-range-values" aria-live="off"><output aria-label="Selected minimum price">৳{{ priceLower |
+                number:'1.0-2' }}</output><span aria-hidden="true">—</span><output
+                aria-label="Selected maximum price">৳{{ priceUpper | number:'1.0-2' }}</output></p>
+            <div class="price-range-slider" [style.--range-start]="priceRangeStart + '%'"
+              [style.--range-end]="priceRangeEnd + '%'">
+              <div class="price-range-track" aria-hidden="true"><span></span></div>
+              <input class="price-range-input price-range-lower" type="range" min="0" [max]="priceRangeMax" step="any"
+                [value]="priceLower" [style.z-index]="priceLower === priceRangeMax && priceRangeMax > 0 ? 4 : 2"
+                aria-label="Minimum price" [attr.aria-valuemax]="priceUpper" [attr.aria-valuetext]="'Tk ' + priceLower"
+                (input)="movePriceHandle($event, 'lower')" (change)="applyPriceRange()">
+              <input class="price-range-input price-range-upper" type="range" min="0" [max]="priceRangeMax" step="any"
+                [value]="priceUpper" aria-label="Maximum price" [attr.aria-valuemin]="priceLower"
+                [attr.aria-valuetext]="'Tk ' + priceUpper" (input)="movePriceHandle($event, 'upper')"
+                (change)="applyPriceRange()">
+            </div>
+            <p class="price-range-status" *ngIf="priceRangeLoading">Loading price range…</p>
+            <p class="price-range-status" *ngIf="!priceRangeLoading && !priceRangeError && !priceRangeMax">No priced
+              products available.</p>
+          </fieldset>
+          <button class="ghost" type="button" *ngIf="priceRangeError" (click)="loadPriceRange()">Retry price
+            range</button>
           <button class="ghost" type="button" (click)="loadProducts()">Apply filters</button>
         </div>
-        <button class="reset-filters" type="button" (click)="resetCatalog()"><i class="fa fa-undo" aria-hidden="true"></i> Reset filters</button>
+        <button class="reset-filters" type="button" (click)="resetCatalog()"><i class="fa fa-undo"
+            aria-hidden="true"></i> Reset filters</button>
       </aside>
       <div class="catalog-content" [attr.aria-busy]="catalogLoading">
-        <section class="catalog-toolbar">
-          <div><p class="eyebrow">Curated for your everyday</p><h2>{{ selectedCategoryName }}</h2><p class="result-count" role="status">{{ catalogLoading ? 'Finding your products…' : products.length + ' of ' + productCount + ' products' }}</p></div>
-          <div class="catalog-controls"><button class="filter-toggle ghost" type="button" (click)="filtersOpen = !filtersOpen" [attr.aria-expanded]="filtersOpen" aria-controls="marketplace-filters"><i class="fa fa-sliders" aria-hidden="true"></i> Filters</button>
-            <label class="sort-control"><span>Sort by</span><select [(ngModel)]="ordering" (change)="loadProducts(1)" aria-label="Sort products" data-ui-note="Sort matching products by date added, price or name. Sorting restarts progressive loading."><option value="-created_at">Newest</option><option value="price">Price: low to high</option><option value="-price">Price: high to low</option><option value="name">Name: A–Z</option></select></label>
+        <section class="market-intro">
+          <div class="intro-copy">
+            <h1>প্রায় পাইকারি দামে ১০০% ক্যাশ-অন-ডেলিভারিতে পণ্য ক্রয়ের সুযোগ নিন<br><em>পছন্দ হলে রাখুন না হলে ডেলিভারি
+                ম্যানের হাতেই ফেরত দিন</em></h1>
+            <!-- <p>Explore fashion, technology, home and more. Find your favourites, all in one place.</p> -->
+            <!-- <div class="intro-footnote"><i class="fa fa-th-large" aria-hidden="true"></i>{{ categories.length }} departments to explore <span>·</span> One Cheradip wallet</div> -->
+          </div>
+          <div class="intro-collections" *ngIf="categories.length">
+            <p class="eyebrow">A little inspiration</p>
+            <button *ngFor="let category of featuredCategories | slice:0:3" type="button"
+              (click)="chooseCategory(category.slug)">
+              <span class="collection-icon"><i class="fa" [ngClass]="categoryIcon(category.name)"
+                  aria-hidden="true"></i></span>
+              <span><strong>{{ category.name }}</strong><small>{{ category.product_count }} products to
+                  discover</small></span><i class="fa fa-arrow-right" aria-hidden="true"></i>
+            </button>
           </div>
         </section>
-        <div class="active-filters" *ngIf="selectedCategory || search"><button *ngIf="selectedCategory" type="button" (click)="chooseCategory('')" [attr.aria-label]="'Remove category filter: ' + selectedCategoryName">{{ selectedCategoryName }} <i class="fa fa-times" aria-hidden="true"></i></button><button *ngIf="search" type="button" (click)="search = ''; loadProducts(1)" aria-label="Remove search filter">“{{ search }}” <i class="fa fa-times" aria-hidden="true"></i></button><button class="clear-all" type="button" (click)="resetCatalog()">Clear all</button></div>
-        <section class="product-grid skeleton-grid" *ngIf="catalogLoading" aria-label="Loading products"><article class="skeleton-card" *ngFor="let card of skeletonCards" aria-hidden="true"><div></div><span></span><span></span><span></span></article></section>
-        <div class="empty-state catalog-empty" *ngIf="!catalogLoading && !products.length"><span><i class="fa" [ngClass]="catalogError ? 'fa-exclamation-circle' : 'fa-search'" aria-hidden="true"></i></span><h3>{{ catalogError ? 'Products could not be loaded' : 'No products found' }}</h3><p>{{ catalogError ? 'Please try again in a moment.' : 'Try a different search or explore another department.' }}</p><button class="primary" type="button" (click)="resetCatalog()">{{ catalogError ? 'Try again' : 'Explore all products' }}</button></div>
+        <section class="catalog-toolbar">
+          <div>
+            <p class="eyebrow">Curated for your everyday</p>
+            <h2>{{ selectedCategoryName }}</h2>
+            <p class="result-count" role="status">{{ catalogLoading ? 'Finding your products…' : products.length + '
+              shown of total ' + productCount + ' products' }}</p>
+          </div>
+          <div class="catalog-controls"><button class="filter-toggle ghost" type="button" (click)="toggleFilters()"
+              [attr.aria-expanded]="filtersOpen" aria-controls="marketplace-filters"><i class="fa fa-sliders"
+                aria-hidden="true"></i> Filters</button>
+            <label class="sort-control"><span>Sort by</span><select [(ngModel)]="ordering" (change)="loadProducts(1)"
+                aria-label="Sort products"
+                data-ui-note="Sort matching products by date added, price or name. Sorting restarts progressive loading.">
+                <option value="-created_at">Newest</option>
+                <option value="price">Price: low to high</option>
+                <option value="-price">Price: high to low</option>
+                <option value="name">Name: A–Z</option>
+              </select></label>
+          </div>
+        </section>
+        <div class="active-filters" *ngIf="selectedCategory || search"><button *ngIf="selectedCategory" type="button"
+            (click)="chooseCategory('')" [attr.aria-label]="'Remove category filter: ' + selectedCategoryName">{{
+            selectedCategoryName }} <i class="fa fa-times" aria-hidden="true"></i></button><button *ngIf="search"
+            type="button" (click)="search = ''; loadProducts(1)" aria-label="Remove search filter">“{{ search }}” <i
+              class="fa fa-times" aria-hidden="true"></i></button><button class="clear-all" type="button"
+            (click)="resetCatalog()">Clear all</button></div>
+        <section class="product-grid skeleton-grid" *ngIf="catalogLoading" aria-label="Loading products">
+          <article class="skeleton-card" *ngFor="let card of skeletonCards" aria-hidden="true">
+            <div></div><span></span><span></span><span></span>
+          </article>
+        </section>
+        <div class="empty-state catalog-empty" *ngIf="!catalogLoading && !products.length"><span><i class="fa"
+              [ngClass]="catalogError ? 'fa-exclamation-circle' : 'fa-search'" aria-hidden="true"></i></span>
+          <h3>{{ catalogError ? 'Products could not be loaded' : 'No products found' }}</h3>
+          <p>{{ catalogError ? 'Please try again in a moment.' : 'Try a different search or explore another department.'
+            }}</p><button class="primary" type="button" (click)="resetCatalog()">{{ catalogError ? 'Try again' :
+            'Explore all products' }}</button>
+        </div>
         <section class="product-grid" *ngIf="products.length" aria-label="Products">
-      <article class="product-card" *ngFor="let product of products; trackBy: trackProduct">
-        <div class="product-image">
-          <button class="product-image-link" type="button" (click)="openProduct(product)"
-            (pointerenter)="showProductMagnifier($event, product.id)" (pointermove)="showProductMagnifier($event, product.id)"
-            (pointerleave)="hideProductMagnifier()" (pointercancel)="hideProductMagnifier()"
-            [class.is-magnifying]="magnifiedProductId === product.id" [attr.aria-label]="'View ' + product.name"
-            data-ui-note="Move your pointer over the image to magnify its details. Click or tap to view product options.">
-            <img *ngIf="hasProductPhoto(product.image_url); else missingProductPhoto" [src]="product.image_url" [alt]="product.name" loading="lazy" (error)="productPhotoFailed(product.image_url)">
-            <ng-template #missingProductPhoto><span class="product-photo-unavailable">Product photo unavailable</span></ng-template>
-            <span *ngIf="magnifiedProductId === product.id" class="product-magnifier" [ngStyle]="productMagnifierStyle" aria-hidden="true"></span>
-          </button>
-          <span class="product-zoom-hint" *ngIf="hasProductPhoto(product.image_url)" aria-hidden="true"><i class="fa fa-search-plus"></i> Hover to zoom</span>
-          <div class="product-tags"><span class="sample" *ngIf="product.is_sample">Sample</span><span class="featured" *ngIf="product.featured"><i class="fa fa-star" aria-hidden="true"></i> Featured</span></div>
+          <article class="product-card" *ngFor="let product of products; trackBy: trackProduct">
+            <div class="product-image">
+              <button class="product-image-link" type="button" (click)="openProduct(product)"
+                (pointerenter)="showProductMagnifier($event, product.id)"
+                (pointermove)="showProductMagnifier($event, product.id)" (pointerleave)="hideProductMagnifier()"
+                (pointercancel)="hideProductMagnifier()" [class.is-magnifying]="magnifiedProductId === product.id"
+                [attr.aria-label]="'View ' + product.name"
+                data-ui-note="Move your pointer over the image to magnify its details. Click or tap to view product options.">
+                <img *ngIf="hasProductPhoto(product.image_url); else missingProductPhoto" [src]="product.image_url"
+                  [alt]="product.name" loading="lazy" decoding="async" fetchpriority="low"
+                  (error)="productPhotoFailed(product.image_url)">
+                <ng-template #missingProductPhoto><span class="product-photo-unavailable">Product photo
+                    unavailable</span></ng-template>
+                <span *ngIf="magnifiedProductId === product.id" class="product-magnifier"
+                  [ngStyle]="productMagnifierStyle" aria-hidden="true"></span>
+              </button>
+              <span class="product-zoom-hint" *ngIf="hasProductPhoto(product.image_url)" aria-hidden="true"><i
+                  class="fa fa-search-plus"></i> Hover to zoom</span>
+              <div class="product-tags"><span class="sample" *ngIf="product.is_sample">Sample</span><span
+                  class="featured" *ngIf="product.featured"><i class="fa fa-star" aria-hidden="true"></i>
+                  Featured</span></div>
+            </div>
+            <div class="product-body">
+              <div class="product-meta">
+  <small *ngIf="meaningfulText(product.category_name)">
+    {{ product.category_name }}
+  </small>
+
+  <span
+    class="stock-status"
+    [class.stock-status--out]="product.stock < 1 && !product.allow_backorder"
+  >
+    <i
+      class="fa"
+      [ngClass]="product.stock > 0 || product.quantity_unspecified ? 'fa-check-circle' : 'fa-info-circle'"
+      aria-hidden="true">
+    </i>
+
+    {{ product.quantity_unspecified || product.stock > 0
+      ? 'In stock'
+      : product.allow_backorder
+        ? 'Available to order'
+        : 'Currently unavailable'
+    }}
+  </span>
+</div>
+              <h3><button type="button" (click)="openProduct(product)">{{ product.name }}</button></h3>
+              <p *ngIf="meaningfulText(product.short_description) as description">{{ description }}</p>
+              <div class="price-row">
+                <div class="price-offer"><strong>{{ product.price == null ? 'Price awaiting confirmation' : '৳' +
+                    (product.price | number:'1.0-0') }}</strong><del *ngIf="product.compare_at_price"
+                    title="Regular reference price">৳{{ product.compare_at_price | number:'1.0-0' }}</del><span
+                    class="sale-badge" *ngIf="discountPercent(product)>0">{{ discountPercent(product) }}% off</span>
+                </div><span class="price-quantity"
+                  [attr.aria-label]="product.quantity_unspecified ? 'Supplier quantity not specified' : 'Available quantity: ' + product.stock"
+                  [title]="product.quantity_unspecified ? 'Supplier reports in stock without specifying an exact quantity.' : 'Available quantity'">Qty:{{
+                  product.quantity_unspecified ? '  √' : ' ' + (product.stock | number:'1.0-0') }}</span>
+              </div>
+              <div class="product-buttons"><button class="ghost" type="button" (click)="openProduct(product)"
+                  [attr.aria-label]="'View options for ' + product.name">Details</button><button class="primary"
+                  type="button"
+                  [disabled]="product.stock < 1 && !product.quantity_unspecified && !product.allow_backorder"
+                  (click)="addToCart(product)" [attr.aria-label]="'Choose options for ' + product.name"><i
+                    class="fa fa-shopping-cart" aria-hidden="true"></i>{{ product.purchasable === false ? 'Choose
+                  options' : product.stock > 0 || product.quantity_unspecified || product.allow_backorder ? 'Add to
+                  Cart' : 'Unavailable' }}</button></div>
+            </div>
+          </article>
+        </section>
+        <div #catalogSentinel class="catalog-stream" *ngIf="products.length" aria-label="Progressive product loading">
+          <div *ngIf="products.length < 120 && products.length < productCount" class="catalog-progress"
+            role="progressbar" aria-label="Preparing the first products" aria-valuemin="0" aria-valuemax="100"
+            [attr.aria-valuenow]="catalogProgress"><span [style.width.%]="catalogProgress"></span></div>
+          <p role="status">{{ catalogError || (loadingMore ? 'Loading the next products in the background…' :
+            products.length < productCount ? 'Scroll to explore more products' : 'You have seen all matching products' )
+              }}</p>
+              <button *ngIf="catalogError || products.length < productCount" class="ghost" type="button"
+                [disabled]="loadingMore" (click)="loadMoreProducts()">{{ catalogError ? 'Retry loading' : 'Show more
+                products' }}</button>
         </div>
-        <div class="product-body">
-          <small>{{ product.category_name }}</small><h3><button type="button" (click)="openProduct(product)">{{ product.name }}</button></h3><p>{{ product.short_description }}</p>
-          <div class="price-row"><div class="price-offer"><strong>{{ product.price == null ? 'Price awaiting confirmation' : '৳' + (product.price | number:'1.0-0') }}</strong><del *ngIf="product.compare_at_price" title="Regular reference price">৳{{ product.compare_at_price | number:'1.0-0' }}</del><span class="sale-badge" *ngIf="discountPercent(product)>0">{{ discountPercent(product) }}% off</span></div><span class="price-quantity" [attr.aria-label]="product.quantity_unspecified ? 'Supplier quantity not specified' : 'Available quantity: ' + product.stock" [title]="product.quantity_unspecified ? 'Supplier reports in stock without specifying an exact quantity.' : 'Available quantity'">Qty: {{ product.quantity_unspecified ? '—' : (product.stock | number:'1.0-0') }}</span></div>
-          <span class="stock-status" [class.stock-status--out]="product.stock < 1 && !product.allow_backorder"><i class="fa" [ngClass]="product.stock > 0 || product.quantity_unspecified ? 'fa-check-circle' : 'fa-info-circle'" aria-hidden="true"></i>{{ product.quantity_unspecified || product.stock > 0 ? 'In stock' : product.allow_backorder ? 'Available to order' : 'Currently unavailable' }}</span>
-          <div class="product-buttons"><button class="ghost" type="button" (click)="openProduct(product)" [attr.aria-label]="'View options for ' + product.name">Details</button><button class="primary" type="button" [disabled]="!product.default_variant_id || (product.stock < 1 && !product.allow_backorder)" (click)="addToCart(product)" [attr.aria-label]="'Add ' + product.name + ' to cart'"><i class="fa fa-shopping-cart" aria-hidden="true"></i>{{ product.stock > 0 || product.allow_backorder ? 'Add to cart' : 'Unavailable' }}</button></div>
-        </div>
-      </article>
-    </section>
-    <div #catalogSentinel class="catalog-stream" *ngIf="products.length" aria-label="Progressive product loading">
-      <div *ngIf="products.length < 120 && products.length < productCount" class="catalog-progress" role="progressbar" aria-label="Preparing the first products" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="catalogProgress"><span [style.width.%]="catalogProgress"></span></div>
-      <p role="status">{{ catalogError || (loadingMore ? 'Loading the next products in the background…' : products.length < productCount ? 'Scroll to explore more products' : 'You have seen all matching products') }}</p>
-      <button *ngIf="catalogError || products.length < productCount" class="ghost" type="button" [disabled]="loadingMore" (click)="loadMoreProducts()">{{ catalogError ? 'Retry loading' : 'Show more products' }}</button>
-    </div>
       </div>
     </div>
   </ng-container>
 
   <div class="product-modal" *ngIf="selectedProduct" (click)="closeProduct()" role="presentation">
-    <article class="product-dialog" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+    <article class="product-dialog" role="dialog" aria-modal="true"
+      [attr.aria-labelledby]="!productDetailLoading && !productDetailError ? 'product-dialog-title' : null"
+      [attr.aria-label]="productDetailLoading ? 'Loading product details' : productDetailError ? 'Product details unavailable' : null"
+      cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
       <button class="dialog-close" type="button" (click)="closeProduct()" aria-label="Close product details">×</button>
-      <div class="dialog-gallery" (mouseenter)="galleryHover = true" (mouseleave)="galleryHover = false" (focusin)="galleryHover = true" (focusout)="galleryHover = false"><div class="dialog-image"><img *ngIf="hasProductPhoto(activeImage); else missingDetailPhoto" [src]="activeImage" [alt]="selectedProduct.name" (error)="productPhotoFailed(activeImage); selectVariantImage()"><ng-template #missingDetailPhoto><span class="product-photo-unavailable">Product photo unavailable</span></ng-template></div>
-        <div class="gallery-controls" *ngIf="galleryImages.length > 1"><button type="button" (click)="moveGallery(-1); galleryPaused = true" aria-label="Previous product image" title="Previous image"><i class="fa fa-angle-left" aria-hidden="true"></i></button><button type="button" (click)="galleryPaused = !galleryPaused" [attr.aria-label]="galleryPaused ? 'Play image slideshow' : 'Pause image slideshow'" [attr.title]="galleryPaused ? 'Play slideshow' : 'Pause slideshow'"><i class="fa" [class.fa-play]="galleryPaused" [class.fa-pause]="!galleryPaused" aria-hidden="true"></i></button><button type="button" (click)="moveGallery(1); galleryPaused = true" aria-label="Next product image" title="Next image"><i class="fa fa-angle-right" aria-hidden="true"></i></button></div>
-        <div class="gallery-thumbnails"><button type="button" *ngFor="let image of galleryImages" (click)="chooseGalleryImage(image.url)" [attr.aria-label]="image.alt_text || 'View product image'" [attr.aria-pressed]="activeImage === image.url"><img [src]="image.url" [alt]="image.alt_text || selectedProduct.name" loading="lazy"></button></div>
+      <div *ngIf="productDetailLoading" class="product-detail-loading" role="status" aria-live="polite">
+        <div class="app-loader-spinner-column product-detail-progress" role="progressbar"
+          aria-label="Loading product details">
+          <div class="app-loader-glow" aria-hidden="true"></div>
+          <div class="loading-progress-wrap">
+            <svg class="loading-progress-circle" viewBox="0 0 100 100" aria-hidden="true">
+              <circle class="loading-progress-bg" cx="50" cy="50" r="45" fill="none" stroke-width="7" />
+              <circle class="loading-progress-fill" cx="50" cy="50" r="45" fill="none" stroke-width="7"
+                stroke-dasharray="90 192.7" />
+            </svg>
+            <span class="loading-progress-text">Loading</span>
+          </div>
+        </div>
+        <p>Loading product details…</p>
       </div>
-      <div class="dialog-body">
-        <p class="eyebrow">{{ selectedProduct.category_name }}<span *ngIf="selectedProduct.brand_name"> · {{ selectedProduct.brand_name }}</span></p>
-        <h2 id="product-dialog-title">{{ selectedProduct.name }}</h2>
-        <p class="shipping-note" role="note" *ngIf="selectedProduct.quantity_unspecified">The supplier reports this item in stock without specifying a quantity. Your order will be confirmed automatically, subject to supplier fulfilment. If it cannot be supplied, we will cancel the affected order and refund any payment due.</p>
-        <p class="shipping-note" role="note" *ngIf="selectedProduct.fulfilment_mode === 'manual_supplier_catalogue' && !selectedProduct.quantity_unspecified">Supplier fulfilment: displayed availability is not a stock reservation. We will contact you if the supplier cannot fulfil your order.</p>
-        <p class="shipping-note" role="note" *ngIf="selectedProduct.fulfilment_mode === 'staff_confirmed_supplier_pilot'">Staff-confirmed supplier fulfilment: we recheck your exact item and delivery before confirming the order. Displayed availability is not a supplier reservation. Verified supplier delivery charges are shown at checkout.</p>
-        <p>{{ selectedProduct.description || selectedProduct.short_description }}</p>
-        <p class="shipping-note">Delivery is calculated at checkout from parcel weight and destination. Fixed product fees, when set: Dhaka {{ selectedProduct.delivery_dhaka_charge == null ? 'weight-based' : '৳' + selectedProduct.delivery_dhaka_charge }}, outside Dhaka {{ selectedProduct.delivery_outside_dhaka_charge == null ? 'weight-based' : '৳' + selectedProduct.delivery_outside_dhaka_charge }}. COD: {{ selectedProduct.cod_percent ?? policy.cod_percent }}% of discounted product prices only.</p>
-        <label *ngIf="showVariantChoice" for="variant-choice">Choose an option</label>
-        <select *ngIf="showVariantChoice" id="variant-choice" [(ngModel)]="selectedVariantId" (change)="selectVariantImage()">
-          <option *ngFor="let variant of selectedProduct.variants" [ngValue]="variant.id" [disabled]="!variant.is_active || (variant.stock < 1 && !variant.allow_backorder)">{{ variant.title }} · ৳{{ variant.price | number:'1.0-2' }} · {{ variant.stock > 0 ? variant.stock + ' available' : variant.allow_backorder ? 'available to order' : 'out of stock' }}</option>
-        </select>
-        <div class="price-row" *ngIf="selectedVariant as variant"><div class="price-offer"><strong>৳{{ variant.price | number:'1.0-0' }}</strong><del *ngIf="variant.compare_at_price" title="Regular reference price">৳{{ variant.compare_at_price | number:'1.0-0' }}</del><span class="sale-badge" *ngIf="variant.discount_percent">{{ variant.discount_percent }}% off</span></div><span class="price-quantity" [title]="variant.quantity_unspecified ? 'Supplier reports in stock without specifying an exact quantity.' : 'Available quantity'" [attr.aria-label]="variant.quantity_unspecified ? 'Supplier quantity not specified' : 'Available quantity: ' + variant.stock">Qty: {{ variant.quantity_unspecified ? '—' : (variant.stock | number:'1.0-0') }}</span></div>
-        <button class="primary" [disabled]="!selectedVariant || (selectedVariant.stock < 1 && !selectedVariant.allow_backorder)" (click)="addSelectedVariantToCart()">{{ showVariantChoice ? 'Add selected option to cart' : 'Add to cart' }}</button>
-        <a [routerLink]="['/ecommerce/product', selectedProduct.slug]">Product link</a>
-        <table class="product-specs" *ngIf="selectedProduct.attributes"><tr *ngFor="let spec of selectedProduct.attributes | keyvalue"><th>{{ spec.key }}</th><td>{{ spec.value }}</td></tr></table>
-        <section class="product-reviews"><h3>Customer reviews</h3><p *ngIf="!selectedProduct.approved_reviews?.length">No approved reviews yet.</p><article *ngFor="let item of selectedProduct.approved_reviews"><strong>{{ item.customer_name }} · {{ item.rating }}/5</strong><h4>{{ item.title }}</h4><p>{{ item.body }}</p></article>
-          <form *ngIf="loginStatus" (ngSubmit)="submitReview()"><h4>Review your completed purchase</h4><label>Rating<select name="reviewRating" [(ngModel)]="review.rating"><option *ngFor="let rating of [5,4,3,2,1]" [ngValue]="rating">{{ rating }}/5</option></select></label><label>Title<input name="reviewTitle" maxlength="200" [(ngModel)]="review.title"></label><label>Review<textarea name="reviewBody" maxlength="2000" [(ngModel)]="review.body" required></textarea></label><button class="ghost" type="submit">Submit for approval</button></form>
-        </section>
+      <div *ngIf="!productDetailLoading && productDetailError" class="product-detail-loading" role="alert">
+        <p>{{ productDetailError }}</p><button class="ghost" type="button" (click)="retryProductDetails()">Retry
+          details</button>
       </div>
+      <ng-container *ngIf="!productDetailLoading && !productDetailError">
+        <div class="dialog-gallery" (mouseenter)="galleryHover = true" (mouseleave)="galleryHover = false"
+          (focusin)="galleryHover = true" (focusout)="galleryHover = false">
+          <div class="dialog-image"><img *ngIf="hasProductPhoto(activeImage); else missingDetailPhoto"
+              [src]="activeImage" [alt]="selectedProduct.name"
+              (error)="productPhotoFailed(activeImage); selectVariantImage()"><ng-template #missingDetailPhoto><span
+                class="product-photo-unavailable">Product photo unavailable</span></ng-template></div>
+          <div class="gallery-controls" *ngIf="galleryImages.length > 1"><button type="button"
+              (click)="moveGallery(-1); galleryPaused = true" aria-label="Previous product image"
+              title="Previous image"><i class="fa fa-angle-left" aria-hidden="true"></i></button><button type="button"
+              (click)="galleryPaused = !galleryPaused"
+              [attr.aria-label]="galleryPaused ? 'Play image slideshow' : 'Pause image slideshow'"
+              [attr.title]="galleryPaused ? 'Play slideshow' : 'Pause slideshow'"><i class="fa"
+                [class.fa-play]="galleryPaused" [class.fa-pause]="!galleryPaused"
+                aria-hidden="true"></i></button><button type="button" (click)="moveGallery(1); galleryPaused = true"
+              aria-label="Next product image" title="Next image"><i class="fa fa-angle-right"
+                aria-hidden="true"></i></button></div>
+          <div class="gallery-thumbnails"><button type="button" *ngFor="let image of galleryImages"
+              (click)="chooseGalleryImage(image.url)" [attr.aria-label]="image.alt_text || 'View product image'"
+              [attr.aria-pressed]="activeImage === image.url"><img [src]="image.url"
+                [alt]="image.alt_text || selectedProduct.name" loading="lazy"></button></div>
+        </div>
+        <div class="dialog-body">
+          <p class="eyebrow">{{ selectedProduct.category_name }}<span *ngIf="selectedProduct.brand_name"> · {{
+              selectedProduct.brand_name }}</span></p>
+          <h2 id="product-dialog-title">{{ selectedProduct.name }}</h2>
+          <p class="source-check-status" role="status"
+            *ngIf="sourceRefreshState && sourceRefreshState !== 'not_applicable'">
+            <i class="fa" [class.fa-refresh]="sourceRefreshState === 'checking' || sourceRefreshState === 'queued'"
+              [class.fa-check-circle]="sourceRefreshState === 'updated' || sourceRefreshState === 'recently_checked'"
+              [class.fa-clock-o]="sourceRefreshState !== 'checking' && sourceRefreshState !== 'queued' && sourceRefreshState !== 'updated' && sourceRefreshState !== 'recently_checked'"
+              aria-hidden="true"></i>
+            <span *ngIf="sourceRefreshState === 'checking' || sourceRefreshState === 'queued'">Checking supplier
+              availability in the background…</span>
+            <span *ngIf="sourceRefreshState === 'updated'">Supplier availability updated.</span>
+            <span
+              *ngIf="sourceRefreshState === 'staff_check_needed' || sourceRefreshState === 'check_unavailable' || sourceRefreshState === 'not_updated' || sourceRefreshState === 'recently_requested' || sourceRefreshState === 'cached'">Supplier
+              recheck pending; the last known availability is shown.</span>
+            <span *ngIf="sourceRefreshState === 'recently_checked'">Recently checked with the supplier.</span>
+            <span *ngIf="sourceRefreshState === 'unavailable'">This product is no longer available from the
+              supplier.</span>
+            <small *ngIf="sourceCheckedAt">Last checked {{ sourceCheckedAt | date:'medium' }}</small>
+          </p>
+          <p class="shipping-note" role="note"
+            *ngIf="selectedProduct.fulfilment_mode === 'manual_supplier_catalogue' && !selectedProduct.quantity_unspecified">
+            Supplier fulfilment: displayed availability is not a stock reservation. We will contact you if the supplier
+            cannot fulfil your order.</p>
+          <p class="shipping-note" role="note"
+            *ngIf="selectedProduct.fulfilment_mode === 'staff_confirmed_supplier_pilot'">Staff-confirmed supplier
+            fulfilment: we recheck your exact item and delivery before confirming the order. Displayed availability is
+            not a supplier reservation. Verified supplier delivery charges are shown at checkout.</p>
+          <label *ngIf="showVariantChoice" for="variant-choice">{{ variantChoiceLabel }}</label>
+          <select *ngIf="showVariantChoice" id="variant-choice" [(ngModel)]="selectedVariantId"
+            (change)="selectVariantImage()">
+            <option [ngValue]="null" disabled>Select {{ variantChoiceLabel.toLowerCase() }}</option>
+            <option *ngFor="let variant of selectedProduct.variants" [ngValue]="variant.id"
+              [disabled]="!canAddVariant(variant)">{{ variant.title }} · ৳{{ variant.price | number:'1.0-2' }} · {{
+              variant.stock > 0 ? variant.stock + ' available' : variant.quantity_unspecified ? 'available to order' :
+              variant.allow_backorder ? 'available to order' : 'out of stock' }}</option>
+          </select>
+          <div class="price-row" *ngIf="selectedVariant as variant">
+            <div class="price-offer"><strong>৳{{ variant.price | number:'1.0-0' }}</strong><del
+                *ngIf="variant.compare_at_price" title="Regular reference price">৳{{ variant.compare_at_price |
+                number:'1.0-0' }}</del><span class="sale-badge" *ngIf="variant.discount_percent">{{
+                variant.discount_percent }}% off</span></div><span class="price-quantity"
+              [title]="variant.quantity_unspecified ? 'Supplier reports in stock without specifying an exact quantity.' : 'Available quantity'"
+              [attr.aria-label]="variant.quantity_unspecified ? 'Supplier quantity not specified' : 'Available quantity: ' + variant.stock">Qty:{{
+              variant.quantity_unspecified ? '  √' : ' ' + (variant.stock | number:'1.0-0') }}</span>
+          </div>
+          <p class="option-notice" role="status" *ngIf="selectedProduct.option_notice">{{ selectedProduct.option_notice
+            }}</p>
+          <label *ngIf="selectedProduct.description_sizes?.length" for="description-size">Size</label>
+          <select *ngIf="selectedProduct.description_sizes?.length" id="description-size"
+            [(ngModel)]="selectedDescriptionSize">
+            <option value="" disabled>Select size</option>
+            <option *ngFor="let size of selectedProduct.description_sizes" [value]="size">{{ size }}</option>
+          </select>
+          <button class="primary"
+            [disabled]="selectedProduct.purchasable === false || !canAddVariant(selectedVariant) || (showVariantChoice && !selectedVariantId) || (selectedProduct.description_sizes?.length && !selectedDescriptionSize)"
+            (click)="addSelectedVariantToCart()">{{ showVariantChoice ? 'Add selected option to Cart' : 'Add to Cart'
+            }}</button>
+          <section class="product-information" *ngIf="selectedProduct.specifications?.length"
+            aria-label="Product specifications">
+            <h3>Specifications</h3>
+            <table class="product-specs">
+              <thead>
+                <tr>
+                  <th scope="col">Feature</th>
+                  <th scope="col">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let spec of selectedProduct.specifications">
+                  <th scope="row">{{ spec.feature }}</th>
+                  <td>{{ spec.value }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          <section class="product-information"
+            *ngIf="selectedProduct.description_html || selectedProduct.description || selectedProduct.features_html?.length">
+            <h3>Details</h3>
+            <div class="product-description"
+              [innerHTML]="selectedProduct.description_html || selectedProduct.description"></div>
+            <ng-container *ngIf="selectedProduct.features_html?.length">
+              <h4>Features</h4>
+              <div class="product-description" *ngFor="let feature of selectedProduct.features_html"
+                [innerHTML]="feature"></div>
+            </ng-container>
+          </section>
+          <section class="product-reviews">
+            <h3>Customer reviews</h3>
+            <p *ngIf="!selectedProduct.approved_reviews?.length">No approved reviews yet.</p>
+            <article *ngFor="let item of selectedProduct.approved_reviews"><strong>{{ item.customer_name }} · {{
+                item.rating }}/5</strong>
+              <h4>{{ item.title }}</h4>
+              <p>{{ item.body }}</p>
+            </article>
+            <form *ngIf="loginStatus" (ngSubmit)="submitReview()">
+              <h4>Review your completed purchase</h4><label>Rating<select name="reviewRating"
+                  [(ngModel)]="review.rating">
+                  <option *ngFor="let rating of [5,4,3,2,1]" [ngValue]="rating">{{ rating }}/5</option>
+                </select></label><label>Title<input name="reviewTitle" maxlength="200"
+                  [(ngModel)]="review.title"></label><label>Review<textarea name="reviewBody" maxlength="2000"
+                  [(ngModel)]="review.body" required></textarea></label><button class="ghost" type="submit">Submit for
+                approval</button>
+            </form>
+          </section>
+        </div>
+      </ng-container>
     </article>
   </div>
 
   <section class="workspace" *ngIf="activeView === 'cart'">
-    <div class="workspace-heading"><div><h1>{{ cartTitle }}</h1></div><button class="ghost" (click)="setView('shop')">Continue shopping</button></div>
-    <p *ngIf="cartLoading" role="status">Loading your cart…</p>
-    <div *ngIf="cartError" class="empty-state" role="alert"><h2>Cart unavailable</h2><p>{{ cartError }}</p><button class="primary" type="button" (click)="loadCart()">Try again</button></div>
-    <ng-container *ngIf="!cartLoading && !cartError">
-    <div class="cart-layout" *ngIf="cart?.items?.length; else emptyCart">
-      <div class="cart-items">
-        <article *ngFor="let item of cart?.items">
-          <img *ngIf="hasProductPhoto(item.image_url); else missingCartPhoto" [src]="item.image_url" [alt]="item.product_name" (error)="productPhotoFailed(item.image_url)"><ng-template #missingCartPhoto><span class="product-photo-unavailable product-photo-unavailable--cart">Photo unavailable</span></ng-template>
-          <div><h3>{{ item.product_name }}</h3><small>{{ item.variant_title }} · {{ item.sku }}</small><strong>৳{{ item.unit_price | number:'1.0-2' }}</strong><small *ngIf="item.quantity_unspecified">Supplier quantity not specified · available to order</small></div>
-          <div class="quantity"><button (click)="updateCartItem(item, item.quantity - 1)">−</button><span>{{ item.quantity }}</span><button (click)="updateCartItem(item, item.quantity + 1)">+</button></div><b>৳{{ item.line_total | number:'1.0-2' }}</b>
-        </article>
-      </div>
-      <form class="checkout-card" (ngSubmit)="placeOrder()">
-        <h2>Delivery details</h2>
-        <p class="shipping-note">Account details are filled when available. You can edit every field for this order without changing your profile.</p>
-        <label>Recipient name<input required maxlength="200" [(ngModel)]="checkout.customer_name" name="customer_name" autocomplete="name"></label>
-        <div class="form-row"><label>Email<input required type="email" maxlength="254" [(ngModel)]="checkout.email" name="email" autocomplete="email"></label><label>Contact number<input required type="tel" maxlength="40" [(ngModel)]="checkout.phone" name="phone" autocomplete="tel"></label></div>
-        <label>Alternate contact number (optional)<input type="tel" maxlength="40" [(ngModel)]="checkout.phone_alternate" name="phone_alternate"></label>
-        <label>Division<input list="delivery-divisions" [(ngModel)]="checkout.division" name="division" (change)="divisionChanged()"></label>
-        <div class="form-row"><label>District<input required list="delivery-districts" [(ngModel)]="checkout.district" name="district" (ngModelChange)="requestQuote()" (change)="districtChanged()"></label><label>Thana / Upazila<input required list="delivery-thanas" [(ngModel)]="checkout.thana" name="thana" (ngModelChange)="requestQuote()"></label></div>
-        <datalist id="delivery-divisions"><option *ngFor="let name of divisions" [value]="name"></option></datalist><datalist id="delivery-districts"><option *ngFor="let name of districts" [value]="name"></option></datalist><datalist id="delivery-thanas"><option *ngFor="let name of thanas" [value]="name"></option></datalist>
-        <label>Zone / Union / Area<input maxlength="150" [(ngModel)]="checkout.zone" name="zone"></label>
-        <label>Street / Village / House address<textarea required maxlength="1000" [(ngModel)]="checkout.address" name="address" autocomplete="street-address"></textarea></label>
-        <p class="shipping-note" role="note" *ngIf="cartNeedsConfirmation">This cart needs supplier stock confirmation. Your request stays unpaid and pending until staff confirm quantity and delivery. Do not transfer payment; no wallet balance will be deducted.</p>
-        <p class="shipping-note" role="note" *ngIf="cartQuantityUnspecified && !cartNeedsConfirmation">{{ quote?.order_auto_confirmed ? 'Your order will be confirmed automatically.' : 'No separate quantity-confirmation hold applies; other items retain their usual approval rules.' }} Supplier quantities are not specified; if an item cannot be supplied, we will cancel the affected order and refund any payment due.</p>
-        <select [(ngModel)]="checkout.payment_method" name="payment_method" (ngModelChange)="requestQuote()"><option *ngIf="loginStatus && !cartNeedsConfirmation" value="wallet">Cheradip Wallet · ৳{{ walletTaka | number:'1.2-2' }}</option><option value="cod">{{ cartNeedsConfirmation ? 'Cash on delivery · pending confirmation' : 'Cash on delivery' }}</option><option *ngIf="!cartNeedsConfirmation" value="bkash">bKash</option><option *ngIf="!cartNeedsConfirmation" value="nagad">Nagad</option><option *ngIf="!cartNeedsConfirmation" value="bank">Bank transfer</option></select>
-        <small class="wallet-note" *ngIf="checkout.payment_method === 'wallet'">
-          100 coins = ৳1. Reference balance ৳{{ referenceBalanceTaka | number:'1.2-2' }} will be used first; the full purchase price is deducted from Main Wallet.
-        </small>
-        <label *ngIf="checkout.payment_method !== 'cod' && checkout.payment_method !== 'wallet'">Payment transaction ID<input required maxlength="160" [(ngModel)]="checkout.transaction_id" name="transaction_id"></label>
-        <label>Coupon code (optional)<input [(ngModel)]="checkout.coupon_code" name="coupon_code" (ngModelChange)="requestQuote()" maxlength="80"></label>
-        <textarea [(ngModel)]="checkout.customer_note" name="note" placeholder="Order note (optional)"></textarea>
-        <div class="checkout-total" *ngIf="!quote"><span>Subtotal (before delivery)</span><strong>৳{{ cart?.subtotal | number:'1.2-2' }}</strong></div>
-        <div class="checkout-quote" aria-live="polite"><p *ngIf="quoteLoading">Calculating your final total…</p><p *ngIf="quoteError" role="alert">{{ quoteError }}</p><p *ngIf="!quote && !quoteLoading && !quoteError">Select a district to calculate delivery.</p><ng-container *ngIf="quote"><div><span>Subtotal</span><b>৳{{ quote.subtotal | number:'1.2-2' }}</b></div><div><span>Discount</span><b>−৳{{ quote.discount_total | number:'1.2-2' }}</b></div><div><span>Courier / Delivery</span><b>৳{{ quote.shipping_total | number:'1.2-2' }}</b></div><div><span>Cash on delivery (COD)</span><b>৳{{ quote.cod_total | number:'1.2-2' }}</b></div><div *ngIf="quote.rounding_adjustment > 0"><span>Round-up adjustment</span><b>+৳{{ quote.rounding_adjustment | number:'1.2-2' }}</b></div><div class="checkout-total"><span>Total payable</span><strong>৳{{ quote.grand_total | number:'1.0-0' }}</strong></div></ng-container></div>
-        <p class="shipping-note" *ngIf="quote?.delivery_details?.weight_grams">Delivery area: {{ quote.delivery_details.zone === 'dhaka' ? 'Dhaka' : quote.delivery_details.zone === 'suburbs' ? 'Dhaka suburbs' : 'Outside Dhaka' }} · Known parcel weight: {{ quote.delivery_details.weight_grams }} g. <ng-container *ngIf="quote.delivery_details.minimum != null">Eligible fee range: ৳{{ quote.delivery_details.minimum }}–৳{{ quote.delivery_details.maximum }}.</ng-container></p>
-        <p class="shipping-note" role="status" *ngIf="quote?.delivery_details?.fallback">Some product weights are unavailable. This quote uses the fallback delivery fee; contact us to confirm delivery for heavy or bulky items.</p>
-        <small class="shipping-note">Delivery uses total item weight × quantity and the midpoint between the lowest and highest eligible courier base fees, once per order. Product-specific fixed fees may apply. Missing weights use the fallback fee: Dhaka ৳{{ policy.dhaka_charge }}, outside Dhaka ৳{{ policy.outside_dhaka_charge }}. Default COD: {{ policy.cod_percent }}% of discounted product prices only, excluding delivery. Digital-only orders have no courier charge.</small>
-        <details class="return-policy"><summary>Delivery &amp; return policy</summary><p>{{ policy.return_policy }}</p><a *ngIf="policy.support_phone" [href]="'tel:' + (policy.support_phone | localContact)">{{ policy.support_phone | localContact }}</a></details>
-        <button class="primary" type="submit" [disabled]="loading || quoteLoading || !quote">{{ loading ? 'Submitting…' : cartNeedsConfirmation ? 'Submit pending order' : 'Place order' }}</button>
-      </form>
+    <div class="workspace-heading">
+      <div>
+        <h1>{{ cartTitle }}</h1>
+      </div><button class="ghost" (click)="setView('shop')">Continue shopping</button>
     </div>
-    <ng-template #emptyCart><div class="empty-state"><img class="empty-cart-image" src="assets/images/fish.png" alt="Empty shopping cart"><h2>Your cart is empty</h2><p>Add products or books to see them here.</p><button class="primary" type="button" (click)="setView('shop')">Browse products</button></div></ng-template>
+    <p *ngIf="cartLoading" role="status">Loading your cart…</p>
+    <div *ngIf="cartError" class="empty-state" role="alert">
+      <h2>Cart unavailable</h2>
+      <p>{{ cartError }}</p><button class="primary" type="button" (click)="loadCart()">Try again</button>
+    </div>
+    <ng-container *ngIf="!cartLoading && !cartError">
+      <div class="cart-layout" *ngIf="cart?.items?.length; else emptyCart">
+        <div class="cart-items">
+          <article *ngFor="let item of cart?.items">
+            <a class="cart-product-photo" [href]="'/ecommerce/product/' + item.product_slug"
+              (click)="$event.preventDefault(); openCartProduct(item)"><img
+                *ngIf="hasProductPhoto(item.image_url); else missingCartPhoto" [src]="item.image_url"
+                [alt]="item.product_name" (error)="productPhotoFailed(item.image_url)"><ng-template
+                #missingCartPhoto><span class="product-photo-unavailable product-photo-unavailable--cart">Photo
+                  unavailable</span></ng-template></a>
+            <div>
+              <h3><a [href]="'/ecommerce/product/' + item.product_slug"
+                  (click)="$event.preventDefault(); openCartProduct(item)">{{ item.product_name }}</a></h3><small
+                *ngIf="item.variant_title !== 'Default'">{{ item.variant_title }}</small>
+              <label *ngIf="item.description_sizes?.length" class="cart-variant-choice">Size
+                <select [ngModel]="item.requested_size" (ngModelChange)="changeCartSize(item,$event)"
+                  [disabled]="loading || changingCartItems.has(item.id)"
+                  [attr.aria-label]="'Change size for ' + item.product_name">
+                  <option *ngFor="let size of item.description_sizes" [value]="size">{{ size }}</option>
+                </select>
+              </label>
+              <label class="cart-variant-choice" *ngIf="(item.available_variants?.length || 0) > 1">Size / option
+                <select [ngModel]="item.variant_id" (ngModelChange)="changeCartVariant(item, $event)"
+                  [disabled]="loading || changingCartItems.has(item.id)"
+                  [attr.aria-label]="'Change option for ' + item.product_name">
+                  <option *ngFor="let variant of item.available_variants" [ngValue]="variant.id"
+                    [disabled]="!canAddVariant(variant)">{{ variant.title }} · ৳{{ variant.price | number:'1.0-0' }}{{
+                    canAddVariant(variant) ? '' : ' · unavailable' }}</option>
+                </select>
+              </label>
+              <strong>৳{{ item.unit_price | number:'1.0-2' }}</strong><small *ngIf="item.quantity_unspecified">Supplier
+                quantity not specified · available to order</small>
+            </div>
+            <div class="quantity"><button (click)="updateCartItem(item, item.quantity - 1)">−</button><span>{{
+                item.quantity }}</span><button (click)="updateCartItem(item, item.quantity + 1)">+</button></div><b>৳{{
+              item.line_total | number:'1.0-2' }}</b>
+          </article>
+        </div>
+        <form class="checkout-card" (ngSubmit)="placeOrder()">
+          <h2>Delivery details</h2>
+          <p class="shipping-note">Account details are filled when available. You can edit every field for this order
+            without changing your profile.</p>
+          <label>Recipient name<input required maxlength="200" [(ngModel)]="checkout.customer_name" name="customer_name"
+              autocomplete="name"></label>
+          <div class="form-row"><label>Email<input required type="email" maxlength="254" [(ngModel)]="checkout.email"
+                name="email" autocomplete="email"></label><label>Contact number<input required type="tel" maxlength="40"
+                [(ngModel)]="checkout.phone" name="phone" autocomplete="tel"></label></div>
+          <label>Alternate contact number (optional)<input type="tel" maxlength="40"
+              [(ngModel)]="checkout.phone_alternate" name="phone_alternate"></label>
+          <label>Division<input list="delivery-divisions" [(ngModel)]="checkout.division" name="division"
+              (change)="divisionChanged()"></label>
+          <div class="form-row"><label>District<input required list="delivery-districts" [(ngModel)]="checkout.district"
+                name="district" (ngModelChange)="requestQuote()" (change)="districtChanged()"></label><label>Thana /
+              Upazila<input required list="delivery-thanas" [(ngModel)]="checkout.thana" name="thana"
+                (ngModelChange)="requestQuote()"></label></div>
+          <datalist id="delivery-divisions">
+            <option *ngFor="let name of divisions" [value]="name"></option>
+          </datalist><datalist id="delivery-districts">
+            <option *ngFor="let name of districts" [value]="name"></option>
+          </datalist><datalist id="delivery-thanas">
+            <option *ngFor="let name of thanas" [value]="name"></option>
+          </datalist>
+          <label>Zone / Union / Area<input maxlength="150" [(ngModel)]="checkout.zone" name="zone"></label>
+          <label>Street / Village / House address<textarea required maxlength="1000" [(ngModel)]="checkout.address"
+              name="address" autocomplete="street-address"></textarea></label>
+          <p class="shipping-note" role="note" *ngIf="cartNeedsConfirmation">This cart needs supplier stock
+            confirmation. Your request stays unpaid and pending until staff confirm quantity and delivery. Do not
+            transfer payment; no wallet balance will be deducted.</p>
+          <select [(ngModel)]="checkout.payment_method" name="payment_method" (ngModelChange)="requestQuote()" required
+            aria-label="Choose a payment method">
+            <option value="" disabled>Choose payment method</option>
+            <option *ngIf="loginStatus && !cartNeedsConfirmation" value="wallet">Cheradip Wallet · ৳{{ walletTaka |
+              number:'1.2-2' }}</option>
+            <option value="cod">{{ cartNeedsConfirmation ? 'Cash on delivery · pending confirmation' : 'Cash on
+              delivery' }}</option>
+            <option *ngIf="!cartNeedsConfirmation" value="bkash">bKash</option>
+            <option *ngIf="!cartNeedsConfirmation" value="nagad">Nagad</option>
+            <option *ngIf="!cartNeedsConfirmation" value="bank">Bank transfer</option>
+          </select>
+          <small class="wallet-note" *ngIf="checkout.payment_method === 'wallet'">
+            100 coins = ৳1. Reference balance ৳{{ referenceBalanceTaka | number:'1.2-2' }} will be used first; the full
+            purchase price is deducted from Main Wallet.
+          </small>
+          <label *ngIf="checkout.payment_method !== 'cod' && checkout.payment_method !== 'wallet'">Payment transaction
+            ID<input required maxlength="160" [(ngModel)]="checkout.transaction_id" name="transaction_id"></label>
+          <label>Coupon code (optional)<input [(ngModel)]="checkout.coupon_code" name="coupon_code"
+              (ngModelChange)="requestQuote()" maxlength="80"></label>
+          <textarea [(ngModel)]="checkout.customer_note" name="note" placeholder="Order note (optional)"></textarea>
+          <div class="checkout-total" *ngIf="!quote"><span>Subtotal (before delivery)</span><strong>৳{{ cart?.subtotal |
+              number:'1.2-2' }}</strong></div>
+          <div class="checkout-quote" aria-live="polite">
+            <p *ngIf="quoteLoading">Calculating your final total…</p>
+            <p *ngIf="quoteError" role="alert">{{ quoteError }}</p>
+            <p *ngIf="!quote && !quoteLoading && !quoteError">{{ checkout.payment_method ? 'Select a district to
+              calculate delivery.' : 'Choose a payment method and district to calculate your total.' }}</p><ng-container
+              *ngIf="quote">
+              <div><span>Subtotal</span><b>৳{{ quote.subtotal | number:'1.2-2' }}</b></div>
+              <div><span>Discount</span><b>−৳{{ quote.discount_total | number:'1.2-2' }}</b></div>
+              <div><span>Courier / Delivery</span><b>৳{{ quote.shipping_total | number:'1.2-2' }}</b></div>
+              <div><span>Cash on delivery (COD)</span><b>৳{{ quote.cod_total | number:'1.2-2' }}</b></div>
+              <div *ngIf="quote.rounding_adjustment > 0"><span>Round-up adjustment</span><b>+৳{{
+                  quote.rounding_adjustment | number:'1.2-2' }}</b></div>
+              <div class="checkout-total"><span>Total payable</span><strong>৳{{ quote.grand_total | number:'1.0-0'
+                  }}</strong></div>
+            </ng-container>
+          </div>
+          <p class="shipping-note" *ngIf="quote?.delivery_details?.weight_grams">Delivery area: {{
+            quote.delivery_details.zone === 'dhaka' ? 'Dhaka' : quote.delivery_details.zone === 'suburbs' ? 'Dhaka
+            suburbs' : 'Outside Dhaka' }} · Known parcel weight: {{ quote.delivery_details.weight_grams }} g.
+            <ng-container *ngIf="quote.delivery_details.minimum != null">Eligible fee range: ৳{{
+              quote.delivery_details.minimum }}–৳{{ quote.delivery_details.maximum }}.</ng-container></p>
+          <p class="shipping-note" role="status" *ngIf="quote?.delivery_details?.fallback">{{
+            quote.delivery_details.fallback === 'no_courier_rate_for_weight' ? 'No configured courier rate covers this
+            parcel weight. The area default is included as a provisional delivery estimate.' : 'Some product weights are
+            unavailable. This quote uses the area fallback delivery fee; contact us to confirm delivery for heavy or
+            bulky items.' }}</p>
+          <details class="return-policy">
+            <summary>Delivery &amp; return policy</summary>
+            <p>{{ policy.return_policy }}</p><a *ngIf="policy.support_phone"
+              [href]="'tel:' + (policy.support_phone | localContact)">{{ policy.support_phone | localContact }}</a>
+          </details>
+          <button class="primary" type="submit"
+            [disabled]="loading || changingCartItems.size > 0 || quoteLoading || !quote">{{ loading ? 'Submitting…' :
+            cartNeedsConfirmation ? 'Submit pending order' : 'Place order' }}</button>
+        </form>
+      </div>
+      <ng-template #emptyCart>
+        <div class="empty-state"><img class="empty-cart-image" src="assets/images/fish.png" alt="Empty shopping cart">
+          <h2>Your cart is empty</h2>
+          <p>Add products or books to see them here.</p><button class="primary" type="button"
+            (click)="setView('shop')">Browse products</button>
+        </div>
+      </ng-template>
     </ng-container>
-    <div class="order-success" *ngIf="completedOrder"><h2>Order ID: {{ completedOrder.number }}</h2><p>Status: {{ completedOrder.status === 'confirmed' ? 'Confirmed — awaiting fulfilment.' : 'Pending — awaiting administrative approval.' }}</p><p *ngIf="completedOrder.stock_confirmation_pending">Awaiting staff confirmation of supplier stock, quantity and delivery. Do not pay yet; no wallet balance was deducted.</p><p>A private receipt is queued for email. Download a copy now for reliable tracking.</p><ng-container *ngIf="!loginStatus"><p>Save your private tracking token:</p><code>{{ completedOrder.tracking_token }}</code></ng-container><button type="button" class="ghost" (click)="downloadReceipt(completedOrder)">Download receipt</button><button type="button" class="ghost" (click)="setView('track')">Track this order</button></div>
+    <div class="order-success" *ngIf="completedOrder">
+      <h2>Order ID: {{ completedOrder.number }}</h2>
+      <p>Status: {{ completedOrder.status === 'confirmed' ? 'Confirmed — awaiting fulfilment.' : 'Pending — awaiting
+        administrative approval.' }}</p>
+      <p *ngIf="completedOrder.stock_confirmation_pending">Awaiting staff confirmation of supplier stock, quantity and
+        delivery. Do not pay yet; no wallet balance was deducted.</p>
+      <p>A private receipt is queued for email. Download a copy now for reliable tracking.</p><ng-container
+        *ngIf="!loginStatus">
+        <p>Save your private tracking token:</p><code>{{ completedOrder.tracking_token }}</code>
+      </ng-container><button type="button" class="ghost" (click)="downloadReceipt(completedOrder)">Download
+        receipt</button><button type="button" class="ghost" (click)="setView('track')">Track this order</button>
+    </div>
   </section>
 
   <section class="workspace narrow" *ngIf="activeView === 'track'">
-    <p class="eyebrow">Delivery progress</p><h1>Track your order</h1>
-    <form class="tracking-form" (ngSubmit)="trackOrder()"><input required [(ngModel)]="trackNumber" name="trackNumber" placeholder="Order ID, for example CH-… or PKG-…"><input *ngIf="!loginStatus" required [(ngModel)]="trackToken" name="trackToken" placeholder="Private tracking token"><button class="primary" type="submit">Track</button></form>
-    <p class="tracking-help" *ngIf="loginStatus">Enter an Order ID from History. Product, eBook, and package orders are all supported.</p>
-    <p class="tracking-help" *ngIf="!loginStatus">Sign in to track with only an Order ID. Guest product orders also require the private tracking token.</p>
+    <p class="eyebrow">Delivery progress</p>
+    <h1>Track your order</h1>
+    <form class="tracking-form" (ngSubmit)="trackOrder()"><input required [(ngModel)]="trackNumber" name="trackNumber"
+        placeholder="Order ID, for example CH-… or PKG-…"><input *ngIf="!loginStatus" required [(ngModel)]="trackToken"
+        name="trackToken" placeholder="Private tracking token"><button class="primary" type="submit">Track</button>
+    </form>
+    <p class="tracking-help" *ngIf="loginStatus">Enter an Order ID from History. Product, eBook, and package orders are
+      all supported.</p>
+    <p class="tracking-help" *ngIf="!loginStatus">Sign in to track with only an Order ID. Guest product orders also
+      require the private tracking token.</p>
     <article class="tracking-result" *ngIf="trackedOrder">
-      <p *ngIf="trackedOrder.stock_confirmation_pending">Awaiting supplier stock and delivery confirmation. Do not pay yet.</p>
-      <div><span>Order ID</span><strong>{{ trackedOrder.number }}</strong></div><div><span>Status</span><strong>{{ trackedOrder.status_label || trackedOrder.status }}</strong></div><div><span>Payment</span><strong>{{ trackedOrder.payment_status_label || trackedOrder.payment_status }}</strong></div><div><span>Total</span><strong>৳{{ trackedOrder.grand_total }}</strong></div>
+      <p *ngIf="trackedOrder.stock_confirmation_pending">Awaiting supplier stock and delivery confirmation. Do not pay
+        yet.</p>
+      <div><span>Order ID</span><strong>{{ trackedOrder.number }}</strong></div>
+      <div><span>Status</span><strong>{{ trackedOrder.status_label || trackedOrder.status }}</strong></div>
+      <div><span>Payment</span><strong>{{ trackedOrder.payment_status_label || trackedOrder.payment_status }}</strong>
+      </div>
+      <div><span>Total</span><strong>৳{{ trackedOrder.grand_total }}</strong></div>
       <div *ngIf="trackedOrder.title"><span>Service</span><strong>{{ trackedOrder.title }}</strong></div>
-      <ol><li *ngFor="let event of trackedOrder.history"><b>{{ event.status }}</b><small>{{ event.created_at | date:'medium' }} {{ event.note }}</small></li></ol>
-        <div class="digital-library" *ngIf="digitalLibrary.length">
-          <h2>Your eBooks</h2>
-          <a class="primary link-button" *ngFor="let book of digitalLibrary" [href]="book.download_url">
-            Download {{ book.title_bn || book.title }} <small>{{ book.formats.join(', ') | uppercase }}</small>
-          </a>
-        </div>
+      <ol>
+        <li *ngFor="let event of trackedOrder.history"><b>{{ event.status }}</b><small>{{ event.created_at |
+            date:'medium' }} {{ event.note }}</small></li>
+      </ol>
+      <div class="digital-library" *ngIf="digitalLibrary.length">
+        <h2>Your eBooks</h2>
+        <a class="primary link-button" *ngFor="let book of digitalLibrary" [href]="book.download_url">
+          Download {{ book.title_bn || book.title }} <small>{{ book.formats.join(', ') | uppercase }}</small>
+        </a>
+      </div>
     </article>
   </section>
 

@@ -27,6 +27,9 @@ import { TrxHelpVisibility } from '../trx-help-visibility';
     standalone: false
 })
 export class NtrcaHeaderSectionComponent implements OnInit, OnDestroy {
+  get trxInputMarginLeft(): number {
+    return /^(?:www\.)?ecommerce\.cheradip\.com$/i.test(window.location.hostname) ? -150 : -180;
+  }
   @Input() newToken = '';
   @Output() newTokenChange = new EventEmitter<string>();
   @Input() remainingUnlocks = 0;

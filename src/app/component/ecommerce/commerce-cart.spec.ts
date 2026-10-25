@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { A11yModule } from '@angular/cdk/a11y';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -25,9 +26,9 @@ describe('One shared marketplace cart', () => {
     router = jasmine.createSpyObj('Router', ['navigate', 'getCurrentNavigation']);
     router.navigate.and.returnValue(Promise.resolve(true));
     router.getCurrentNavigation.and.returnValue(null);
-    route = { snapshot: { data: { view: 'cart' }, queryParamMap: convertToParamMap({}) }, queryParamMap: of(convertToParamMap({})) };
+    route = { snapshot: { data: { view: 'cart' }, paramMap: convertToParamMap({}), queryParamMap: convertToParamMap({}) }, paramMap: of(convertToParamMap({})), queryParamMap: of(convertToParamMap({})) };
     await TestBed.configureTestingModule({
-      imports: [CommonModule, FormsModule, HttpClientTestingModule],
+      imports: [CommonModule, FormsModule, HttpClientTestingModule, A11yModule],
       declarations: [EcommerceComingSoonComponent],
       providers: [
         { provide: ActivatedRoute, useValue: route }, { provide: Router, useValue: router },
@@ -54,6 +55,20 @@ describe('One shared marketplace cart', () => {
     fixture.detectChanges();
     cartRequest().flush({ token: 'test-cart', items: [], subtotal: 0 }); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.workspace-heading h1').textContent).toBe("MD. Shafikul Islam's Cart");
+  });
+
+  it('uses the shared circular loader without an invented percentage', () => {
+    spyOn(fixture.componentInstance,'ngOnInit').and.stub();
+    const c=fixture.componentInstance;
+    c.selectedProduct={name:'Loading item',slug:'loading-item',variants:[],images:[]} as any;
+    c.productDetailLoading=true;fixture.detectChanges();
+    http.match(req=>req.url.endsWith('/cart/test-cart/')).forEach(req=>req.flush({token:'test-cart',items:[],subtotal:0}));
+    const bar=fixture.nativeElement.querySelector('.product-detail-loading .app-loader-spinner-column');
+    expect(bar).not.toBeNull();expect(bar.getAttribute('role')).toBe('progressbar');
+    expect(bar.getAttribute('aria-valuenow')).toBeNull();
+    expect(bar.querySelector('svg.loading-progress-circle')).not.toBeNull();
+    expect(bar.textContent).toContain('Loading');
+    expect(fixture.nativeElement.querySelector('.product-detail-loading__spinner')).toBeNull();
   });
 
   it('keeps a generic heading for guests even if an old name remains in storage', () => {
@@ -113,7 +128,7 @@ describe('One shared marketplace cart', () => {
     cartRequest().flush({token:'test-cart',subtotal:500,items:[{id:1,variant_id:2,quantity:1,product_name:'Parcel',unit_price:'500',line_total:500}]});
     fixture.detectChanges(); tick();
     const component = fixture.componentInstance;
-    component.checkout.district = 'Dhaka'; component.checkout.thana = 'Dhanmondi';
+    component.checkout.payment_method = 'cod'; component.checkout.district = 'Dhaka'; component.checkout.thana = 'Dhanmondi';
     component.requestQuote(); tick(301);
     const metro = http.expectOne(req => req.url.endsWith('/checkout/quote/'));
     expect(metro.request.body.shipping_address).toEqual(jasmine.objectContaining({district:'Dhaka',thana:'Dhanmondi'}));

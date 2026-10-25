@@ -106,6 +106,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
   get headerWalletTaka(): number {
     return this.headerRemainingUnlocks / 100;
   }
+  /** Keep compact wallet values ungrouped up to six integer digits on both Cheradip hosts. */
+  get headerWalletTakaDisplay(): string {
+    const amount = Number(this.headerWalletTaka);
+    if (!Number.isFinite(amount)) return '0.00';
+    return Math.abs(amount) <= 999999
+      ? amount.toFixed(2)
+      : new Intl.NumberFormat('en-BD', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(amount);
+  }
+  /** eCommerce has a tighter token-input position than the main Cheradip site. */
+  get trxInputMarginLeft(): string {
+    return /^(?:www\.)?ecommerce\.cheradip\.com$/i.test(window.location.hostname) ? '-150px' : '-180px';
+  }
   /** Profile → Dashboard: teachers `/dashboard`, others `/student/dashboard`. */
   get dashboardRouterSegments(): string[] {
     return getDashboardRouterLinkSegments();

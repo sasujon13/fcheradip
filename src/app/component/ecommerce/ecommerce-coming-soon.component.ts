@@ -1,5 +1,5 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Subject, Subscription, takeUntil } from 'rxjs';
+import { finalize, retry, Subject, Subscription, takeUntil, timeout, timer } from 'rxjs';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -10,7 +10,7 @@ import { getDashboardRouterLinkSegments } from '../../service/dashboard-route.ut
 import { productImageMagnifier } from './product-image-magnifier';
 import { localContact } from '../../shared/phone-display.pipe';
 
-interface Category { id: number; name: string; slug: string; product_count: number; }
+interface Category { id: number; name: string; slug: string; product_count: number; parent_id?: number | null; depth?: number; hasChildren?: boolean; }
 interface Product {
   id: number; name: string; slug: string; short_description: string; category_name: string;
   price: string | null; compare_at_price?: string | null; stock: number; image_url: string;
@@ -19,6 +19,7 @@ interface Product {
   stock_confirmation_required?: boolean;
   quantity_unspecified?: boolean;
   discount_percent?: number;
+  purchasable?: boolean;
 }
 interface ProductVariant {
   id: number; title: string; sku: string; price: string; compare_at_price?: string | null;
@@ -27,6 +28,7 @@ interface ProductVariant {
   stock_confirmation_required?: boolean;
   quantity_unspecified?: boolean;
   discount_percent?: number;
+  purchasable?: boolean;
   option2_name?: string; option2_value?: string; option3_name?: string; option3_value?: string;
 }
 interface ProductDetail extends Product {
@@ -37,9 +39,14 @@ interface ProductDetail extends Product {
   description: string; brand_name?: string; variants: ProductVariant[];
   images: Array<{ id: number; url: string; alt_text: string; variant_id?: number }>;
   attributes?: Record<string, any>;
+  specifications?: Array<{feature: string; value: string}>;
+  description_html?: string;
+  features_html?: string[];
+  option_notice?: string;
+  description_sizes?: string[];
   approved_reviews?: Array<{customer_name: string; rating: number; title: string; body: string}>;
 }
-interface CartItem { id: number; variant_id: number; quantity: number; product_name: string; variant_title: string; sku: string; unit_price: string; image_url: string; line_total: number; stock_confirmation_required?: boolean; quantity_unspecified?: boolean; }
+interface CartItem { id: number; variant_id: number; quantity: number; product_name: string; variant_title: string; sku: string; unit_price: string; image_url: string; line_total: number; stock_confirmation_required?: boolean; quantity_unspecified?: boolean; available_variants?: ProductVariant[]; product_slug?: string; requested_size?: string; description_sizes?: string[]; }
 interface Cart { token: string; items: CartItem[]; subtotal: number; }
 
 @Component({
@@ -51,10 +58,15 @@ interface Cart { token: string; items: CartItem[]; subtotal: number; }
 export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private readonly api = `${environment.apiUrl}/ecommerce`;
   categories: Category[] = [];
+  categoriesLoading = false;
+  categoriesLoadFailed = false;
+  private categoryRequest?: Subscription;
+  private categoryFailureMessage = '';
   products: Product[] = [];
   cart: Cart | null = null;
   cartLoading = false;
   cartError = '';
+  readonly changingCartItems = new Set<number>();
   activeView: 'shop' | 'cart' | 'track' = 'shop';
   selectedCategory = '';
   search = '';
@@ -62,6 +74,11 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   selectedBrand = '';
   minPrice: number | null = null;
   maxPrice: number | null = null;
+  priceRangeMax = 0;
+  priceLower = 0;
+  priceUpper = 0;
+  priceRangeLoading = true;
+  priceRangeError = false;
   inStockOnly = false;
   categorySearch = '';
   filtersOpen = false;
@@ -83,11 +100,58 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private catalogRequest?: Subscription;
   private revealTimer?: ReturnType<typeof setTimeout>;
   private scrollFrame?: number;
+  private filterFrame?: number;
+  private filterPanel?: HTMLElement;
+  private filterResizeObserver?: ResizeObserver;
+  private revealFilterPanel = false;
   private catalogObserver?: IntersectionObserver;
   private catalogSentinel?: HTMLElement;
   private preloadedImages: HTMLImageElement[] = [];
   private readonly destroyed = new Subject<void>();
   private catalogQuery = new HttpParams();
+
+  @ViewChild('catalogFilters') set catalogFilterPanel(ref: ElementRef<HTMLElement> | undefined) {
+    this.filterResizeObserver?.disconnect();
+    this.filterPanel = ref?.nativeElement;
+    if (!this.filterPanel) return;
+    if (typeof ResizeObserver !== 'undefined') {
+      this.filterResizeObserver = new ResizeObserver(() => this.scheduleFilterViewport());
+      this.filterResizeObserver.observe(this.filterPanel);
+      const intro = this.filterPanel.parentElement?.querySelector('.market-intro');
+      if (intro) this.filterResizeObserver.observe(intro);
+    }
+    this.scheduleFilterViewport();
+  }
+
+  toggleFilters(): void {
+    this.filtersOpen = !this.filtersOpen;
+    if (this.filtersOpen) this.scheduleFilterViewport(true);
+  }
+
+  private scheduleFilterViewport(reveal = false): void {
+    this.revealFilterPanel ||= reveal;
+    if (this.filterFrame !== undefined) return;
+    this.filterFrame = requestAnimationFrame(() => {
+      this.filterFrame = undefined;
+      if (this.revealFilterPanel && this.filtersOpen) this.filterPanel?.scrollIntoView({block:'start',behavior:'instant'});
+      this.revealFilterPanel = false;
+      this.updateFilterViewport();
+    });
+  }
+
+  private updateFilterViewport(): void {
+    if (!this.filterPanel) return;
+    const box = this.filterPanel.getBoundingClientRect();
+    if (!box.width) return;
+    // The requested viewport-minus-160 cap also needs to respect the panel's
+    // initial position below the introduction, before sticky positioning starts.
+    const height = Math.max(48, Math.min(window.innerHeight - 160, window.innerHeight - Math.max(0,box.top) - 32));
+    const value = `${Math.floor(height)}px`;
+    if (this.filterPanel.style.getPropertyValue('--filter-available-height') !== value)
+      this.filterPanel.style.setProperty('--filter-available-height',value);
+  }
+
+  @HostListener('window:resize') onCatalogResize(): void { this.scheduleFilterViewport(); }
 
   @ViewChild('catalogSentinel') set productSentinel(ref: ElementRef<HTMLElement> | undefined) {
     this.catalogObserver?.disconnect();
@@ -99,6 +163,12 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
   selectedProduct: ProductDetail | null = null;
   selectedVariantId: number | null = null;
+  selectedDescriptionSize = '';
+  productDetailLoading = false;
+  productDetailError = '';
+  sourceCheckedAt: string | null = null;
+  sourceRefreshState = '';
+  private sourceRefreshTimer?: ReturnType<typeof setTimeout>;
   magnifiedProductId: number | null = null;
   productMagnifierStyle: Record<string, string> = {};
   checkout = {
@@ -133,6 +203,12 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       && !/(?:^|\/)assets\/(?:images\/cheradip\.svg|cheradip\/cheradip-avatar\.png)(?:[?#]|$)/i.test(url);
   }
 
+  hasProductAttributes(attributes: Record<string, any> | null | undefined): boolean {
+    return !!attributes && Object.entries(attributes).some(([key, value]) =>
+      String(key).trim().length > 0 && value != null && String(value).trim().length > 0,
+    );
+  }
+
   productPhotoFailed(url: string): void {
     if (url) this.failedProductImages.add(url);
     this.hideProductMagnifier();
@@ -147,6 +223,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private readonly accountChanged = new Subject<void>();
   private quoteTimer?: ReturnType<typeof setTimeout>;
   private productVersion = 0;
+  private detailRequestSlug = '';
   private lastProductTrigger: HTMLElement | null = null;
 
   constructor(
@@ -172,6 +249,15 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const requestedOrder = this.route.snapshot.queryParamMap.get('order');
     this.trackToken = this.router.getCurrentNavigation()?.extras.state?.['trackingToken'] || '';
+    this.route.paramMap.pipe(takeUntil(this.destroyed)).subscribe(params => {
+      const slug = params.get('slug');
+      if (slug && this.detailRequestSlug !== slug) this.loadProductDetails(slug);
+      else if (!slug && this.detailRequestSlug && !this.route.snapshot.queryParamMap.get('product')) {
+        this.stopGallery();
+        this.selectedProduct = null; this.selectedVariantId = null; this.productDetailLoading = false; this.productDetailError = '';
+        this.detailRequestSlug = '';
+      }
+    });
     this.route.queryParamMap.pipe(takeUntil(this.destroyed)).subscribe(params => {
       const requestedView = params.get('view');
       const cartRoute = this.route.snapshot.data['view'] === 'cart';
@@ -182,8 +268,8 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       }
       const order = params.get('order');
       if (order) this.trackNumber = order;
-      const slug = params.get('product') || this.route.snapshot.paramMap?.get('slug');
-      if (slug && this.selectedProduct?.slug !== slug) this.openProduct({slug} as Product);
+      const queryProduct = params.get('product');
+      if (queryProduct && this.selectedProduct?.slug !== queryProduct) this.openProduct({slug: queryProduct} as Product);
       this.ensureCatalogLoaded();
       this.advanceCatalog();
     });
@@ -204,6 +290,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     if (this.activeView !== 'shop' || this.catalogStarted) return;
     this.catalogStarted = true;
     this.loadCategories();
+    this.loadPriceRange();
     this.loadProducts();
   }
 
@@ -275,7 +362,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.quote = null; this.quoteError = '';
     const version = ++this.quoteVersion;
     if (this.quoteTimer) clearTimeout(this.quoteTimer);
-    if (!this.cart?.items.length || !this.checkout.district) { this.quoteLoading = false; return; }
+    if (!this.cart?.items.length || !this.checkout.district || !this.checkout.payment_method) { this.quoteLoading = false; return; }
     this.quoteLoading = true;
     this.quoteTimer = setTimeout(() => {
       this.http.post<any>(`${this.api}/checkout/quote/`, {cart_token: this.cart?.token,
@@ -303,21 +390,78 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
         this.profileBadge = value?.profile?.badge || 'None';
         this.walletTaka = Number(value?.wallet?.balanceTaka || 0);
         this.referenceBalanceTaka = Number(value?.wallet?.referenceBalanceTaka || 0);
-        if (this.checkout.payment_method === 'cod' && !this.cartNeedsConfirmation) { this.checkout.payment_method = 'wallet'; this.requestQuote(); }
       },
       error: () => {},
     });
   }
 
   loadCategories(): void {
-    this.http.get<Category[]>(`${this.api}/categories/`).subscribe({
+    this.categoryRequest?.unsubscribe();
+    this.categoriesLoading = true;
+    this.categoriesLoadFailed = false;
+    if (this.error === this.categoryFailureMessage) this.error = '';
+    let lastFailure: HttpErrorResponse | undefined;
+    this.categoryRequest = this.http.get<Category[]>(`${this.api}/categories/`).pipe(
+      // Bound each hung attempt, then retry quietly with capped backoff. The
+      // outer deadline includes requests and delays: errors appear only at 3m.
+      timeout(20000),
+      retry({delay: (error, attempt) => {
+        lastFailure = error instanceof HttpErrorResponse ? error : new HttpErrorResponse({status: 0});
+        return timer(Math.min(15000, 2000 * 2 ** Math.min(attempt - 1, 3)));
+      }}),
+      timeout(180000),
+      takeUntil(this.destroyed),
+      finalize(() => this.categoriesLoading = false),
+    ).subscribe({
       // Keep empty supplier taxonomy in administration, not in customer filters
       // or the featured-collection cards. Preserve responses without counts.
       next: data => this.categories = data.filter(category =>
         category.product_count == null || Number(category.product_count) > 0),
-      error: err => this.showError(err, 'Could not load categories.'),
+      error: () => {
+        this.categoriesLoadFailed = true;
+        this.showError(lastFailure || new HttpErrorResponse({status: 0}), 'Could not load categories after 3 minutes.');
+        this.categoryFailureMessage = this.error;
+      },
     });
   }
+
+  loadPriceRange(): void {
+    this.priceRangeLoading = true;
+    this.priceRangeError = false;
+    this.http.get<{max_price: string}>(`${this.api}/products/price-range/`)
+      .pipe(takeUntil(this.destroyed)).subscribe({
+        next: data => {
+          const maximum = Number(data.max_price);
+          this.priceRangeMax = Number.isFinite(maximum) ? Math.max(0, maximum) : 0;
+          this.priceLower = Math.min(this.minPrice ?? 0, this.priceRangeMax);
+          this.priceUpper = Math.min(this.maxPrice ?? this.priceRangeMax, this.priceRangeMax);
+          this.priceRangeLoading = false;
+        },
+        error: () => { this.priceRangeLoading = false; this.priceRangeError = true; },
+      });
+  }
+
+  movePriceHandle(event: Event, handle: 'lower' | 'upper'): void {
+    const raw = Number((event.target as HTMLInputElement).value);
+    if (!Number.isFinite(raw)) return;
+    const value = Math.max(0, Math.min(this.priceRangeMax, Math.round(raw)));
+    if (handle === 'lower') this.priceLower = Math.min(value, this.priceUpper);
+    else this.priceUpper = Math.max(value, this.priceLower);
+    (event.target as HTMLInputElement).value = String(handle === 'lower' ? this.priceLower : this.priceUpper);
+  }
+
+  applyPriceRange(): void {
+    if (this.priceRangeLoading || this.priceRangeError || !this.priceRangeMax) return;
+    const lower = this.priceLower > 0 ? this.priceLower : null;
+    const upper = this.priceUpper < this.priceRangeMax ? this.priceUpper : null;
+    if (lower === this.minPrice && upper === this.maxPrice) return;
+    this.minPrice = lower;
+    this.maxPrice = upper;
+    this.loadProducts(1);
+  }
+
+  get priceRangeStart(): number { return this.priceRangeMax ? this.priceLower / this.priceRangeMax * 100 : 0; }
+  get priceRangeEnd(): number { return this.priceRangeMax ? this.priceUpper / this.priceRangeMax * 100 : 100; }
 
   loadProducts(_page = 1): void {
     this.catalogStarted = true;
@@ -344,25 +488,59 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     if (this.maxPrice != null) params = params.set('max_price', this.maxPrice);
     if (this.inStockOnly) params = params.set('in_stock', 'true');
     this.catalogQuery = params;
-    this.fetchProductBatch(true);
+    const cached = this.readFirstBatchCache();
+    if (cached) {
+      // Repaint the last first-page cards immediately on reload, then replace
+      // them with the live response before requesting the next page.
+      this.products = cached.products;
+      this.productCount = cached.count;
+      this.catalogOffset = cached.products.length;
+      this.hasMoreProducts = cached.products.length > 0;
+      this.fetchProductBatch(true);
+    } else this.fetchProductBatch();
   }
 
-  private fetchProductBatch(initial = false): void {
+  private catalogCacheKey(): string {
+    return `cheradip.ecommerce.first-batch.v1:${this.catalogQuery.toString()}`;
+  }
+
+  private readFirstBatchCache(): { products: Product[]; count: number } | null {
+    try {
+      const raw = sessionStorage.getItem(this.catalogCacheKey());
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      if (Date.now() - Number(cached.savedAt) > 60_000 || !Array.isArray(cached.products) ||
+          !cached.products.length || !Number.isFinite(Number(cached.count))) return null;
+      return { products: cached.products, count: Number(cached.count) };
+    } catch { return null; }
+  }
+
+  private cacheFirstBatch(products: Product[], count: number): void {
+    try {
+      sessionStorage.setItem(this.catalogCacheKey(), JSON.stringify({ savedAt: Date.now(), products, count }));
+    } catch { /* Storage can be unavailable or full; network loading still works. */ }
+  }
+
+  private fetchProductBatch(refreshFirst = false): void {
     if (this.loadingMore || !this.hasMoreProducts || this.catalogError) return;
     const generation = this.catalogGeneration;
+    const offset = refreshFirst ? 0 : this.catalogOffset;
     this.loadingMore = true;
-    const params = this.catalogQuery.set('limit', initial ? 24 : 12).set('offset', this.catalogOffset);
+    // Show a tiny first group quickly, fill the first 12, then stream 12 at a time.
+    const limit = offset === 0 ? 4 : offset === 4 ? 8 : 12;
+    const params = this.catalogQuery.set('limit', limit).set('offset', offset);
     this.catalogRequest = this.http.get<any>(`${this.api}/products/`, { params }).subscribe({
       next: data => {
         if (generation !== this.catalogGeneration) return;
         const batch: Product[] = Array.isArray(data) ? data : (data.results || []);
         this.productCount = Array.isArray(data) ? data.length : Number(data.count || 0);
-        this.catalogOffset += batch.length;
+        this.catalogOffset = Math.max(this.catalogOffset, offset + batch.length);
         this.hasMoreProducts = !Array.isArray(data) && Boolean(data.next) && batch.length > 0;
-        const known = new Set([...this.products, ...this.productBuffer, ...this.revealQueue].map(product => product.id));
+        const known = new Set([...(refreshFirst ? [] : this.products), ...this.productBuffer, ...this.revealQueue].map(product => product.id));
         const unique = batch.filter(product => !known.has(product.id) && Boolean(known.add(product.id)));
-        if (initial) this.products = unique;
+        if (refreshFirst || offset === 0) this.products = unique;
         else this.productBuffer.push(...unique);
+        if (offset === 0 && !Array.isArray(data)) this.cacheFirstBatch(unique, this.productCount);
         this.catalogLoading = false;
         this.loadingMore = false;
         this.preloadBufferedImages();
@@ -414,7 +592,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   loadMoreProducts(): void {
     if (this.catalogError) {
       this.catalogError = '';
-      this.fetchProductBatch(!this.products.length);
+      this.fetchProductBatch();
     } else this.advanceCatalog(true);
   }
 
@@ -429,17 +607,21 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     if (this.scrollFrame !== undefined || this.activeView !== 'shop') return;
     this.scrollFrame = requestAnimationFrame(() => {
       this.scrollFrame = undefined;
+      this.updateFilterViewport();
       this.advanceCatalog();
     });
   }
 
   ngOnDestroy(): void {
+    this.stopSourceRefresh();
     this.stopGallery();
     ++this.catalogGeneration;
     this.catalogRequest?.unsubscribe();
     this.catalogObserver?.disconnect();
     if (this.revealTimer !== undefined) clearTimeout(this.revealTimer);
     if (this.scrollFrame !== undefined) cancelAnimationFrame(this.scrollFrame);
+    if (this.filterFrame !== undefined) cancelAnimationFrame(this.filterFrame);
+    this.filterResizeObserver?.disconnect();
     this.destroyed.next();
     this.destroyed.complete();
     this.preloadedImages = [];
@@ -449,7 +631,62 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   get visibleCategories(): Category[] {
     const query = this.categorySearch.trim().toLowerCase();
-    return this.categories.filter(category => category.name.toLowerCase().includes(query));
+    const byId = new Map(this.categories.map(c => [c.id, c]));
+    const path = (category: Category): Category[] => {
+      const result = [category]; const seen = new Set([category.id]); let parent = category.parent_id;
+      while (parent && byId.has(parent) && !seen.has(parent)) {
+        seen.add(parent); const next = byId.get(parent)!; result.unshift(next); parent = next.parent_id;
+      }
+      return result;
+    };
+    const matching = new Set<number>();
+    for (const category of this.categories) {
+      const chain = path(category);
+      if (chain.some(c => c.name.toLowerCase().includes(query))) chain.forEach(c => matching.add(c.id));
+    }
+    const children = (id: number | null) => this.categories.filter(c => (c.parent_id || null) === id)
+      .sort((a,b) => a.name.localeCompare(b.name));
+    const displayedChildren = (id: number, seen = new Set<number>()): Category[] => {
+      if (seen.has(id)) return [];
+      const rows = children(id); const nextSeen = new Set(seen).add(id);
+      // Omit a redundant single child, but retain its meaningful descendants.
+      return rows.length === 1 ? displayedChildren(rows[0].id, nextSeen) : rows;
+    };
+    const result: Category[] = [];
+    const visit = (category: Category, depth: number, seen: Set<number>) => {
+      if (seen.has(category.id) || !matching.has(category.id)) return;
+      const nextSeen = new Set(seen).add(category.id);
+      const next = query ? children(category.id) : displayedChildren(category.id);
+      result.push({...category, depth, hasChildren: next.length > 0});
+      if (query || this.expandedCategories.has(category.id)) next.forEach(c => visit(c, depth + 1, nextSeen));
+    };
+    children(null).forEach(c => visit(c,0,new Set()));
+    return result;
+  }
+
+  get featuredCategories(): Category[] {
+    return this.categories.filter(category => !category.parent_id)
+      .sort((left, right) => right.product_count - left.product_count || left.name.localeCompare(right.name));
+  }
+
+  expandedCategories = new Set<number>();
+  trackCategory(_index: number, category: Category): number { return category.id; }
+
+  selectCategoryNode(category: Category): void {
+    if (category.hasChildren) {
+      if (this.expandedCategories.has(category.id)) this.expandedCategories.delete(category.id);
+      else this.expandedCategories.add(category.id);
+    }
+    this.selectedCategory = category.slug;
+    this.loadProducts(1);
+  }
+
+  meaningfulText(value: string | null | undefined): string {
+    return (value || '').replace(/<[^>]*>/g,' ').replace(/&nbsp;|&#160;/g,' ').trim();
+  }
+
+  openCartProduct(item: CartItem): void {
+    if (item.product_slug) this.openProduct({slug:item.product_slug,name:item.product_name} as Product);
   }
 
   get selectedCategoryName(): string {
@@ -467,6 +704,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.selectedCategory = '';
     this.categorySearch = '';
     this.selectedBrand = ''; this.minPrice = this.maxPrice = null; this.inStockOnly = false;
+    this.priceLower = 0; this.priceUpper = this.priceRangeMax;
     this.ordering = '-created_at';
     this.filtersOpen = false;
     this.loadProducts(1);
@@ -474,6 +712,9 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   discountPercent(product: Product): number {
     if (product.price == null) return 0;
+    if (Number.isFinite(Number(product.discount_percent)) && Number(product.discount_percent) > 0) {
+      return Number(product.discount_percent);
+    }
     const original = Number(product.compare_at_price);
     const price = Number(product.price);
     if (!Number.isFinite(original) || !Number.isFinite(price) || original <= price || price < 0) return 0;
@@ -496,27 +737,110 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   openProduct(product: Product): void {
+    const slug = String(product?.slug || '').trim();
+    if (!slug) { this.notify('This product is missing its page address.', true); return; }
     this.hideProductMagnifier();
-    const version = ++this.productVersion;
     this.lastProductTrigger = document.activeElement as HTMLElement;
-    this.http.get<ProductDetail>(`${this.api}/products/${encodeURIComponent(product.slug)}/`).pipe(takeUntil(this.destroyed)).subscribe({
+    if (this.route.snapshot.paramMap?.get('slug') !== slug) {
+      this.selectedProduct = {...product, slug, description: '', variants: [], images: []} as ProductDetail;
+      this.selectedVariantId = null;
+      this.productDetailError = '';
+      this.productDetailLoading = true;
+      void this.router.navigate(['/ecommerce/product', slug], {queryParamsHandling: 'preserve'}).then(navigated => {
+        if (!navigated && this.route.snapshot.paramMap?.get('slug') !== slug) this.loadProductDetails(slug, product);
+      });
+      return;
+    }
+    this.loadProductDetails(slug, product);
+  }
+
+  private loadProductDetails(slug: string, fallback?: Partial<Product>): void {
+    this.stopSourceRefresh();
+    this.sourceCheckedAt = null;
+    this.sourceRefreshState = '';
+    this.selectedDescriptionSize = '';
+    const version = ++this.productVersion;
+    this.detailRequestSlug = slug;
+    this.productDetailLoading = true;
+    this.productDetailError = '';
+    this.selectedProduct = {...fallback, slug, name: fallback?.name || 'Product details', description: '', variants: [], images: []} as ProductDetail;
+    this.selectedVariantId = null;
+    this.http.get<ProductDetail>(`${this.api}/products/${encodeURIComponent(slug)}/`).pipe(takeUntil(this.destroyed)).subscribe({
       next: detail => {
         if (version !== this.productVersion) return;
         this.selectedProduct = detail;
-        const preferred = detail.variants.find(variant => variant.id === product.default_variant_id && variant.is_active && variant.stock > 0)
-          || detail.variants.find(variant => variant.is_active && variant.stock > 0) || detail.variants[0] || null;
-        this.selectedVariantId = preferred?.id || null;
+        this.productDetailLoading = false;
+        const available = detail.variants.filter(variant => variant.is_active &&
+          (variant.stock > 0 || variant.quantity_unspecified || variant.allow_backorder));
+        const preferred = available.find(variant => variant.id === fallback?.default_variant_id) || available[0] || null;
+        this.selectedVariantId = this.showVariantChoice ? null : preferred?.id || detail.variants[0]?.id || null;
         this.selectVariantImage();
         this.startGallery();
-        if (!this.route.snapshot.paramMap?.get('slug')) void this.router.navigate([], {queryParams: {product: detail.slug}, queryParamsHandling: 'merge', replaceUrl: true});
+        this.refreshProductSource(slug, version);
       },
-      error: err => this.showError(err, 'Could not load product details.'),
+      error: err => {
+        if (version !== this.productVersion) return;
+        this.productDetailLoading = false;
+        this.productDetailError = this.errorText(err, 'Could not load product details.');
+      },
     });
   }
 
+  private stopSourceRefresh(): void {
+    if (this.sourceRefreshTimer) clearTimeout(this.sourceRefreshTimer);
+    this.sourceRefreshTimer = undefined;
+  }
+
+  private refreshProductSource(slug: string, version: number): void {
+    const url = `${this.api}/products/${encodeURIComponent(slug)}/source-refresh/`;
+    this.http.post<any>(url, {}).pipe(takeUntil(this.destroyed)).subscribe({
+      next: state => {
+        if (version !== this.productVersion) return;
+        this.sourceCheckedAt = state.last_checked_at || null;
+        this.sourceRefreshState = state.state || '';
+        if (state.job_id && ['queued', 'checking'].includes(state.state)) this.pollProductSource(url, slug, version, state.job_id, this.sourceCheckedAt, 0);
+      },
+      error: () => { if (version === this.productVersion) this.sourceRefreshState = 'check_unavailable'; },
+    });
+  }
+
+  private pollProductSource(url: string, slug: string, version: number, jobId: string, previousCheck: string | null, attempts: number): void {
+    if (attempts >= 40 || version !== this.productVersion) return;
+    this.sourceRefreshTimer = setTimeout(() => {
+      this.http.get<any>(`${url}?job_id=${encodeURIComponent(jobId)}`).pipe(takeUntil(this.destroyed)).subscribe({
+        next: state => {
+          if (version !== this.productVersion) return;
+          this.sourceCheckedAt = state.last_checked_at || null;
+          if (state.last_checked_at && state.last_checked_at !== previousCheck) {
+            this.sourceRefreshState = 'updated';
+            const chosenVariant = this.selectedVariantId;
+            this.http.get<ProductDetail>(`${this.api}/products/${encodeURIComponent(slug)}/`).pipe(takeUntil(this.destroyed)).subscribe({
+              next: detail => { if (version === this.productVersion) { this.selectedProduct = detail; this.selectedVariantId = chosenVariant; this.selectVariantImage(); } },
+              error: () => { if (version === this.productVersion) this.sourceRefreshState = 'unavailable'; },
+            });
+          } else if (['failed', 'completed_with_errors', 'cancelled'].includes(state.job_status)) {
+            this.sourceRefreshState = 'check_unavailable';
+          } else if (state.job_status === 'completed') {
+            this.sourceRefreshState = 'not_updated';
+          } else {
+            this.sourceRefreshState = 'checking';
+            this.pollProductSource(url, slug, version, jobId, previousCheck, attempts + 1);
+          }
+        },
+        error: () => { if (version === this.productVersion) this.sourceRefreshState = 'check_unavailable'; },
+      });
+    }, 3000);
+  }
+
+  retryProductDetails(): void {
+    if (this.selectedProduct?.slug) this.loadProductDetails(this.selectedProduct.slug, this.selectedProduct);
+  }
+
   closeProduct(): void {
+    this.stopSourceRefresh();
     this.stopGallery();
-    ++this.productVersion; this.selectedProduct = null; this.selectedVariantId = null;
+    ++this.productVersion; this.selectedProduct = null; this.selectedVariantId = null; this.productDetailLoading = false; this.productDetailError = '';
+    this.detailRequestSlug = '';
     this.lastProductTrigger?.focus();
     if (!this.route.snapshot.paramMap?.get('slug')) void this.router.navigate([], {queryParams: {product: null}, queryParamsHandling: 'merge', replaceUrl: true});
     else void this.router.navigate(['/ecommerce']);
@@ -608,21 +932,23 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   addToCart(product: Product): void {
-    if (!product.default_variant_id || (product.stock < 1 && !product.allow_backorder)) return;
-    this.addVariantToCart(product.default_variant_id, product.name);
+    if (product.stock < 1 && !product.quantity_unspecified && !product.allow_backorder) return;
+    this.openProduct(product);
   }
 
   addSelectedVariantToCart(): void {
     const variant = this.selectedVariant;
-    if (!variant || (variant.stock < 1 && !variant.allow_backorder) || !this.selectedProduct) return;
-    this.addVariantToCart(variant.id, this.selectedProduct.name);
-    this.closeProduct();
+    if (!variant || !this.canAddVariant(variant) || !this.selectedProduct) return;
+    if (this.selectedProduct.description_sizes?.length && !this.selectedDescriptionSize) {
+      this.notify('Choose a size before adding this product to Cart.', true); return;
+    }
+    this.addVariantToCart(variant.id, this.selectedProduct.name, true);
   }
 
-  private addVariantToCart(variantId: number, productName: string): void {
+  private addVariantToCart(variantId: number, productName: string, closeDetailsOnSuccess = false): void {
     const url = this.cart?.token ? `${this.api}/cart/${this.cart.token}/` : `${this.api}/cart/`;
-    this.http.post<Cart>(url, { variant_id: variantId, quantity: 1 }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
-      next: cart => { this.rememberCart(cart); this.message = `${productName} added to cart.`; },
+    this.http.post<Cart>(url, { variant_id: variantId, quantity: 1, requested_size: this.selectedDescriptionSize }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
+      next: cart => { this.rememberCart(cart); this.notify(`${productName} added to Cart.`); if (closeDetailsOnSuccess) this.closeProduct(); },
       error: err => this.showError(err, 'Could not add this product.'),
     });
   }
@@ -636,17 +962,38 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    this.http.post<Cart>(`${this.api}/cart/${this.cart.token}/`, { variant_id: item.variant_id, quantity, operation: 'set' }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
+    this.http.post<Cart>(`${this.api}/cart/${this.cart.token}/`, { variant_id: item.variant_id, quantity, operation: 'set', requested_size: item.requested_size || '' }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
       next: cart => this.rememberCart(cart), error: err => this.showError(err, 'Could not update quantity.'),
     });
   }
 
+  changeCartVariant(item: CartItem, variantId: number): void {
+    if (!this.cart || this.loading || variantId === item.variant_id || this.changingCartItems.has(item.id)) return;
+    this.changingCartItems.add(item.id);
+    this.http.patch<Cart>(`${this.api}/cart/${this.cart.token}/`, {item_id: item.id, variant_id: variantId})
+      .pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
+        next: cart => { this.changingCartItems.delete(item.id); this.rememberCart(cart); this.notify('Product option updated.'); },
+        error: err => { this.changingCartItems.delete(item.id); this.showError(err, 'Could not change this product option.'); },
+      });
+  }
+
+  changeCartSize(item: CartItem, size: string): void {
+    if (!this.cart || this.loading || size === item.requested_size || this.changingCartItems.has(item.id)) return;
+    this.changingCartItems.add(item.id);
+    this.http.patch<Cart>(`${this.api}/cart/${this.cart.token}/`, {item_id:item.id, variant_id:item.variant_id, requested_size:size})
+      .pipe(takeUntil(this.accountChanged),takeUntil(this.destroyed)).subscribe({
+        next:cart=>{this.changingCartItems.delete(item.id);this.rememberCart(cart);this.notify('Size updated.');},
+        error:err=>{this.changingCartItems.delete(item.id);this.showError(err,'Could not change this size.');},
+      });
+  }
+
   placeOrder(): void {
     if (!this.cart?.items?.length || this.loading) return;
+    if (this.changingCartItems.size) { this.notify('Please wait for your size or option change to finish.', true); return; }
     if (this.cartNeedsConfirmation && this.checkout.payment_method !== 'cod') {
-      this.checkout.payment_method='cod'; this.requestQuote();
-      this.notify('This order requires stock confirmation. No advance payment or wallet deduction is allowed.',true); return;
+      this.notify('Choose Cash on Delivery for this order awaiting stock confirmation. No payment is collected before confirmation.',true); return;
     }
+    if (!this.checkout.payment_method) { this.notify('Choose a payment method before placing your order.', true); return; }
     if (!this.quote || this.quoteLoading) { this.notify('Select your district and review the final total before ordering.', true); return; }
     this.clearFeedback();
     const walletOwner = localStorage.getItem('username') || '';
@@ -785,12 +1132,26 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   get cartCount(): number { return (this.cart?.items || []).reduce((sum, item) => sum + item.quantity, 0); }
   get showVariantChoice(): boolean {
+    const variants=(this.selectedProduct?.variants || []).filter(variant => variant.is_active &&
+      (variant.stock > 0 || variant.quantity_unspecified || variant.allow_backorder));
+    if (variants.length > 1) return true;
+    if (variants.length !== 1) return false;
+    const variant = variants[0];
+    const hasNamedOption = [variant.option1_name, variant.option1_value, variant.option2_name,
+      variant.option2_value, variant.option3_name, variant.option3_value].some(value => !!String(value || '').trim());
+    return hasNamedOption || !/^(default|standard|one size|single option)$/i.test(String(variant.title || '').trim());
+  }
+  get variantChoiceLabel(): string {
     const variants=this.selectedProduct?.variants || [];
-    return variants.length>1 || (variants.length===1 && !['','default'].includes((variants[0].title || '').trim().toLowerCase()));
+    const names = [...new Set(variants.flatMap(v => [v.option1_name, v.option2_name, v.option3_name])
+      .filter((name): name is string => !!name?.trim()))];
+    return names.length ? names.join(' / ') : 'Choose an option';
+  }
+  canAddVariant(variant: ProductVariant | null): boolean {
+    return !!variant && variant.purchasable !== false && !!variant.is_active && !!(variant.stock > 0 || variant.quantity_unspecified || variant.allow_backorder);
   }
   private rememberCart(cart: Cart): void {
     this.cart = cart;
-    if (this.cartNeedsConfirmation) this.checkout.payment_method='cod';
     if (cart.token) localStorage.setItem('cheradipEcommerceCart', cart.token);
     else localStorage.removeItem('cheradipEcommerceCart');
     localStorage.setItem('cheradipEcommerceCartOwner', this.loginStatus ? (localStorage.getItem('username') || '') : '');
@@ -809,7 +1170,9 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     const data = error.error;
     if (typeof data?.detail === 'string') return data.detail;
     if (data && typeof data === 'object') return Object.entries(data).map(([key, value]) => `${key.replace(/_/g, ' ')}: ${typeof value === 'object' ? JSON.stringify(value) : value}`).join(' · ');
-    return fallback;
+    if (error.status === 0) return `${fallback} Check your connection and try again.`;
+    if (error.status >= 500) return `${fallback} The server could not complete the request (HTTP ${error.status}); please retry shortly.`;
+    return error.status ? `${fallback} (HTTP ${error.status})` : fallback;
   }
   private showError(error: HttpErrorResponse, fallback: string): void { this.error = this.errorText(error, fallback); this.notify(this.error, true); }
   private notify(message: string, error = false): void {

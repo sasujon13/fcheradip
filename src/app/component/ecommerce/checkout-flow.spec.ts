@@ -44,7 +44,7 @@ describe('District-based commerce checkout', () => {
   });
 
   it('requests a new authoritative quote when district changes and ignores an older quote', fakeAsync(() => {
-    component.cart = cart; component.checkout.district = 'Dhaka'; component.requestQuote(); tick(300);
+    component.cart = cart; component.checkout.payment_method = 'cod'; component.checkout.district = 'Dhaka'; component.requestQuote(); tick(300);
     const old = http.expectOne(r => r.url.endsWith('/checkout/quote/'));
     component.checkout.district = 'Cumilla'; component.districtChanged(); tick(300);
     const latest = http.expectOne(r => r.url.endsWith('/checkout/quote/'));

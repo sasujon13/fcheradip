@@ -3,7 +3,7 @@
     <div class="menu-toggle" #menuToggle (click)="toggleMenu()" (mouseenter)="onMobileMenuEnter()"
       (mouseleave)="onMobileMenuLeave()">
       <i class="fa fa-bars"></i>
-      <a [routerLink]="['/index']" routerLinkActive="index" class="header-brand-link">
+      <a [routerLink]="isCommerceRoute ? ['/ecommerce'] : ['/index']" routerLinkActive="index" class="header-brand-link">
         <img src="./assets/images/cheradip.svg" class="logo header-brand-wide" alt="Cheradip">
         <img *ngIf="isCommerceRoute" src="assets/cheradip/cheradip-avatar.png"
           class="header-brand-avatar" alt="Cheradip">
@@ -48,6 +48,7 @@
 
     <ul *ngIf="isCommerceRoute" class="menu commerce-main-menu" [class.active]="menuActive" (click)="closeMenu()"
       (mouseenter)="onMobileMenuEnter()" (mouseleave)="onMobileMenuLeave()">
+      <li class="menu_item"><a href="https://cheradip.com/" aria-label="Cheradip home" title="Go to Cheradip home"><i class="fa fa-home" aria-hidden="true"></i></a></li>
       <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'shop'}"><i class="fa fa-shopping-bag"></i> Shop</a></li>
       <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'track'}"><i class="fa fa-truck"></i> Track Order</a></li>
       <li class="menu_item"><a [routerLink]="['/history']" [queryParams]="ecommerceHistoryQueryParams"
@@ -143,7 +144,7 @@
           <ul class="dropdown" [class.open]="isDropdownOpen">
             <li class="profile-wallet-summary fa fa-money" aria-label="Account and reference balances">
               <strong *ngIf="!showWalletAsTaka">{{ headerRemainingUnlocks | number:'1.0-0' }} Coins</strong>
-              <strong *ngIf="showWalletAsTaka">৳{{ headerWalletTaka | number:'1.2-2' }}</strong>
+              <strong *ngIf="showWalletAsTaka">Tk {{ headerWalletTakaDisplay }}</strong>
               <b aria-hidden="true">||</b>
               <strong>{{ headerReferenceBalance | number:'1.2-2' }} Tk</strong>
             </li>
@@ -187,7 +188,7 @@
       <br>
       <div class="hover-message-container" #trxHelpContainer (pointerenter)="onTrxHelpPointerEnter()">
         <input type="text" [(ngModel)]="newToken" placeholder="8/10 Digits TrxID" maxlength="10"
-          [style.margin-left]="loginStatus ? '-174px' : '0'" />
+          [style.margin-left]="loginStatus ? trxInputMarginLeft : '0'" />
         <button (click)="applyToken()">Apply</button>
         <p class="rmsg" [ngStyle]="{
      'margin-left': loginStatus ? '200px' : '0',
@@ -196,7 +197,7 @@
    }">
           <span aria-hidden="true">{{ null | coinEmoji }}</span>
           <ng-container *ngIf="!showWalletAsTaka"><b>{{ headerRemainingUnlocks | coinCounter }}</b> Coins</ng-container>
-          <ng-container *ngIf="showWalletAsTaka"><b>৳{{ headerWalletTaka | number:'1.2-2' }}</b></ng-container>
+          <ng-container *ngIf="showWalletAsTaka"><b>Tk {{ headerWalletTakaDisplay }}</b></ng-container>
         </p>
         <div class="hover-message-box" (pointerenter)="trxHelp.enterBox()" (pointerleave)="trxHelp.leaveBox()"
           [class.ntrca-help-phase-on]="trxHelpPhase === 'on'"
