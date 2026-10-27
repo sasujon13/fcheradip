@@ -28,4 +28,13 @@ describe('Cart entry-point menubar', () => {
     expect(headerAt('/history').isCommerceRoute).toBeFalse();
     expect(headerAt('/books').isCommerceRoute).toBeFalse();
   });
+
+  it('keeps a six-digit compact wallet display with at least two decimals', () => {
+    const header = headerAt('/ecommerce');
+    const amount = spyOnProperty(header, 'headerWalletTaka', 'get');
+    amount.and.returnValue(0);
+    expect(header.headerWalletTakaDisplay).toBe('0.00000');
+    amount.and.returnValue(1201);
+    expect(header.headerWalletTakaDisplay).toBe('1201.00');
+  });
 });

@@ -12,6 +12,7 @@ import { localContact } from '../../shared/phone-display.pipe';
 
 interface Category { id: number; name: string; slug: string; product_count: number; parent_id?: number | null; depth?: number; hasChildren?: boolean; }
 interface Product {
+  price_on_request?: boolean;
   id: number; name: string; slug: string; short_description: string; category_name: string;
   price: string | null; compare_at_price?: string | null; stock: number; image_url: string;
   default_variant_id: number | null; featured: boolean; is_sample: boolean;
@@ -44,9 +45,10 @@ interface ProductDetail extends Product {
   features_html?: string[];
   option_notice?: string;
   description_sizes?: string[];
+  description_colors?: string[];
   approved_reviews?: Array<{customer_name: string; rating: number; title: string; body: string}>;
 }
-interface CartItem { id: number; variant_id: number; quantity: number; product_name: string; variant_title: string; sku: string; unit_price: string; image_url: string; line_total: number; stock_confirmation_required?: boolean; quantity_unspecified?: boolean; available_variants?: ProductVariant[]; product_slug?: string; requested_size?: string; description_sizes?: string[]; }
+interface CartItem { id: number; variant_id: number; quantity: number; product_name: string; variant_title: string; sku: string; unit_price: string; image_url: string; line_total: number; stock_confirmation_required?: boolean; quantity_unspecified?: boolean; available_variants?: ProductVariant[]; product_slug?: string; requested_size?: string; requested_color?: string; description_sizes?: string[]; description_colors?: string[]; }
 interface Cart { token: string; items: CartItem[]; subtotal: number; }
 
 @Component({
@@ -164,6 +166,8 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   selectedProduct: ProductDetail | null = null;
   selectedVariantId: number | null = null;
   selectedDescriptionSize = '';
+  selectedDescriptionColor = '';
+  selectedOptionValues: Record<string, string> = {};
   productDetailLoading = false;
   productDetailError = '';
   sourceCheckedAt: string | null = null;
@@ -223,6 +227,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private readonly accountChanged = new Subject<void>();
   private quoteTimer?: ReturnType<typeof setTimeout>;
   private productVersion = 0;
+  private listingScrollY = 0;
   private detailRequestSlug = '';
   private lastProductTrigger: HTMLElement | null = null;
 
@@ -269,7 +274,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       const order = params.get('order');
       if (order) this.trackNumber = order;
       const queryProduct = params.get('product');
-      if (queryProduct && this.selectedProduct?.slug !== queryProduct) this.openProduct({slug: queryProduct} as Product);
+      if (queryProduct && this.selectedProduct?.slug !== queryProduct) this.loadProductDetails(queryProduct);
       this.ensureCatalogLoaded();
       this.advanceCatalog();
     });
@@ -741,14 +746,12 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     if (!slug) { this.notify('This product is missing its page address.', true); return; }
     this.hideProductMagnifier();
     this.lastProductTrigger = document.activeElement as HTMLElement;
+    this.listingScrollY = window.scrollY;
     if (this.route.snapshot.paramMap?.get('slug') !== slug) {
-      this.selectedProduct = {...product, slug, description: '', variants: [], images: []} as ProductDetail;
-      this.selectedVariantId = null;
-      this.productDetailError = '';
-      this.productDetailLoading = true;
-      void this.router.navigate(['/ecommerce/product', slug], {queryParamsHandling: 'preserve'}).then(navigated => {
-        if (!navigated && this.route.snapshot.paramMap?.get('slug') !== slug) this.loadProductDetails(slug, product);
-      });
+      // Keep the catalog component alive so filters, loaded batches and scroll
+      // position survive opening and closing the product dialog.
+      this.loadProductDetails(slug, product);
+      void this.router.navigate([], {queryParams: {product: slug}, queryParamsHandling: 'merge'});
       return;
     }
     this.loadProductDetails(slug, product);
@@ -759,6 +762,8 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.sourceCheckedAt = null;
     this.sourceRefreshState = '';
     this.selectedDescriptionSize = '';
+    this.selectedDescriptionColor = '';
+    this.selectedOptionValues = {};
     const version = ++this.productVersion;
     this.detailRequestSlug = slug;
     this.productDetailLoading = true;
@@ -816,7 +821,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
             const chosenVariant = this.selectedVariantId;
             this.http.get<ProductDetail>(`${this.api}/products/${encodeURIComponent(slug)}/`).pipe(takeUntil(this.destroyed)).subscribe({
               next: detail => { if (version === this.productVersion) { this.selectedProduct = detail; this.selectedVariantId = chosenVariant; this.selectVariantImage(); } },
-              error: () => { if (version === this.productVersion) this.sourceRefreshState = 'unavailable'; },
+              error: () => { if (version === this.productVersion) { this.sourceRefreshState = 'unavailable'; this.notify('This product is no longer available.', true); } },
             });
           } else if (['failed', 'completed_with_errors', 'cancelled'].includes(state.job_status)) {
             this.sourceRefreshState = 'check_unavailable';
@@ -841,9 +846,12 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.stopGallery();
     ++this.productVersion; this.selectedProduct = null; this.selectedVariantId = null; this.productDetailLoading = false; this.productDetailError = '';
     this.detailRequestSlug = '';
-    this.lastProductTrigger?.focus();
-    if (!this.route.snapshot.paramMap?.get('slug')) void this.router.navigate([], {queryParams: {product: null}, queryParamsHandling: 'merge', replaceUrl: true});
-    else void this.router.navigate(['/ecommerce']);
+    if (!this.route.snapshot.paramMap?.get('slug')) {
+      void this.router.navigate([], {queryParams: {product: null}, queryParamsHandling: 'merge', replaceUrl: true}).then(() => {
+        this.lastProductTrigger?.focus({preventScroll: true});
+        window.scrollTo({top: this.listingScrollY, behavior: 'instant'});
+      });
+    } else void this.router.navigate(['/ecommerce']);
   }
 
   @HostListener('document:keydown.escape') closeDialog(): void { if (this.selectedProduct) this.closeProduct(); this.filtersOpen = false; }
@@ -937,17 +945,21 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   addSelectedVariantToCart(): void {
+    if (this.sourceRefreshState === 'unavailable') return;
     const variant = this.selectedVariant;
     if (!variant || !this.canAddVariant(variant) || !this.selectedProduct) return;
     if (this.selectedProduct.description_sizes?.length && !this.selectedDescriptionSize) {
       this.notify('Choose a size before adding this product to Cart.', true); return;
+    }
+    if (this.selectedProduct.description_colors?.length && !this.selectedDescriptionColor) {
+      this.notify('Choose a color before adding this product to Cart.', true); return;
     }
     this.addVariantToCart(variant.id, this.selectedProduct.name, true);
   }
 
   private addVariantToCart(variantId: number, productName: string, closeDetailsOnSuccess = false): void {
     const url = this.cart?.token ? `${this.api}/cart/${this.cart.token}/` : `${this.api}/cart/`;
-    this.http.post<Cart>(url, { variant_id: variantId, quantity: 1, requested_size: this.selectedDescriptionSize }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
+    this.http.post<Cart>(url, { variant_id: variantId, quantity: 1, requested_size: this.selectedDescriptionSize, requested_color: this.selectedDescriptionColor }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
       next: cart => { this.rememberCart(cart); this.notify(`${productName} added to Cart.`); if (closeDetailsOnSuccess) this.closeProduct(); },
       error: err => this.showError(err, 'Could not add this product.'),
     });
@@ -962,7 +974,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    this.http.post<Cart>(`${this.api}/cart/${this.cart.token}/`, { variant_id: item.variant_id, quantity, operation: 'set', requested_size: item.requested_size || '' }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
+    this.http.post<Cart>(`${this.api}/cart/${this.cart.token}/`, { variant_id: item.variant_id, quantity, operation: 'set', requested_size: item.requested_size || '', requested_color: item.requested_color || '' }).pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
       next: cart => this.rememberCart(cart), error: err => this.showError(err, 'Could not update quantity.'),
     });
   }
@@ -984,6 +996,16 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.accountChanged),takeUntil(this.destroyed)).subscribe({
         next:cart=>{this.changingCartItems.delete(item.id);this.rememberCart(cart);this.notify('Size updated.');},
         error:err=>{this.changingCartItems.delete(item.id);this.showError(err,'Could not change this size.');},
+      });
+  }
+
+  changeCartColor(item: CartItem, color: string): void {
+    if (!this.cart || this.loading || color === item.requested_color || this.changingCartItems.has(item.id)) return;
+    this.changingCartItems.add(item.id);
+    this.http.patch<Cart>(`${this.api}/cart/${this.cart.token}/`, {item_id:item.id, variant_id:item.variant_id, requested_color:color})
+      .pipe(takeUntil(this.accountChanged),takeUntil(this.destroyed)).subscribe({
+        next:cart=>{this.changingCartItems.delete(item.id);this.rememberCart(cart);this.notify('Color updated.');},
+        error:err=>{this.changingCartItems.delete(item.id);this.showError(err,'Could not change this color.');},
       });
   }
 
@@ -1146,6 +1168,45 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     const names = [...new Set(variants.flatMap(v => [v.option1_name, v.option2_name, v.option3_name])
       .filter((name): name is string => !!name?.trim()))];
     return names.length ? names.join(' / ') : 'Choose an option';
+  }
+  private variantOptionValue(variant: ProductVariant, name: string): string {
+    for (const n of [1, 2, 3] as const) if (String(variant[`option${n}_name`] || '').trim() === name)
+      return String(variant[`option${n}_value`] || '').trim();
+    return '';
+  }
+  get structuredOptionGroups(): Array<{name: string; values: string[]}> {
+    const variants = this.selectedProduct?.variants || [];
+    if (variants.length < 2) return [];
+    const names = [...new Set(variants.flatMap(v => [v.option1_name, v.option2_name, v.option3_name])
+      .map(value => String(value || '').trim()).filter(Boolean))];
+    if (names.length < 2) return [];
+    return names.sort((a, b) => (/(?:color|colour|রঙ)/i.test(b) ? 1 : /(?:color|colour|রঙ)/i.test(a) ? -1 :
+      /(?:size|সাইজ)/i.test(b) ? 1 : /(?:size|সাইজ)/i.test(a) ? -1 : 0))
+      .map(name => ({name, values: [...new Set(variants.map(v => this.variantOptionValue(v, name)).filter(Boolean))]}))
+      .filter(group => group.values.length > 1);
+  }
+  structuredValueAvailable(name: string, value: string): boolean {
+    const groups = this.structuredOptionGroups;
+    const index = groups.findIndex(group => group.name === name);
+    return (this.selectedProduct?.variants || []).some(variant => this.canAddVariant(variant) &&
+      this.variantOptionValue(variant, name) === value && groups.slice(0, index).every(group =>
+        !this.selectedOptionValues[group.name] || this.variantOptionValue(variant, group.name) === this.selectedOptionValues[group.name]));
+  }
+  selectStructuredOption(name: string, value: string): void {
+    this.selectedOptionValues = {...this.selectedOptionValues, [name]: value};
+    const groups = this.structuredOptionGroups;
+    const changedIndex = groups.findIndex(group => group.name === name);
+    for (const group of groups.slice(changedIndex + 1)) {
+      const current = this.selectedOptionValues[group.name];
+      if (current && !this.structuredValueAvailable(group.name, current)) {
+        this.selectedOptionValues = {...this.selectedOptionValues, [group.name]: ''};
+      }
+    }
+    const complete = groups.every(group => this.selectedOptionValues[group.name]);
+    const matching = complete ? this.selectedProduct?.variants.find(variant => groups.every(group =>
+      this.variantOptionValue(variant, group.name) === this.selectedOptionValues[group.name])) : null;
+    this.selectedVariantId = matching && this.canAddVariant(matching) ? matching.id : null;
+    this.selectVariantImage();
   }
   canAddVariant(variant: ProductVariant | null): boolean {
     return !!variant && variant.purchasable !== false && !!variant.is_active && !!(variant.stock > 0 || variant.quantity_unspecified || variant.allow_backorder);

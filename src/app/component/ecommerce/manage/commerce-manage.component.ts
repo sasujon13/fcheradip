@@ -226,7 +226,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     this.pricingPreviews.clear(); this.pricingErrors.clear(); this.pricingLoading.clear();
     this.editor = null;
     this.editor = product ? JSON.parse(JSON.stringify(product)) : {
-      name: '', slug: '', category: this.categories[0]?.id || '', brand: null, short_description: '',
+      name: '', slug: '', category: this.categories[0]?.id || '', secondary_categories: [], brand: null, short_description: '',
       description: '', status: 'draft', product_type: 'physical', tags: '', featured: false,
       delivery_dhaka_charge: null, delivery_outside_dhaka_charge: null, cod_percent: null,
       variants: [this.newVariant()], images: [],
@@ -329,6 +329,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   private productPayload() {
     const e = this.editor;
     return {name: e.name, slug: e.slug, category: Number(e.category), brand: e.brand ? Number(e.brand) : null,
+      secondary_categories: (e.secondary_categories || []).map(Number),
       short_description: e.short_description, description: e.description, status: e.status,
       product_type: e.product_type, tags: e.tags, featured: e.featured,
       supplier_delivery_rates: e.supplier_delivery_rates || {},

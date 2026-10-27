@@ -56,7 +56,7 @@ export class SuppliersComponent implements OnInit, OnDestroy {
   snapshotAction = 'collect';
   snapshotRows: any[] = [];
   snapshotText = '';
-  readonly states = ['collected', 'needs_data', 'needs_review', 'ready', 'reduced_margin', 'blacklist', 'zero_margin', 'excluded'];
+  readonly states = ['collected', 'needs_data', 'needs_review', 'ready', 'reduced_margin', 'blacklist', 'zero_margin', 'excluded', 'unique'];
   private timer: ReturnType<typeof setInterval> | undefined;
   private disposed = false;
   private polling = false;
@@ -131,6 +131,12 @@ export class SuppliersComponent implements OnInit, OnDestroy {
   async loadSuppliers() {
     const result = await this.get('suppliers', {limit: 100});
     if (!this.disposed) this.suppliers = (result.results || result).sort((a: any,b: any) => Number(b.enabled)-Number(a.enabled) || String(a.name || '').localeCompare(String(b.name || '')));
+    if (this.config.catalog_sync !== undefined) {
+      try {
+        const status = await this.get('supplier-workspace');
+        if (!this.disposed) this.config.catalog_sync = status.catalog_sync;
+      } catch { /* Retain the last visible sync status while a check is interrupted. */ }
+    }
     this.lastSupplierPoll = Date.now();
   }
   async poll() {
@@ -233,7 +239,7 @@ export class SuppliersComponent implements OnInit, OnDestroy {
           ? {password: this.credentialSecret} : {api_secret: this.credentialSecret.trim()}) : {}),
         ...(this.credentialUsername.trim() ? {username: this.credentialUsername.trim()} : {}),
         ...(this.credentialDomain.trim() ? {domain: this.credentialDomain.trim()} : {})};
-      if (this.credentialEditor.connector === 'business_koro' && this.credentialAccountPassword) {
+      if ((this.credentialEditor.connector === 'business_koro' || this.credentialEditor.id === 4) && this.credentialAccountPassword) {
         (value as any).password=this.credentialAccountPassword;
       }
       if (!Object.keys(value).length) { this.message = 'No new credentials entered. Existing encrypted credentials were kept.'; return; }
@@ -255,13 +261,27 @@ export class SuppliersComponent implements OnInit, OnDestroy {
     else this.snapshotOpen(row, action);
   }
   openBrowser(row: any) { this.browserEditor = row; this.browserUsername = this.browserPassword = ''; }
+  cancelFullCollection(row: any) {
+    void this.run(async () => {
+      await this.post(`suppliers/${row.id}/cancel-full-collection`, {});
+      this.message = 'Cancellation requested; saved product details are retained.';
+      await this.loadSuppliers();
+    });
+  }
   collectSource(row?: any) {
     if (!row) {
       const selected = this.suppliers.filter(s => s.enabled && this.selectedSuppliers.has(s.id));
       if (selected.length !== 1) { this.error = 'Select one enabled supplier to collect its products. Other actions may use multiple selected suppliers.'; return; }
       row = selected[0];
     }
-    if (row.capabilities?.preferred_collection === 'browser' && row.capabilities?.browser_collection) this.openBrowser(row);
+    if (row.capabilities?.full_collection) {
+      void this.run(async () => {
+        await this.post(`suppliers/${row.id}/full-collection`, {});
+        this.message = 'Full product details collection started. Saved checkpoints will resume automatically.';
+        await this.loadSuppliers();
+      });
+    }
+    else if (row.capabilities?.preferred_collection === 'browser' && row.capabilities?.browser_collection) this.openBrowser(row);
     else if (row.capabilities?.live_api) this.collection(row, 'collect');
     else if (row.capabilities?.browser_collection) this.openBrowser(row);
     else this.collection(row, 'collect');

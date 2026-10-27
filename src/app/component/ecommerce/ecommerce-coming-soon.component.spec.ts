@@ -157,27 +157,50 @@ describe('Marketplace browsing controls', () => {
     localStorage.removeItem('cheradipEcommerceCart');
   });
 
+  it('requires an exact structured color and size combination', () => {
+    component.selectedProduct = {variants: [
+      {id: 1, title: 'Red / M', is_active: true, stock: 2, option1_name: 'Color', option1_value: 'Red', option2_name: 'Size', option2_value: 'M'},
+      {id: 2, title: 'Blue / L', is_active: true, stock: 1, option1_name: 'Color', option1_value: 'Blue', option2_name: 'Size', option2_value: 'L'},
+    ]} as any;
+    expect(component.structuredOptionGroups.map(group => group.name)).toEqual(['Color', 'Size']);
+    component.selectStructuredOption('Color', 'Red');
+    expect(component.structuredValueAvailable('Size', 'L')).toBeFalse();
+    expect(component.structuredValueAvailable('Size', 'M')).toBeTrue();
+    component.selectStructuredOption('Size', 'L');
+    expect(component.selectedVariantId).toBeNull();
+    component.selectStructuredOption('Size', 'M');
+    expect(component.selectedVariantId).toBe(1);
+    component.selectStructuredOption('Color', 'Blue');
+    expect(component.selectedOptionValues['Size']).toBe('');
+    expect(component.selectedVariantId).toBeNull();
+  });
+
   it('starts checkout with Cash on Delivery selected', () => {
     expect(component.checkout.payment_method).toBe('cod');
   });
 
-  it('opens the product route immediately instead of waiting for the detail request', () => {
+  it('opens details without destroying the filtered catalog', () => {
     const route = {snapshot: {paramMap: {get: () => null}}};
     const router = {navigate: jasmine.createSpy('navigate').and.returnValue(Promise.resolve(true))};
-    const c = new EcommerceComingSoonComponent(null as any, route as any, router as any, null as any, null as any, null as any);
+    const detail = {slug: 'sample-item', name: 'Sample item', variants: [], images: [], approved_reviews: []};
+    const http = {get: () => of(detail), post: () => of({state: 'not_applicable'})};
+    const c = new EcommerceComingSoonComponent(http as any, route as any, router as any, null as any, null as any, null as any);
     c.openProduct({slug: 'sample-item', name: 'Sample item'} as any);
-    expect(router.navigate).toHaveBeenCalledWith(['/ecommerce/product', 'sample-item'], {queryParamsHandling: 'preserve'});
-    expect(c.productDetailLoading).toBeTrue();
+    expect(router.navigate).toHaveBeenCalledWith([], {queryParams: {product: 'sample-item'}, queryParamsHandling: 'merge'});
     expect(c.selectedProduct?.slug).toBe('sample-item');
   });
 
   it('loads details for the product route slug', () => {
     const detail = {id: 7, slug: 'sample-item', name: 'Full product', variants: [], images: [], approved_reviews: []};
-    const http = {get: jasmine.createSpy('get').and.returnValue(of(detail))};
+    const http = {
+      get: jasmine.createSpy('get').and.returnValue(of(detail)),
+      post: jasmine.createSpy('post').and.returnValue(of({state: 'recently_checked', last_checked_at: '2026-10-25T14:00:00Z'})),
+    };
     const route = {snapshot: {paramMap: {get: () => 'sample-item'}}};
     const c = new EcommerceComingSoonComponent(http as any, route as any, null as any, null as any, null as any, null as any);
     c.openProduct({slug: 'sample-item'} as any);
     expect(http.get).toHaveBeenCalledWith(jasmine.stringMatching(/\/products\/sample-item\/$/));
+    expect(http.post).toHaveBeenCalledWith(jasmine.stringMatching(/\/products\/sample-item\/source-refresh\/$/), {});
     expect(c.selectedProduct?.name).toBe('Full product');
     expect(c.productDetailLoading).toBeFalse();
   });

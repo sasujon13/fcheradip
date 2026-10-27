@@ -109,9 +109,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
   /** Keep compact wallet values ungrouped up to six integer digits on both Cheradip hosts. */
   get headerWalletTakaDisplay(): string {
     const amount = Number(this.headerWalletTaka);
-    if (!Number.isFinite(amount)) return '0.00';
+    if (!Number.isFinite(amount)) return '0.00000';
     return Math.abs(amount) <= 999999
-      ? amount.toFixed(2)
+      ? amount.toFixed(Math.max(2, 6 - String(Math.trunc(Math.abs(amount))).length))
       : new Intl.NumberFormat('en-BD', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(amount);
   }
   /** eCommerce has a tighter token-input position than the main Cheradip site. */

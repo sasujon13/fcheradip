@@ -1729,6 +1729,27 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+.variant-selectors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.variant-selector {
+  display: grid;
+  gap: 5px;
+  flex: 1 1 145px;
+  min-width: 0;
+}
+
+.variant-selector select {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media(max-width:1250px) {
   .catalog-layout {
     grid-template-columns: 210px minmax(0, 1fr);

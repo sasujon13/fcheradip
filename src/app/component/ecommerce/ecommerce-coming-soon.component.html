@@ -193,11 +193,11 @@
               <h3><button type="button" (click)="openProduct(product)">{{ product.name }}</button></h3>
               <p *ngIf="meaningfulText(product.short_description) as description">{{ description }}</p>
               <div class="price-row">
-                <div class="price-offer"><strong>{{ product.price == null ? 'Price awaiting confirmation' : '৳' +
+                <div class="price-offer"><strong>{{ product.price == null ? 'Price on request' : '৳' +
                     (product.price | number:'1.0-0') }}</strong><del *ngIf="product.compare_at_price"
                     title="Regular reference price">৳{{ product.compare_at_price | number:'1.0-0' }}</del><span
                     class="sale-badge" *ngIf="discountPercent(product)>0">{{ discountPercent(product) }}% off</span>
-                </div><span class="price-quantity"
+                </div><span *ngIf="!product.price_on_request" class="price-quantity"
                   [attr.aria-label]="product.quantity_unspecified ? 'Supplier quantity not specified' : 'Available quantity: ' + product.stock"
                   [title]="product.quantity_unspecified ? 'Supplier reports in stock without specifying an exact quantity.' : 'Available quantity'">Qty:{{
                   product.quantity_unspecified ? '  √' : ' ' + (product.stock | number:'1.0-0') }}</span>
@@ -205,9 +205,9 @@
               <div class="product-buttons"><button class="ghost" type="button" (click)="openProduct(product)"
                   [attr.aria-label]="'View options for ' + product.name">Details</button><button class="primary"
                   type="button"
-                  [disabled]="product.stock < 1 && !product.quantity_unspecified && !product.allow_backorder"
-                  (click)="addToCart(product)" [attr.aria-label]="'Choose options for ' + product.name"><i
-                    class="fa fa-shopping-cart" aria-hidden="true"></i>{{ product.purchasable === false ? 'Choose
+                  [disabled]="!product.price_on_request && product.stock < 1 && !product.quantity_unspecified && !product.allow_backorder"
+                  (click)="product.price_on_request ? openProduct(product) : addToCart(product)" [attr.aria-label]="'Choose options for ' + product.name"><i
+                    class="fa fa-shopping-cart" aria-hidden="true"></i>{{ product.price_on_request ? 'View details' : product.purchasable === false ? 'Choose
                   options' : product.stock > 0 || product.quantity_unspecified || product.allow_backorder ? 'Add to
                   Cart' : 'Unavailable' }}</button></div>
             </div>
@@ -279,40 +279,42 @@
           <p class="eyebrow">{{ selectedProduct.category_name }}<span *ngIf="selectedProduct.brand_name"> · {{
               selectedProduct.brand_name }}</span></p>
           <h2 id="product-dialog-title">{{ selectedProduct.name }}</h2>
-          <p class="source-check-status" role="status"
-            *ngIf="sourceRefreshState && sourceRefreshState !== 'not_applicable'">
-            <i class="fa" [class.fa-refresh]="sourceRefreshState === 'checking' || sourceRefreshState === 'queued'"
-              [class.fa-check-circle]="sourceRefreshState === 'updated' || sourceRefreshState === 'recently_checked'"
-              [class.fa-clock-o]="sourceRefreshState !== 'checking' && sourceRefreshState !== 'queued' && sourceRefreshState !== 'updated' && sourceRefreshState !== 'recently_checked'"
-              aria-hidden="true"></i>
-            <span *ngIf="sourceRefreshState === 'checking' || sourceRefreshState === 'queued'">Checking supplier
-              availability in the background…</span>
-            <span *ngIf="sourceRefreshState === 'updated'">Supplier availability updated.</span>
-            <span
-              *ngIf="sourceRefreshState === 'staff_check_needed' || sourceRefreshState === 'check_unavailable' || sourceRefreshState === 'not_updated' || sourceRefreshState === 'recently_requested' || sourceRefreshState === 'cached'">Supplier
-              recheck pending; the last known availability is shown.</span>
-            <span *ngIf="sourceRefreshState === 'recently_checked'">Recently checked with the supplier.</span>
-            <span *ngIf="sourceRefreshState === 'unavailable'">This product is no longer available from the
-              supplier.</span>
-            <small *ngIf="sourceCheckedAt">Last checked {{ sourceCheckedAt | date:'medium' }}</small>
-          </p>
-          <p class="shipping-note" role="note"
-            *ngIf="selectedProduct.fulfilment_mode === 'manual_supplier_catalogue' && !selectedProduct.quantity_unspecified">
-            Supplier fulfilment: displayed availability is not a stock reservation. We will contact you if the supplier
-            cannot fulfil your order.</p>
-          <p class="shipping-note" role="note"
-            *ngIf="selectedProduct.fulfilment_mode === 'staff_confirmed_supplier_pilot'">Staff-confirmed supplier
-            fulfilment: we recheck your exact item and delivery before confirming the order. Displayed availability is
-            not a supplier reservation. Verified supplier delivery charges are shown at checkout.</p>
-          <label *ngIf="showVariantChoice" for="variant-choice">{{ variantChoiceLabel }}</label>
-          <select *ngIf="showVariantChoice" id="variant-choice" [(ngModel)]="selectedVariantId"
-            (change)="selectVariantImage()">
-            <option [ngValue]="null" disabled>Select {{ variantChoiceLabel.toLowerCase() }}</option>
-            <option *ngFor="let variant of selectedProduct.variants" [ngValue]="variant.id"
-              [disabled]="!canAddVariant(variant)">{{ variant.title }} · ৳{{ variant.price | number:'1.0-2' }} · {{
-              variant.stock > 0 ? variant.stock + ' available' : variant.quantity_unspecified ? 'available to order' :
-              variant.allow_backorder ? 'available to order' : 'out of stock' }}</option>
-          </select>
+          <div class="variant-selectors" *ngIf="showVariantChoice || selectedProduct.description_sizes?.length || selectedProduct.description_colors?.length">
+            <div class="variant-selector" *ngIf="selectedProduct.description_colors?.length">
+              <label for="description-color">Color</label>
+              <select id="description-color" [(ngModel)]="selectedDescriptionColor" [title]="selectedDescriptionColor || 'Select color'">
+                <option value="" disabled>Select color</option>
+                <option *ngFor="let color of selectedProduct.description_colors" [value]="color">{{ color }}</option>
+              </select>
+            </div>
+            <div class="variant-selector" *ngFor="let group of structuredOptionGroups">
+              <label [for]="'variant-option-' + group.name">{{ group.name }}</label>
+              <select [id]="'variant-option-' + group.name" [ngModel]="selectedOptionValues[group.name] || ''"
+                (ngModelChange)="selectStructuredOption(group.name, $event)"
+                [title]="selectedOptionValues[group.name] || 'Select ' + group.name">
+                <option value="" disabled>Select {{ group.name.toLowerCase() }}</option>
+                <option *ngFor="let value of group.values" [value]="value" [disabled]="!structuredValueAvailable(group.name, value)">{{ value }}</option>
+              </select>
+            </div>
+            <div class="variant-selector" *ngIf="showVariantChoice && !structuredOptionGroups.length">
+              <label for="variant-choice">{{ variantChoiceLabel }}</label>
+              <select id="variant-choice" [(ngModel)]="selectedVariantId" (change)="selectVariantImage()"
+                [title]="selectedVariant?.title || variantChoiceLabel">
+                <option [ngValue]="null" disabled>Select {{ variantChoiceLabel.toLowerCase() }}</option>
+                <option *ngFor="let variant of selectedProduct.variants" [ngValue]="variant.id"
+                  [disabled]="!canAddVariant(variant)">{{ variant.title }} · ৳{{ variant.price | number:'1.0-2' }} · {{
+                  variant.stock > 0 ? variant.stock + ' available' : variant.quantity_unspecified ? 'available to order' :
+                  variant.allow_backorder ? 'available to order' : 'out of stock' }}</option>
+              </select>
+            </div>
+            <div class="variant-selector" *ngIf="selectedProduct.description_sizes?.length">
+              <label for="description-size">Size</label>
+              <select id="description-size" [(ngModel)]="selectedDescriptionSize" [title]="selectedDescriptionSize || 'Select size'">
+                <option value="" disabled>Select size</option>
+                <option *ngFor="let size of selectedProduct.description_sizes" [value]="size">{{ size }}</option>
+              </select>
+            </div>
+          </div>
           <div class="price-row" *ngIf="selectedVariant as variant">
             <div class="price-offer"><strong>৳{{ variant.price | number:'1.0-0' }}</strong><del
                 *ngIf="variant.compare_at_price" title="Regular reference price">৳{{ variant.compare_at_price |
@@ -324,14 +326,9 @@
           </div>
           <p class="option-notice" role="status" *ngIf="selectedProduct.option_notice">{{ selectedProduct.option_notice
             }}</p>
-          <label *ngIf="selectedProduct.description_sizes?.length" for="description-size">Size</label>
-          <select *ngIf="selectedProduct.description_sizes?.length" id="description-size"
-            [(ngModel)]="selectedDescriptionSize">
-            <option value="" disabled>Select size</option>
-            <option *ngFor="let size of selectedProduct.description_sizes" [value]="size">{{ size }}</option>
-          </select>
-          <button class="primary"
-            [disabled]="selectedProduct.purchasable === false || !canAddVariant(selectedVariant) || (showVariantChoice && !selectedVariantId) || (selectedProduct.description_sizes?.length && !selectedDescriptionSize)"
+          <p *ngIf="selectedProduct.price_on_request" role="status">Price on request</p>
+          <button *ngIf="!selectedProduct.price_on_request" class="primary"
+            [disabled]="sourceRefreshState === 'unavailable' || selectedProduct.purchasable === false || !canAddVariant(selectedVariant) || (showVariantChoice && !selectedVariantId) || (selectedProduct.description_sizes?.length && !selectedDescriptionSize) || (selectedProduct.description_colors?.length && !selectedDescriptionColor)"
             (click)="addSelectedVariantToCart()">{{ showVariantChoice ? 'Add selected option to Cart' : 'Add to Cart'
             }}</button>
           <section class="product-information" *ngIf="selectedProduct.specifications?.length"
@@ -411,6 +408,13 @@
               <h3><a [href]="'/ecommerce/product/' + item.product_slug"
                   (click)="$event.preventDefault(); openCartProduct(item)">{{ item.product_name }}</a></h3><small
                 *ngIf="item.variant_title !== 'Default'">{{ item.variant_title }}</small>
+              <label *ngIf="item.description_colors?.length" class="cart-variant-choice">Color
+                <select [ngModel]="item.requested_color" (ngModelChange)="changeCartColor(item,$event)"
+                  [disabled]="loading || changingCartItems.has(item.id)"
+                  [attr.aria-label]="'Change color for ' + item.product_name">
+                  <option *ngFor="let color of item.description_colors" [value]="color">{{ color }}</option>
+                </select>
+              </label>
               <label *ngIf="item.description_sizes?.length" class="cart-variant-choice">Size
                 <select [ngModel]="item.requested_size" (ngModelChange)="changeCartSize(item,$event)"
                   [disabled]="loading || changingCartItems.has(item.id)"
