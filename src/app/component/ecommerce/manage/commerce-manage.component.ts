@@ -37,6 +37,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   pricingErrors = new Map<any, string>();
   readonly sections: Section[] = [
     {key: 'overview', label: 'Overview', icon: 'fa-line-chart', model: 'order', endpoint: 'dashboard', description: 'Sales, pending work, stock alerts, and business shortcuts.'},
+    {key: 'reports', label: 'Reports', icon: 'fa-bar-chart', model: 'supplier', endpoint: 'supplier-reports', description: 'Catalogue counts and paid sales research by supplier or SKU.'},
     {key: 'suppliers', label: 'Suppliers', icon: 'fa-truck', model: 'supplier', endpoint: 'suppliers', description: 'Private sourcing, exact matches, market evidence, blacklist review and selective draft imports.'},
     {key: 'products', label: 'Products', icon: 'fa-shopping-bag', model: 'product', endpoint: 'products', description: 'Create products, upload photos, set prices, manage variants, and publish your catalog.'},
     {key:'pricing',label:'Pricing rules',icon:'fa-percent',model:'deliverysettings',endpoint:'',description:'Edit central profit bands and automatic sale discount; preview and apply generated supplier prices safely.'},
@@ -54,7 +55,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     {key: 'notifications', label: 'Notifications', icon: 'fa-bell', model: 'commercenotification', endpoint: 'notifications', description: 'Follow business alerts and mark reviewed notifications as read.'},
   ];
   readonly orderStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned', 'refunded'];
-  access: CommerceAccess = {allowed: false, permissions: {}};
+  access: CommerceAccess = {allowed: false, superuser: false, permissions: {}};
   section = this.sections.find(s => s.key === 'overview')!;
   records: any[] = [];
   stats: any = {};
@@ -77,6 +78,35 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   fields: Field[] = [];
   detail: any = null;
   pendingAction: {title: string; message: string; run: () => Promise<void>} | null = null;
+  reportSupplier: number | '' = '';
+  reportView: 'catalogue' | 'sales' | 'prices' | 'sync' | 'upload' = 'catalogue';
+  report: {suppliers: any[]; rows: any[]; totals: any; definitions?: Record<string, string>} | null = null;
+  salesReport: any = null;
+  priceCheck: any = null;
+  catalogSync: any = null;
+  catalogSyncing = false;
+  syncProgress: {percent?: number; activity?: string; status?: string} | null = null;
+  uploadBuild: any = null;
+  uploadBuilding = false;
+  uploadProgress: {percent?: number; activity?: string; status?: string} | null = null;
+  readonly ensureLiveNote = 'Signs in with saved supplier credentials and re-reads the eight product URLs. Confirms gold HTML extractors, then live buying prices. No supplier orders.';
+  readonly ensureGoldNote = 'Checks only the saved HTML snippets (no live login). Use this to confirm extractors still match Reseller Price, প্রাইস, Base, Wholesale, and the other labelled buying prices.';
+  readonly syncCatalogNote = 'Runs one two-way catalogue sync between this shop and the live shop. Categories, products, photos and source records only — not orders, customers, or passwords. The report stays until you run Sync Catalog again.';
+  readonly uploadBuildNote = 'Uploads this computer\'s source to the live server and builds there: frontend, Django, AILT, nginx, smoke checks. Creates missing tables only. Does not copy customers, orders, passwords, or shop catalogue rows — use Sync Catalog for products.';
+  salesFrom = CommerceManageComponent.dhakaDate(-89);
+  salesTo = CommerceManageComponent.dhakaDate();
+  salesAllTime = false;
+  salesSort: {key: string; dir: number} = {key: 'sales', dir: -1};
+  readonly reportMetrics = [
+    {key: 'collected', label: 'Collected'},
+    {key: 'hosted', label: 'Hosted'},
+    {key: 'unhosted', label: 'Unhosted'},
+    {key: 'blacklisted', label: 'Blacklisted'},
+  ];
+  static dhakaDate(offsetDays = 0): string {
+    return new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit'})
+      .format(new Date(Date.now() + offsetDays * 86400000));
+  }
   csvFile: File | null = null;
   importResult: any = null;
   importProgress = '';
@@ -89,12 +119,31 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   constructor(public service: CommerceManagementService, private router: Router, private snack: MatSnackBar,
     private changeDetector?: ChangeDetectorRef, private ngZone?: NgZone) {}
 
-  get visibleSections() { return this.sections.filter(s => this.can(s.model, 'view') || (s.key === 'imports' && this.canImport)); }
+  get visibleSections() {
+    return this.sections.filter(s => this.can(s.model, 'view') || (s.key === 'imports' && this.canImport)
+      || (s.key === 'reports' && this.can('order', 'view')));
+  }
   get canImport() { return this.can('product', 'add') && this.can('product', 'change'); }
   get canAddProduct() { return this.can('product', 'add') && this.can('productvariant', 'add'); }
   get canEditProduct() { return this.can('product', 'change') && this.can('productvariant', 'change'); }
   get canAdjustStock() { return this.can('inventorymovement', 'add') && this.can('productvariant', 'change'); }
   get pageEnd() { return Math.min(this.offset + this.records.length, this.count); }
+  get syncPercent() {
+    const value = Number(this.syncProgress?.percent);
+    if (!Number.isFinite(value)) return this.catalogSyncing ? 4 : 0;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+  get syncActivity() {
+    return this.syncProgress?.activity || 'Synchronizing catalogue';
+  }
+  get uploadPercent() {
+    const value = Number(this.uploadProgress?.percent);
+    if (!Number.isFinite(value)) return this.uploadBuilding ? 4 : 0;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+  get uploadActivity() {
+    return this.uploadProgress?.activity || 'Uploading and building the live site';
+  }
   get productForm() { return this.editorKind === 'product'; }
   can(model: string, action: 'view' | 'add' | 'change' | 'delete') { return !!this.access.permissions[model]?.[action]; }
   label(value: string) { return (value || '').replace(/_/g, ' ').replace(/\b\w/g, x => x.toUpperCase()); }
@@ -106,9 +155,18 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
       if (version !== this.accessVersion || this.destroyed) return;
       this.access = access;
       if (!this.access.allowed) { await this.router.navigate(['/ecommerce']); return; }
-      const requested = this.router.parseUrl(this.router.url).queryParams['section'];
+      const query = this.router.parseUrl(this.router.url).queryParams;
+      const requested = query['section'];
       this.section = this.visibleSections.find(s => s.key === requested) || this.visibleSections[0] || this.sections[0];
+      if (query['report'] === 'sales' && this.can('order', 'view')) this.reportView = 'sales';
+      else if (query['report'] === 'prices' && this.can('supplier', 'view')) this.reportView = 'prices';
+      else if (query['report'] === 'sync' && this.can('supplier', 'view')) this.reportView = 'sync';
+      else if (query['report'] === 'upload' && this.can('supplier', 'view')) this.reportView = 'upload';
+      else if (!this.can('supplier', 'view') && this.can('order', 'view')) this.reportView = 'sales';
       await Promise.all([this.load(), this.lookups()]);
+      if (this.section.key === 'reports' && this.reportView === 'prices') await this.loadPriceReport();
+      if (this.section.key === 'reports' && this.reportView === 'sync') await this.loadCatalogSyncReport();
+      if (this.section.key === 'reports' && this.reportView === 'upload') await this.loadUploadBuildReport();
       await this.loadActivity();
       this.ngZone?.runOutsideAngular(() => {
         this.activityTimer = setInterval(() => this.ngZone?.run(() => { void this.loadActivity(); }), 60000);
@@ -162,7 +220,10 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   async select(section: Section) {
     if (!this.visibleSections.includes(section)) return;
     this.section = section; this.search = this.filter = ''; this.offset = 0; this.detail = null;
-    void this.router.navigate([], {queryParams: {section: section.key}, queryParamsHandling: 'merge', replaceUrl: true});
+    void this.router.navigate([], {
+      queryParams: {section: section.key, report: section.key === 'reports' ? this.reportView : null},
+      queryParamsHandling: 'merge', replaceUrl: true,
+    });
     await this.load();
   }
 
@@ -176,6 +237,8 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
           const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/dashboard/`));
           if (version === this.generation && !this.destroyed) this.stats = value;
         }
+      } else if (this.section.key === 'reports' && this.reportView !== 'prices' && this.reportView !== 'sync' && this.reportView !== 'upload') {
+        await this.loadReports(version);
       } else if (this.can(this.section.model, 'view') && !['books','suppliers','pricing'].includes(this.section.key)) {
         const data = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/${this.section.endpoint}/`, {
           params: {limit: this.pageSize, offset: this.offset, search: this.search, ...(this.filter ? {status: this.filter} : {})},
@@ -187,6 +250,195 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
       }
     } catch (err) { if (version === this.generation) this.showError(err); }
     finally { if (version === this.generation) this.loading = false; }
+  }
+
+  async loadReports(version = this.generation) {
+    if (this.reportView === 'prices' || this.reportView === 'sync' || this.reportView === 'upload') return;
+    if (this.reportView === 'sales') {
+      if (!this.can('order', 'view')) return;
+      const params: Record<string, string | number> = {};
+      if (this.reportSupplier !== '') params['supplier'] = this.reportSupplier;
+      if (this.salesAllTime) params['all'] = 1;
+      else {
+        if (this.salesFrom) params['from'] = this.salesFrom;
+        if (this.salesTo) params['to'] = this.salesTo;
+      }
+      const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/sales-reports/`, {params}));
+      if (version === this.generation && !this.destroyed) this.salesReport = value;
+      return;
+    }
+    if (!this.can('supplier', 'view')) return;
+    const params: Record<string, string | number> = {};
+    if (this.reportSupplier !== '') params['supplier'] = this.reportSupplier;
+    const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/supplier-reports/`, {params}));
+    if (version === this.generation && !this.destroyed) this.report = value;
+  }
+
+  async selectReportView(view: 'catalogue' | 'sales' | 'prices' | 'sync' | 'upload') {
+    this.reportView = view;
+    this.salesSort = {key: 'sales', dir: -1};
+    void this.router.navigate([], {queryParams: {section: 'reports', report: view}, queryParamsHandling: 'merge', replaceUrl: true});
+    if (view === 'prices') { await this.loadPriceReport(); return; }
+    if (view === 'sync') { await this.loadCatalogSyncReport(); return; }
+    if (view === 'upload') { await this.loadUploadBuildReport(); return; }
+    await this.load();
+  }
+
+  async loadPriceReport() {
+    if (!this.can('supplier', 'view')) return;
+    try {
+      const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/ensure-prices/`));
+      if (value?.rows?.length) this.priceCheck = value;
+    } catch { /* Keep the on-screen report until the next successful run. */ }
+  }
+
+  async loadCatalogSyncReport() {
+    if (!this.can('supplier', 'view')) return;
+    try {
+      const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/catalog-sync/`));
+      if (value && value.status && value.status !== 'idle') this.catalogSync = value;
+    } catch { /* Keep the on-screen report until the next successful run. */ }
+  }
+
+  async loadUploadBuildReport() {
+    if (!this.can('supplier', 'view')) return;
+    try {
+      const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/upload-build/`));
+      if (value && value.status && value.status !== 'idle') this.uploadBuild = value;
+    } catch { /* Keep the on-screen report until the next successful run. */ }
+  }
+
+  async uploadBuildNow() {
+    if (!this.can('supplier', 'view')) return;
+    this.busy = true; this.uploadBuilding = true; this.error = '';
+    this.uploadProgress = {percent: 4, activity: 'Starting Upload & Build', status: 'running'};
+    try {
+      const started = await firstValueFrom(
+        this.service.http.post<any>(`${this.service.url}/upload-build/`, {}).pipe(timeout(1200000)));
+      this.uploadProgress = started;
+      if (['completed', 'failed'].includes(started?.status)) {
+        this.uploadBuild = started;
+        this.uploadProgress = {...started, percent: started.percent ?? 100};
+        return;
+      }
+      const deadline = Date.now() + 1180000;
+      const readProgress = async () => {
+        const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/upload-build/`));
+        if (!value) return false;
+        if (['running', 'queued'].includes(value.status)) {
+          this.uploadProgress = value;
+          this.changeDetector?.markForCheck();
+          return false;
+        }
+        if (['completed', 'failed'].includes(value.status)) {
+          this.uploadBuild = value;
+          this.uploadProgress = {...value, percent: value.percent ?? 100};
+          return true;
+        }
+        return false;
+      };
+      while (!this.destroyed && Date.now() < deadline) {
+        try {
+          if (await readProgress()) break;
+        } catch { /* Keep polling while upload and build run. */ }
+        if (this.destroyed) break;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (err) { this.showError(err); }
+    finally { this.busy = false; this.uploadBuilding = false; }
+  }
+
+  async ensurePrices(live = true) {
+    if (!this.can('supplier', 'view')) return;
+    this.busy = true; this.error = '';
+    try {
+      this.priceCheck = await firstValueFrom(
+        this.service.http.post<any>(`${this.service.url}/ensure-prices/`, {live}).pipe(timeout(180000)));
+    } catch (err) { this.showError(err); }
+    finally { this.busy = false; }
+  }
+
+  async syncCatalog() {
+    if (!this.can('supplier', 'view')) return;
+    this.busy = true; this.catalogSyncing = true; this.error = '';
+    this.syncProgress = {percent: 4, activity: 'Starting catalogue sync', status: 'running'};
+    try {
+      const started = await firstValueFrom(
+        this.service.http.post<any>(`${this.service.url}/catalog-sync/`, {}).pipe(timeout(600000)));
+      this.syncProgress = started;
+      if (['completed', 'failed'].includes(started?.status)) {
+        this.catalogSync = started;
+        this.syncProgress = {...started, percent: started.percent ?? 100};
+        return;
+      }
+      const deadline = Date.now() + 580000;
+      const readProgress = async () => {
+        const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/catalog-sync/`));
+        if (!value) return false;
+        if (['running', 'queued'].includes(value.status)) {
+          this.syncProgress = value;
+          this.changeDetector?.markForCheck();
+          return false;
+        }
+        if (['completed', 'failed'].includes(value.status)) {
+          this.catalogSync = value;
+          this.syncProgress = {...value, percent: value.percent ?? 100};
+          return true;
+        }
+        return false;
+      };
+      while (!this.destroyed && Date.now() < deadline) {
+        try {
+          if (await readProgress()) break;
+        } catch { /* Keep polling while the cycle is running. */ }
+        if (this.destroyed) break;
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+    } catch (err) { this.showError(err); }
+    finally { this.busy = false; this.catalogSyncing = false; }
+  }
+
+  applySalesSpan(span: '30' | '90' | '365' | 'all') {
+    this.salesAllTime = span === 'all';
+    if (span === 'all') this.salesFrom = this.salesTo = '';
+    else {
+      const days = span === '30' ? 29 : span === '365' ? 364 : 89;
+      this.salesFrom = CommerceManageComponent.dhakaDate(-days);
+      this.salesTo = CommerceManageComponent.dhakaDate();
+    }
+    void this.load(true);
+  }
+
+  sortSales(key: string) {
+    if (this.salesSort.key === key) this.salesSort.dir *= -1;
+    else this.salesSort = {key, dir: -1};
+  }
+
+  sortedSalesRows(): any[] {
+    const rows = [...(this.salesReport?.rows || [])];
+    const {key, dir} = this.salesSort;
+    rows.sort((left: any, right: any) => {
+      const av = left[key], bv = right[key];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'string' && typeof bv === 'string' && Number.isNaN(Number(av)) && Number.isNaN(Number(bv))) {
+        return av.localeCompare(bv) * dir;
+      }
+      return (Number(av) - Number(bv)) * dir;
+    });
+    return rows;
+  }
+
+  reportBarHeight(value: number): number {
+    const rows = this.report?.rows || [];
+    const peak = Math.max(1, ...rows.flatMap(row => this.reportMetrics.map(metric => Number(row[metric.key] || 0))));
+    return Math.round(Number(value || 0) / peak * 100);
+  }
+
+  salesBarHeight(value: number | null, rows: any[], keys: string[]): number {
+    const peak = Math.max(1, ...rows.flatMap(row => keys.map(key => Number(row[key] || 0))));
+    return Math.round(Number(value || 0) / peak * 100);
   }
 
   async page(delta: number) { this.offset = Math.max(0, this.offset + delta * this.pageSize); await this.load(); }

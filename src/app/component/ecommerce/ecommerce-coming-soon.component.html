@@ -34,7 +34,7 @@
         </div>
         <label class="category-search"><i class="fa fa-search" aria-hidden="true"></i><input
             [(ngModel)]="categorySearch" placeholder="Find a category" aria-label="Find a category"></label>
-        <p class="category-empty" role="status" *ngIf="categoriesLoading">Loading categories…</p>
+        <p class="category-empty" role="status" *ngIf="categoriesLoading && !categories.length">Loading categories…</p>
         <button class="ghost" type="button" *ngIf="categoriesLoadFailed" (click)="loadCategories()">Retry
           categories</button>
         <nav class="category-list" aria-label="Product categories">
@@ -50,6 +50,7 @@
               *ngIf="category.hasChildren" class="fa category-chevron"
               [class.fa-angle-down]="categorySearch.trim() || expandedCategories.has(category.id)"
               [class.fa-angle-right]="!categorySearch.trim() && !expandedCategories.has(category.id)"
+              (click)="toggleCategoryBranch($event, category)"
               aria-hidden="true"></i></button>
           <p class="category-empty" *ngIf="!visibleCategories.length && categorySearch">No matching categories.</p>
         </nav>
@@ -94,23 +95,48 @@
             <!-- <p>Explore fashion, technology, home and more. Find your favourites, all in one place.</p> -->
             <!-- <div class="intro-footnote"><i class="fa fa-th-large" aria-hidden="true"></i>{{ categories.length }} departments to explore <span>·</span> One Cheradip wallet</div> -->
           </div>
-          <div class="intro-collections" *ngIf="categories.length">
+          <div class="intro-collections" *ngIf="categories.length" (pointerenter)="pauseInspiration()"
+            (pointerleave)="resumeInspiration()">
             <p class="eyebrow">A little inspiration</p>
-            <button *ngFor="let category of featuredCategories | slice:0:3" type="button"
-              (click)="chooseCategory(category.slug)">
-              <span class="collection-icon"><i class="fa" [ngClass]="categoryIcon(category.name)"
-                  aria-hidden="true"></i></span>
-              <span><strong>{{ category.name }}</strong><small>{{ category.product_count }} products to
-                  discover</small></span><i class="fa fa-arrow-right" aria-hidden="true"></i>
-            </button>
+            <div class="intro-collection-frame"
+              [class.intro-nav-vertical]="showInspirationNavVertical"
+              [class.intro-nav-horizontal]="showInspirationNavHorizontal">
+              <button *ngIf="showInspirationNavVertical" type="button" class="intro-nav intro-nav-up"
+                (click)="shiftInspiration(-1)" aria-label="Previous categories" data-ui-note="off"><i class="fa fa-angle-up"
+                  aria-hidden="true"></i></button>
+              <button *ngIf="showInspirationNavHorizontal" type="button" class="intro-nav intro-nav-left"
+                (click)="shiftInspiration(-1)" aria-label="Previous categories" data-ui-note="off"><i class="fa fa-angle-left"
+                  aria-hidden="true"></i></button>
+              <div class="intro-collection-viewport"
+                [style.height]="inspirationViewportHeight" [style.width]="inspirationViewportWidth">
+                <div class="intro-collection-track" #introCollectionTrack
+                  [class.no-transition]="inspirationSnap"
+                  [style.transition]="inspirationSnap ? 'none' : null"
+                  [style.transform]="inspirationTransform" (transitionend)="onInspirationTransitionEnd($event)">
+                  <button *ngFor="let category of slidingInspiration; trackBy: trackCategory" type="button"
+                    (click)="chooseCategory(category.slug)">
+                    <span class="collection-icon" [ngStyle]="categoryAccent(category.name)"><i class="fa"
+                        [ngClass]="categoryIcon(category.name)" aria-hidden="true"></i></span>
+                    <span><strong>{{ category.name }}</strong><small>{{ category.product_count }} products to
+                        discover</small></span><i class="fa fa-arrow-right" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+              <button *ngIf="showInspirationNavHorizontal" type="button" class="intro-nav intro-nav-right"
+                (click)="shiftInspiration(1)" aria-label="Next categories" data-ui-note="off"><i class="fa fa-angle-right"
+                  aria-hidden="true"></i></button>
+              <button *ngIf="showInspirationNavVertical" type="button" class="intro-nav intro-nav-down"
+                (click)="shiftInspiration(1)" aria-label="Next categories" data-ui-note="off"><i class="fa fa-angle-down"
+                  aria-hidden="true"></i></button>
+            </div>
           </div>
         </section>
         <section class="catalog-toolbar">
           <div>
             <p class="eyebrow">Curated for your everyday</p>
             <h2>{{ selectedCategoryName }}</h2>
-            <p class="result-count" role="status">{{ catalogLoading ? 'Finding your products…' : products.length + '
-              shown of total ' + productCount + ' products' }}</p>
+            <p class="result-count" role="status">{{ catalogLoading ? 'Finding your products…' : products.length +
+              (productCount ? ' shown of total ' + productCount + ' products' : ' products loaded') }}</p>
           </div>
           <div class="catalog-controls"><button class="filter-toggle ghost" type="button" (click)="toggleFilters()"
               [attr.aria-expanded]="filtersOpen" aria-controls="marketplace-filters"><i class="fa fa-sliders"
@@ -131,10 +157,12 @@
             type="button" (click)="search = ''; loadProducts(1)" aria-label="Remove search filter">“{{ search }}” <i
               class="fa fa-times" aria-hidden="true"></i></button><button class="clear-all" type="button"
             (click)="resetCatalog()">Clear all</button></div>
-        <section class="product-grid skeleton-grid" *ngIf="catalogLoading" aria-label="Loading products">
+        <section class="product-grid skeleton-grid" *ngIf="catalogLoading && !products.length" aria-label="Loading products">
           <article class="skeleton-card" *ngFor="let card of skeletonCards" aria-hidden="true">
             <div></div><span></span><span></span><span></span>
           </article>
+          <div class="catalog-progress" role="progressbar" aria-label="Preparing the first products" aria-valuemin="0"
+            aria-valuemax="100" [attr.aria-valuenow]="catalogPaintProgress"><span [style.width.%]="catalogPaintProgress"></span></div>
         </section>
         <div class="empty-state catalog-empty" *ngIf="!catalogLoading && !products.length"><span><i class="fa"
               [ngClass]="catalogError ? 'fa-exclamation-circle' : 'fa-search'" aria-hidden="true"></i></span>
@@ -144,7 +172,7 @@
             'Explore all products' }}</button>
         </div>
         <section class="product-grid" *ngIf="products.length" aria-label="Products">
-          <article class="product-card" *ngFor="let product of products; trackBy: trackProduct">
+          <article class="product-card" *ngFor="let product of products; trackBy: trackProduct; let i = index">
             <div class="product-image">
               <button class="product-image-link" type="button" (click)="openProduct(product)"
                 (pointerenter)="showProductMagnifier($event, product.id)"
@@ -153,14 +181,20 @@
                 [attr.aria-label]="'View ' + product.name"
                 data-ui-note="Move your pointer over the image to magnify its details. Click or tap to view product options.">
                 <img *ngIf="hasProductPhoto(product.image_url); else missingProductPhoto" [src]="product.image_url"
-                  [alt]="product.name" loading="lazy" decoding="async" fetchpriority="low"
-                  (error)="productPhotoFailed(product.image_url)">
+                  [alt]="product.name" [attr.loading]="i < 12 ? 'eager' : 'lazy'" decoding="async"
+                  [attr.fetchpriority]="i < 4 ? 'high' : 'low'"
+                  [class.product-photo-ready]="readyProductPhotos.has(product.id)"
+                  (load)="markProductPhotoReady(product.id)"
+                  (error)="productPhotoFailed(product.image_url, product.id)">
+                <span class="product-photo-pending" *ngIf="productPhotoPending(product)" aria-hidden="true">
+                  <span class="catalog-progress"><span></span></span>
+                </span>
                 <ng-template #missingProductPhoto><span class="product-photo-unavailable">Product photo
                     unavailable</span></ng-template>
                 <span *ngIf="magnifiedProductId === product.id" class="product-magnifier"
                   [ngStyle]="productMagnifierStyle" aria-hidden="true"></span>
               </button>
-              <span class="product-zoom-hint" *ngIf="hasProductPhoto(product.image_url)" aria-hidden="true"><i
+              <span class="product-zoom-hint" *ngIf="hasProductPhoto(product.image_url) && !productPhotoPending(product)" aria-hidden="true"><i
                   class="fa fa-search-plus"></i> Hover to zoom</span>
               <div class="product-tags"><span class="sample" *ngIf="product.is_sample">Sample</span><span
                   class="featured" *ngIf="product.featured"><i class="fa fa-star" aria-hidden="true"></i>
@@ -214,14 +248,14 @@
           </article>
         </section>
         <div #catalogSentinel class="catalog-stream" *ngIf="products.length" aria-label="Progressive product loading">
-          <div *ngIf="products.length < 120 && products.length < productCount" class="catalog-progress"
-            role="progressbar" aria-label="Preparing the first products" aria-valuemin="0" aria-valuemax="100"
-            [attr.aria-valuenow]="catalogProgress"><span [style.width.%]="catalogProgress"></span></div>
+          <div *ngIf="catalogPaintProgress < 100 || loadingMore" class="catalog-progress"
+            role="progressbar" aria-label="Preparing products" aria-valuemin="0" aria-valuemax="100"
+            [attr.aria-valuenow]="catalogPaintProgress"><span [style.width.%]="catalogPaintProgress"></span></div>
           <p role="status">{{ catalogError || (loadingMore ? 'Loading the next products in the background…' :
-            products.length < productCount ? 'Scroll to explore more products' : 'You have seen all matching products' )
+            hasMoreProducts || queuedProductCount ? 'Scroll to explore more products' : 'You have seen all matching products' )
               }}</p>
-              <button *ngIf="catalogError || products.length < productCount" class="ghost" type="button"
-                [disabled]="loadingMore" (click)="loadMoreProducts()">{{ catalogError ? 'Retry loading' : 'Show more
+              <button *ngIf="catalogError || hasMoreProducts || queuedProductCount" class="ghost" type="button"
+                (click)="loadMoreProducts()">{{ catalogError ? 'Retry loading' : 'Show more
                 products' }}</button>
         </div>
       </div>
@@ -422,7 +456,7 @@
                   <option *ngFor="let size of item.description_sizes" [value]="size">{{ size }}</option>
                 </select>
               </label>
-              <label class="cart-variant-choice" *ngIf="(item.available_variants?.length || 0) > 1">Size / option
+              <label class="cart-variant-choice" *ngIf="cartShowsVariantChoice(item)">Size / option
                 <select [ngModel]="item.variant_id" (ngModelChange)="changeCartVariant(item, $event)"
                   [disabled]="loading || changingCartItems.has(item.id)"
                   [attr.aria-label]="'Change option for ' + item.product_name">
@@ -441,8 +475,6 @@
         </div>
         <form class="checkout-card" (ngSubmit)="placeOrder()">
           <h2>Delivery details</h2>
-          <p class="shipping-note">Account details are filled when available. You can edit every field for this order
-            without changing your profile.</p>
           <label>Recipient name<input required maxlength="200" [(ngModel)]="checkout.customer_name" name="customer_name"
               autocomplete="name"></label>
           <div class="form-row"><label>Email<input required type="email" maxlength="254" [(ngModel)]="checkout.email"
@@ -450,12 +482,12 @@
                 [(ngModel)]="checkout.phone" name="phone" autocomplete="tel"></label></div>
           <label>Alternate contact number (optional)<input type="tel" maxlength="40"
               [(ngModel)]="checkout.phone_alternate" name="phone_alternate"></label>
-          <label>Division<input list="delivery-divisions" [(ngModel)]="checkout.division" name="division"
-              (change)="divisionChanged()"></label>
-          <div class="form-row"><label>District<input required list="delivery-districts" [(ngModel)]="checkout.district"
-                name="district" (ngModelChange)="requestQuote()" (change)="districtChanged()"></label><label>Thana /
+          <div class="form-row geo-pair"><label>Division<input list="delivery-divisions" [(ngModel)]="checkout.division" name="division"
+              (change)="divisionChanged()"></label><label>District<input required list="delivery-districts" [(ngModel)]="checkout.district"
+                name="district" (ngModelChange)="requestQuote()" (change)="districtChanged()"></label></div>
+          <div class="form-row geo-pair"><label>Thana /
               Upazila<input required list="delivery-thanas" [(ngModel)]="checkout.thana" name="thana"
-                (ngModelChange)="requestQuote()"></label></div>
+                (ngModelChange)="requestQuote()"></label><label>Zone / Union / Area<input maxlength="150" [(ngModel)]="checkout.zone" name="zone"></label></div>
           <datalist id="delivery-divisions">
             <option *ngFor="let name of divisions" [value]="name"></option>
           </datalist><datalist id="delivery-districts">
@@ -463,7 +495,6 @@
           </datalist><datalist id="delivery-thanas">
             <option *ngFor="let name of thanas" [value]="name"></option>
           </datalist>
-          <label>Zone / Union / Area<input maxlength="150" [(ngModel)]="checkout.zone" name="zone"></label>
           <label>Street / Village / House address<textarea required maxlength="1000" [(ngModel)]="checkout.address"
               name="address" autocomplete="street-address"></textarea></label>
           <p class="shipping-note" role="note" *ngIf="cartNeedsConfirmation">This cart needs supplier stock
@@ -482,15 +513,18 @@
           </select>
           <small class="wallet-note" *ngIf="checkout.payment_method === 'wallet'">
             100 coins = ৳1. Reference balance ৳{{ referenceBalanceTaka | number:'1.2-2' }} will be used first; the full
-            purchase price is deducted from Main Wallet.
+            purchase price is deducted from Main Wallet, including your ৳50 signup bonus. Signup bonus cannot be withdrawn.
           </small>
           <label *ngIf="checkout.payment_method !== 'cod' && checkout.payment_method !== 'wallet'">Payment transaction
             ID<input required maxlength="160" [(ngModel)]="checkout.transaction_id" name="transaction_id"></label>
-          <label>Coupon code (optional)<input [(ngModel)]="checkout.coupon_code" name="coupon_code"
-              (ngModelChange)="requestQuote()" maxlength="80"></label>
           <textarea [(ngModel)]="checkout.customer_note" name="note" placeholder="Order note (optional)"></textarea>
-          <div class="checkout-total" *ngIf="!quote"><span>Subtotal (before delivery)</span><strong>৳{{ cart?.subtotal |
+          <div class="checkout-total"><span>Subtotal (before delivery)</span><strong>৳{{ cart?.subtotal |
               number:'1.2-2' }}</strong></div>
+          <label class="referral-coupon" [attr.title]="couponHoverNote"><span [attr.title]="couponHoverNote">Coupon / referral mobile</span>
+            <input [(ngModel)]="checkout.coupon_code" name="coupon_code" (ngModelChange)="requestQuote()" type="tel"
+              inputmode="tel" maxlength="11" pattern="[0-9A-Za-z+]*" placeholder="01XXXXXXXXX" autocomplete="tel"
+              [attr.title]="couponHoverNote" aria-label="Coupon or referral mobile">
+          </label>
           <div class="checkout-quote" aria-live="polite">
             <p *ngIf="quoteLoading">Calculating your final total…</p>
             <p *ngIf="quoteError" role="alert">{{ quoteError }}</p>
@@ -498,12 +532,11 @@
               calculate delivery.' : 'Choose a payment method and district to calculate your total.' }}</p><ng-container
               *ngIf="quote">
               <div><span>Subtotal</span><b>৳{{ quote.subtotal | number:'1.2-2' }}</b></div>
-              <div><span>Discount</span><b>−৳{{ quote.discount_total | number:'1.2-2' }}</b></div>
+              <div [attr.title]="quote.referral_notice || null"><span>Discount</span><b>−৳{{ quote.discount_total |
+                  number:'1.2-2' }}</b></div>
               <div><span>Courier / Delivery</span><b>৳{{ quote.shipping_total | number:'1.2-2' }}</b></div>
               <div><span>Cash on delivery (COD)</span><b>৳{{ quote.cod_total | number:'1.2-2' }}</b></div>
-              <div *ngIf="quote.rounding_adjustment > 0"><span>Round-up adjustment</span><b>+৳{{
-                  quote.rounding_adjustment | number:'1.2-2' }}</b></div>
-              <div class="checkout-total"><span>Total payable</span><strong>৳{{ quote.grand_total | number:'1.0-0'
+              <div class="checkout-total" [attr.title]="roundingHoverNote(quote) || null"><span>Total payable</span><strong>৳{{ quote.grand_total | number:'1.0-0'
                   }}</strong></div>
             </ng-container>
           </div>
@@ -514,9 +547,7 @@
               quote.delivery_details.minimum }}–৳{{ quote.delivery_details.maximum }}.</ng-container></p>
           <p class="shipping-note" role="status" *ngIf="quote?.delivery_details?.fallback">{{
             quote.delivery_details.fallback === 'no_courier_rate_for_weight' ? 'No configured courier rate covers this
-            parcel weight. The area default is included as a provisional delivery estimate.' : 'Some product weights are
-            unavailable. This quote uses the area fallback delivery fee; contact us to confirm delivery for heavy or
-            bulky items.' }}</p>
+            parcel weight. The area default is included as a provisional delivery estimate.' : 'Contact us to confirm delivery for heavy or bulky items.' }}</p>
           <details class="return-policy">
             <summary>Delivery &amp; return policy</summary>
             <p>{{ policy.return_policy }}</p><a *ngIf="policy.support_phone"

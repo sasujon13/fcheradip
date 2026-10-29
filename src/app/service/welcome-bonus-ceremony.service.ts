@@ -231,7 +231,7 @@ export class WelcomeBonusCeremonyService {
               <h1 class="wbc-title">Congratulations!</h1>
               <p class="wbc-intro-line">You have received</p>
               <p class="wbc-coins">5000 Coins</p>
-              <p class="wbc-copy-black">as your welcome bonus! Your journey with us begins in style — explore, learn, and shine. 🎉</p>
+              <p class="wbc-copy-black">as your welcome bonus! Spend them on shop products, packages, and Cheradip services. They cannot be withdrawn. 🎉</p>
               <div class="wbc-logo-wrap">
                 <img src="/assets/images/cheradip.svg" alt="Cheradip" class="wbc-logo" />
               </div>

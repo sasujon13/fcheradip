@@ -22,7 +22,7 @@ describe('District-based commerce checkout', () => {
     component = new EcommerceComingSoonComponent(TestBed.inject(HttpClient),
       {snapshot: {data: {view: 'cart'}, paramMap: convertToParamMap({}), queryParamMap: convertToParamMap({})}, queryParamMap: of(convertToParamMap({}))} as any,
       {navigate: () => Promise.resolve(true), getCurrentNavigation: () => null} as any,
-      {getDivisionsByCountry: () => of(['Dhaka']), getDistrictsByCountry: () => of(['Dhaka', 'Cumilla']), getThanasByCountry: () => of(['Savar']), getCommerceHistory: () => of({})} as any,
+      {getDivisionsByCountry: () => of(['Dhaka']), getDivisionByDistrict: (_c: string, district: string) => of(district === 'Cumilla' ? ['Chattogram'] : district ? ['Dhaka'] : []), getDistrictsByCountry: (_c: string, division?: string) => of(division ? (division === 'Chattogram' ? ['Cumilla', 'Chattogram'] : ['Dhaka', 'Gazipur']) : Array.from({length: 64}, (_, i) => `District ${i + 1}`)), getThanasByCountry: () => of(['Savar']), getCommerceHistory: () => of({})} as any,
       {} as any, snack);
   });
   afterEach(() => {
@@ -59,6 +59,7 @@ describe('District-based commerce checkout', () => {
     component.requestQuote(); tick(300);
     const cod = http.expectOne(r => r.url.endsWith('/checkout/quote/'));
     expect(cod.request.body.payment_method).toBe('cod');
+    expect(cod.request.body.phone).toBe(component.checkout.phone);
     cod.flush({grand_total: '1090.00', shipping_total: '80.00', cod_total: '10.00'});
     component.checkout.payment_method = 'wallet'; component.requestQuote(); tick(300);
     const wallet = http.expectOne(r => r.url.endsWith('/checkout/quote/'));
@@ -107,10 +108,38 @@ describe('District-based commerce checkout', () => {
     expect(request.request.params.get('in_stock')).toBe('true');
     expect(request.request.params.get('min_price')).toBe('10');
     request.flush({count: 0, results: []});
+    http.match(r => r.url.includes('/categories/') || r.url.includes('/price-range/')).forEach(r => r.flush(r.request.url.includes('categories') ? [] : {max_price: '0'}));
     component.resetCatalog();
     const reset = http.expectOne(r => r.url.endsWith('/products/'));
     expect(reset.request.params.has('brand')).toBeFalse();
     expect(reset.request.params.has('min_price')).toBeFalse();
     reset.flush({count: 0, results: []});
+    http.match(r => r.url.includes('/categories/') || r.url.includes('/price-range/')).forEach(r => r.flush(r.request.url.includes('categories') ? [] : {max_price: '0'}));
+  });
+
+  it('lists all 64 districts when division is empty and fills division from a chosen district', () => {
+    component.checkout.division = '';
+    component.loadAddressDistricts();
+    expect(component.districts.length).toBe(64);
+    component.checkout.district = 'Cumilla';
+    component.districtChanged();
+    expect(component.checkout.division).toBe('Chattogram');
+    expect(component.districts).toEqual(['Cumilla', 'Chattogram']);
+  });
+
+  it('filters districts after a division is chosen and restores all 64 when it is cleared', () => {
+    component.checkout.division = 'Dhaka';
+    component.divisionChanged();
+    expect(component.checkout.district).toBe('');
+    expect(component.districts).toEqual(['Dhaka', 'Gazipur']);
+    component.checkout.division = '';
+    component.divisionChanged();
+    expect(component.districts.length).toBe(64);
+  });
+
+  it('keeps round-up off the quote lines and exposes the signed amount on total hover', () => {
+    expect(component.roundingHoverNote({rounding_adjustment: 0.12})).toBe('Round-up adjustment +৳0.12');
+    expect(component.roundingHoverNote({rounding_adjustment: '0.90'})).toBe('Round-up adjustment +৳0.90');
+    expect(component.roundingHoverNote({rounding_adjustment: 0})).toBe('');
   });
 });

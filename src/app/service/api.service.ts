@@ -188,20 +188,28 @@ export class ApiService {
     });
   }
 
-  /** Districts from Location table by country and division. */
-  getDistrictsByCountry(countryCode: string, division: string): Observable<string[]> {
-    if (!countryCode) return of([]);
-    return this.http.get<string[]>(`${this.baseUrl}/locations/districts/`, {
-      params: { country_code: countryCode, division }
+  /** Division(s) that contain a district, from Location table. */
+  getDivisionByDistrict(countryCode: string, district: string): Observable<string[]> {
+    if (!countryCode || !district) return of([]);
+    return this.http.get<string[]>(`${this.baseUrl}/locations/divisions/`, {
+      params: { country_code: countryCode, district }
     });
   }
 
-  /** Thanas from Location table by country, division, district. */
+  /** Districts from Location table by country. Division is optional; omit it to list all 64 BD districts. */
+  getDistrictsByCountry(countryCode: string, division?: string): Observable<string[]> {
+    if (!countryCode) return of([]);
+    const params: Record<string, string> = { country_code: countryCode };
+    if (division) params['division'] = division;
+    return this.http.get<string[]>(`${this.baseUrl}/locations/districts/`, { params });
+  }
+
+  /** Thanas from Location table by country, district, and optional division. */
   getThanasByCountry(countryCode: string, division: string, district: string): Observable<string[]> {
     if (!countryCode || !district) return of([]);
-    return this.http.get<string[]>(`${this.baseUrl}/locations/thanas/`, {
-      params: { country_code: countryCode, division, district }
-    });
+    const params: Record<string, string> = { country_code: countryCode, district };
+    if (division) params['division'] = division;
+    return this.http.get<string[]>(`${this.baseUrl}/locations/thanas/`, { params });
   }
 
   /** Get profile from Customer (GET /api/signup_profile/?username=xxx&acctype=yyy). */

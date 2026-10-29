@@ -8,13 +8,24 @@ import { CommerceManagementGuard, CommerceManagementService } from '../../../ser
 
 describe('marketplace business manager', () => {
   const allPermissions = Object.fromEntries(['product','productvariant','productimage','category','brand','order','payment',
-    'inventorymovement','shipment','coupon','review','commercenotification','importjob','book','deliverysettings'].map(name =>
+    'inventorymovement','shipment','coupon','review','commercenotification','importjob','book','deliverysettings','supplier'].map(name =>
       [name, {view: true, add: true, change: true, delete: true}]));
   let service: any; let router: any;
   beforeEach(async () => {
-    service = {url: '/api/ecommerce/admin', access: () => of({allowed: true, permissions: allPermissions}), http: {
-      get: jasmine.createSpy('get').and.callFake((url: string) => of(url.endsWith('/dashboard/') ? {products: 12, revenue: '50.00'} : {results: [], count: 0, next: null})),
-      post: jasmine.createSpy('post').and.returnValue(of({})), patch: jasmine.createSpy('patch').and.returnValue(of({})),
+    service = {url: '/api/ecommerce/admin', access: () => of({allowed: true, superuser: true, permissions: allPermissions}), http: {
+      get: jasmine.createSpy('get').and.callFake((url: string) => of(
+      url.endsWith('/dashboard/') ? {products: 12, revenue: '50.00'} :
+      url.includes('/sales-reports/') ? {view: 'suppliers', suppliers: [{id: 1, name: 'Alpha source', enabled: true}], rows: [{supplier_id: 1, supplier_name: 'Alpha source', sales: '1500.00', units: 3, profit: '900.00', margin_percent: '60.00', orders: 2, skus_sold: 1, repeat_skus: 1, reorder_rate: '100.00'}], totals: {sales: '1500.00', profit: '900.00', margin_percent: '60.00', top_product: 'Alpha shirt', aov: '750.00', units_per_order: '1.5', concentration_top10: '100.00', refunds: '0.00', unresolved_orders: 0}, series: [{period: '2026-10-01', sales: '1500.00', profit: '900.00'}], ranking: [{label: 'Alpha source', sales: '1500.00', profit: '900.00'}], extras: {repeat_winners: [], slow_movers: [], unsold_hosted: [], loss_makers: []}, basis: 'Product sales are paid line totals.'} :
+      url.includes('/supplier-reports/') ? {suppliers: [{id: 1, name: 'Alpha source', enabled: true}], rows: [{supplier_id: 1, supplier_name: 'Alpha source', collected: 2, hosted: 1, unhosted: 1, blacklisted: 1}], totals: {suppliers: 1, collected: 2, hosted: 1, unhosted: 1, blacklisted: 1}, definitions: {}} :
+      url.includes('/ensure-prices/') ? {gold_ok: true, rows: [{site: 'resellkori', url: 'https://resellkori.com/p', label: 'Reseller Price', expected: '692.00', extracted: '692.00', collected: null, ok: true}]} :
+      url.includes('/catalog-sync/') ? {status: 'completed', records: 0, created: 0, updated: 0, unchanged: 0, conflicts: 0, photos: 0, note: 'Catalogue only'} :
+      url.includes('/upload-build/') ? {status: 'completed', percent: 100, activity: 'Live site uploaded and built', note: 'Creates missing tables only'} :
+      {results: [], count: 0, next: null})),
+      post: jasmine.createSpy('post').and.callFake((url: string) => of(
+        url.includes('/ensure-prices/') ? {gold_ok: true, rows: [{site: 'resellkori', url: 'https://resellkori.com/p', label: 'Reseller Price', expected: '692.00', extracted: '692.00', collected: null, ok: true}], live: {ok: true, rows: []}, note: ''} :
+        url.includes('/catalog-sync/') ? {status: 'completed', records: 2, created: 1, updated: 1, unchanged: 0, conflicts: 0, photos: 0, ran: true, note: 'Catalogue only'} :
+        url.includes('/upload-build/') ? {status: 'completed', percent: 100, activity: 'Live site uploaded and built', ran: true, note: 'Creates missing tables only'} : {})),
+      patch: jasmine.createSpy('patch').and.returnValue(of({})),
     }};
     router = {url: '/ecommerce/manage', parseUrl: () => ({queryParams: {}}), navigate: jasmine.createSpy('navigate').and.resolveTo(true),
       createUrlTree: jasmine.createSpy('tree').and.returnValue({redirect: true}), createUrlTreeFromSnapshot: () => ({})};
@@ -31,6 +42,7 @@ describe('marketplace business manager', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Business Manager');
     expect(fixture.componentInstance.visibleSections.map(s => s.key)).toContain('products');
+    expect(fixture.componentInstance.visibleSections.map(s => s.key)).toContain('reports');
     expect(fixture.componentInstance.visibleSections.map(s => s.key)).toContain('books');
     expect(fixture.componentInstance.canAddProduct).toBeTrue();
     fixture.componentInstance.editProduct();
@@ -43,6 +55,95 @@ describe('marketplace business manager', () => {
     expect(fixture.nativeElement.querySelector('input[name="cod-percent"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('button[type="submit"]').disabled).toBeTrue();
     fixture.destroy();
+  });
+
+  it('opens sales under Reports without the old catalogue subtitle', async () => {
+    const fixture = TestBed.createComponent(CommerceManageComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await component.select(component.sections.find(s => s.key === 'reports')!);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Storefront chrome for the MCQ site is unchanged');
+    expect(fixture.nativeElement.querySelector('[data-report-view="sales"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-report-view="prices"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-report-view="sync"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-report-view="upload"]')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Catalogue');
+    service.http.get.calls.reset();
+    await component.selectReportView('sales');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(service.http.get).toHaveBeenCalled();
+    const salesCall = service.http.get.calls.all().find((call: any) => String(call.args[0]).includes('/sales-reports/'));
+    expect(salesCall).toBeDefined();
+    expect(salesCall.args[1].params.supplier).toBeUndefined();
+    expect(salesCall.args[1].params.from).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Total sales');
+    expect(fixture.nativeElement.textContent).toContain('Alpha source');
+    fixture.destroy();
+  });
+
+  it('runs Ensure Price from Reports', async () => {
+    const fixture = TestBed.createComponent(CommerceManageComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await component.select(component.sections.find(s => s.key === 'reports')!);
+    await component.selectReportView('prices');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-ensure-prices]')).not.toBeNull();
+    await component.ensurePrices(true);
+    fixture.detectChanges();
+    expect(service.http.post).toHaveBeenCalled();
+    const call = service.http.post.calls.all().find((item: any) => String(item.args[0]).includes('/ensure-prices/'));
+    expect(call.args[1]).toEqual({live: true});
+    expect(fixture.nativeElement.textContent).toContain('Gold HTML');
+    expect(fixture.nativeElement.querySelector('[data-ensure-prices]').getAttribute('title')).toContain('No supplier orders');
+    expect(fixture.nativeElement.querySelector('[data-ensure-gold]').getAttribute('title')).toContain('saved HTML');
+    await component.selectReportView('sync');
+    fixture.detectChanges();
+    await component.syncCatalog();
+    fixture.detectChanges();
+    const syncCall = service.http.post.calls.all().find((item: any) => String(item.args[0]).includes('/catalog-sync/'));
+    expect(syncCall).toBeDefined();
+    expect(fixture.nativeElement.textContent).toContain('completed');
+    component.catalogSyncing = true;
+    component.syncProgress = {percent: 55, activity: 'Synchronizing original product photos', status: 'running'};
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('this page keeps the last report until the new one arrives');
+    const bar = fixture.nativeElement.querySelector('[data-sync-progress]');
+    expect(bar).not.toBeNull();
+    expect(bar.getAttribute('aria-valuenow')).toBe('55');
+    expect(fixture.nativeElement.textContent).toContain('55%');
+    expect(fixture.nativeElement.textContent).toContain('Synchronizing original product photos');
+    await component.selectReportView('upload');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-upload-build]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-upload-build]').getAttribute('title')).toContain('Does not copy customers');
+    await component.uploadBuildNow();
+    fixture.detectChanges();
+    const uploadCall = service.http.post.calls.all().find((item: any) => String(item.args[0]).includes('/upload-build/'));
+    expect(uploadCall).toBeDefined();
+    expect(fixture.nativeElement.textContent).toContain('Upload & Build');
+    component.uploadBuilding = true;
+    component.uploadProgress = {percent: 68, activity: 'Uploading checked code', status: 'running'};
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-upload-progress]').getAttribute('aria-valuenow')).toBe('68');
+    expect(fixture.nativeElement.textContent).toContain('68%');
+    fixture.destroy();
+  });
+
+  it('shows Reports when staff can view orders even without supplier access', () => {
+    const component = new CommerceManageComponent(service, router, {open: () => {}} as any);
+    component.access = {allowed: true, permissions: {order: {view: true}}};
+    expect(component.visibleSections.map(s => s.key)).toContain('reports');
   });
 
   it('does not expose sections or write actions without assigned permissions', () => {

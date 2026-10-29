@@ -61,7 +61,303 @@
 
       <app-suppliers *ngIf="section.key === 'suppliers'"></app-suppliers>
       <app-pricing-rules *ngIf="section.key === 'pricing'" [canEdit]="can('deliverysettings','change')" [canApply]="can('deliverysettings','change') && can('product','change') && can('productvariant','change')"></app-pricing-rules>
-      <ng-container *ngIf="section.key !== 'overview' && section.key !== 'suppliers' && section.key !== 'pricing'">
+      <ng-container *ngIf="section.key === 'reports'">
+        <nav class="report-subnav" aria-label="Report views">
+          <button *ngIf="can('supplier','view')" type="button" class="button" [class.button-light]="reportView !== 'catalogue'" [attr.aria-current]="reportView === 'catalogue' ? 'page' : null" (click)="selectReportView('catalogue')">Catalogue</button>
+          <button *ngIf="can('order','view')" type="button" class="button" data-report-view="sales" [class.button-light]="reportView !== 'sales'" [attr.aria-current]="reportView === 'sales' ? 'page' : null" (click)="selectReportView('sales')">Sales</button>
+          <button *ngIf="can('supplier','view')" type="button" class="button" data-report-view="prices" [class.button-light]="reportView !== 'prices'" [attr.aria-current]="reportView === 'prices' ? 'page' : null" (click)="selectReportView('prices')" title="Check labelled buying prices on eight supplier product pages. Gold HTML confirms extractors; live URLs sign in and re-read those pages. No supplier orders.">Ensure Price</button>
+          <button *ngIf="can('supplier','view')" type="button" class="button" data-report-view="sync" [class.button-light]="reportView !== 'sync'" [attr.aria-current]="reportView === 'sync' ? 'page' : null" (click)="selectReportView('sync')" [title]="syncCatalogNote">Sync Catalog</button>
+          <button *ngIf="can('supplier','view')" type="button" class="button" data-report-view="upload" [class.button-light]="reportView !== 'upload'" [attr.aria-current]="reportView === 'upload' ? 'page' : null" (click)="selectReportView('upload')" [title]="uploadBuildNote">Upload &amp; Build</button>
+        </nav>
+        <div class="loading" role="status" *ngIf="loading && reportView !== 'prices' && reportView !== 'sync' && reportView !== 'upload'"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Loading {{ section.label.toLowerCase() }}…</div>
+
+        <ng-container *ngIf="reportView === 'catalogue' && !loading && report as catalogReport">
+        <label class="report-supplier">Supplier
+          <select name="report-supplier" [(ngModel)]="reportSupplier" (change)="load(true)" aria-label="Filter reports by supplier">
+            <option [ngValue]="''">All suppliers</option>
+            <option *ngFor="let supplier of catalogReport.suppliers" [ngValue]="supplier.id">{{ supplier.name }}</option>
+          </select>
+        </label>
+        <div class="report-legend">
+          <span *ngFor="let metric of reportMetrics" [class]="'report-swatch report-' + metric.key">{{ metric.label }}</span>
+        </div>
+        <div class="report-chart" *ngIf="catalogReport.rows.length" role="img" [attr.aria-label]="'Catalogue counts for ' + (catalogReport.rows.length === 1 ? catalogReport.rows[0].supplier_name : 'all suppliers')">
+          <div class="report-chart-group" *ngFor="let row of catalogReport.rows">
+            <div class="report-chart-bars">
+              <span *ngFor="let metric of reportMetrics" class="report-chart-bar"
+                [ngClass]="'report-' + metric.key"
+                [style.height.%]="reportBarHeight(row[metric.key])" [attr.title]="metric.label + ': ' + row[metric.key]"></span>
+            </div>
+            <strong>{{ row.supplier_name }}</strong>
+          </div>
+        </div>
+        <p class="empty-state" *ngIf="!catalogReport.rows.length">No suppliers to report.</p>
+        <div class="table-wrap report-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Supplier</th>
+                <th *ngFor="let metric of reportMetrics">{{ metric.label }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of catalogReport.rows">
+                <th>{{ row.supplier_name }}</th>
+                <td *ngFor="let metric of reportMetrics">{{ row[metric.key] | number }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th>Total</th>
+                <td *ngFor="let metric of reportMetrics">{{ catalogReport.totals[metric.key] | number }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="report-notes" *ngIf="catalogReport.definitions as reportDefinitions">{{ reportDefinitions['collected'] }} {{ reportDefinitions['hosted'] }} {{ reportDefinitions['unhosted'] }} {{ reportDefinitions['blacklisted'] }}</p>
+        </ng-container>
+
+        <ng-container *ngIf="reportView === 'sales' && !loading && salesReport as sales">
+          <form class="report-filters" (ngSubmit)="load(true)">
+            <label class="report-supplier">Supplier
+              <select name="sales-supplier" [(ngModel)]="reportSupplier" (change)="load(true)" aria-label="Filter sales by supplier">
+                <option [ngValue]="''">All suppliers</option>
+                <option *ngFor="let supplier of sales.suppliers" [ngValue]="supplier.id">{{ supplier.name }}</option>
+              </select>
+            </label>
+            <label class="report-supplier">From
+              <input type="date" name="sales-from" [(ngModel)]="salesFrom" [disabled]="salesAllTime" (change)="salesAllTime = false; load(true)" aria-label="Sales start date">
+            </label>
+            <label class="report-supplier">To
+              <input type="date" name="sales-to" [(ngModel)]="salesTo" [disabled]="salesAllTime" (change)="salesAllTime = false; load(true)" aria-label="Sales end date">
+            </label>
+            <div class="report-span" role="group" aria-label="Sales date range">
+              <button type="button" class="button button-light" (click)="applySalesSpan('30')">30 days</button>
+              <button type="button" class="button button-light" (click)="applySalesSpan('90')">90 days</button>
+              <button type="button" class="button button-light" (click)="applySalesSpan('365')">12 months</button>
+              <button type="button" class="button button-light" (click)="applySalesSpan('all')">All time</button>
+            </div>
+          </form>
+          <div class="metrics">
+            <article><i class="fa fa-money" aria-hidden="true"></i><span>Total sales</span><strong>৳{{ sales.totals.sales || 0 | number:'1.2-2' }}</strong></article>
+            <article><i class="fa fa-line-chart" aria-hidden="true"></i><span>Total product profit</span><strong *ngIf="sales.totals.profit == null">n/a</strong><strong *ngIf="sales.totals.profit != null">৳{{ sales.totals.profit | number:'1.2-2' }}</strong></article>
+            <article><i class="fa fa-percent" aria-hidden="true"></i><span>Average margin</span><strong *ngIf="sales.totals.margin_percent == null">n/a</strong><strong *ngIf="sales.totals.margin_percent != null">{{ sales.totals.margin_percent | number:'1.1-1' }}%</strong></article>
+            <article><i class="fa fa-star" aria-hidden="true"></i><span>Top product</span><strong>{{ sales.totals.top_product || '—' }}</strong></article>
+            <article><i class="fa fa-shopping-cart" aria-hidden="true"></i><span>Average order value</span><strong *ngIf="sales.totals.aov == null">—</strong><strong *ngIf="sales.totals.aov != null">৳{{ sales.totals.aov | number:'1.2-2' }}</strong></article>
+            <article><i class="fa fa-cubes" aria-hidden="true"></i><span>Units per order</span><strong>{{ sales.totals.units_per_order == null ? '—' : (sales.totals.units_per_order | number:'1.1-1') }}</strong></article>
+            <article><i class="fa fa-pie-chart" aria-hidden="true"></i><span>Top 10 SKU share</span><strong *ngIf="sales.totals.concentration_top10 == null">—</strong><strong *ngIf="sales.totals.concentration_top10 != null">{{ sales.totals.concentration_top10 | number:'1.1-1' }}%</strong></article>
+            <article><i class="fa fa-undo" aria-hidden="true"></i><span>Refunds</span><strong>৳{{ sales.totals.refunds || 0 | number:'1.2-2' }}</strong></article>
+          </div>
+          <p class="report-notes" *ngIf="sales.totals.unresolved_orders">{{ sales.totals.unresolved_orders }} orders are missing snapshot costs (৳{{ sales.totals.unresolved_paid_value | number:'1.2-2' }} paid value). Their profit is n/a, not assumed to be zero.</p>
+          <p class="report-notes" *ngIf="sales.totals.delivery_cost != null">Order-level supplier delivery in this range: ৳{{ sales.totals.delivery_cost | number:'1.2-2' }}. It is not included in row profit.</p>
+
+          <h3 class="report-chart-title">Sales over time</h3>
+          <div class="report-legend">
+            <span class="report-swatch report-sales">Sales</span>
+            <span class="report-swatch report-profit">Product profit</span>
+          </div>
+          <div class="report-chart" *ngIf="sales.series?.length" role="img" aria-label="Sales and product profit by period">
+            <div class="report-chart-group" *ngFor="let row of sales.series">
+              <div class="report-chart-bars">
+                <span class="report-chart-bar report-sales" [style.height.%]="salesBarHeight(row.sales, sales.series, ['sales','profit'])" [attr.title]="'Sales: ৳' + row.sales"></span>
+                <span class="report-chart-bar report-profit" [style.height.%]="salesBarHeight(row.profit, sales.series, ['sales','profit'])" [attr.title]="row.profit == null ? 'Profit: n/a' : ('Profit: ৳' + row.profit)"></span>
+              </div>
+              <strong>{{ row.period }}</strong>
+            </div>
+          </div>
+          <p class="empty-state" *ngIf="!sales.series?.length">No paid or refunded orders in this range.</p>
+
+          <h3 class="report-chart-title">{{ sales.view === 'products' ? 'Top products' : 'Supplier comparison' }}</h3>
+          <div class="report-chart" *ngIf="sales.ranking?.length" role="img" [attr.aria-label]="sales.view === 'products' ? 'Top products by sales' : 'Suppliers by sales'">
+            <div class="report-chart-group" *ngFor="let row of sales.ranking">
+              <div class="report-chart-bars">
+                <span class="report-chart-bar report-sales" [style.height.%]="salesBarHeight(row.sales, sales.ranking, ['sales','profit'])" [attr.title]="'Sales: ৳' + row.sales"></span>
+                <span class="report-chart-bar report-profit" [style.height.%]="salesBarHeight(row.profit, sales.ranking, ['sales','profit'])" [attr.title]="row.profit == null ? 'Profit: n/a' : ('Profit: ৳' + row.profit)"></span>
+              </div>
+              <strong>{{ row.label }}</strong>
+            </div>
+          </div>
+
+          <div class="table-wrap report-table" *ngIf="sales.rows?.length">
+            <table>
+              <thead>
+                <tr *ngIf="sales.view === 'suppliers'">
+                  <th class="sortable" (click)="sortSales('supplier_name')">Supplier</th>
+                  <th class="sortable" (click)="sortSales('sales')">Sales</th>
+                  <th class="sortable" (click)="sortSales('units')">Units</th>
+                  <th class="sortable" (click)="sortSales('profit')">Profit</th>
+                  <th class="sortable" (click)="sortSales('margin_percent')">Margin</th>
+                  <th class="sortable" (click)="sortSales('orders')">Orders</th>
+                  <th class="sortable" (click)="sortSales('skus_sold')">SKUs sold</th>
+                  <th class="sortable" (click)="sortSales('repeat_skus')">Repeat SKUs</th>
+                  <th class="sortable" (click)="sortSales('reorder_rate')">Reorder %</th>
+                </tr>
+                <tr *ngIf="sales.view === 'products'">
+                  <th class="sortable" (click)="sortSales('product_name')">Product</th>
+                  <th class="sortable" (click)="sortSales('sku')">SKU</th>
+                  <th class="sortable" (click)="sortSales('units')">Units</th>
+                  <th class="sortable" (click)="sortSales('sales')">Sales</th>
+                  <th class="sortable" (click)="sortSales('profit')">Profit</th>
+                  <th class="sortable" (click)="sortSales('profit_per_unit')">Profit / unit</th>
+                  <th class="sortable" (click)="sortSales('order_count')">Times sold</th>
+                  <th class="sortable" (click)="sortSales('last_sold')">Last sold</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of sortedSalesRows()">
+                  <ng-container *ngIf="sales.view === 'suppliers'">
+                    <th>{{ row.supplier_name }}</th>
+                    <td>৳{{ row.sales || 0 | number:'1.2-2' }}</td>
+                    <td>{{ row.units | number }}</td>
+                    <td [class.loss]="row.profit != null && row.profit < 0">{{ row.profit == null ? 'n/a' : ('৳' + (row.profit | number:'1.2-2')) }}</td>
+                    <td>{{ row.margin_percent == null ? 'n/a' : (row.margin_percent | number:'1.1-1') + '%' }}</td>
+                    <td>{{ row.orders | number }}</td>
+                    <td>{{ row.skus_sold | number }}</td>
+                    <td>{{ row.repeat_skus | number }}</td>
+                    <td>{{ row.reorder_rate == null ? '—' : (row.reorder_rate | number:'1.1-1') + '%' }}</td>
+                  </ng-container>
+                  <ng-container *ngIf="sales.view === 'products'">
+                    <th>{{ row.product_name }}</th>
+                    <td>{{ row.sku }}</td>
+                    <td>{{ row.units | number }}</td>
+                    <td>৳{{ row.sales || 0 | number:'1.2-2' }}</td>
+                    <td [class.loss]="row.profit != null && row.profit < 0">{{ row.profit == null ? 'n/a' : ('৳' + (row.profit | number:'1.2-2')) }}</td>
+                    <td>{{ row.profit_per_unit == null ? 'n/a' : ('৳' + (row.profit_per_unit | number:'1.2-2')) }}</td>
+                    <td>{{ row.order_count | number }}</td>
+                    <td>{{ row.last_sold | date:'mediumDate' }}</td>
+                  </ng-container>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="report-extras">
+            <section class="report-extra" *ngIf="sales.extras?.repeat_winners?.length">
+              <h3>Repeat winners</h3>
+              <p>SKUs sold in two or more orders in this range.</p>
+              <ul>
+                <li *ngFor="let row of sales.extras.repeat_winners"><b>{{ row.product_name }}</b> · {{ row.sku }} · {{ row.units }} units · {{ row.orders }} orders · ৳{{ row.sales | number:'1.2-2' }}</li>
+              </ul>
+            </section>
+            <section class="report-extra" *ngIf="sales.extras?.slow_movers?.length">
+              <h3>One-order SKUs</h3>
+              <p>Sold only once in this range — candidates to test, bundle, or drop.</p>
+              <ul>
+                <li *ngFor="let row of sales.extras.slow_movers"><b>{{ row.product_name }}</b> · {{ row.sku }} · ৳{{ row.sales | number:'1.2-2' }}</li>
+              </ul>
+            </section>
+            <section class="report-extra" *ngIf="sales.extras?.unsold_hosted?.length">
+              <h3>Hosted, no sales</h3>
+              <p>Active listings from this supplier with no paid sales in the range.</p>
+              <ul>
+                <li *ngFor="let row of sales.extras.unsold_hosted">{{ row.name }}</li>
+              </ul>
+            </section>
+            <section class="report-extra" *ngIf="sales.extras?.loss_makers?.length">
+              <h3>Loss-makers</h3>
+              <p>Known negative product profit from snapshot costs. Missing costs are not listed here.</p>
+              <ul>
+                <li *ngFor="let row of sales.extras.loss_makers" class="loss"><b>{{ row.label }}</b> · ৳{{ row.profit | number:'1.2-2' }} on ৳{{ row.sales | number:'1.2-2' }} sales</li>
+              </ul>
+            </section>
+          </div>
+          <p class="report-notes">{{ sales.basis }}</p>
+        </ng-container>
+
+        <ng-container *ngIf="reportView === 'prices'">
+          <p class="report-notes">Two checks: gold HTML extractors, and optional live product URLs. Hover each button for the exact task. The last report stays until you run Ensure Price again.</p>
+          <div class="report-span" role="group" aria-label="Ensure buying prices">
+            <button type="button" class="button" data-ensure-prices (click)="ensurePrices(true)" [disabled]="busy" [title]="ensureLiveNote">Check gold HTML and live URLs</button>
+            <button type="button" class="button button-light" data-ensure-gold (click)="ensurePrices(false)" [disabled]="busy" [title]="ensureGoldNote">Gold HTML only</button>
+          </div>
+          <p class="report-notes" *ngIf="busy">Running price check… the report will stay on this page when it finishes.</p>
+          <ng-container *ngIf="priceCheck as check">
+            <div class="metrics">
+              <article><i class="fa fa-check" aria-hidden="true"></i><span>Gold HTML</span><strong>{{ check.gold_ok ? 'Pass' : 'Fail' }}</strong></article>
+              <article *ngIf="check.live"><i class="fa fa-sign-in" aria-hidden="true"></i><span>Live URLs</span><strong>{{ check.live.ok ? 'Pass' : 'Fail' }}</strong></article>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Supplier</th><th>Expected</th><th>Gold extract</th><th>Collected</th><th>Result</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let row of check.rows">
+                    <td>{{ row.site }}<div class="muted"><a [href]="row.url" target="_blank" rel="noopener">{{ row.url }}</a></div></td>
+                    <td>৳{{ row.expected }} · {{ row.label }}</td>
+                    <td>{{ row.extracted || '—' }}</td>
+                    <td>{{ row.collected || '—' }}</td>
+                    <td>{{ row.ok ? 'Pass' : 'Fail' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-wrap" *ngIf="check.live?.rows?.length">
+              <table>
+                <thead><tr><th>Supplier</th><th>Expected</th><th>Live</th><th>Source</th><th>Result</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let row of check.live.rows">
+                    <td>{{ row.site }}</td>
+                    <td>৳{{ row.expected }}</td>
+                    <td>{{ row.live || row.error || '—' }}</td>
+                    <td>{{ row.source }}</td>
+                    <td>{{ row.ok ? 'Pass' : 'Fail' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </ng-container>
+        </ng-container>
+
+        <ng-container *ngIf="reportView === 'sync'">
+          <p class="report-notes">{{ syncCatalogNote }}</p>
+          <div class="report-span" role="group" aria-label="Sync catalogue">
+            <button type="button" class="button" data-sync-catalog (click)="syncCatalog()" [disabled]="busy" [title]="syncCatalogNote">Run catalogue sync</button>
+          </div>
+          <div class="sync-progress" *ngIf="catalogSyncing" data-sync-progress role="progressbar"
+            aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="syncPercent" [attr.aria-label]="syncActivity">
+            <span class="sync-progress-fill" [style.width.%]="syncPercent"></span>
+          </div>
+          <p class="report-notes" *ngIf="catalogSyncing">{{ syncActivity }} · {{ syncPercent }}%</p>
+          <ng-container *ngIf="catalogSync as sync">
+            <div class="metrics">
+              <article><i class="fa fa-exchange" aria-hidden="true"></i><span>Status</span><strong>{{ sync.status }}</strong></article>
+              <article><i class="fa fa-database" aria-hidden="true"></i><span>Records exported</span><strong>{{ sync.records || 0 | number }}</strong></article>
+              <article><i class="fa fa-plus" aria-hidden="true"></i><span>Created</span><strong>{{ sync.created || 0 | number }}</strong></article>
+              <article><i class="fa fa-pencil" aria-hidden="true"></i><span>Updated</span><strong>{{ sync.updated || 0 | number }}</strong></article>
+              <article><i class="fa fa-check" aria-hidden="true"></i><span>Unchanged</span><strong>{{ sync.unchanged || 0 | number }}</strong></article>
+              <article><i class="fa fa-warning" aria-hidden="true"></i><span>Conflicts</span><strong>{{ sync.conflicts || 0 | number }}</strong></article>
+              <article><i class="fa fa-image" aria-hidden="true"></i><span>Photos</span><strong>{{ sync.photos || 0 | number }}</strong></article>
+            </div>
+            <p class="report-notes" *ngIf="sync.activity">{{ sync.activity }}</p>
+            <p class="report-notes" *ngIf="sync.detail">{{ sync.detail }}</p>
+            <p class="report-notes" *ngIf="sync.note">{{ sync.note }}</p>
+            <p class="report-notes" *ngIf="sync.saved_at">Last report {{ sync.saved_at }}</p>
+          </ng-container>
+        </ng-container>
+
+        <ng-container *ngIf="reportView === 'upload'">
+          <p class="report-notes">{{ uploadBuildNote }}</p>
+          <div class="report-span" role="group" aria-label="Upload and build live site">
+            <button type="button" class="button" data-upload-build (click)="uploadBuildNow()" [disabled]="busy" [title]="uploadBuildNote">Upload &amp; Build</button>
+          </div>
+          <div class="sync-progress" *ngIf="uploadBuilding" data-upload-progress role="progressbar"
+            aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="uploadPercent" [attr.aria-label]="uploadActivity">
+            <span class="sync-progress-fill" [style.width.%]="uploadPercent"></span>
+          </div>
+          <p class="report-notes" *ngIf="uploadBuilding">{{ uploadActivity }} · {{ uploadPercent }}%</p>
+          <ng-container *ngIf="uploadBuild as deploy">
+            <div class="metrics">
+              <article><i class="fa fa-cloud-upload" aria-hidden="true"></i><span>Upload &amp; Build</span><strong>{{ deploy.status }}</strong></article>
+              <article *ngIf="deploy.percent != null"><i class="fa fa-tasks" aria-hidden="true"></i><span>Progress</span><strong>{{ deploy.percent }}%</strong></article>
+            </div>
+            <p class="report-notes" *ngIf="deploy.activity">{{ deploy.activity }}</p>
+            <p class="report-notes" *ngIf="deploy.detail">{{ deploy.detail }}</p>
+            <p class="report-notes" *ngIf="deploy.backup">Backup {{ deploy.backup }}</p>
+            <p class="report-notes" *ngIf="deploy.note">{{ deploy.note }}</p>
+            <p class="report-notes" *ngIf="deploy.saved_at">Last upload {{ deploy.saved_at }}</p>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+      <ng-container *ngIf="section.key !== 'overview' && section.key !== 'suppliers' && section.key !== 'pricing' && section.key !== 'reports'">
         <section class="advanced-tools" *ngIf="section.key === 'books'"><h3>Book publishing &amp; sales</h3><p>Use the existing book editor for uploaded ebooks, hard copies, smart covers, question-set books, pricing, and digital files. Product and book purchases share the same Orders and Payments sections.</p><div class="tool-links"><a href="/admin/ecommerce/book/" target="_blank" rel="noopener">Manage books</a><a href="/admin/ecommerce/book/add/" target="_blank" rel="noopener" *ngIf="can('book','add')">Add book</a><a href="/admin/ecommerce/bookbuildjob/" target="_blank" rel="noopener">Book build jobs</a><a routerLink="/books" target="_blank">View book store</a></div></section>
         <div class="import-panel" *ngIf="section.key === 'imports' && canImport">
           <div><h3>Upload your product catalog</h3><p>Use the sample columns. Existing SKU matches may be updated by the importer, so review your file before importing.</p><button class="button button-light" type="button" (click)="sampleCsv()"><i class="fa fa-download" aria-hidden="true"></i> Download sample CSV</button></div>

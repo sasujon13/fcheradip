@@ -84,7 +84,11 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   inStockOnly = false;
   categorySearch = '';
   filtersOpen = false;
-  readonly skeletonCards = Array.from({ length: 8 });
+  readonly skeletonCards = Array.from({ length: 12 });
+  readonly displayBatch = 12;
+  readonly displayCap = 120;
+  readonly queueTarget = 60;
+  readonly warmTotal = 180;
   ordering = '-created_at';
   loading = false;
   message = '';
@@ -94,13 +98,18 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   loadingMore = false;
   catalogError = '';
   hasMoreProducts = false;
+  catalogPaintProgress = 0;
   private productBuffer: Product[] = [];
-  private revealQueue: Product[] = [];
   private catalogOffset = 0;
+  private nextFetchOffset = 0;
   private catalogGeneration = 0;
   private catalogStarted = false;
-  private catalogRequest?: Subscription;
-  private revealTimer?: ReturnType<typeof setTimeout>;
+  private catalogRequests = new Map<number, Subscription>();
+  private catalogPaintTimer?: ReturnType<typeof setInterval>;
+  private categoryWarm = new Map<string, Product[]>();
+  private warmingCategories = new Set<string>();
+  private categoryPrefetchStarted = false;
+  private filtersRequested = false;
   private scrollFrame?: number;
   private filterFrame?: number;
   private filterPanel?: HTMLElement;
@@ -111,6 +120,10 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   private preloadedImages: HTMLImageElement[] = [];
   private readonly destroyed = new Subject<void>();
   private catalogQuery = new HttpParams();
+  private lastUsedSlugs: string[] = [];
+  private readonly taxonomyCacheKey = 'cheradip.ecommerce.taxonomy.v1';
+  private readonly listingCacheKey = 'cheradip.ecommerce.last-listings.v1';
+  private readonly taxonomyCacheTtl = 24 * 60 * 60 * 1000;
 
   @ViewChild('catalogFilters') set catalogFilterPanel(ref: ElementRef<HTMLElement> | undefined) {
     this.filterResizeObserver?.disconnect();
@@ -153,7 +166,10 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       this.filterPanel.style.setProperty('--filter-available-height',value);
   }
 
-  @HostListener('window:resize') onCatalogResize(): void { this.scheduleFilterViewport(); }
+  @HostListener('window:resize') onCatalogResize(): void {
+    this.scheduleFilterViewport();
+    this.syncInspirationLayout();
+  }
 
   @ViewChild('catalogSentinel') set productSentinel(ref: ElementRef<HTMLElement> | undefined) {
     this.catalogObserver?.disconnect();
@@ -180,6 +196,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     country_code: 'BD', division: '', thana: '', zone: '', phone_alternate: '',
     payment_method: 'cod', transaction_id: '', customer_note: '', coupon_code: '',
   };
+  readonly couponHoverNote = 'Only a registered Cheradip mobile number is accepted. That account gets 1% of this subtotal; they can spend it on products or other Cheradip services, or withdraw it. Signup bonus ৳50 can be spent here but cannot be withdrawn.';
   completedOrder: any = null;
   trackNumber = '';
   trackToken = '';
@@ -201,6 +218,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   quoteError = '';
   activeImage = '';
   readonly failedProductImages = new Set<string>();
+  readonly readyProductPhotos = new Set<number>();
 
   hasProductPhoto(url: string | null | undefined): boolean {
     return !!url && !this.failedProductImages.has(url)
@@ -213,9 +231,18 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     );
   }
 
-  productPhotoFailed(url: string): void {
+  productPhotoFailed(url: string, productId?: number): void {
     if (url) this.failedProductImages.add(url);
+    if (productId) this.readyProductPhotos.delete(productId);
     this.hideProductMagnifier();
+  }
+
+  markProductPhotoReady(productId: number): void {
+    this.readyProductPhotos.add(productId);
+  }
+
+  productPhotoPending(product: Product): boolean {
+    return this.hasProductPhoto(product.image_url) && !this.readyProductPhotos.has(product.id);
   }
   galleryPaused = false;
   galleryHover = false;
@@ -289,13 +316,14 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.loadAddressDistricts();
     this.http.get<any[]>(`${this.api}/brands/`).pipe(takeUntil(this.destroyed)).subscribe({next: rows => this.brands = rows, error: () => {}});
     if (requestedOrder && (this.loginStatus || this.trackToken)) this.trackOrder();
+    this.bindInspirationLayoutQuery();
   }
 
   private ensureCatalogLoaded(): void {
     if (this.activeView !== 'shop' || this.catalogStarted) return;
     this.catalogStarted = true;
+    this.startCatalogPaintProgress();
     this.loadCategories();
-    this.loadPriceRange();
     this.loadProducts();
   }
 
@@ -344,20 +372,48 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   loadAddressDistricts(): void {
-    const division = this.checkout.division;
+    const division = (this.checkout.division || '').trim();
     const version = this.accountVersion;
     this.apiService.getDistrictsByCountry('BD', division).pipe(takeUntil(this.destroyed)).subscribe({
-      next: rows => { if (version === this.accountVersion && division === this.checkout.division) this.districts = rows; }, error: () => {},
+      next: rows => { if (version === this.accountVersion && (this.checkout.division || '').trim() === division) this.districts = rows || []; }, error: () => {},
     });
   }
   loadAddressThanas(): void {
-    const {division, district} = this.checkout; const version = this.accountVersion;
+    const division = (this.checkout.division || '').trim();
+    const district = (this.checkout.district || '').trim();
+    const version = this.accountVersion;
     this.apiService.getThanasByCountry('BD', division, district).pipe(takeUntil(this.destroyed)).subscribe({
-      next: rows => { if (version === this.accountVersion && district === this.checkout.district) this.thanas = rows; }, error: () => {},
+      next: rows => { if (version === this.accountVersion && (this.checkout.district || '').trim() === district) this.thanas = rows || []; }, error: () => {},
     });
   }
-  divisionChanged(): void { this.checkout.district = this.checkout.thana = ''; this.loadAddressDistricts(); this.requestQuote(); }
-  districtChanged(): void { this.checkout.thana = ''; this.loadAddressThanas(); this.requestQuote(); }
+  divisionChanged(): void { this.checkout.district = this.checkout.thana = ''; this.thanas = []; this.loadAddressDistricts(); this.requestQuote(); }
+  districtChanged(): void {
+    this.checkout.thana = '';
+    this.fillDivisionFromDistrict();
+    this.loadAddressThanas();
+    this.requestQuote();
+  }
+  private fillDivisionFromDistrict(): void {
+    const district = (this.checkout.district || '').trim();
+    if (!district) return;
+    const version = this.accountVersion;
+    this.apiService.getDivisionByDistrict('BD', district).pipe(takeUntil(this.destroyed)).subscribe({
+      next: rows => {
+        if (version !== this.accountVersion || (this.checkout.district || '').trim() !== district) return;
+        const current = (this.checkout.division || '').trim();
+        const match = (current && (rows || []).includes(current) ? current : (rows || []).find(name => !!name)) || '';
+        if (match && this.checkout.division !== match) {
+          this.checkout.division = match;
+          this.loadAddressDistricts();
+        }
+      },
+    });
+  }
+  roundingHoverNote(quote: any): string {
+    const amount = Number(quote?.rounding_adjustment);
+    if (!Number.isFinite(amount) || amount === 0) return '';
+    return `Round-up adjustment ${amount < 0 ? '-' : '+'}৳${Math.abs(amount).toFixed(2)}`;
+  }
   private shippingAddress() {
     const c = this.checkout;
     return {country_code:'BD', division: c.division, district: c.district,
@@ -371,7 +427,8 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.quoteLoading = true;
     this.quoteTimer = setTimeout(() => {
       this.http.post<any>(`${this.api}/checkout/quote/`, {cart_token: this.cart?.token,
-        shipping_address: this.shippingAddress(), coupon_code: this.checkout.coupon_code, payment_method: this.checkout.payment_method})
+        shipping_address: this.shippingAddress(), coupon_code: this.checkout.coupon_code,
+        payment_method: this.checkout.payment_method, phone: this.checkout.phone})
         .pipe(takeUntil(this.accountChanged), takeUntil(this.destroyed)).subscribe({
           next: quote => { if (version === this.quoteVersion) { this.quote = quote; this.quoteLoading = false; } },
           error: err => { if (version === this.quoteVersion) { this.quoteLoading = false; this.quoteError = this.errorText(err, 'Could not calculate the final total.'); } },
@@ -402,8 +459,16 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   loadCategories(): void {
     this.categoryRequest?.unsubscribe();
-    this.categoriesLoading = true;
-    this.categoriesLoadFailed = false;
+    const cached = this.readTaxonomyCache();
+    if (cached?.categories.length) {
+      this.lastUsedSlugs = cached.lastUsedSlugs;
+      this.applyCategories(cached.categories, true);
+      this.categoriesLoading = false;
+      this.categoriesLoadFailed = false;
+    } else {
+      this.categoriesLoading = true;
+      this.categoriesLoadFailed = false;
+    }
     if (this.error === this.categoryFailureMessage) this.error = '';
     let lastFailure: HttpErrorResponse | undefined;
     this.categoryRequest = this.http.get<Category[]>(`${this.api}/categories/`).pipe(
@@ -420,9 +485,12 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     ).subscribe({
       // Keep empty supplier taxonomy in administration, not in customer filters
       // or the featured-collection cards. Preserve responses without counts.
-      next: data => this.categories = data.filter(category =>
-        category.product_count == null || Number(category.product_count) > 0),
+      next: data => {
+        this.applyCategories(data, false);
+        this.prefetchCategoryCatalogs();
+      },
       error: () => {
+        if (this.categories.length) return;
         this.categoriesLoadFailed = true;
         this.showError(lastFailure || new HttpErrorResponse({status: 0}), 'Could not load categories after 3 minutes.');
         this.categoryFailureMessage = this.error;
@@ -472,14 +540,12 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.catalogStarted = true;
     this.hideProductMagnifier();
     ++this.catalogGeneration;
-    this.catalogRequest?.unsubscribe();
-    if (this.revealTimer !== undefined) clearTimeout(this.revealTimer);
-    this.revealTimer = undefined;
+    this.cancelCatalogRequests();
     this.products = [];
     this.productBuffer = [];
-    this.revealQueue = [];
     this.preloadedImages = [];
     this.catalogOffset = 0;
+    this.nextFetchOffset = 0;
     this.productCount = 0;
     this.catalogError = '';
     this.catalogLoading = true;
@@ -493,15 +559,29 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     if (this.maxPrice != null) params = params.set('max_price', this.maxPrice);
     if (this.inStockOnly) params = params.set('in_stock', 'true');
     this.catalogQuery = params;
+    const warm = this.takeWarmProducts();
+    if (warm.length) {
+      const show = this.selectedCategory ? Math.min(24, warm.length) : this.displayBatch;
+      this.products = warm.slice(0, show);
+      this.productBuffer = warm.slice(show);
+      this.nextFetchOffset = warm.length;
+      this.catalogOffset = warm.length;
+      this.catalogLoading = false;
+      this.hasMoreProducts = true;
+    }
     const cached = this.readFirstBatchCache();
-    if (cached) {
-      // Repaint the last first-page cards immediately on reload, then replace
-      // them with the live response before requesting the next page.
-      this.products = cached.products;
+    if (!this.products.length && cached) {
+      this.products = cached.products.slice(0, this.selectedCategory ? Math.min(24, cached.products.length) : this.displayBatch);
+      this.productBuffer = cached.products.slice(this.products.length);
       this.productCount = cached.count;
       this.catalogOffset = cached.products.length;
+      this.nextFetchOffset = cached.products.length;
       this.hasMoreProducts = cached.products.length > 0;
+      this.catalogLoading = false;
+    }
+    if (this.products.length) {
       this.fetchProductBatch(true);
+      if (this.activeView === 'shop') this.fillCatalog();
     } else this.fetchProductBatch();
   }
 
@@ -509,59 +589,229 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     return `cheradip.ecommerce.first-batch.v1:${this.catalogQuery.toString()}`;
   }
 
-  private readFirstBatchCache(): { products: Product[]; count: number } | null {
+  private applyCategories(data: Category[], fromCache: boolean): void {
+    const filtered = data.filter(category =>
+      category.product_count == null || Number(category.product_count) > 0);
+    if (!filtered.length && this.categories.length) return;
+    const firstPaint = !this.categories.length;
+    this.categories = filtered;
+    if (firstPaint) {
+      this.inspirationIndex = 0;
+      this.startInspiration();
+    }
+    if (!fromCache) this.persistTaxonomy();
+    this.restoreLastUsedBranches();
+  }
+
+  private readTaxonomyCache(): { categories: Category[]; lastUsedSlugs: string[] } | null {
     try {
-      const raw = sessionStorage.getItem(this.catalogCacheKey());
-      if (!raw) return null;
-      const cached = JSON.parse(raw);
-      if (Date.now() - Number(cached.savedAt) > 60_000 || !Array.isArray(cached.products) ||
+      const cached = JSON.parse(this.storageGet('local', this.taxonomyCacheKey) || '');
+      if (Date.now() - Number(cached.savedAt) > this.taxonomyCacheTtl || !Array.isArray(cached.categories) ||
+          !cached.categories.length) return null;
+      return {
+        categories: cached.categories,
+        lastUsedSlugs: Array.isArray(cached.lastUsedSlugs) ? cached.lastUsedSlugs.filter((slug: unknown) => typeof slug === 'string') : [],
+      };
+    } catch { return null; }
+  }
+
+  private persistTaxonomy(): void {
+    if (!this.categories.length) return;
+    this.storageSet('local', this.taxonomyCacheKey, JSON.stringify({
+      savedAt: Date.now(),
+      categories: this.categories.map(({id, name, slug, product_count, parent_id}) => ({id, name, slug, product_count, parent_id})),
+      lastUsedSlugs: this.lastUsedSlugs.slice(0, 20),
+    }));
+  }
+
+  private restoreLastUsedBranches(): void {
+    const slugs = this.lastUsedSlugs.length ? this.lastUsedSlugs : this.readTaxonomyCache()?.lastUsedSlugs || [];
+    for (const slug of slugs) {
+      const category = this.categories.find(item => item.slug === slug);
+      if (category) this.expandCategoryPath(category, true);
+    }
+  }
+
+  private expandCategoryPath(category: Category, includeSelf = false): void {
+    if (includeSelf) this.expandedCategories.add(category.id);
+    const byId = new Map(this.categories.map(item => [item.id, item]));
+    let parentId = category.parent_id;
+    const seen = new Set<number>([category.id]);
+    while (parentId && byId.has(parentId) && !seen.has(parentId)) {
+      seen.add(parentId);
+      this.expandedCategories.add(parentId);
+      parentId = byId.get(parentId)!.parent_id;
+    }
+  }
+
+  private rememberOpenedCategory(slug: string): void {
+    if (!slug) return;
+    this.lastUsedSlugs = [slug, ...this.lastUsedSlugs.filter(item => item !== slug)].slice(0, 20);
+    const category = this.categories.find(item => item.slug === slug);
+    if (category) this.expandCategoryPath(category);
+    this.persistTaxonomy();
+  }
+
+  private readListingMap(): Record<string, { savedAt: number; products: Product[]; count: number }> {
+    try {
+      const cached = JSON.parse(this.storageGet('local', this.listingCacheKey) || '{}');
+      return cached && typeof cached === 'object' ? cached : {};
+    } catch { return {}; }
+  }
+
+  private writeListingMap(listings: Record<string, { savedAt: number; products: Product[]; count: number }>): void {
+    const allowed = new Set([this.listingKeyFor(''), ...this.lastUsedSlugs.map(slug => this.listingKeyFor(slug)), this.catalogCacheKey()]);
+    const trimmed: Record<string, { savedAt: number; products: Product[]; count: number }> = {};
+    for (const [key, value] of Object.entries(listings)) {
+      if (allowed.has(key) || Object.keys(trimmed).length < 24) trimmed[key] = value;
+    }
+    this.storageSet('local', this.listingCacheKey, JSON.stringify(trimmed));
+  }
+
+  private storageGet(kind: 'local' | 'session', key: string): string | null {
+    try {
+      return (kind === 'local' ? localStorage : sessionStorage).getItem(key);
+    } catch { return null; }
+  }
+
+  private storageSet(kind: 'local' | 'session', key: string, value: string): void {
+    try {
+      (kind === 'local' ? localStorage : sessionStorage).setItem(key, value);
+    } catch { /* Storage can be unavailable or full; network loading still works. */ }
+  }
+
+  private readFirstBatchCache(): { products: Product[]; count: number } | null {
+    const key = this.catalogCacheKey();
+    const fromSession = this.readStoredListing(this.storageGet('session', key), 60_000);
+    if (fromSession) return fromSession;
+    if (!this.canUseWarmCache()) return null;
+    return this.readStoredListing(this.readListingMap()[key], this.taxonomyCacheTtl);
+  }
+
+  private cacheFirstBatch(products: Product[], count: number): void {
+    const entry = { savedAt: Date.now(), products, count };
+    this.storageSet('session', this.catalogCacheKey(), JSON.stringify(entry));
+    if (this.canUseWarmCache()) this.persistListing(this.catalogCacheKey(), products, count);
+  }
+
+  private listingKeyFor(slug: string): string {
+    let params = new HttpParams().set('ordering', '-created_at');
+    if (slug) params = params.set('category', slug);
+    return `cheradip.ecommerce.first-batch.v1:${params.toString()}`;
+  }
+
+  private persistListing(key: string, products: Product[], count: number): void {
+    if (!products.length) return;
+    const listings = this.readListingMap();
+    listings[key] = { savedAt: Date.now(), products, count };
+    this.writeListingMap(listings);
+  }
+
+  private readStoredListing(raw: string | { savedAt?: number; products?: Product[]; count?: number } | null, ttl: number): { products: Product[]; count: number } | null {
+    try {
+      const cached = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!cached || Date.now() - Number(cached.savedAt) > ttl || !Array.isArray(cached.products) ||
           !cached.products.length || !Number.isFinite(Number(cached.count))) return null;
       return { products: cached.products, count: Number(cached.count) };
     } catch { return null; }
   }
 
-  private cacheFirstBatch(products: Product[], count: number): void {
-    try {
-      sessionStorage.setItem(this.catalogCacheKey(), JSON.stringify({ savedAt: Date.now(), products, count }));
-    } catch { /* Storage can be unavailable or full; network loading still works. */ }
-  }
-
   private fetchProductBatch(refreshFirst = false): void {
-    if (this.loadingMore || !this.hasMoreProducts || this.catalogError) return;
+    if (!this.hasMoreProducts || this.catalogError || this.catalogRequests.size) return;
     const generation = this.catalogGeneration;
-    const offset = refreshFirst ? 0 : this.catalogOffset;
+    const offset = refreshFirst ? 0 : this.nextFetchOffset;
+    if (this.catalogRequests.has(offset)) return;
+    if (!refreshFirst) this.nextFetchOffset += this.displayBatch;
     this.loadingMore = true;
-    // Show a tiny first group quickly, fill the first 12, then stream 12 at a time.
-    const limit = offset === 0 ? 4 : offset === 4 ? 8 : 12;
-    const params = this.catalogQuery.set('limit', limit).set('offset', offset);
-    this.catalogRequest = this.http.get<any>(`${this.api}/products/`, { params }).subscribe({
+    let params = this.catalogQuery.set('limit', String(this.displayBatch)).set('offset', String(offset));
+    if (offset === 0 && !this.productCount) params = params.set('omit_count', '1');
+    const request = this.http.get<any>(`${this.api}/products/`, { params }).subscribe({
       next: data => {
+        this.catalogRequests.delete(offset);
         if (generation !== this.catalogGeneration) return;
         const batch: Product[] = Array.isArray(data) ? data : (data.results || []);
-        this.productCount = Array.isArray(data) ? data.length : Number(data.count || 0);
+        if (!params.has('omit_count')) {
+          this.productCount = Array.isArray(data) ? data.length : Number(data.count || 0);
+        }
         this.catalogOffset = Math.max(this.catalogOffset, offset + batch.length);
-        this.hasMoreProducts = !Array.isArray(data) && Boolean(data.next) && batch.length > 0;
-        const known = new Set([...(refreshFirst ? [] : this.products), ...this.productBuffer, ...this.revealQueue].map(product => product.id));
+        this.nextFetchOffset = Math.max(this.nextFetchOffset, offset + batch.length);
+        this.hasMoreProducts = batch.length >= this.displayBatch && (Array.isArray(data) || Boolean(data.next));
+        const known = new Set([...(refreshFirst ? [] : this.products), ...this.productBuffer].map(product => product.id));
         const unique = batch.filter(product => !known.has(product.id) && Boolean(known.add(product.id)));
-        if (refreshFirst || offset === 0) this.products = unique;
+        if (offset === 0) {
+          if (unique.length && refreshFirst && this.products.length > unique.length) {
+            const ids = new Set(unique.map(product => product.id));
+            this.products = unique.concat(this.products.filter(product => !ids.has(product.id)));
+            this.productBuffer = this.productBuffer.filter(product => !ids.has(product.id));
+          } else this.products = unique;
+        }
         else this.productBuffer.push(...unique);
-        if (offset === 0 && !Array.isArray(data)) this.cacheFirstBatch(unique, this.productCount);
-        this.catalogLoading = false;
+        if (offset === 0 && !Array.isArray(data)) this.cacheFirstBatch(this.products, this.productCount || this.products.length);
+        this.rememberWarm(this.selectedCategory, unique);
+        this.catalogLoading = !this.products.length;
         this.loadingMore = false;
+        this.requestCatalogFilters();
         this.preloadBufferedImages();
-        this.advanceCatalog();
+        this.fillCatalog();
       },
       error: () => {
+        this.catalogRequests.delete(offset);
         if (generation !== this.catalogGeneration) return;
-        this.catalogLoading = false;
+        if (!refreshFirst) this.nextFetchOffset = Math.min(this.nextFetchOffset, offset);
+        this.catalogLoading = !this.products.length;
         this.loadingMore = false;
         this.catalogError = 'Could not load more products. Your loaded products are still available.';
       },
     });
+    this.catalogRequests.set(offset, request);
+  }
+
+  private cancelCatalogRequests(): void {
+    this.catalogRequests.forEach(request => request.unsubscribe());
+    this.catalogRequests.clear();
+  }
+
+  private canUseWarmCache(): boolean {
+    return !this.search.trim() && !this.selectedBrand && this.minPrice == null && this.maxPrice == null &&
+      !this.inStockOnly && this.ordering === '-created_at';
+  }
+
+  private takeWarmProducts(): Product[] {
+    if (!this.canUseWarmCache() || !this.selectedCategory) return [];
+    return [...(this.categoryWarm.get(this.selectedCategory) || [])];
+  }
+
+  private rememberWarm(slug: string, products: Product[]): void {
+    if (!this.canUseWarmCache() || !products.length) return;
+    const current = this.categoryWarm.get(slug) || [];
+    const known = new Set(current.map(product => product.id));
+    const merged = current.concat(products.filter(product => !known.has(product.id))).slice(0, 24);
+    this.categoryWarm.set(slug, merged);
+    this.persistListing(this.listingKeyFor(slug), merged, Math.max(merged.length, slug === this.selectedCategory ? this.productCount : merged.length));
+  }
+
+  private requestCatalogFilters(): void {
+    if (this.filtersRequested) return;
+    this.filtersRequested = true;
+    if (!this.categories.length && !this.categoryRequest) this.loadCategories();
+    this.loadPriceRange();
+  }
+
+  private startCatalogPaintProgress(): void {
+    if (this.catalogPaintTimer !== undefined) return;
+    this.catalogPaintProgress = 0;
+    const started = Date.now();
+    this.catalogPaintTimer = setInterval(() => {
+      this.catalogPaintProgress = Math.min(100, Math.round((Date.now() - started) / 3000 * 100));
+      if (this.catalogPaintProgress >= 100) {
+        clearInterval(this.catalogPaintTimer);
+        this.catalogPaintTimer = undefined;
+      }
+    }, 50);
   }
 
   private preloadBufferedImages(): void {
-    this.preloadedImages = this.productBuffer.slice(0, 12).filter(product => product.image_url).map(product => {
+    this.preloadedImages = this.productBuffer.slice(0, this.displayBatch).filter(product => product.image_url).map(product => {
       const image = new Image();
       image.src = product.image_url;
       return image;
@@ -572,38 +822,68 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     return !!this.catalogSentinel && this.catalogSentinel.getBoundingClientRect().top <= window.innerHeight + 800;
   }
 
-  private advanceCatalog(force = false): void {
-    if (this.activeView !== 'shop' || this.catalogLoading) return;
-    if (this.revealQueue.length && this.revealTimer === undefined) this.revealProduct();
-    if (!this.revealQueue.length && this.productBuffer.length && (force || this.products.length < 120 || this.nearCatalogEnd())) {
-      this.revealQueue = this.productBuffer.splice(0, 12);
-      this.revealProduct();
+  private fillCatalog(force = false): void {
+    if (this.activeView !== 'shop') return;
+    if (this.products.length < this.displayBatch && this.productBuffer.length) {
+      this.products = this.products.concat(this.productBuffer.splice(0, this.displayBatch - this.products.length));
     }
-    // Keep only one unrevealed batch in reserve; the current reveal can run while it downloads.
-    if (!this.productBuffer.length) this.fetchProductBatch();
+    if ((force || this.nearCatalogEnd()) && this.productBuffer.length >= this.displayBatch) {
+      this.products = this.products.concat(this.productBuffer.splice(0, this.displayBatch));
+    }
+    const loaded = this.products.length + this.productBuffer.length;
+    const queueNeed = this.selectedCategory ? 24 : this.queueTarget;
+    if (this.hasMoreProducts && !this.catalogError && this.productBuffer.length < queueNeed) {
+      this.fetchProductBatch();
+    }
+    if (loaded >= this.warmTotal) this.prefetchCategoryCatalogs();
   }
 
-  private revealProduct(): void {
-    this.revealTimer = undefined;
-    if (this.activeView !== 'shop') return;
-    const product = this.revealQueue.shift();
-    if (product) this.products.push(product);
-    if (this.revealQueue.length) {
-      // Accelerate the previous batch once the following batch is ready.
-      this.revealTimer = setTimeout(() => this.revealProduct(), this.productBuffer.length ? 8 : 35);
-    } else this.advanceCatalog();
+  private advanceCatalog(force = false): void {
+    this.fillCatalog(force);
+  }
+
+  private prefetchCategoryCatalogs(): void {
+    if (this.categoryPrefetchStarted || this.products.length + this.productBuffer.length < this.warmTotal) return;
+    if (!this.categories.length) return;
+    this.categoryPrefetchStarted = true;
+    this.featuredCategories.forEach(category => this.prefetchCategory(category.slug));
+  }
+
+  private prefetchChildCategories(category: Category): void {
+    this.categories.filter(child => child.parent_id === category.id).forEach(child => this.prefetchCategory(child.slug));
+  }
+
+  private prefetchCategory(slug: string): void {
+    if (!slug || !this.http?.get || this.warmingCategories.has(slug) || (this.categoryWarm.get(slug) || []).length >= 24) return;
+    this.warmingCategories.add(slug);
+    const params = new HttpParams()
+      .set('ordering', '-created_at').set('category', slug)
+      .set('limit', '24').set('offset', '0').set('omit_count', '1');
+    this.http.get<any>(`${this.api}/products/`, { params }).pipe(takeUntil(this.destroyed)).subscribe({
+      next: data => {
+        const batch: Product[] = Array.isArray(data) ? data : (data.results || []);
+        this.categoryWarm.set(slug, batch.slice(0, 24));
+        this.warmingCategories.delete(slug);
+      },
+      error: () => this.warmingCategories.delete(slug),
+    });
   }
 
   loadMoreProducts(): void {
     if (this.catalogError) {
       this.catalogError = '';
       this.fetchProductBatch();
-    } else this.advanceCatalog(true);
+      return;
+    }
+    this.fillCatalog(true);
   }
 
   get catalogProgress(): number {
-    const target = Math.min(120, this.productCount);
-    return target ? Math.min(100, Math.round(this.products.length / target * 100)) : 0;
+    return this.catalogPaintProgress;
+  }
+
+  get queuedProductCount(): number {
+    return this.productBuffer.length;
   }
 
   trackProduct(_index: number, product: Product): number { return product.id; }
@@ -621,12 +901,15 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
     this.stopSourceRefresh();
     this.stopGallery();
     ++this.catalogGeneration;
-    this.catalogRequest?.unsubscribe();
+    this.cancelCatalogRequests();
     this.catalogObserver?.disconnect();
-    if (this.revealTimer !== undefined) clearTimeout(this.revealTimer);
+    if (this.catalogPaintTimer !== undefined) clearInterval(this.catalogPaintTimer);
+    this.stopInspiration();
+    this.finishInspirationSlide(false);
     if (this.scrollFrame !== undefined) cancelAnimationFrame(this.scrollFrame);
     if (this.filterFrame !== undefined) cancelAnimationFrame(this.filterFrame);
     this.filterResizeObserver?.disconnect();
+    this.unbindInspirationLayout();
     this.destroyed.next();
     this.destroyed.complete();
     this.preloadedImages = [];
@@ -674,16 +957,259 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
       .sort((left, right) => right.product_count - left.product_count || left.name.localeCompare(right.name));
   }
 
+  get inspirationCategories(): Category[] {
+    return [...this.categories].sort((left, right) =>
+      right.product_count - left.product_count || left.name.localeCompare(right.name));
+  }
+
+  get visibleInspiration(): Category[] {
+    return this.inspirationWindow(Math.min(3, this.inspirationCategories.length));
+  }
+
+  get slidingInspiration(): Category[] {
+    const all = this.inspirationCategories;
+    const visible = Math.min(3, all.length);
+    if (!visible) return [];
+    if (!this.inspirationSlide || all.length <= visible) return this.inspirationWindow(visible);
+    // Next: keep the current three and peek the incoming card past the trailing edge.
+    // Previous: peek the incoming card before the leading edge.
+    const start = this.inspirationSlide === 1
+      ? (this.inspirationIndex - 1 + all.length) % all.length
+      : this.inspirationIndex;
+    return this.inspirationWindow(visible + 1, start);
+  }
+
+  inspirationIndex = 0;
+  inspirationSlide: -1 | 0 | 1 = 0;
+  inspirationLayout: 'column' | 'row' = 'column';
+  inspirationTransform = '';
+  inspirationSnap = false;
+  inspirationViewportHeight = '';
+  inspirationViewportWidth = '';
+  private inspirationTimer?: ReturnType<typeof setInterval>;
+  private inspirationPaused = false;
+  private inspirationSlideTimer?: ReturnType<typeof setTimeout>;
+  private inspirationFrame?: number;
+  private introTrackEl?: HTMLElement;
+  private introTrackObserver?: ResizeObserver;
+  private inspirationLayoutQuery?: MediaQueryList;
+  private inspirationLayoutListener?: () => void;
+
+  get showInspirationNav(): boolean {
+    return this.inspirationCategories.length > 3;
+  }
+
+  get showInspirationNavVertical(): boolean {
+    return this.showInspirationNav && this.inspirationLayout === 'column';
+  }
+
+  get showInspirationNavHorizontal(): boolean {
+    return this.showInspirationNav && this.inspirationLayout === 'row';
+  }
+
+  @ViewChild('introCollectionTrack') set introCollectionTrack(ref: ElementRef<HTMLElement> | undefined) {
+    this.introTrackObserver?.disconnect();
+    this.introTrackEl = ref?.nativeElement;
+    if (!this.introTrackEl) return;
+    this.syncInspirationLayout();
+    if (typeof ResizeObserver === 'undefined') return;
+    this.introTrackObserver = new ResizeObserver(() => this.syncInspirationLayout());
+    this.introTrackObserver.observe(this.introTrackEl);
+  }
+
+  private bindInspirationLayoutQuery(): void {
+    this.unbindInspirationLayoutQuery();
+    if (typeof matchMedia === 'undefined') {
+      this.syncInspirationLayout();
+      return;
+    }
+    const query = matchMedia('(max-width: 760px)');
+    this.inspirationLayoutQuery = query;
+    this.inspirationLayoutListener = () => this.syncInspirationLayout();
+    if (typeof query.addEventListener === 'function') query.addEventListener('change', this.inspirationLayoutListener);
+    else if (typeof query.addListener === 'function') query.addListener(this.inspirationLayoutListener);
+    this.syncInspirationLayout();
+  }
+
+  private unbindInspirationLayoutQuery(): void {
+    const query = this.inspirationLayoutQuery;
+    const listener = this.inspirationLayoutListener;
+    if (query && listener) {
+      if (typeof query.removeEventListener === 'function') query.removeEventListener('change', listener);
+      else if (typeof query.removeListener === 'function') query.removeListener(listener);
+    }
+    this.inspirationLayoutQuery = undefined;
+    this.inspirationLayoutListener = undefined;
+  }
+
+  private unbindInspirationLayout(): void {
+    this.introTrackObserver?.disconnect();
+    this.introTrackObserver = undefined;
+    this.introTrackEl = undefined;
+    this.unbindInspirationLayoutQuery();
+  }
+
+  private syncInspirationLayout(): void {
+    if (this.inspirationSlide) return;
+    const track = this.introTrackEl;
+    let layout: 'column' | 'row' = 'column';
+    if (track) {
+      const cards = Array.from(track.children) as HTMLElement[];
+      if (cards.length >= 2) {
+        layout = cards.every(card => Math.abs(card.offsetTop - cards[0].offsetTop) <= 1) ? 'row' : 'column';
+      } else {
+        const columns = getComputedStyle(track).gridTemplateColumns.trim();
+        const count = columns && columns !== 'none' ? columns.split(/\s+/).filter(part => part !== '0px').length : 1;
+        layout = count > 1 ? 'row' : 'column';
+      }
+    } else if (this.inspirationLayoutQuery?.matches) {
+      layout = 'row';
+    }
+    if (this.inspirationLayout !== layout) this.inspirationLayout = layout;
+  }
+
+  private inspirationAxis(): 'X' | 'Y' {
+    return this.inspirationLayout === 'row' ? 'X' : 'Y';
+  }
+
+  shiftInspiration(step: number, restart = true): void {
+    const all = this.inspirationCategories;
+    if (all.length <= 3) return;
+    if (this.inspirationSlide) this.finishInspirationSlide(false);
+    const direction: -1 | 1 = step < 0 ? -1 : 1;
+    const axis = this.inspirationAxis();
+    const stepPx = this.inspirationStepPx();
+    this.lockInspirationViewport();
+    this.inspirationIndex = (this.inspirationIndex + direction + all.length) % all.length;
+    if (!stepPx || this.prefersReducedMotion()) {
+      this.finishInspirationSlide(false);
+      if (restart) this.startInspiration();
+      return;
+    }
+    // One-card step: incoming card is already in the track. Snap to the start
+    // offset, then animate exactly one step so the leaving card exits its edge
+    // and the new card enters from the opposite edge.
+    this.inspirationSlide = direction;
+    this.inspirationSnap = true;
+    this.inspirationTransform = direction === 1
+      ? `translate${axis}(0px)`
+      : `translate${axis}(-${stepPx}px)`;
+    this.inspirationFrame = window.requestAnimationFrame(() => {
+      this.inspirationFrame = undefined;
+      if (this.inspirationSlide !== direction) return;
+      this.introTrackEl?.getBoundingClientRect();
+      this.inspirationSnap = false;
+      this.inspirationTransform = direction === 1
+        ? `translate${axis}(-${stepPx}px)`
+        : `translate${axis}(0px)`;
+    });
+    this.inspirationSlideTimer = window.setTimeout(() => this.finishInspirationSlide(), 500);
+    if (restart) this.startInspiration();
+  }
+
+  onInspirationTransitionEnd(event: TransitionEvent): void {
+    if (event.target !== this.introTrackEl || event.propertyName !== 'transform') return;
+    this.finishInspirationSlide();
+  }
+
+  private inspirationWindow(length: number, start = this.inspirationIndex): Category[] {
+    const all = this.inspirationCategories;
+    if (!length || !all.length) return [];
+    return Array.from({ length }, (_, index) => all[(start + index + all.length) % all.length]);
+  }
+
+  private inspirationStepPx(): number {
+    const track = this.introTrackEl;
+    const card = track?.children[0] as HTMLElement | undefined;
+    if (!card) return 0;
+    const styles = typeof getComputedStyle === 'function' ? getComputedStyle(track as Element) : undefined;
+    if (this.inspirationLayout === 'row') {
+      const gap = parseFloat(styles?.columnGap || styles?.gap || '0') || 0;
+      return card.offsetWidth + gap;
+    }
+    const gap = parseFloat(styles?.rowGap || styles?.gap || '0') || 0;
+    return card.offsetHeight + gap;
+  }
+
+  private lockInspirationViewport(): void {
+    const viewport = this.introTrackEl?.parentElement;
+    if (!viewport) return;
+    if (this.inspirationLayout === 'row') this.inspirationViewportWidth = `${viewport.clientWidth}px`;
+    else this.inspirationViewportHeight = `${viewport.clientHeight}px`;
+  }
+
+  private finishInspirationSlide(reenable = true): void {
+    if (this.inspirationSlideTimer !== undefined) {
+      clearTimeout(this.inspirationSlideTimer);
+      this.inspirationSlideTimer = undefined;
+    }
+    if (this.inspirationFrame !== undefined) {
+      cancelAnimationFrame(this.inspirationFrame);
+      this.inspirationFrame = undefined;
+    }
+    // Commit the new three cards at transform 0 with transitions disabled so
+    // dropping the peek card cannot rubber-band or leave a leftover translate.
+    this.inspirationSnap = true;
+    this.inspirationSlide = 0;
+    this.inspirationTransform = `translate${this.inspirationAxis()}(0px)`;
+    this.inspirationViewportHeight = '';
+    this.inspirationViewportWidth = '';
+    if (!reenable) {
+      this.inspirationTransform = '';
+      return;
+    }
+    this.inspirationFrame = requestAnimationFrame(() => {
+      this.introTrackEl?.getBoundingClientRect();
+      this.inspirationFrame = requestAnimationFrame(() => {
+        this.inspirationFrame = undefined;
+        if (this.inspirationSlide !== 0) return;
+        this.inspirationTransform = '';
+        this.inspirationSnap = false;
+      });
+    });
+  }
+
+  private prefersReducedMotion(): boolean {
+    return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  pauseInspiration(): void { this.inspirationPaused = true; }
+  resumeInspiration(): void { this.inspirationPaused = false; }
+
+  private startInspiration(): void {
+    this.stopInspiration();
+    if (this.inspirationCategories.length <= 3) return;
+    this.inspirationTimer = setInterval(() => {
+      if (this.inspirationPaused || this.activeView !== 'shop') return;
+      this.shiftInspiration(1, false);
+    }, 4200);
+  }
+
+  private stopInspiration(): void {
+    if (this.inspirationTimer !== undefined) clearInterval(this.inspirationTimer);
+    this.inspirationTimer = undefined;
+  }
+
   expandedCategories = new Set<number>();
   trackCategory(_index: number, category: Category): number { return category.id; }
 
   selectCategoryNode(category: Category): void {
-    if (category.hasChildren) {
-      if (this.expandedCategories.has(category.id)) this.expandedCategories.delete(category.id);
-      else this.expandedCategories.add(category.id);
+    if (category.hasChildren && !this.expandedCategories.has(category.id)) {
+      this.expandedCategories.add(category.id);
+      this.prefetchChildCategories(category);
+    } else if (category.hasChildren) this.expandedCategories.delete(category.id);
+    this.chooseCategory(category.slug);
+  }
+
+  toggleCategoryBranch(event: Event, category: Category): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!category.hasChildren) return;
+    if (this.expandedCategories.has(category.id)) this.expandedCategories.delete(category.id);
+    else {
+      this.expandedCategories.add(category.id);
+      this.prefetchChildCategories(category);
     }
-    this.selectedCategory = category.slug;
-    this.loadProducts(1);
   }
 
   meaningfulText(value: string | null | undefined): string {
@@ -701,6 +1227,7 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   chooseCategory(slug: string): void {
     this.selectedCategory = slug;
     this.filtersOpen = false;
+    this.rememberOpenedCategory(slug);
     this.loadProducts(1);
   }
 
@@ -728,17 +1255,49 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
   }
 
   categoryIcon(name: string): string {
-    if (/cloth|fashion|shoe|bag|jewelry/i.test(name)) return 'fa-shopping-bag';
-    if (/phone|mobile|tablet|gadget/i.test(name)) return 'fa-mobile';
-    if (/computer|laptop|network/i.test(name)) return 'fa-laptop';
-    if (/beauty|fragrance|health/i.test(name)) return 'fa-leaf';
-    if (/book|stationery|office/i.test(name)) return 'fa-book';
-    if (/home|kitchen|garden|appliance/i.test(name)) return 'fa-home';
-    if (/sport|game|toy/i.test(name)) return 'fa-futbol-o';
-    if (/auto|motor|travel/i.test(name)) return 'fa-car';
-    if (/camera/i.test(name)) return 'fa-camera';
-    if (/audio|music/i.test(name)) return 'fa-headphones';
-    return 'fa-th-large';
+    return this.categoryLook(name).icon;
+  }
+
+  categoryAccent(name: string): { background: string; color: string } {
+    const look = this.categoryLook(name);
+    return { background: look.background, color: look.color };
+  }
+
+  private categoryLook(name: string): { icon: string; background: string; color: string } {
+    const value = name || '';
+    if (/women|lady|girl|female/i.test(value)) return { icon: 'fa-female', background: '#fcf1d5', color: '#947013' };
+    if (/men|boy|male/i.test(value)) return { icon: 'fa-male', background: '#e7eef8', color: '#35527c' };
+    if (/child|kid|baby|toy/i.test(value)) return { icon: 'fa-child', background: '#fde8ef', color: '#b4235c' };
+    if (/cloth|fashion|apparel|garment/i.test(value)) return { icon: 'fa-shopping-bag', background: '#e7f4ef', color: '#215951' };
+    if (/shoe|boot|sandal/i.test(value)) return { icon: 'fa-star', background: '#f8ead7', color: '#9a5b12' };
+    if (/bag|wallet|luggage/i.test(value)) return { icon: 'fa-briefcase', background: '#efe6da', color: '#6f4b2d' };
+    if (/jewel|watch|clock/i.test(value)) return { icon: 'fa-diamond', background: '#f4e9fb', color: '#7a3ead' };
+    if (/phone|mobile|tablet|gadget/i.test(value)) return { icon: 'fa-mobile', background: '#e8f3fc', color: '#1d6fa5' };
+    if (/computer|laptop|network|electronic/i.test(value)) return { icon: 'fa-laptop', background: '#e7eef8', color: '#35527c' };
+    if (/audio|headphone|music|speaker/i.test(value)) return { icon: 'fa-headphones', background: '#ece8fb', color: '#5b3cc4' };
+    if (/camera|photo/i.test(value)) return { icon: 'fa-camera', background: '#e9eef2', color: '#4a5d6b' };
+    if (/beauty|fragrance|cosmetic|health/i.test(value)) return { icon: 'fa-leaf', background: '#e9f6ea', color: '#2f7a3e' };
+    if (/book|stationery|office/i.test(value)) return { icon: 'fa-book', background: '#f3ebe1', color: '#7a5330' };
+    if (/home|kitchen|garden|furniture|bed/i.test(value)) return { icon: 'fa-home', background: '#e8f4ea', color: '#3d7a4a' };
+    if (/sport|game|fitness/i.test(value)) return { icon: 'fa-futbol-o', background: '#e7f6f0', color: '#1f7a57' };
+    if (/auto|motor|car|travel/i.test(value)) return { icon: 'fa-car', background: '#eceff3', color: '#4b5d73' };
+    if (/food|grocery|kitchenware/i.test(value)) return { icon: 'fa-cutlery', background: '#fdece4', color: '#c2410c' };
+    if (/pet|animal/i.test(value)) return { icon: 'fa-paw', background: '#f6ead8', color: '#9a5b12' };
+    if (/light|lamp/i.test(value)) return { icon: 'fa-lightbulb-o', background: '#fff4d6', color: '#b45309' };
+    const palettes = [
+      { background: '#e7f4ef', color: '#215951' },
+      { background: '#fcf1d5', color: '#947013' },
+      { background: '#e8eefc', color: '#3b5bdb' },
+      { background: '#fde8e8', color: '#b42318' },
+      { background: '#f3e8fd', color: '#7c3aed' },
+      { background: '#e7f6fb', color: '#0e7490' },
+    ];
+    const palette = palettes[Math.abs(this.hashLabel(value)) % palettes.length];
+    return { icon: 'fa-th-large', ...palette };
+  }
+
+  private hashLabel(value: string): number {
+    return Array.from(value).reduce((total, letter) => total + letter.charCodeAt(0), 0);
   }
 
   openProduct(product: Product): void {
@@ -1154,11 +1713,18 @@ export class EcommerceComingSoonComponent implements OnInit, OnDestroy {
 
   get cartCount(): number { return (this.cart?.items || []).reduce((sum, item) => sum + item.quantity, 0); }
   get showVariantChoice(): boolean {
-    const variants=(this.selectedProduct?.variants || []).filter(variant => variant.is_active &&
-      (variant.stock > 0 || variant.quantity_unspecified || variant.allow_backorder));
-    if (variants.length > 1) return true;
-    if (variants.length !== 1) return false;
-    const variant = variants[0];
+    return this.hasMultipleVariantChoices(this.selectedProduct?.variants, {keepSingleNamedOption: true});
+  }
+  cartShowsVariantChoice(item: CartItem): boolean {
+    if (item.description_sizes?.length || item.description_colors?.length) return false;
+    return this.hasMultipleVariantChoices(item.available_variants);
+  }
+  private hasMultipleVariantChoices(variants: ProductVariant[] | undefined, options?: {keepSingleNamedOption?: boolean}): boolean {
+    const live = (variants || []).filter(variant => this.canAddVariant(variant));
+    const labels = [...new Set(live.map(variant => String(variant.title || '').trim() || 'Default'))];
+    if (labels.length > 1) return true;
+    if (!options?.keepSingleNamedOption || live.length !== 1) return false;
+    const variant = live[0];
     const hasNamedOption = [variant.option1_name, variant.option1_value, variant.option2_name,
       variant.option2_value, variant.option3_name, variant.option3_value].some(value => !!String(value || '').trim());
     return hasNamedOption || !/^(default|standard|one size|single option)$/i.test(String(variant.title || '').trim());

@@ -32,7 +32,7 @@ describe('One shared marketplace cart', () => {
       declarations: [EcommerceComingSoonComponent],
       providers: [
         { provide: ActivatedRoute, useValue: route }, { provide: Router, useValue: router },
-        { provide: ApiService, useValue: { getCommerceHistory: () => of({}), getDivisionsByCountry: () => of([]), getDistrictsByCountry: () => of([]), getThanasByCountry: () => of([]) } },
+        { provide: ApiService, useValue: { getCommerceHistory: () => of({}), getDivisionsByCountry: () => of([]), getDivisionByDistrict: () => of([]), getDistrictsByCountry: () => of([]), getThanasByCountry: () => of([]) } },
         { provide: AuthSessionService, useValue: {} }, { provide: MatSnackBar, useValue: {} },
       ],
     }).compileComponents();
@@ -95,6 +95,26 @@ describe('One shared marketplace cart', () => {
     expect(fixture.nativeElement.querySelector('.commerce-search')).toBeNull();
     fixture.nativeElement.querySelector('.empty-state button').click();
     expect(router.navigate).toHaveBeenCalledWith(['/ecommerce'], { queryParams: {}, state: undefined });
+  });
+
+  it('pairs division with district and thana with zone, hides round-up, and keeps an 11-digit coupon field', () => {
+    fixture.detectChanges();
+    cartRequest().flush({ token: 'test-cart', subtotal: 800, items: [{ id: 1, variant_id: 2, quantity: 2, product_name: 'Test book', variant_title: 'Soft copy', sku: 'BOOK-1', unit_price: '400', image_url: '', line_total: 800 }] });
+    fixture.detectChanges();
+    const pairs = fixture.nativeElement.querySelectorAll('.checkout-card .form-row.geo-pair');
+    expect(pairs.length).toBe(2);
+    expect(pairs[0].textContent).toContain('Division');
+    expect(pairs[0].textContent).toContain('District');
+    expect(pairs[1].textContent).toContain('Thana');
+    expect(pairs[1].textContent).toContain('Zone');
+    const coupon = fixture.nativeElement.querySelector('input[name="coupon_code"]') as HTMLInputElement;
+    expect(coupon.getAttribute('maxlength')).toBe('11');
+    fixture.componentInstance.quote = {subtotal: 800, discount_total: 0, shipping_total: 80, cod_total: 5, grand_total: 886, rounding_adjustment: 0.12};
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Round-up adjustment');
+    const total = fixture.nativeElement.querySelector('.checkout-quote .checkout-total');
+    expect(total.getAttribute('title')).toBe('Round-up adjustment +৳0.12');
+    expect(total.textContent).toContain('Total payable');
   });
 
   it('displays items, quantities, subtotal and checkout from the same saved cart', () => {

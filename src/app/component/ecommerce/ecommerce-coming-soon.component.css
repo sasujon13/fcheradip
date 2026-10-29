@@ -225,7 +225,82 @@ textarea:focus-visible {
   margin-bottom: 2px;
 }
 
-.intro-collections button {
+.intro-collection-frame {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.intro-collection-frame.intro-nav-vertical {
+  grid-template-rows: 18px auto 18px;
+}
+
+.intro-collection-frame.intro-nav-horizontal {
+  grid-template-columns: 22px minmax(0, 1fr) 22px;
+}
+
+.intro-nav {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffffd6;
+  color: var(--teal);
+  box-shadow: 0 2px 8px #21595112;
+}
+
+.intro-nav:hover {
+  background: #fff;
+  transform: none;
+}
+
+.intro-nav-left,
+.intro-nav-right {
+  display: none;
+}
+
+.intro-nav-up { grid-column: 1; grid-row: 1; justify-self: center; }
+.intro-nav-left { grid-column: 1; grid-row: 1; }
+.intro-nav-right { grid-column: 3; grid-row: 1; }
+.intro-nav-down { grid-column: 1; grid-row: 3; justify-self: center; }
+
+.intro-collection-viewport {
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+  overflow: hidden;
+  overflow: clip;
+  container-type: inline-size;
+}
+
+.intro-collection-frame.intro-nav-vertical .intro-collection-viewport {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.intro-collection-frame.intro-nav-horizontal .intro-collection-viewport {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.intro-collection-track {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  overflow: visible;
+  transition: transform .45s ease;
+}
+
+.intro-collection-track.no-transition {
+  transition: none;
+}
+
+.intro-collections .intro-collection-track > button {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -240,7 +315,7 @@ textarea:focus-visible {
   transition: transform .2s, background .2s;
 }
 
-.intro-collections button:hover {
+.intro-collections .intro-collection-track > button:hover {
   transform: translateX(-3px);
   background: #fff;
 }
@@ -256,12 +331,7 @@ textarea:focus-visible {
   font-size: 20px;
 }
 
-.intro-collections button:nth-of-type(2) .collection-icon {
-  background: #fcf1d5;
-  color: #947013;
-}
-
-.intro-collections button>span:nth-child(2) {
+.intro-collections .intro-collection-track > button>span:nth-child(2) {
   display: grid;
   gap: 5px;
   min-width: 0;
@@ -278,10 +348,11 @@ textarea:focus-visible {
   color: var(--muted);
 }
 
-.intro-collections button>i {
+.intro-collections .intro-collection-track > button>i {
   color: var(--teal);
   font-size: 12px;
 }
+
 
 .catalog-layout {
   display: grid;
@@ -593,6 +664,38 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  opacity: 0;
+}
+
+.product-image img.product-photo-ready {
+  opacity: 1;
+}
+
+.product-photo-pending {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.product-photo-pending .catalog-progress {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: auto;
+}
+
+.product-photo-pending .catalog-progress span {
+  width: 32%;
+  animation: product-photo-progress 1.8s linear infinite;
+}
+
+@keyframes product-photo-progress {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
 }
 
 .product-magnifier {
@@ -858,11 +961,29 @@ textarea:focus-visible {
   background: #dcebe6;
 }
 
+.skeleton-grid .catalog-progress {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 8px;
+}
+
 .catalog-progress span {
   display: block;
   height: 100%;
   background: var(--teal);
-  transition: width .15s linear;
+  transition: width .05s linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-collection-track {
+    transition: none;
+  }
+  .skeleton-card>div,
+  .skeleton-card>span,
+  .product-photo-pending,
+  .product-photo-pending .catalog-progress span {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -890,7 +1011,8 @@ textarea:focus-visible {
 }
 
 .skeleton-card>div,
-.skeleton-card>span {
+.skeleton-card>span,
+.product-photo-pending {
   display: block;
   background: linear-gradient(100deg, #ebf1ee 30%, #f8faf9 50%, #ebf1ee 70%);
   background-size: 200% 100%;
@@ -1495,12 +1617,41 @@ textarea:focus-visible {
   min-width: 0;
 }
 
+.form-row.geo-pair {
+  flex-wrap: wrap;
+}
+
+.form-row.geo-pair>label {
+  flex: 1 1 140px;
+}
+
 .checkout-total {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--line);
+}
+
+.checkout-card label.referral-coupon {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+
+.checkout-card label.referral-coupon > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.checkout-card label.referral-coupon input {
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
 }
 
 .shipping-note,
@@ -1838,21 +1989,39 @@ textarea:focus-visible {
   }
 
   .intro-collections {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+  }
+
+  .intro-collection-track {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100cqi - 16px) / 3);
+    width: max-content;
+    gap: 8px;
+  }
+
+  .intro-nav-up,
+  .intro-nav-down {
+    display: none;
+  }
+
+  .intro-nav-left,
+  .intro-nav-right {
+    display: grid;
   }
 
   .intro-collections .eyebrow {
     grid-column: 1/-1;
   }
 
-  .intro-collections button {
+  .intro-collections .intro-collection-track > button {
     align-items: flex-start;
     flex-direction: column;
     gap: 9px;
   }
 
-  .intro-collections button>i {
+  .intro-collections .intro-collection-track > button>i {
     display: none;
   }
 
@@ -2069,6 +2238,26 @@ textarea:focus-visible {
 
   .form-row {
     flex-direction: column;
+  }
+
+  .form-row.geo-pair {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .checkout-card label.referral-coupon {
+    flex-wrap: wrap;
+  }
+
+  .checkout-card label.referral-coupon > span {
+    white-space: normal;
+  }
+
+  .checkout-card label.referral-coupon input {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .checkout-card {

@@ -7,6 +7,7 @@ import { environment } from '../../environments/environment';
 export interface CommerceAccess {
   allowed: boolean;
   authenticated?: boolean;
+  superuser?: boolean;
   permissions: Record<string, Partial<Record<'view' | 'add' | 'change' | 'delete', boolean>>>;
 }
 

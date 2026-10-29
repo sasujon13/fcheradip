@@ -52,7 +52,8 @@
       <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'shop'}"><i class="fa fa-shopping-bag"></i> Shop</a></li>
       <li class="menu_item"><a [routerLink]="['/ecommerce']" [queryParams]="{view: 'track'}"><i class="fa fa-truck"></i> Track Order</a></li>
       <li class="menu_item"><a [routerLink]="['/history']" [queryParams]="ecommerceHistoryQueryParams"
-          routerLinkActive="history"><i class="fa fa-history"></i> My Orders</a></li>
+          routerLinkActive="history" aria-label="My Orders"
+          data-ui-note="Open order and purchase history."><i class="fa fa-history" aria-hidden="true"></i></a></li>
       <li class="menu_item"><a [routerLink]="['/cart']" [queryParams]="ecommerceHistoryQueryParams" routerLinkActive="cart">
         <span class="commerce-cart-icon"><i class="fa fa-shopping-cart" aria-hidden="true"></i>
           <span class="commerce-cart-count" aria-live="polite" aria-atomic="true">{{ commerceCartCount }}</span>

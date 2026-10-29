@@ -622,6 +622,13 @@ select.form-control {
   text-decoration: underline;
 }
 
+.signup-bonus-note {
+  margin: 8px 0 0;
+  color: #555;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* Submit Button */
 .signup-btn {
   width: 100%;

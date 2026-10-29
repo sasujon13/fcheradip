@@ -12,8 +12,10 @@
     <section class="wallet-summary" aria-label="Wallet summary">
       <article><i class="fa fa-money"></i><span>Main Wallet</span><strong>৳{{ wallet?.balanceTaka | number:'1.2-2' }}</strong></article>
       <article><i class="fa fa-share-alt"></i><span>Reference Balance</span><strong>৳{{ wallet?.referenceBalanceTaka | number:'1.2-2' }}</strong></article>
+      <article *ngIf="wallet?.pendingTaka > 0"><i class="fa fa-clock-o"></i><span>Held / pending</span><strong>৳{{ wallet.pendingTaka | number:'1.2-2' }}</strong></article>
       <article><i class="fa fa-user-circle"></i><span>Account Type</span><strong>{{ profile?.accountType || 'Cheradip user' }}</strong></article>
     </section>
+    <p class="history-wallet-note">Main Wallet, including the ৳50 signup bonus, can buy shop products, packages, and services. Only Reference Balance can be withdrawn.</p>
 
     <ng-container *ngFor="let section of sectionOrder">
       <ng-container *ngTemplateOutlet="section === 'orders' ? productOrders : packageActivations"></ng-container>

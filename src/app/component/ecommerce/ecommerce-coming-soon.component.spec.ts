@@ -1,12 +1,19 @@
 import { EcommerceComingSoonComponent } from './ecommerce-coming-soon.component';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { defer, NEVER, of, throwError } from 'rxjs';
+
+function clearShopNavCache(): void {
+  localStorage.removeItem('cheradip.ecommerce.taxonomy.v1');
+  localStorage.removeItem('cheradip.ecommerce.last-listings.v1');
+  sessionStorage.clear();
+}
 
 describe('Marketplace browsing controls', () => {
   let component: EcommerceComingSoonComponent;
   beforeEach(() => {
+    clearShopNavCache();
     component = new EcommerceComingSoonComponent(null as any, null as any, null as any, null as any, null as any, null as any);
     component.categories = [
       { id: 1, name: 'Mobile Accessories', slug: 'mobile-accessories', product_count: 10 },
@@ -53,6 +60,202 @@ describe('Marketplace browsing controls', () => {
     ];
     expect(component.featuredCategories.map(category => category.slug)).toEqual(['clothing', 'electronics', 'books']);
   });
+
+  it('rotates every category through the inspiration cards', () => {
+    component.categories = [
+      {id: 1, name: 'Books', slug: 'books', product_count: 20},
+      {id: 2, name: 'Clothing', slug: 'clothing', product_count: 200},
+      {id: 3, name: 'Hoodies', slug: 'hoodies', parent_id: 2, product_count: 150},
+      {id: 4, name: 'Electronics', slug: 'electronics', product_count: 100},
+    ];
+    expect(component.visibleInspiration.map(category => category.slug)).toEqual(['clothing', 'hoodies', 'electronics']);
+    component.shiftInspiration(1, false);
+    expect(component.visibleInspiration.map(category => category.slug)).toEqual(['hoodies', 'electronics', 'books']);
+    component.shiftInspiration(1, false);
+    component.shiftInspiration(1, false);
+    expect(component.visibleInspiration.map(category => category.slug)).toEqual(['books', 'clothing', 'hoodies']);
+    expect(component.categoryIcon('Women\'s Fashion')).toBe('fa-female');
+    expect(component.categoryIcon('Electronics')).toBe('fa-laptop');
+  });
+
+  it('shows only up/down inspiration arrows in a stacked column', () => {
+    component.categories = [
+      {id: 1, name: 'Books', slug: 'books', product_count: 20},
+      {id: 2, name: 'Clothing', slug: 'clothing', product_count: 200},
+      {id: 3, name: 'Hoodies', slug: 'hoodies', parent_id: 2, product_count: 150},
+      {id: 4, name: 'Electronics', slug: 'electronics', product_count: 100},
+    ];
+    component.inspirationLayout = 'column';
+    expect(component.showInspirationNavVertical).toBeTrue();
+    expect(component.showInspirationNavHorizontal).toBeFalse();
+  });
+
+  it('shows only left/right inspiration arrows in a single row', () => {
+    component.categories = [
+      {id: 1, name: 'Books', slug: 'books', product_count: 20},
+      {id: 2, name: 'Clothing', slug: 'clothing', product_count: 200},
+      {id: 3, name: 'Hoodies', slug: 'hoodies', parent_id: 2, product_count: 150},
+      {id: 4, name: 'Electronics', slug: 'electronics', product_count: 100},
+    ];
+    component.inspirationLayout = 'row';
+    expect(component.showInspirationNavVertical).toBeFalse();
+    expect(component.showInspirationNavHorizontal).toBeTrue();
+  });
+
+  it('hides inspiration arrows when every category already fits', () => {
+    component.categories = [
+      {id: 1, name: 'Books', slug: 'books', product_count: 20},
+      {id: 2, name: 'Clothing', slug: 'clothing', product_count: 200},
+      {id: 3, name: 'Electronics', slug: 'electronics', product_count: 100},
+    ];
+    component.inspirationLayout = 'column';
+    expect(component.showInspirationNavVertical).toBeFalse();
+    expect(component.showInspirationNavHorizontal).toBeFalse();
+    component.inspirationLayout = 'row';
+    expect(component.showInspirationNavVertical).toBeFalse();
+    expect(component.showInspirationNavHorizontal).toBeFalse();
+  });
+
+  it('detects a row or column inspiration track from card positions', () => {
+    const track = document.createElement('div');
+    const first = document.createElement('button');
+    const second = document.createElement('button');
+    Object.defineProperty(first, 'offsetTop', {configurable: true, get: () => 0});
+    Object.defineProperty(second, 'offsetTop', {configurable: true, get: () => 0});
+    track.append(first, second);
+    (component as any).introTrackEl = track;
+    (component as any).syncInspirationLayout();
+    expect(component.inspirationLayout).toBe('row');
+    Object.defineProperty(second, 'offsetTop', {configurable: true, get: () => 48});
+    (component as any).syncInspirationLayout();
+    expect(component.inspirationLayout).toBe('column');
+  });
+
+  const fourInspirationCategories = () => {
+    component.categories = [
+      {id: 1, name: 'Books', slug: 'books', product_count: 20},
+      {id: 2, name: 'Clothing', slug: 'clothing', product_count: 200},
+      {id: 3, name: 'Hoodies', slug: 'hoodies', parent_id: 2, product_count: 150},
+      {id: 4, name: 'Electronics', slug: 'electronics', product_count: 100},
+    ];
+  };
+
+  const mockInspirationTrack = (layout: 'row' | 'column') => {
+    const viewport = document.createElement('div');
+    const track = document.createElement('div');
+    const card = document.createElement('button');
+    Object.defineProperty(card, 'offsetWidth', {configurable: true, get: () => 100});
+    Object.defineProperty(card, 'offsetHeight', {configurable: true, get: () => 50});
+    Object.defineProperty(viewport, 'clientWidth', {configurable: true, get: () => 318});
+    Object.defineProperty(viewport, 'clientHeight', {configurable: true, get: () => 168});
+    viewport.appendChild(track);
+    track.appendChild(card);
+    (component as any).introTrackEl = track;
+    component.inspirationLayout = layout;
+    spyOn(window, 'matchMedia').and.returnValue({matches: false} as MediaQueryList);
+  };
+
+  const captureFrames = () => {
+    const frames: FrameRequestCallback[] = [];
+    spyOn(window, 'requestAnimationFrame').and.callFake((cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    return frames;
+  };
+
+  it('moves the row left on click-right so the next category enters from the right', fakeAsync(() => {
+    fourInspirationCategories();
+    mockInspirationTrack('row');
+    const frames = captureFrames();
+    const outgoing = component.visibleInspiration.map(category => category.slug);
+    component.shiftInspiration(1, false);
+    expect(outgoing).toEqual(['clothing', 'hoodies', 'electronics']);
+    expect(component.slidingInspiration.map(category => category.slug)).toEqual([...outgoing, 'books']);
+    expect(component.inspirationSlide).toBe(1);
+    expect(component.inspirationTransform).toBe('translateX(0px)');
+    frames.forEach(frame => frame(0));
+    expect(component.inspirationTransform).toBe('translateX(-100px)');
+    tick(500);
+    expect(component.inspirationSlide).toBe(0);
+    expect(component.visibleInspiration.map(category => category.slug)).toEqual(['hoodies', 'electronics', 'books']);
+  }));
+
+  it('moves the column up on click-down so the next category enters from the bottom', fakeAsync(() => {
+    fourInspirationCategories();
+    mockInspirationTrack('column');
+    const frames = captureFrames();
+    const outgoing = component.visibleInspiration.map(category => category.slug);
+    component.shiftInspiration(1, false);
+    expect(component.slidingInspiration.map(category => category.slug)).toEqual([...outgoing, 'books']);
+    expect(component.inspirationSlide).toBe(1);
+    expect(component.inspirationTransform).toBe('translateY(0px)');
+    frames.forEach(frame => frame(0));
+    expect(component.inspirationTransform).toBe('translateY(-50px)');
+    tick(500);
+    expect(component.inspirationSlide).toBe(0);
+    expect(component.visibleInspiration.map(category => category.slug)).toEqual(['hoodies', 'electronics', 'books']);
+  }));
+
+  it('moves the row right on click-left so the previous category enters from the left', fakeAsync(() => {
+    fourInspirationCategories();
+    mockInspirationTrack('row');
+    const frames = captureFrames();
+    const outgoing = component.visibleInspiration.map(category => category.slug);
+    component.shiftInspiration(-1, false);
+    expect(component.slidingInspiration.map(category => category.slug)).toEqual(['books', ...outgoing]);
+    expect(component.inspirationSlide).toBe(-1);
+    expect(component.inspirationTransform).toBe('translateX(-100px)');
+    frames.forEach(frame => frame(0));
+    expect(component.inspirationTransform).toBe('translateX(0px)');
+    tick(500);
+    expect(component.visibleInspiration.map(category => category.slug)[0]).toBe('books');
+  }));
+
+  it('moves the column down on click-up so the previous category enters from the top', fakeAsync(() => {
+    fourInspirationCategories();
+    mockInspirationTrack('column');
+    const frames = captureFrames();
+    const outgoing = component.visibleInspiration.map(category => category.slug);
+    component.shiftInspiration(-1, false);
+    expect(component.slidingInspiration.map(category => category.slug)).toEqual(['books', ...outgoing]);
+    expect(component.inspirationTransform).toBe('translateY(-50px)');
+    frames.forEach(frame => frame(0));
+    expect(component.inspirationTransform).toBe('translateY(0px)');
+    tick(500);
+    expect(component.visibleInspiration.map(category => category.slug)[0]).toBe('books');
+  }));
+
+  it('wraps from the first category then down without leftover transform', fakeAsync(() => {
+    fourInspirationCategories();
+    mockInspirationTrack('column');
+    const frames = captureFrames();
+    const flush = () => {
+      while (frames.length) frames.splice(0).forEach(frame => frame(0));
+    };
+    component.shiftInspiration(-1, false);
+    expect(component.slidingInspiration.map(category => category.slug))
+      .toEqual(['books', 'clothing', 'hoodies', 'electronics']);
+    flush();
+    tick(500);
+    flush();
+    expect(component.inspirationSlide).toBe(0);
+    expect(component.inspirationTransform).toBe('');
+    expect(component.visibleInspiration.map(category => category.slug))
+      .toEqual(['books', 'clothing', 'hoodies']);
+    component.shiftInspiration(1, false);
+    expect(component.slidingInspiration.map(category => category.slug))
+      .toEqual(['books', 'clothing', 'hoodies', 'electronics']);
+    expect(component.inspirationTransform).toBe('translateY(0px)');
+    flush();
+    expect(component.inspirationTransform).toBe('translateY(-50px)');
+    tick(500);
+    flush();
+    expect(component.inspirationSlide).toBe(0);
+    expect(component.inspirationTransform).toBe('');
+    expect(component.visibleInspiration.map(category => category.slug))
+      .toEqual(['clothing', 'hoodies', 'electronics']);
+  }));
 
   it('limits filter height to available viewport space before and after sticky positioning', () => {
     const panel=document.createElement('aside');
@@ -136,6 +339,19 @@ describe('Marketplace browsing controls', () => {
     expect(component.showVariantChoice).toBeTrue();
   });
 
+  it('hides the cart size selector unless there are multiple choosable options',()=>{
+    const defaultUnavailable=[{id:1,title:'Default',is_active:true,stock:0,purchasable:false},{id:2,title:'Default',is_active:true,stock:0,purchasable:false}];
+    expect(component.cartShowsVariantChoice({available_variants:defaultUnavailable} as any)).toBeFalse();
+    expect(component.cartShowsVariantChoice({available_variants:[{id:1,title:'Default',is_active:true,stock:1}]} as any)).toBeFalse();
+    expect(component.cartShowsVariantChoice({
+      available_variants:[{id:1,title:'M',is_active:true,stock:1},{id:2,title:'L',is_active:true,stock:1}],
+    } as any)).toBeTrue();
+    expect(component.cartShowsVariantChoice({
+      description_sizes:['M','L'],
+      available_variants:[{id:1,title:'Default',is_active:true,stock:1},{id:2,title:'Default',is_active:true,stock:1}],
+    } as any)).toBeFalse();
+  });
+
   it('uses local editable contact numbers and omits removed address fields',()=>{
     const http={get:()=>of({phone:'1722710298',phone_alternate:'1822710298',country_code:'+880',
       city:'Old city',postal_code:'5200',district:'Dinajpur',address:'Sadar'})};
@@ -177,6 +393,17 @@ describe('Marketplace browsing controls', () => {
 
   it('starts checkout with Cash on Delivery selected', () => {
     expect(component.checkout.payment_method).toBe('cod');
+  });
+
+  it('keeps coupon and referral 1% copy on hover notes', () => {
+    expect(component.couponHoverNote).toBe(
+      'Only a registered Cheradip mobile number is accepted. That account gets 1% of this subtotal; they can spend it on products or other Cheradip services, or withdraw it. Signup bonus ৳50 can be spent here but cannot be withdrawn.',
+    );
+  });
+
+  it('hides the round-up amount except as a total payable hover note', () => {
+    expect(component.roundingHoverNote({rounding_adjustment: 0.12})).toBe('Round-up adjustment +৳0.12');
+    expect(component.roundingHoverNote({rounding_adjustment: 0})).toBe('');
   });
 
   it('opens details without destroying the filtered catalog', () => {
@@ -223,6 +450,13 @@ describe('Marketplace browsing controls', () => {
     component.placeOrder();
     expect(component.checkout.payment_method).toBe('bank');expect(quote).not.toHaveBeenCalled();
     expect(component.loading).toBeFalse();
+  });
+
+  it('keeps product text visible while a real photo is still loading', () => {
+    const url = 'https://supplier.example/product-original.jpg';
+    expect(component.productPhotoPending({id: 9, image_url: url} as any)).toBeTrue();
+    component.markProductPhotoReady(9);
+    expect(component.productPhotoPending({id: 9, image_url: url} as any)).toBeFalse();
   });
 
   it('never represents company artwork or a missing/broken image as a product photo', () => {
@@ -365,82 +599,79 @@ describe('Marketplace progressive loading', () => {
   let component: EcommerceComingSoonComponent;
   let http: HttpTestingController;
   const products = (start: number, count: number) => Array.from({ length: count }, (_, i) => ({ id: start + i, name: `Product ${start + i}`, image_url: '' }));
-  const batch = (offset: number, limit: number, total = 200) => {
-    const request = http.expectOne(req => req.url.endsWith('/products/') && req.params.get('offset') === String(offset));
+  const flushSidecars = () => {
+    http.match(req => req.url.includes('/categories/')).filter(req => !req.cancelled).forEach(req => req.flush([]));
+    http.match(req => req.url.includes('/price-range/')).filter(req => !req.cancelled).forEach(req => req.flush({max_price: '0'}));
+  };
+  const batch = (offset: number, limit = 12, total = 200) => {
+    const request = http.expectOne(req => req.url.endsWith('/products/') && req.params.get('offset') === String(offset) && !req.params.get('category'));
     expect(request.request.params.get('limit')).toBe(String(limit));
-    request.flush({ results: products(offset + 1, Math.min(limit, total - offset)), count: total, next: offset + limit < total ? 'next' : null });
+    if (offset === 0 && !component.productCount) expect(request.request.params.get('omit_count')).toBe('1');
+    request.flush({ results: products(offset + 1, Math.min(limit, Math.max(0, total - offset))), count: total, next: offset + limit < total ? 'next' : null });
+    flushSidecars();
   };
   beforeEach(() => {
+    clearShopNavCache();
     TestBed.configureTestingModule({ imports: [HttpClientTestingModule] });
     http = TestBed.inject(HttpTestingController);
     component = new EcommerceComingSoonComponent(TestBed.inject(HttpClient), { snapshot: { data: {} } } as any, { navigate: () => Promise.resolve(true) } as any, null as any, null as any, null as any);
     spyOn<any>(component, 'nearCatalogEnd').and.returnValue(false);
   });
-  afterEach(() => { component.ngOnDestroy(); http.verify(); });
+  afterEach(() => {
+    component.ngOnDestroy();
+    flushSidecars();
+    http.verify();
+  });
 
-
-  it('shows 4 first, builds through 8 and 12, then loads 12 at a time and holds one batch in reserve', fakeAsync(() => {
+  it('shows the first 12 immediately and keeps the next 60 queued without revealing them', fakeAsync(() => {
     component.loadProducts();
-    batch(0, 4);
-    expect(component.products.length).toBe(4);
-    expect(component.catalogLoading).toBeFalse();
-    expect(component.productCount).toBe(200);
-    batch(4, 8); tick(450);
+    batch(0);
     expect(component.products.length).toBe(12);
-    for (let offset = 12; offset < 120; offset += 12) {
-      batch(offset, 12);
-      tick(450);
-    }
-    batch(120, 12);
-    tick(1000);
-    expect(component.products.length).toBe(120);
-    expect((component as any).productBuffer.length).toBe(12);
-    expect(component.catalogProgress).toBe(100);
-    http.expectNone(req => req.params.get('offset') === '132');
+    expect(component.catalogLoading).toBeFalse();
+    for (let offset = 12; offset < 72; offset += 12) batch(offset);
+    expect(component.products.length).toBe(12);
+    expect((component as any).productBuffer.length).toBe(60);
+    expect(component.productCount).toBe(200);
+    http.expectNone(req => req.params.get('offset') === '72');
   }));
 
-  it('reveals buffered cards one by one while prefetching the following 12', fakeAsync(() => {
+  it('reveals 12 queued products on scroll and refills the 60-product queue', fakeAsync(() => {
     component.loadProducts();
-    batch(0, 4);
-    batch(4, 8); tick(450);
-    for (let offset = 12; offset < 120; offset += 12) { batch(offset, 12); tick(450); }
-    batch(120, 12);
+    batch(0);
+    for (let offset = 12; offset < 72; offset += 12) batch(offset);
     (component as any).nearCatalogEnd.and.returnValue(true);
     component.onCatalogScroll();
     tick(17);
     (component as any).nearCatalogEnd.and.returnValue(false);
-    expect(component.products.length).toBe(121);
-    batch(132, 12);
-    tick(150);
-    expect(component.products.length).toBe(132);
-    expect((component as any).productBuffer.length).toBe(12);
-    expect(new Set(component.products.map(product => product.id)).size).toBe(132);
+    expect(component.products.length).toBe(24);
+    batch(72);
+    expect((component as any).productBuffer.length).toBe(60);
+    expect(new Set(component.products.map(product => product.id)).size).toBe(24);
   }));
 
-  it('pauses batch revelation in other views and resumes on returning to the shop', fakeAsync(() => {
+  it('pauses queue filling in other views and resumes on returning to the shop', fakeAsync(() => {
     component.activeView = 'cart';
-    component.loadProducts(); batch(0, 4);
-    http.expectNone(req => req.params.get('offset') === '4');
-    component.setView('shop'); batch(4, 8);
-    component.setView('cart'); tick(500);
-    expect(component.products.length).toBe(5);
-    batch(12, 12, 48);
-    component.setView('shop'); tick(1000);
-    batch(24, 12, 48); tick(500);
-    batch(36, 12, 48); tick(500);
-    expect(component.products.length).toBe(48);
+    component.loadProducts(); batch(0);
+    http.expectNone(req => req.params.get('offset') === '12');
+    component.setView('shop');
+    const resumed = http.expectOne(req => req.params.get('offset') === '12' && !req.params.get('category'));
+    component.activeView = 'cart';
+    resumed.flush({ results: products(13, 12), count: 200, next: 'next' });
+    flushSidecars();
+    expect(component.products.length).toBe(12);
   }));
 
   it('keeps rendered products after a background failure and retries the same offset', fakeAsync(() => {
-    component.loadProducts(); batch(0, 4);
-    http.expectOne(req => req.params.get('offset') === '4').flush({}, { status: 503, statusText: 'Unavailable' });
-    expect(component.products.length).toBe(4);
+    component.loadProducts(); batch(0);
+    http.expectOne(req => req.params.get('offset') === '12').flush({}, { status: 503, statusText: 'Unavailable' });
+    expect(component.products.length).toBe(12);
     expect(component.catalogError).toBeTruthy();
-    component.loadMoreProducts(); batch(4, 8, 36); tick(450);
-    batch(12, 12, 36); tick(450);
-    batch(24, 12, 36); tick(450);
-    expect(component.products.length).toBe(36);
+    component.loadMoreProducts();
+    batch(12, 12, 36);
+    batch(24, 12, 36);
+    expect(component.products.length).toBe(12);
     expect(component.catalogError).toBe('');
+    expect((component as any).productBuffer.length).toBe(24);
     expect(component.hasMoreProducts).toBeFalse();
   }));
 
@@ -455,23 +686,133 @@ describe('Marketplace progressive loading', () => {
     expect(latest.request.params.get('category')).toBe('computer');
     expect(latest.request.params.get('ordering')).toBe('price');
     latest.flush({ results: products(80, 2), count: 2, next: null });
+    flushSidecars();
     expect(component.products.map(product => product.id)).toEqual([80, 81]);
   });
 
   it('stops on empty and final short batches', fakeAsync(() => {
-    component.loadProducts(); batch(0, 4, 5); batch(4, 8, 5); tick(50);
+    component.loadProducts(); batch(0, 12, 5);
     expect(component.products.length).toBe(5);
     expect(component.hasMoreProducts).toBeFalse();
-    component.loadProducts(); batch(0, 4, 0);
+    component.loadProducts(); batch(0, 12, 0);
     expect(component.products.length).toBe(0);
     expect(component.loadingMore).toBeFalse();
   }));
 
-  it('cancels background requests and reveal timers on destruction', fakeAsync(() => {
-    component.loadProducts(); batch(0, 4); batch(4, 8);
+  it('cancels background requests on destruction', fakeAsync(() => {
+    component.loadProducts(); batch(0);
     const pending = http.expectOne(req => req.params.get('offset') === '12');
     component.ngOnDestroy(); tick(1000);
     expect(pending.cancelled).toBeTrue();
-    expect(component.products.length).toBe(5);
+    expect(component.products.length).toBe(12);
+  }));
+
+  it('fills a 3-second first-paint progress bar without waiting for later batches', fakeAsync(() => {
+    (component as any).startCatalogPaintProgress();
+    expect(component.catalogPaintProgress).toBe(0);
+    tick(1500);
+    expect(component.catalogPaintProgress).toBeGreaterThan(40);
+    expect(component.catalogPaintProgress).toBeLessThan(100);
+    tick(1600);
+    expect(component.catalogPaintProgress).toBe(100);
+  }));
+
+  it('shows warmed category products immediately and prefetches children from the down arrow', () => {
+    (component as any).categoryWarm.set('clothing', products(1, 24));
+    component.categories = [
+      {id: 1, name: 'Clothing', slug: 'clothing', product_count: 4, hasChildren: true},
+      {id: 2, name: 'Tops', slug: 'tops', parent_id: 1, product_count: 2},
+    ];
+    component.chooseCategory('clothing');
+    expect(component.products.length).toBe(24);
+    expect(component.catalogLoading).toBeFalse();
+    http.expectOne(req => req.params.get('offset') === '0' && req.params.get('category') === 'clothing')
+      .flush({results: products(1, 12), count: 40, next: 'next'});
+    flushSidecars();
+    http.expectOne(req => req.params.get('offset') === '24' && req.params.get('category') === 'clothing')
+      .flush({results: products(25, 12), count: 40, next: 'next'});
+    http.match(req => req.url.endsWith('/products/') && req.params.get('category') === 'clothing')
+      .filter(req => !req.cancelled)
+      .forEach(req => req.flush({results: products(Number(req.request.params.get('offset') || 0) + 1, 12), count: 40, next: 'next'}));
+    const event = {preventDefault() {}, stopPropagation() {}} as any;
+    component.toggleCategoryBranch(event, component.categories[0] as any);
+    const child = http.expectOne(req => req.params.get('category') === 'tops');
+    expect(child.request.params.get('limit')).toBe('24');
+    child.flush({results: products(100, 24), next: 'next'});
+    flushSidecars();
+  });
+});
+
+describe('Marketplace last-used taxonomy cache', () => {
+  let component: EcommerceComingSoonComponent;
+  let http: HttpTestingController;
+  const tree = [
+    {id: 1, name: 'Clothing', slug: 'clothing', product_count: 4, parent_id: null as number | null},
+    {id: 2, name: 'Tops', slug: 'tops', parent_id: 1, product_count: 2},
+  ];
+  beforeEach(() => {
+    clearShopNavCache();
+    TestBed.configureTestingModule({ imports: [HttpClientTestingModule] });
+    http = TestBed.inject(HttpTestingController);
+    component = new EcommerceComingSoonComponent(TestBed.inject(HttpClient), { snapshot: { data: {} } } as any, { navigate: () => Promise.resolve(true) } as any, null as any, null as any, null as any);
+    spyOn<any>(component, 'nearCatalogEnd').and.returnValue(false);
+  });
+  afterEach(() => {
+    component.ngOnDestroy();
+    http.match(() => true).filter(req => !req.cancelled).forEach(req => {
+      req.flush(req.request.url.includes('price-range') ? {max_price: '0'} : []);
+    });
+    http.verify();
+    clearShopNavCache();
+  });
+
+  it('paints reserved categories immediately then patches counts from the network', () => {
+    localStorage.setItem('cheradip.ecommerce.taxonomy.v1', JSON.stringify({
+      savedAt: Date.now(), categories: tree, lastUsedSlugs: ['clothing'],
+    }));
+    component.loadCategories();
+    expect(component.categories.map(category => category.slug)).toEqual(['clothing', 'tops']);
+    expect(component.categoriesLoading).toBeFalse();
+    expect(component.expandedCategories.has(1)).toBeTrue();
+    http.expectOne(req => req.url.includes('/categories/')).flush([
+      {id: 1, name: 'Clothing', slug: 'clothing', product_count: 9, parent_id: null},
+      {id: 2, name: 'Tops', slug: 'tops', parent_id: 1, product_count: 5},
+    ]);
+    expect(component.categories[0].product_count).toBe(9);
+    expect(component.categories[1].product_count).toBe(5);
+  });
+
+  it('opens a cached category immediately and refreshes product links in the background', () => {
+    const cached = Array.from({length: 12}, (_, index) => ({id: index + 1, name: `Cached ${index + 1}`, image_url: '', slug: `cached-${index + 1}`}));
+    const listingKey = `cheradip.ecommerce.first-batch.v1:${new HttpParams().set('ordering', '-created_at').set('category', 'clothing').toString()}`;
+    localStorage.setItem('cheradip.ecommerce.last-listings.v1', JSON.stringify({
+      [listingKey]: { savedAt: Date.now(), products: cached, count: 40 },
+    }));
+    component.categories = tree as any;
+    component.chooseCategory('clothing');
+    expect(component.products.map(product => product.id)).toEqual(cached.map(product => product.id));
+    expect(component.catalogLoading).toBeFalse();
+    const refresh = http.expectOne(req => req.url.endsWith('/products/') && req.params.get('offset') === '0' && req.params.get('category') === 'clothing');
+    refresh.flush({
+      results: [{id: 1, name: 'Updated Shirt', image_url: '', slug: 'cached-1'}, ...cached.slice(1)],
+      count: 40, next: 'next',
+    });
+    expect(component.products[0].name).toBe('Updated Shirt');
+    http.match(req => req.url.endsWith('/products/'))
+      .filter(req => !req.cancelled)
+      .forEach(req => req.flush({results: [], count: 40, next: null}));
+  });
+
+  it('keeps cached categories when the background taxonomy refresh fails', fakeAsync(() => {
+    localStorage.setItem('cheradip.ecommerce.taxonomy.v1', JSON.stringify({
+      savedAt: Date.now(), categories: tree, lastUsedSlugs: ['tops'],
+    }));
+    component.loadCategories();
+    expect(component.visibleCategories.some(category => category.slug === 'clothing')).toBeTrue();
+    http.expectOne(req => req.url.includes('/categories/')).flush({}, {status: 500, statusText: 'Unavailable'});
+    expect(component.categories.map(category => category.slug)).toEqual(['clothing', 'tops']);
+    expect(component.categoriesLoadFailed).toBeFalse();
+    component.ngOnDestroy();
+    tick(180000);
   }));
 });

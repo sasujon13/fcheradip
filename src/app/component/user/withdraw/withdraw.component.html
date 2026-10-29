@@ -12,9 +12,11 @@
     <div class="wallet-grid" *ngIf="wallet">
       <article><span>Account Balance</span><strong>{{ wallet.coinBalance | number:'1.0-0' }}</strong><small>Coins</small></article>
       <article><span>Reference Balance</span><strong>৳{{ wallet.availableTaka | number:'1.2-2' }}</strong><small>Available to withdraw</small></article>
+      <article><span>Held / pending</span><strong>৳{{ wallet.pendingTaka | number:'1.2-2' }}</strong><small>Usable after order completion</small></article>
       <article><span>Lifetime Earned</span><strong>৳{{ wallet.lifetimeEarnedTaka | number:'1.2-2' }}</strong><small>Referral rewards</small></article>
       <article><span>Paid Out</span><strong>৳{{ wallet.lifetimeWithdrawnTaka | number:'1.2-2' }}</strong><small>Approved withdrawals</small></article>
     </div>
+    <p class="minimum-note" *ngIf="wallet?.pendingTaka > 0">Shop referral credits stay held until those orders are successfully completed. Held amounts cannot be spent or withdrawn.</p>
 
     <p class="loading" *ngIf="loading">Loading wallet…</p>
 
@@ -47,6 +49,7 @@
           {{ submitting ? 'Submitting…' : 'Submit withdrawal request' }}
         </button>
       </div>
+      <p class="minimum-note">Signup bonus and other main-wallet coins can buy anything on Cheradip, including shop products. Only referral (reference) earnings can be withdrawn.</p>
       <p class="minimum-note" *ngIf="wallet.availableTaka < 100">You need at least Tk 100 in reference earnings before requesting a withdrawal.</p>
     </form>
   </section>
