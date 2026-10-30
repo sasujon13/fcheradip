@@ -17,12 +17,12 @@ describe('marketplace business manager', () => {
       url.endsWith('/dashboard/') ? {products: 12, revenue: '50.00'} :
       url.includes('/sales-reports/') ? {view: 'suppliers', suppliers: [{id: 1, name: 'Alpha source', enabled: true}], rows: [{supplier_id: 1, supplier_name: 'Alpha source', sales: '1500.00', units: 3, profit: '900.00', margin_percent: '60.00', orders: 2, skus_sold: 1, repeat_skus: 1, reorder_rate: '100.00'}], totals: {sales: '1500.00', profit: '900.00', margin_percent: '60.00', top_product: 'Alpha shirt', aov: '750.00', units_per_order: '1.5', concentration_top10: '100.00', refunds: '0.00', unresolved_orders: 0}, series: [{period: '2026-10-01', sales: '1500.00', profit: '900.00'}], ranking: [{label: 'Alpha source', sales: '1500.00', profit: '900.00'}], extras: {repeat_winners: [], slow_movers: [], unsold_hosted: [], loss_makers: []}, basis: 'Product sales are paid line totals.'} :
       url.includes('/supplier-reports/') ? {suppliers: [{id: 1, name: 'Alpha source', enabled: true}], rows: [{supplier_id: 1, supplier_name: 'Alpha source', collected: 2, hosted: 1, unhosted: 1, blacklisted: 1}], totals: {suppliers: 1, collected: 2, hosted: 1, unhosted: 1, blacklisted: 1}, definitions: {}} :
-      url.includes('/ensure-prices/') ? {gold_ok: true, rows: [{site: 'resellkori', url: 'https://resellkori.com/p', label: 'Reseller Price', expected: '692.00', extracted: '692.00', collected: null, ok: true}]} :
+      url.includes('/ensure-prices/') ? {status: 'completed', rows: [{site: 'resellkori', url: 'https://resellkori.com/p', label: 'Reseller Price', expected: '692.00', extracted: '692.00', collected: null, ok: true}]} :
       url.includes('/catalog-sync/') ? {status: 'completed', records: 0, created: 0, updated: 0, unchanged: 0, conflicts: 0, photos: 0, note: 'Catalogue only'} :
       url.includes('/upload-build/') ? {status: 'completed', percent: 100, activity: 'Live site uploaded and built', note: 'Creates missing tables only'} :
       {results: [], count: 0, next: null})),
       post: jasmine.createSpy('post').and.callFake((url: string) => of(
-        url.includes('/ensure-prices/') ? {gold_ok: true, rows: [{site: 'resellkori', url: 'https://resellkori.com/p', label: 'Reseller Price', expected: '692.00', extracted: '692.00', collected: null, ok: true}], live: {ok: true, rows: []}, note: ''} :
+        url.includes('/ensure-prices/') ? {status: 'completed', rows: [{site: 'resellkori', url: 'https://resellkori.com/p', label: 'Reseller Price', expected: '692.00', extracted: '692.00', collected: null, ok: true}], live: {ok: true, rows: []}, note: ''} :
         url.includes('/catalog-sync/') ? {status: 'completed', records: 2, created: 1, updated: 1, unchanged: 0, conflicts: 0, photos: 0, ran: true, note: 'Catalogue only'} :
         url.includes('/upload-build/') ? {status: 'completed', percent: 100, activity: 'Live site uploaded and built', ran: true, note: 'Creates missing tables only'} : {})),
       patch: jasmine.createSpy('patch').and.returnValue(of({})),
@@ -103,10 +103,10 @@ describe('marketplace business manager', () => {
     fixture.detectChanges();
     expect(service.http.post).toHaveBeenCalled();
     const call = service.http.post.calls.all().find((item: any) => String(item.args[0]).includes('/ensure-prices/'));
-    expect(call.args[1]).toEqual({live: true});
-    expect(fixture.nativeElement.textContent).toContain('Gold HTML');
+    expect(call.args[1]).toEqual({});
+    expect(fixture.nativeElement.textContent).not.toContain('Gold HTML');
     expect(fixture.nativeElement.querySelector('[data-ensure-prices]').getAttribute('title')).toContain('No supplier orders');
-    expect(fixture.nativeElement.querySelector('[data-ensure-gold]').getAttribute('title')).toContain('saved HTML');
+    expect(fixture.nativeElement.querySelector('[data-ensure-gold]')).toBeNull();
     await component.selectReportView('sync');
     fixture.detectChanges();
     await component.syncCatalog();

@@ -89,8 +89,8 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
   uploadBuild: any = null;
   uploadBuilding = false;
   uploadProgress: {percent?: number; activity?: string; status?: string} | null = null;
-  readonly ensureLiveNote = 'Signs in with saved supplier credentials and re-reads the eight product URLs. Confirms gold HTML extractors, then live buying prices. No supplier orders.';
-  readonly ensureGoldNote = 'Checks only the saved HTML snippets (no live login). Use this to confirm extractors still match Reseller Price, প্রাইস, Base, Wholesale, and the other labelled buying prices.';
+  readonly ensureLiveNote = 'Signs in with saved supplier credentials and reads the current buying-price widget on eight product URLs. Compares current prices with collected records; historical prices may change. No supplier orders.';
+  private pricePolling = false;
   readonly syncCatalogNote = 'Runs one two-way catalogue sync between this shop and the live shop. Categories, products, photos and source records only — not orders, customers, or passwords. The report stays until you run Sync Catalog again.';
   readonly uploadBuildNote = 'Uploads this computer\'s source to the live server and builds there: frontend, Django, AILT, nginx, smoke checks. Creates missing tables only. Does not copy customers, orders, passwords, or shop catalogue rows — use Sync Catalog for products.';
   salesFrom = CommerceManageComponent.dhakaDate(-89);
@@ -237,8 +237,11 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
           const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/dashboard/`));
           if (version === this.generation && !this.destroyed) this.stats = value;
         }
-      } else if (this.section.key === 'reports' && this.reportView !== 'prices' && this.reportView !== 'sync' && this.reportView !== 'upload') {
-        await this.loadReports(version);
+      } else if (this.section.key === 'reports') {
+        if (this.reportView === 'prices') await this.loadPriceReport();
+        else if (this.reportView === 'sync') await this.loadCatalogSyncReport();
+        else if (this.reportView === 'upload') await this.loadUploadBuildReport();
+        else await this.loadReports(version);
       } else if (this.can(this.section.model, 'view') && !['books','suppliers','pricing'].includes(this.section.key)) {
         const data = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/${this.section.endpoint}/`, {
           params: {limit: this.pageSize, offset: this.offset, search: this.search, ...(this.filter ? {status: this.filter} : {})},
@@ -288,7 +291,7 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     if (!this.can('supplier', 'view')) return;
     try {
       const value = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/ensure-prices/`));
-      if (value?.rows?.length) this.priceCheck = value;
+      if (value?.status) { this.priceCheck = value; if (['queued','running'].includes(value.status)) void this.pollPriceCheck(); }
     } catch { /* Keep the on-screen report until the next successful run. */ }
   }
 
@@ -348,14 +351,28 @@ export class CommerceManageComponent implements OnInit, OnDestroy {
     finally { this.busy = false; this.uploadBuilding = false; }
   }
 
-  async ensurePrices(live = true) {
+  async ensurePrices(_live = true) {
     if (!this.can('supplier', 'view')) return;
     this.busy = true; this.error = '';
     try {
-      this.priceCheck = await firstValueFrom(
-        this.service.http.post<any>(`${this.service.url}/ensure-prices/`, {live}).pipe(timeout(180000)));
+      this.priceCheck = await firstValueFrom(this.service.http.post<any>(`${this.service.url}/ensure-prices/`, {}));
+      await this.pollPriceCheck();
     } catch (err) { this.showError(err); }
-    finally { this.busy = false; }
+    finally { if (!this.pricePolling) this.busy = false; }
+  }
+
+  private async pollPriceCheck() {
+    if (this.pricePolling) return;
+    this.pricePolling = true; this.busy = true;
+    try {
+      while (!this.destroyed && ['queued', 'running'].includes(this.priceCheck?.status)) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (this.destroyed) break;
+        this.priceCheck = await firstValueFrom(this.service.http.get<any>(`${this.service.url}/ensure-prices/`));
+        this.changeDetector?.markForCheck();
+      }
+    } catch (err) { this.showError(err); }
+    finally { this.pricePolling = false; this.busy = false; }
   }
 
   async syncCatalog() {

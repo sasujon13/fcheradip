@@ -65,7 +65,7 @@
         <nav class="report-subnav" aria-label="Report views">
           <button *ngIf="can('supplier','view')" type="button" class="button" [class.button-light]="reportView !== 'catalogue'" [attr.aria-current]="reportView === 'catalogue' ? 'page' : null" (click)="selectReportView('catalogue')">Catalogue</button>
           <button *ngIf="can('order','view')" type="button" class="button" data-report-view="sales" [class.button-light]="reportView !== 'sales'" [attr.aria-current]="reportView === 'sales' ? 'page' : null" (click)="selectReportView('sales')">Sales</button>
-          <button *ngIf="can('supplier','view')" type="button" class="button" data-report-view="prices" [class.button-light]="reportView !== 'prices'" [attr.aria-current]="reportView === 'prices' ? 'page' : null" (click)="selectReportView('prices')" title="Check labelled buying prices on eight supplier product pages. Gold HTML confirms extractors; live URLs sign in and re-read those pages. No supplier orders.">Ensure Price</button>
+          <button *ngIf="can('supplier','view')" type="button" class="button" data-report-view="prices" [class.button-light]="reportView !== 'prices'" [attr.aria-current]="reportView === 'prices' ? 'page' : null" (click)="selectReportView('prices')" title="Check labelled buying prices on eight supplier product pages. Current visible prices are compared with stored source records. No supplier orders.">Ensure Price</button>
           <button *ngIf="can('supplier','view')" type="button" class="button" data-report-view="sync" [class.button-light]="reportView !== 'sync'" [attr.aria-current]="reportView === 'sync' ? 'page' : null" (click)="selectReportView('sync')" [title]="syncCatalogNote">Sync Catalog</button>
           <button *ngIf="can('supplier','view')" type="button" class="button" data-report-view="upload" [class.button-light]="reportView !== 'upload'" [attr.aria-current]="reportView === 'upload' ? 'page' : null" (click)="selectReportView('upload')" [title]="uploadBuildNote">Upload &amp; Build</button>
         </nav>
@@ -265,41 +265,22 @@
         </ng-container>
 
         <ng-container *ngIf="reportView === 'prices'">
-          <p class="report-notes">Two checks: gold HTML extractors, and optional live product URLs. Hover each button for the exact task. The last report stays until you run Ensure Price again.</p>
           <div class="report-span" role="group" aria-label="Ensure buying prices">
-            <button type="button" class="button" data-ensure-prices (click)="ensurePrices(true)" [disabled]="busy" [title]="ensureLiveNote">Check gold HTML and live URLs</button>
-            <button type="button" class="button button-light" data-ensure-gold (click)="ensurePrices(false)" [disabled]="busy" [title]="ensureGoldNote">Gold HTML only</button>
+            <button type="button" class="button" data-ensure-prices (click)="ensurePrices()" [disabled]="busy" [title]="ensureLiveNote">Ensure Price</button>
           </div>
-          <p class="report-notes" *ngIf="busy">Running price check… the report will stay on this page when it finishes.</p>
           <ng-container *ngIf="priceCheck as check">
-            <div class="metrics">
-              <article><i class="fa fa-check" aria-hidden="true"></i><span>Gold HTML</span><strong>{{ check.gold_ok ? 'Pass' : 'Fail' }}</strong></article>
-              <article *ngIf="check.live"><i class="fa fa-sign-in" aria-hidden="true"></i><span>Live URLs</span><strong>{{ check.live.ok ? 'Pass' : 'Fail' }}</strong></article>
-            </div>
+            <p role="status">{{ check.activity || check.status }} <span *ngIf="check.total">· {{ check.processed || 0 }}/{{ check.total }}</span></p>
+            <progress *ngIf="check.status === 'running' || check.status === 'queued'" [value]="check.processed || 0" [max]="check.total || 8" aria-label="Supplier price verification"></progress>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Supplier</th><th>Expected</th><th>Gold extract</th><th>Collected</th><th>Result</th></tr></thead>
+                <thead><tr><th>Supplier / product</th><th>Buying-price label</th><th>Current page</th><th>Collected</th><th>Result</th></tr></thead>
                 <tbody>
                   <tr *ngFor="let row of check.rows">
-                    <td>{{ row.site }}<div class="muted"><a [href]="row.url" target="_blank" rel="noopener">{{ row.url }}</a></div></td>
-                    <td>৳{{ row.expected }} · {{ row.label }}</td>
-                    <td>{{ row.extracted || '—' }}</td>
-                    <td>{{ row.collected || '—' }}</td>
-                    <td>{{ row.ok ? 'Pass' : 'Fail' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="table-wrap" *ngIf="check.live?.rows?.length">
-              <table>
-                <thead><tr><th>Supplier</th><th>Expected</th><th>Live</th><th>Source</th><th>Result</th></tr></thead>
-                <tbody>
-                  <tr *ngFor="let row of check.live.rows">
-                    <td>{{ row.site }}</td>
-                    <td>৳{{ row.expected }}</td>
-                    <td>{{ row.live || row.error || '—' }}</td>
-                    <td>{{ row.source }}</td>
-                    <td>{{ row.ok ? 'Pass' : 'Fail' }}</td>
+                    <td><a [href]="row.url" target="_blank" rel="noopener">{{ row.site }}</a></td>
+                    <td>{{ row.label }}<details *ngIf="row.evidence"><summary>Extraction evidence</summary><code>{{ row.evidence.selector }}</code><pre>{{ row.evidence.html }}</pre><small>{{ row.evidence.checked_at | date:'medium' }}</small></details></td>
+                    <td>{{ row.live != null ? '৳' + row.live : '—' }}</td>
+                    <td>{{ row.collected != null ? '৳' + row.collected : 'Not collected' }}</td>
+                    <td>{{ row.ok ? 'Matches' : row.extraction_ok ? 'Stored price differs / missing' : 'Needs attention' }}<div class="muted" *ngIf="row.error">{{ row.error }}</div></td>
                   </tr>
                 </tbody>
               </table>
